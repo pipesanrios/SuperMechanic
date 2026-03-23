@@ -39,7 +39,7 @@
 
 ## Fase actual en desarrollo
 
-- Fase operativa actual: cierre operativo posterior a Fase 20B.
+- Fase operativa actual: Fase 25. automatizacion del checklist en scripts / CI.
 - Bloques funcionales pendientes mas claros:
   - auditoria avanzada
   - firma digital
@@ -75,7 +75,7 @@
 - WooCommerce integration: scaffold tecnico, sin flujo funcional integrado.
 - Process Logs: trazabilidad base presente, auditoria avanzada pendiente.
 - Documents / PDF: `Document_Service` ya orquesta resolucion, acceso y payload de descarga para invoices, quotes y attachments; `PDF_Service` queda especializado en PDF y `Download_Service` en streaming seguro.
-- Placeholders raiz: `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` existen como piezas no activas / legacy de compatibilidad.
+- Placeholders raiz: `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` existen como piezas no activas / legacy de compatibilidad.
 
 ## Modulos legacy o no activos en bootstrap
 
@@ -318,6 +318,29 @@
 - los placeholders raiz pueden inducir a error si se documentan como arquitectura operativa.
 - `Document_Service`, `Download_Service` y algunos entry points cliente siguen requiriendo vigilancia continua para asegurar que toda descarga protegida termine usando la politica central sin checks divergentes.
 - la exposicion visual del nuevo `payment_receipt` todavia no tiene entry points UI dedicados en admin ni shortcodes cliente
+- la Fase 24 moderniza la capa visual con assets propios y mejora progresiva de dashboards, reportes y shortcodes cliente, sin tocar logica de negocio ni schema
+- la Fase 24B extiende esa misma capa visual al resto de paneles admin principales sin tocar logica de negocio, schema ni wiring del plugin
+- la Fase 25 agrega automatizacion tecnica minima local en `scripts/`, pero todavia no reemplaza pruebas funcionales ni CI externo
+- la Fase 26 agrega un panel admin de catálogo de shortcodes activos, con copia al portapapeles y documentación de uso sin alterar la lógica existente
+
+## Actualizacion Fase 26. Panel / catalogo de shortcodes
+
+- Estado: completada como capa admin informativa sobre shortcodes ya activos en el runtime real.
+- Componentes reales ampliados:
+  - `includes/class-shortcode-admin-controller.php`
+  - `includes/class-plugin.php`
+  - `includes/class-admin-menu.php`
+  - `assets/js/admin.js`
+  - `assets/css/admin.css`
+- Capacidades reales implementadas:
+  - nueva página `Super Mechanic -> Shortcodes`
+  - catálogo de shortcodes agrupado por contexto `cliente`, `mecánico` y `general`
+  - inventario real filtrado contra shortcodes activos registrados en el bootstrap
+  - ficha por shortcode con descripción, parámetros, ejemplo y contexto recomendado
+  - acción de copia al portapapeles con feedback visual simple
+  - reutilización completa de la shell admin `sm-*` ya existente
+- Cambios de schema:
+  - ninguno
 
 ## Pendientes inmediatos
 
@@ -327,6 +350,24 @@
 - Revisar si conviene consolidar la salida documental segura en mas entry points cliente/admin sin duplicar links publicos.
 - Evitar introducir nuevos modulos en `includes/modules/*` sin una decision de consolidacion.
 - Validar cualquier avance futuro contra bootstrap y schema reales antes de marcarlo como implementado.
+- decidir en una fase futura si esta base local se expone tambien via CI/CD real
+
+## Actualizacion Fase 25. Automatizacion del checklist en scripts / CI
+
+- Estado: implementada como base minima de automatizacion tecnica local.
+- Componentes reales creados:
+  - `scripts/common.php`
+  - `scripts/php-lint.php`
+  - `scripts/structure-check.php`
+  - `scripts/technical-checklist.php`
+- Capacidades reales implementadas:
+  - lint PHP por archivo, lista o plugin completo
+  - chequeo estructural de archivos base obligatorios
+  - deteccion basica de referencias prohibidas a `includes/modules/*` desde PHP activo
+  - checklist tecnico local con validacion documental base y verificacion simple de cambios en schema cuando git esta disponible
+  - ejecucion local por terminal preparada para futura integracion CI/CD
+- Cambios de schema:
+  - ninguno
 
 ## Actualizacion Fase 12A. Reportes base operativos
 
@@ -451,5 +492,68 @@
   - top clientes por facturación
   - top clientes por cobro
   - filtros ampliados con `derived_status`, `currency` y `payment_method`
+- Cambios de schema:
+  - ninguno
+## Actualizacion Fase 23. Portal cliente premium con acciones reales
+
+- Estado: implementada como ampliacion integrada del portal cliente sobre la arquitectura activa.
+- Componentes reales ampliados:
+  - `includes/dashboard/class-client-dashboard-controller.php`
+  - `includes/quotes/class-client-quote-shortcodes.php`
+  - `includes/invoices/class-client-invoice-shortcodes.php`
+- Capacidades reales implementadas:
+  - vista integrada de detalle de proceso desde el dashboard cliente
+  - resumen del proceso con estado derivado y estado financiero agregado
+  - accesos rapidos a documentos, cotizaciones y facturas desde listados de proceso
+  - comentarios reales del cliente sobre el proceso usando `Comment_Service`
+  - exposicion explicita de `payment_receipt` en el detalle cliente de facturas y en el detalle integrado del proceso
+- mantenimiento del flujo seguro de descarga mediante `Document_Service` y `Download_Service`
+- Cambios de schema:
+  - ninguno
+
+## Actualizacion Fase 24. Modernizacion visual integral UI/UX
+
+- Estado: completada como modernizacion progresiva de la presentacion sobre la arquitectura activa existente.
+- Componentes reales ampliados:
+  - `includes/class-assets.php`
+  - `includes/class-plugin.php`
+  - `includes/dashboard/class-admin-dashboard-controller.php`
+  - `includes/dashboard/class-client-dashboard-controller.php`
+  - `includes/dashboard/class-mechanic-dashboard-controller.php`
+  - `includes/reports/class-report-admin-controller.php`
+  - `includes/quotes/class-client-quote-shortcodes.php`
+  - `includes/invoices/class-client-invoice-shortcodes.php`
+  - `assets/css/admin.css`
+  - `assets/css/client.css`
+  - `assets/css/mechanic.css`
+- Capacidades reales implementadas:
+  - wiring real de assets UI para admin y frontend desde una capa central
+  - sistema visual reusable base para cards, badges, botones, tablas y layouts
+  - mejora progresiva del dashboard admin y de reportes sin alterar datasets ni filtros
+  - mejora progresiva del portal cliente y del portal mecanico sin alterar formularios, nonces ni descargas
+  - mejora visual de shortcodes cliente de quotes e invoices, incluyendo accesos documentales y acciones existentes
+- Cambios de schema:
+  - ninguno
+
+## Actualizacion Fase 24B. Cobertura visual restante de paneles admin
+
+- Estado: completada como extension visual de la Fase 24 sobre pantallas admin pendientes.
+- Componentes reales ampliados:
+  - `includes/clients/class-client-admin-controller.php`
+  - `includes/clients/class-client-list-table.php`
+  - `includes/vehicles/class-vehicle-admin-controller.php`
+  - `includes/vehicles/class-vehicle-list-table.php`
+  - `includes/processes/class-process-admin-controller.php`
+  - `includes/processes/class-process-list-table.php`
+  - `includes/flows/class-flow-admin-controller.php`
+  - `includes/flows/class-flow-list-table.php`
+  - `includes/class-settings.php`
+  - `assets/css/admin.css`
+- Capacidades reales implementadas:
+  - clientes y vehiculos reutilizan shell visual admin, tarjetas, tablas y acciones modernas
+  - procesos moderniza encabezado, filtros, tabla, formulario general, tabs y panel de communication sin alterar handlers
+  - flujos moderniza listado, formulario de flow, vista de pasos y formulario de step con la misma capa reusable
+  - ajustes reutiliza la shell visual admin sobre la Settings API existente sin crear una segunda implementacion
+  - badges, tablas, formularios y notices se alinean con el lenguaje visual aprobado de dashboard, reportes y panel mecanico
 - Cambios de schema:
   - ninguno

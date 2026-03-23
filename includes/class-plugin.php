@@ -53,6 +53,7 @@ defined( 'ABSPATH' ) || exit;
  * Core plugin class.
  */
 class Plugin {
+	protected $assets;
 	protected $settings;
 	protected $settings_service;
 	protected $admin_menu;
@@ -92,8 +93,10 @@ class Plugin {
 	protected $process_service;
 	protected $report_service;
 	protected $report_admin_controller;
+	protected $shortcode_admin_controller;
 
 	public function __construct() {
+		$this->assets                        = new Assets();
 		$this->settings                      = new Settings();
 		$this->settings_service              = new Settings_Service();
 		$this->client_admin_controller       = new Client_Admin_Controller();
@@ -107,6 +110,7 @@ class Plugin {
 		$this->pdf_service                   = new PDF_Service( $this->invoice_service, $this->quote_service );
 		$this->dashboard_service             = new Dashboard_Service( null, null, $this->process_service );
 		$this->report_service                = new Report_Service( null, $this->process_service );
+		$this->shortcode_admin_controller    = new Shortcode_Admin_Controller();
 		$this->attachment_service            = new Attachment_Service( null, $this->process_service, $this->dashboard_service, $this->quote_service, $this->invoice_service );
 		$this->document_service              = new Document_Service( $this->pdf_service, $this->attachment_service, $this->invoice_service, $this->quote_service );
 		$this->download_service              = new Download_Service( $this->document_service );
@@ -150,7 +154,8 @@ class Plugin {
 			$this->flow_admin_controller,
 			$this->admin_dashboard_controller,
 			$this->mechanic_dashboard_controller,
-			$this->report_admin_controller
+			$this->report_admin_controller,
+			$this->shortcode_admin_controller
 		);
 	}
 
@@ -160,6 +165,7 @@ class Plugin {
 	}
 
 	public function register_hooks() {
+		$this->assets->register_hooks();
 		$this->event_dispatcher->register_hooks();
 		$this->download_service->register_hooks();
 

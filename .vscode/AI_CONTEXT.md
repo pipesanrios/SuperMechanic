@@ -167,6 +167,39 @@ notifications
 timeline de pasos
 
 ==================================================
+SHORTCODES ACTIVOS
+==================================================
+
+Actualmente solo existen shortcodes de cliente:
+
+- sm_client_dashboard
+- sm_client_vehicles
+- sm_client_processes
+- sm_client_process_documents
+- sm_client_process_timeline
+- sm_client_quotes
+- sm_client_quote_detail
+- sm_client_quote_action
+- sm_client_invoices
+- sm_client_invoice_detail
+- sm_client_process_comments
+- sm_client_process_comment_form
+- sm_client_notifications
+
+No existen aún shortcodes para:
+
+- portal mecánico
+- contexto público/general
+
+La fuente de verdad son las clases:
+
+- includes/dashboard/class-client-dashboard-shortcodes.php
+- includes/attachments/class-client-attachment-shortcodes.php
+- includes/quotes/class-client-quote-shortcodes.php
+- includes/invoices/class-client-invoice-shortcodes.php
+- includes/communication/class-client-comment-shortcodes.php
+
+==================================================
 REGLAS CRÍTICAS
 ==================================================
 
@@ -202,6 +235,28 @@ attachments
 PDF
 
 ==================================================
+SCRIPTS DE VALIDACIÓN TÉCNICA
+==================================================
+
+Ubicación:
+
+scripts/
+
+Incluye:
+
+- php-lint.php
+- structure-check.php
+- technical-checklist.php
+
+Propósito:
+
+- validar sintaxis PHP
+- validar estructura del plugin
+- ejecutar checklist técnico antes del cierre de fase
+
+Estos scripts son base local para futura integración CI/CD.
+
+==================================================
 ESTADO OPERATIVO ACTUAL
 ==================================================
 
@@ -222,15 +277,25 @@ Fases ya consolidadas en código:
 - 18: portal mecánico real
 - 19: workflow operativo configurable avanzado
 - 20: automatización documental y estados derivados seguros
+- 21: configuración avanzada por taller / negocio
 - 22: reportes operativos y financieros avanzados
+- 23: portal cliente premium con acciones reales
+- 24: modernización visual integral UI/UX
+- 24B: cobertura visual restante de paneles admin
+- 25: automatización del checklist en scripts / CI como base local reusable para validación técnica
+- 26: panel / catálogo de shortcodes (admin UI informativa sobre shortcodes activos)
 
 Deuda técnica viva:
 
 - `includes/modules/*` sigue como legacy y no debe entrar en nueva implementación
-- `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen como placeholders/no activos
+- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen como placeholders/no activos
 - `Client_Vehicle_Service::transfer_vehicle()` y `Flow_Service::delete_flow()` / `Flow_Step_Service::reorder_steps()` todavía no tienen una frontera transaccional dedicada
 - `Report_Service` sigue siendo grande y debe vigilarse si el módulo crece
-- la exposición UI explícita del `payment_receipt` sigue pendiente si en una fase futura se quiere mostrar con botones dedicados
+- la exposición UI avanzada del `payment_receipt` (botones dedicados y visibilidad extendida) puede ampliarse en futuras fases
+- Fase 23 amplía el portal cliente con detalle integrado de proceso, comentarios reales del cliente y exposición segura de `payment_receipt`
+- Fase 24 agrega una capa real de assets y moderniza dashboards, reportes y shortcodes cliente sin tocar lógica de negocio ni schema
+- Fase 24B extiende esa misma capa visual a clientes, vehículos, procesos, flujos y ajustes dentro del admin
+- Fase 25 agrega `scripts/php-lint.php`, `scripts/structure-check.php` y `scripts/technical-checklist.php` como base portable para validación local previa al cierre
 
 ==================================================
 DOCUMENTACIÓN COMPLETA

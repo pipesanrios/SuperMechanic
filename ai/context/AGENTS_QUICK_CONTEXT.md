@@ -241,16 +241,30 @@ Fases cerradas relevantes:
 18
 19
 20
+21
+22
+23
+24
+24B
+25
+26
 
 Notas operativas:
 
 - `reports` ya es módulo activo real en `includes/reports/`
 - el portal cliente está activo con dashboard, quotes, invoices, attachments, comments, notifications y timeline
+- el portal cliente ya expone detalle integrado de proceso, comentarios reales del cliente y comprobantes `payment_receipt` por descarga segura
 - `Download_Service` y `Document_Service` siguen siendo el flujo obligatorio para descargas protegidas
 - `Access_Control_Service` es la política central de ownership y visibilidad
 - el portal mecánico ya es operativo dentro del admin actual
 - `Process_Derived_State_Service` ya existe como capa reusable para estados derivados
 - `payment_receipt` ya existe como documento lógico reusable por `payment_id`
 - `reports` ya expone métricas avanzadas operativas y financieras reutilizables
-- `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos
+- `Assets` ya forma parte del wiring real para la capa visual del plugin
+- dashboards, reportes y shortcodes cliente principales ya comparten una modernización visual base
+- clientes, vehículos, procesos, flujos y ajustes admin ya reutilizan la capa visual admin principal tras 24B
+- la Fase 25 agrega una base local reusable en `scripts/` para lint, chequeo estructural y checklist técnico
+- la Fase 26 agrega un panel admin `Shortcodes` para visualizar y copiar los shortcodes activos del runtime real
+- hoy los shortcodes activos siguen siendo solo de cliente; no hay shortcodes activos de mecánico o contexto general
+- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos
 - `includes/modules/*` sigue siendo legacy de referencia, no arquitectura activa

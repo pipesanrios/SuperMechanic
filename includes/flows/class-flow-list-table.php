@@ -138,7 +138,10 @@ class Flow_List_Table extends \WP_List_Table {
 			'steps' => '<a href="' . esc_url( $steps_url ) . '">' . esc_html__( 'Gestionar pasos', 'super-mechanic' ) . '</a>',
 		);
 
-		return esc_html( (string) $item['name'] ) . $this->row_actions( $actions );
+		$output  = '<strong>' . esc_html( (string) $item['name'] ) . '</strong>';
+		$output .= '<div class="sm-list-meta">#' . esc_html( (string) $item['id'] ) . '</div>';
+
+		return $output . $this->row_actions( $actions );
 	}
 
 	/**
@@ -148,7 +151,10 @@ class Flow_List_Table extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_is_active( $item ) {
-		return esc_html( ! empty( $item['is_active'] ) ? __( 'Activo', 'super-mechanic' ) : __( 'Inactivo', 'super-mechanic' ) );
+		$tone  = ! empty( $item['is_active'] ) ? 'success' : 'neutral';
+		$label = ! empty( $item['is_active'] ) ? __( 'Activo', 'super-mechanic' ) : __( 'Inactivo', 'super-mechanic' );
+
+		return '<span class="sm-badge sm-badge-' . esc_attr( $tone ) . '">' . esc_html( $label ) . '</span>';
 	}
 
 	/**

@@ -152,7 +152,14 @@ class Vehicle_List_Table extends \WP_List_Table {
 			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
 		);
 
-		return esc_html( (string) $item['brand'] ) . $this->row_actions( $actions );
+		$model  = isset( $item['model'] ) ? trim( (string) $item['model'] ) : '';
+		$plate  = isset( $item['plate'] ) ? trim( (string) $item['plate'] ) : '';
+		$detail = '' !== $plate ? $plate : ( isset( $item['vin'] ) ? trim( (string) $item['vin'] ) : '' );
+
+		$output  = '<strong>' . esc_html( (string) $item['brand'] ) . '</strong>';
+		$output .= '<div class="sm-list-meta">' . esc_html( trim( $model . ( '' !== $detail ? ' · ' . $detail : '' ) ) ) . '</div>';
+
+		return $output . $this->row_actions( $actions );
 	}
 
 	/**

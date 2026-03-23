@@ -136,7 +136,45 @@ class Process_List_Table extends \WP_List_Table {
 			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
 		);
 
-		return esc_html( (string) $item['title'] ) . $this->row_actions( $actions );
+		$output  = '<strong>' . esc_html( (string) $item['title'] ) . '</strong>';
+		$output .= '<div class="sm-list-meta">#' . esc_html( (string) $item['id'] ) . '</div>';
+
+		return $output . $this->row_actions( $actions );
+	}
+
+	/**
+	 * Render process type column.
+	 *
+	 * @param array<string, mixed> $item Row item.
+	 * @return string
+	 */
+	protected function column_process_type( $item ) {
+		$value = isset( $item['process_type'] ) ? (string) $item['process_type'] : '';
+
+		return $this->render_badge( ucwords( str_replace( '_', ' ', $value ) ), 'primary' );
+	}
+
+	/**
+	 * Render status column.
+	 *
+	 * @param array<string, mixed> $item Row item.
+	 * @return string
+	 */
+	protected function column_status( $item ) {
+		$status = isset( $item['status'] ) ? (string) $item['status'] : '';
+		$tone   = 'neutral';
+
+		if ( in_array( $status, array( 'completed', 'paid', 'approved' ), true ) ) {
+			$tone = 'success';
+		} elseif ( in_array( $status, array( 'in_progress', 'active', 'open', 'issued' ), true ) ) {
+			$tone = 'primary';
+		} elseif ( in_array( $status, array( 'pending', 'draft', 'sent' ), true ) ) {
+			$tone = 'warning';
+		} elseif ( in_array( $status, array( 'cancelled', 'rejected', 'overdue', 'archived' ), true ) ) {
+			$tone = 'danger';
+		}
+
+		return $this->render_badge( ucwords( str_replace( '_', ' ', $status ) ), $tone );
 	}
 
 	/**
@@ -180,6 +218,17 @@ class Process_List_Table extends \WP_List_Table {
 		$value = isset( $item[ $column_name ] ) ? $item[ $column_name ] : '';
 
 		return esc_html( (string) $value );
+	}
+
+	/**
+	 * Render shared badge markup.
+	 *
+	 * @param string $label Badge label.
+	 * @param string $tone  Badge tone.
+	 * @return string
+	 */
+	protected function render_badge( $label, $tone ) {
+		return '<span class="sm-badge sm-badge-' . esc_attr( $tone ) . '">' . esc_html( $label ) . '</span>';
 	}
 
 	/**

@@ -142,16 +142,26 @@ class Vehicle_Admin_Controller {
 		$list_table = new Vehicle_List_Table( $this->service );
 		$list_table->prepare_items();
 
-		echo '<div class="wrap">';
-		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Vehículos', 'super-mechanic' ) . '</h1>';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
-		echo '<hr class="wp-header-end" />';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
+		echo '<h1>' . esc_html__( 'Vehículos', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Consulta, crea y organiza los vehículos asociados al taller con la misma capa visual del panel moderno.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-filter-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-vehicles" />';
 		wp_nonce_field( 'sm_bulk_delete_vehicles', 'sm_bulk_delete_nonce' );
 		$list_table->search_box( __( 'Buscar vehículos', 'super-mechanic' ), 'sm-vehicles' );
+		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -185,8 +195,17 @@ class Vehicle_Admin_Controller {
 		$title   = $is_edit ? __( 'Editar vehículo', 'super-mechanic' ) : __( 'Nuevo vehículo', 'super-mechanic' );
 		$clients = $this->service->get_client_options();
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Mantén la ficha del vehículo organizada sin alterar relaciones, nonces ni acciones existentes.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card">';
 		echo '<form method="post" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit', 'id' => absint( $vehicle['id'] ) ) : array( 'action' => 'new' ) ) ) . '">';
 		wp_nonce_field( 'sm_save_vehicle', 'sm_vehicle_nonce' );
 		echo '<input type="hidden" name="sm_vehicle_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
@@ -201,8 +220,11 @@ class Vehicle_Admin_Controller {
 		$this->render_text_field( 'color', __( 'Color', 'super-mechanic' ), $vehicle['color'] );
 		$this->render_textarea_field( 'notes', __( 'Notas', 'super-mechanic' ), $vehicle['notes'] );
 		echo '</table>';
-		submit_button( $is_edit ? __( 'Actualizar vehículo', 'super-mechanic' ) : __( 'Crear vehículo', 'super-mechanic' ) );
+		echo '<div class="sm-form-actions">';
+		submit_button( $is_edit ? __( 'Actualizar vehículo', 'super-mechanic' ) : __( 'Crear vehículo', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -333,7 +355,7 @@ class Vehicle_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_notice( $message, $type ) {
-		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible sm-notice-card"><p>' . esc_html( $message ) . '</p></div>';
 	}
 
 	/**

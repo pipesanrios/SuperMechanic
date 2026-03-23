@@ -145,7 +145,23 @@ class Client_List_Table extends \WP_List_Table {
 			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
 		);
 
-		return esc_html( (string) $item['first_name'] ) . $this->row_actions( $actions );
+		$email = isset( $item['email'] ) ? trim( (string) $item['email'] ) : '';
+		$name  = trim(
+			sprintf(
+				'%s %s',
+				isset( $item['first_name'] ) ? (string) $item['first_name'] : '',
+				isset( $item['last_name'] ) ? (string) $item['last_name'] : ''
+			)
+		);
+
+		if ( '' === $name ) {
+			$name = (string) $item['first_name'];
+		}
+
+		$output  = '<strong>' . esc_html( $name ) . '</strong>';
+		$output .= '<div class="sm-list-meta">' . esc_html( '' !== $email ? $email : __( 'Sin correo registrado', 'super-mechanic' ) ) . '</div>';
+
+		return $output . $this->row_actions( $actions );
 	}
 
 	/**

@@ -269,7 +269,7 @@ Pendientes posteriores a ese estado:
 - auditoría avanzada dedicada
 - firma digital
 - almacenamiento externo
-- comprobante automático reusable de pagos
+- CI/CD real sobre la base local de scripts introducida en Fase 25
 
 ==================================================
 REGLAS DEL ROADMAP

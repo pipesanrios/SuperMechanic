@@ -306,6 +306,27 @@ Despues:
 - compatibilidad intacta
 - documentacion actualizada
 
+### Automatizacion minima local de Fase 25
+
+Antes de cerrar una fase o cambio importante, ejecutar tambien:
+
+- `php scripts/php-lint.php --all`
+- `php scripts/structure-check.php`
+- `php scripts/technical-checklist.php --task=docs/tasks/<task-file>.md`
+
+Estos scripts validan una base tecnica minima:
+
+- sintaxis PHP
+- presencia de archivos clave
+- chequeos estructurales simples
+- verificacion basica de checklist tecnico
+
+No reemplazan:
+
+- validacion funcional real en WordPress
+- revision arquitectonica de fondo
+- pruebas manuales de ownership, nonces o descargas seguras
+
 ---
 
 ## Integracion con documentacion

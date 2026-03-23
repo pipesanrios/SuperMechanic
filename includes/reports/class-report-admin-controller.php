@@ -53,9 +53,14 @@ class Report_Admin_Controller {
 		$financial_data   = $this->service->get_financial_report_data( $filters );
 		$advanced_data    = $this->service->get_advanced_report_data( $filters );
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Reportes', 'super-mechanic' ) . '</h1>';
-		echo '<p>' . esc_html__( 'Reportes operativos, financieros y avanzados base para administración interna.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Reportes operativos, financieros y avanzados base para administración interna.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Analítica interna', 'super-mechanic' ) . '</span>';
+		echo '</div>';
 
 		$this->render_filters_form( $filters );
 		$this->render_financial_reports_section( $financial_data, $filters );
@@ -285,29 +290,29 @@ class Report_Admin_Controller {
 		$payment_method_options = $this->service->get_payment_method_options();
 		$limit_bounds    = $this->service->get_recent_limit_bounds();
 
-		echo '<form method="get" style="background:#fff;border:1px solid #ccd0d4;padding:16px;margin:16px 0;">';
+		echo '<form method="get" class="sm-card sm-filter-card">';
 		echo '<input type="hidden" name="page" value="super-mechanic-reports" />';
-		echo '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">';
-		echo '<div style="min-width:320px;">';
-		echo '<h3 style="margin-top:0;">' . esc_html__( 'Filtros financieros', 'super-mechanic' ) . '</h3>';
-		echo '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">';
-
+		echo '<div class="sm-grid sm-grid-two">';
 		echo '<div>';
+		echo '<h3 class="sm-card-title">' . esc_html__( 'Filtros financieros', 'super-mechanic' ) . '</h3>';
+		echo '<div class="sm-filter-grid">';
+
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-date-from"><strong>' . esc_html__( 'Desde', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<input id="sm-report-date-from" type="date" name="date_from" value="' . esc_attr( $filters['date_from'] ) . '" />';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-date-to"><strong>' . esc_html__( 'Hasta', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<input id="sm-report-date-to" type="date" name="date_to" value="' . esc_attr( $filters['date_to'] ) . '" />';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-limit"><strong>' . esc_html__( 'Límite recientes', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<input id="sm-report-limit" type="number" min="1" max="' . esc_attr( $limit_bounds['max'] ) . '" name="limit" value="' . esc_attr( $filters['limit'] ) . '" />';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-quote-status"><strong>' . esc_html__( 'Estado de quote', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-quote-status" name="quote_status">';
 		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
@@ -317,7 +322,7 @@ class Report_Admin_Controller {
 		echo '</select>';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-invoice-status"><strong>' . esc_html__( 'Estado de invoice', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-invoice-status" name="invoice_status">';
 		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
@@ -327,7 +332,7 @@ class Report_Admin_Controller {
 		echo '</select>';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-currency"><strong>' . esc_html__( 'Moneda', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-currency" name="currency">';
 		echo '<option value="">' . esc_html__( 'Todas', 'super-mechanic' ) . '</option>';
@@ -349,11 +354,11 @@ class Report_Admin_Controller {
 		echo '</div>';
 		echo '</div>';
 
-		echo '<div style="min-width:320px;">';
-		echo '<h3 style="margin-top:0;">' . esc_html__( 'Filtros operativos', 'super-mechanic' ) . '</h3>';
-		echo '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">';
-
 		echo '<div>';
+		echo '<h3 class="sm-card-title">' . esc_html__( 'Filtros operativos', 'super-mechanic' ) . '</h3>';
+		echo '<div class="sm-filter-grid">';
+
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-process-status"><strong>' . esc_html__( 'Estado de proceso', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-process-status" name="process_status">';
 		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
@@ -363,7 +368,7 @@ class Report_Admin_Controller {
 		echo '</select>';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-process-type"><strong>' . esc_html__( 'Tipo de proceso', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-process-type" name="process_type">';
 		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
@@ -373,7 +378,7 @@ class Report_Admin_Controller {
 		echo '</select>';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-derived-status"><strong>' . esc_html__( 'Estado derivado', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-derived-status" name="derived_status">';
 		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
@@ -385,13 +390,11 @@ class Report_Admin_Controller {
 		echo '</div>';
 		echo '</div>';
 
-		echo '<div>';
+		echo '<div class="sm-toolbar">';
 		submit_button( __( 'Filtrar', 'super-mechanic' ), 'primary', '', false );
 		echo '</div>';
 
-		echo '<div>';
 		echo '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=super-mechanic-reports' ) ) . '">' . esc_html__( 'Limpiar filtros', 'super-mechanic' ) . '</a>';
-		echo '</div>';
 
 		echo '</div>';
 		echo '</form>';

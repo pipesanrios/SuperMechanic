@@ -1067,3 +1067,15 @@ Si el schema cambia en futuras fases, actualizar tambien:
   - `sm_payments`
   - `sm_clients`
 - Los estados derivados operativos del modulo se resuelven como lectura agregada sobre datos ya persistidos; no agregan columnas nuevas.
+## Nota Fase 23. Portal cliente premium con acciones reales
+
+- La Fase 23 no modifica schema ni agrega tablas.
+- El cierre funcional reutiliza:
+  - `sm_processes`
+  - `sm_process_step_logs`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_attachments`
+  - `sm_comments`
+- La vista integrada del portal cliente sigue resolviendo ownership y descargas sobre datos ya persistidos; no introduce columnas nuevas ni rutas paralelas de persistencia.

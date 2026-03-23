@@ -1,1 +1,30 @@
 /* super-mechanic/assets/css/mechanic.css */
+
+.sm-mechanic-shell .sm-kpi-card {
+	background: linear-gradient(180deg, #ffffff 0%, #f6faff 100%);
+}
+
+.sm-mechanic-shell .sm-card {
+	border-color: #d7e3f5;
+}
+
+.sm-mechanic-shell .sm-card-title {
+	font-size: 19px;
+}
+
+.sm-mechanic-shell .sm-ops-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 18px;
+}
+
+.sm-mechanic-shell .sm-panel-form {
+	display: grid;
+	gap: 12px;
+}
+
+.sm-mechanic-shell .sm-panel-form select,
+.sm-mechanic-shell .sm-panel-form textarea {
+	width: 100%;
+	max-width: 100%;
+}

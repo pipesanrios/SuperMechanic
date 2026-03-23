@@ -29,6 +29,7 @@ class Admin_Menu {
 	protected $admin_dashboard_controller;
 	protected $mechanic_dashboard_controller;
 	protected $report_admin_controller;
+	protected $shortcode_admin_controller;
 
 	/**
 	 * Constructor.
@@ -41,8 +42,9 @@ class Admin_Menu {
 	 * @param Admin_Dashboard_Controller   $admin_dashboard_controller   Admin dashboard controller.
 	 * @param Mechanic_Dashboard_Controller $mechanic_dashboard_controller Mechanic dashboard controller.
 	 * @param Report_Admin_Controller      $report_admin_controller      Reports controller.
+	 * @param Shortcode_Admin_Controller   $shortcode_admin_controller   Shortcodes controller.
 	 */
-	public function __construct( Settings $settings, Client_Admin_Controller $client_admin_controller, Vehicle_Admin_Controller $vehicle_admin_controller, Process_Admin_Controller $process_admin_controller, Flow_Admin_Controller $flow_admin_controller, Admin_Dashboard_Controller $admin_dashboard_controller, Mechanic_Dashboard_Controller $mechanic_dashboard_controller, Report_Admin_Controller $report_admin_controller ) {
+	public function __construct( Settings $settings, Client_Admin_Controller $client_admin_controller, Vehicle_Admin_Controller $vehicle_admin_controller, Process_Admin_Controller $process_admin_controller, Flow_Admin_Controller $flow_admin_controller, Admin_Dashboard_Controller $admin_dashboard_controller, Mechanic_Dashboard_Controller $mechanic_dashboard_controller, Report_Admin_Controller $report_admin_controller, Shortcode_Admin_Controller $shortcode_admin_controller ) {
 		$this->settings                    = $settings;
 		$this->client_admin_controller     = $client_admin_controller;
 		$this->vehicle_admin_controller    = $vehicle_admin_controller;
@@ -51,6 +53,7 @@ class Admin_Menu {
 		$this->admin_dashboard_controller  = $admin_dashboard_controller;
 		$this->mechanic_dashboard_controller = $mechanic_dashboard_controller;
 		$this->report_admin_controller     = $report_admin_controller;
+		$this->shortcode_admin_controller  = $shortcode_admin_controller;
 	}
 
 	/**
@@ -132,6 +135,15 @@ class Admin_Menu {
 			'sm_manage_plugin',
 			'super-mechanic-reports',
 			array( $this->report_admin_controller, 'render_page' )
+		);
+
+		add_submenu_page(
+			'super-mechanic',
+			__( 'Shortcodes', 'super-mechanic' ),
+			__( 'Shortcodes', 'super-mechanic' ),
+			'sm_manage_plugin',
+			'super-mechanic-shortcodes',
+			array( $this->shortcode_admin_controller, 'render_page' )
 		);
 
 		add_submenu_page(

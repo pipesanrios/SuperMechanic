@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Invoices;
 
+use Super_Mechanic\Assets;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Download_Service;
 
@@ -32,6 +33,8 @@ class Client_Invoice_Shortcodes {
 	}
 
 	public function render_client_invoices( $atts = array() ) {
+		Assets::enqueue_client_assets();
+
 		$atts  = shortcode_atts( array(), $atts, 'sm_client_invoices' );
 		$guard = $this->guard_access( 'sm_view_own_processes' );
 
@@ -51,17 +54,25 @@ class Client_Invoice_Shortcodes {
 		);
 
 		ob_start();
-		echo '<div class="sm-client-invoices">';
+		echo '<div class="sm-client-ui sm-client-invoices">';
+		echo '<div class="sm-client-header"><div><h2 class="sm-client-title">' . esc_html__( 'Facturas', 'super-mechanic' ) . '</h2><p class="sm-client-subtitle">' . esc_html__( 'Consulta saldo, pagos y acceso documental seguro.', 'super-mechanic' ) . '</p></div><span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Estado financiero', 'super-mechanic' ) . '</span></div>';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Número', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pagado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pendiente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vencimiento', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Detalle', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 
 		if ( empty( $invoices ) ) {
 			echo '<tr><td colspan="8">' . esc_html__( 'No hay facturas disponibles.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $invoices as $invoice ) {
+				$invoice = $this->service->append_collection_state( $invoice );
+				$status  = $this->humanize_key( $invoice['status'] );
+
+				if ( ! empty( $invoice['collection_label'] ) ) {
+					$status .= ' (' . $invoice['collection_label'] . ')';
+				}
+
 				echo '<tr>';
 				echo '<td>' . esc_html( $invoice['invoice_number'] ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $invoice['process_title'] ) ? $invoice['process_title'] : '#' . $invoice['process_id'] ) . '</td>';
-				echo '<td>' . esc_html( $this->humanize_key( $invoice['status'] ) ) . '</td>';
+				echo '<td>' . esc_html( $status ) . '</td>';
 				echo '<td>' . esc_html( $this->format_money( $invoice['grand_total'], $invoice['currency'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_money( $invoice['amount_paid'], $invoice['currency'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_money( $invoice['balance_due'], $invoice['currency'] ) ) . '</td>';
@@ -78,6 +89,8 @@ class Client_Invoice_Shortcodes {
 	}
 
 	public function render_client_invoice_detail( $atts = array() ) {
+		Assets::enqueue_client_assets();
+
 		$atts = shortcode_atts(
 			array(
 				'id' => 0,
@@ -113,15 +126,22 @@ class Client_Invoice_Shortcodes {
 			return '<p>' . esc_html__( 'La factura no existe.', 'super-mechanic' ) . '</p>';
 		}
 
+		$invoice = $this->service->append_collection_state( $invoice );
+		$status  = $this->humanize_key( $invoice['status'] );
+
+		if ( ! empty( $invoice['collection_label'] ) ) {
+			$status .= ' (' . $invoice['collection_label'] . ')';
+		}
+
 		ob_start();
-		echo '<div class="sm-client-invoice-detail">';
-		echo '<h3>' . esc_html( sprintf( __( 'Factura %s', 'super-mechanic' ), $invoice['invoice_number'] ) ) . '</h3>';
+		echo '<div class="sm-client-ui sm-client-invoice-detail">';
+		echo '<div class="sm-client-header"><div><h3 class="sm-client-title">' . esc_html( sprintf( __( 'Factura %s', 'super-mechanic' ), $invoice['invoice_number'] ) ) . '</h3><p class="sm-client-subtitle">' . esc_html__( 'Resumen completo de factura, pagos y documentos asociados.', 'super-mechanic' ) . '</p></div><span class="sm-client-badge sm-client-badge-primary">' . esc_html( $status ) . '</span></div>';
 		echo '<p><strong>' . esc_html__( 'Proceso:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['process_title'] ) ? $invoice['process_title'] : '#' . $invoice['process_id'] ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Estado:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->humanize_key( $invoice['status'] ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Estado:', 'super-mechanic' ) . '</strong> ' . esc_html( $status ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Emitida:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['issued_at'] ) ? $invoice['issued_at'] : '-' ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Vencimiento:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['due_date'] ) ? $invoice['due_date'] : '-' ) . '</p>';
 		if ( $this->download_service->can_generate_pdf() ) {
-			echo '<p><a class="button button-secondary" href="' . esc_url( $this->download_service->get_download_url( 'invoice_pdf', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'Descargar PDF', 'super-mechanic' ) . '</a></p>';
+			echo '<p><a class="button button-secondary sm-client-button-secondary" href="' . esc_url( $this->download_service->get_download_url( 'invoice_pdf', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'Descargar PDF', 'super-mechanic' ) . '</a></p>';
 		}
 		if ( ! empty( $invoice['notes'] ) ) {
 			echo '<p><strong>' . esc_html__( 'Notas:', 'super-mechanic' ) . '</strong> ' . esc_html( $invoice['notes'] ) . '</p>';
@@ -145,9 +165,9 @@ class Client_Invoice_Shortcodes {
 		echo '</tbody></table>';
 
 		echo '<h4>' . esc_html__( 'Pagos', 'super-mechanic' ) . '</h4>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Monto', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Método', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Referencia', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notas', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Monto', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Método', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Referencia', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notas', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Documento', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $payments ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay pagos registrados.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No hay pagos registrados.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $payments as $payment ) {
 				echo '<tr>';
@@ -156,6 +176,13 @@ class Client_Invoice_Shortcodes {
 				echo '<td>' . esc_html( $this->humanize_key( $payment['payment_method'] ) ) . '</td>';
 				echo '<td>' . esc_html( $payment['reference'] ) . '</td>';
 				echo '<td>' . esc_html( $payment['notes'] ) . '</td>';
+				echo '<td>';
+				if ( $this->download_service->can_generate_pdf() ) {
+					echo '<a href="' . esc_url( $this->download_service->get_download_url( 'payment_receipt', absint( $payment['id'] ) ) ) . '">' . esc_html__( 'Descargar comprobante', 'super-mechanic' ) . '</a>';
+				} else {
+					echo esc_html__( 'No disponible', 'super-mechanic' );
+				}
+				echo '</td>';
 				echo '</tr>';
 			}
 		}

@@ -55,9 +55,13 @@ super-mechanic/
 |   |-- class-deactivator.php
 |   |-- class-installer.php
 |   |-- class-admin-menu.php
+|   |-- class-assets.php
 |   |-- class-settings.php
 |   |-- class-roles.php
 |   |-- class-capabilities.php
+|   |-- class-shortcode-admin-controller.php
+|   |-- class-hooks.php
+|   |-- class-post-types.php
 |   |-- class-rest-api.php
 |   |-- database/
 |   |-- helpers/
@@ -70,12 +74,14 @@ super-mechanic/
 |   |-- predelivery/
 |   |-- paperwork/
 |   |-- dashboard/
+|   |-- reports/
 |   |-- quotes/
 |   |-- invoices/
 |   |-- attachments/
 |   |-- communication/
 |   |-- integrations/woocommerce/
 |   `-- modules/
+|-- scripts/
 `-- assets/
 ```
 
@@ -122,9 +128,11 @@ super-mechanic/
 - `includes/class-rest-api.php`: placeholder, sin rutas productivas.
 - `includes/integrations/woocommerce/*`: scaffolding tecnico, no conectado al flujo principal.
 - `includes/helpers/class-pdf.php`: helper placeholder legacy.
-- `includes/helpers/class-document-service.php`: orquestador reusable para resolver tipo documental, permisos de acceso y payload de descarga.
-- `includes/helpers/class-pdf-service.php`: servicio reusable especializado en renderizar y generar PDF real de invoices y quotes.
-- `includes/helpers/class-download-service.php`: servicio reusable especializado en exponer entry points seguros y servir descargas de PDFs y adjuntos visibles al cliente.
+- `includes/class-hooks.php` y `includes/class-post-types.php`: placeholders legacy/no activos.
+- `Document_Service` (definido en `includes/helpers/class-document-service.php`): orquestador reusable para resolver tipo documental, permisos de acceso y payload de descarga.
+- `PDF_Service` (definido en `includes/helpers/class-pdf-service.php`): servicio reusable especializado en renderizar y generar PDF real de invoices y quotes.
+- `Download_Service` (definido en `includes/helpers/class-download-service.php`): servicio reusable especializado en exponer entry points seguros y servir descargas de PDFs y adjuntos visibles al cliente.
+- `Assets` (definido en `includes/class-assets.php`): gestor real de assets UI para admin y frontend del plugin.
 
 ## 4. Base de datos actual
 
@@ -224,6 +232,7 @@ super-mechanic/
 - Fix D-R. Descarga segura de attachments en portal cliente: implementada.
 - Fase 12C. Consolidacion del modulo Reports: implementada.
 - Fase 12D. Reportes avanzados base: implementada.
+- Fase 26. Panel / catalogo de shortcodes: implementada.
 
 ## 7. Bitacora de fases
 
@@ -322,7 +331,6 @@ super-mechanic/
   - adjuntos por proceso
   - timeline consolidada del proceso
 - Pendiente:
-  - modulo formal de reportes
   - auditoria avanzada dedicada
   - automatizaciones documentales avanzadas
   - firma digital y almacenamiento externo
@@ -353,10 +361,10 @@ super-mechanic/
 - Archivos modificados:
   - `includes/communication/class-event-dispatcher.php`
   - `includes/communication/class-notification-service.php`
-  - `includes/processes/class-process-service.php`
-  - `includes/quotes/class-quote-service.php`
-  - `includes/invoices/class-invoice-service.php`
-  - `includes/attachments/class-process-timeline-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
+  - `Quote_Service` (definido en `includes/quotes/class-quote-service.php`)
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
+  - `Process_Timeline_Service` (definido en `includes/attachments/class-process-timeline-service.php`)
 - Archivos creados:
   - `docs/tasks/2026-03-fase-16-automatizaciones-y-eventos-operativos.md`
 - Integracion real:
@@ -388,9 +396,9 @@ super-mechanic/
   - `docs/tasks/2026-03-fase-17-control-de-acceso-visibilidad-y-ownership.md`
 - Archivos modificados:
   - `includes/dashboard/class-dashboard-service.php`
-  - `includes/processes/class-process-service.php`
-  - `includes/quotes/class-quote-service.php`
-  - `includes/invoices/class-invoice-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
+  - `Quote_Service` (definido en `includes/quotes/class-quote-service.php`)
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
   - `includes/attachments/class-attachment-service.php`
   - `includes/communication/class-comment-service.php`
   - `includes/communication/class-notification-service.php`
@@ -434,8 +442,8 @@ super-mechanic/
 - Archivos modificados:
   - `includes/helpers/class-pdf-service.php`
   - `includes/attachments/class-attachment-service.php`
-  - `includes/quotes/class-quote-service.php`
-  - `includes/quotes/class-quote-admin-controller.php`
+  - `Quote_Service` (definido en `includes/quotes/class-quote-service.php`)
+  - `Quote_Admin_Controller` (definido en `includes/quotes/class-quote-admin-controller.php`)
   - `includes/invoices/class-client-invoice-shortcodes.php`
   - `includes/quotes/class-client-quote-shortcodes.php`
   - `includes/attachments/class-client-attachment-shortcodes.php`
@@ -467,7 +475,7 @@ super-mechanic/
 - Estado: implementada.
 - Archivos modificados:
   - `includes/dashboard/class-dashboard-service.php`
-  - `includes/processes/class-process-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
   - `includes/processes/class-process-repository.php`
 - Clases ampliadas:
   - `Dashboard_Service`
@@ -491,7 +499,7 @@ super-mechanic/
 - Archivos creados:
   - `includes/invoices/class-invoice-transaction-repository.php`
 - Archivos modificados:
-  - `includes/invoices/class-invoice-service.php`
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
 - Clases nuevas o ampliadas:
   - `Invoice_Transaction_Repository`
   - `Invoice_Service`
@@ -510,11 +518,11 @@ super-mechanic/
 
 - Estado: implementada.
 - Archivos modificados:
-  - `includes/invoices/class-invoice-service.php`
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
   - `includes/invoices/class-invoice-admin-controller.php`
-  - `includes/reports/class-report-repository.php`
-  - `includes/reports/class-report-service.php`
-  - `includes/reports/class-report-admin-controller.php`
+  - `Report_Repository` (definido en `includes/reports/class-report-repository.php`)
+  - `Report_Service` (definido en `includes/reports/class-report-service.php`)
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
 - Integracion real:
   - `Invoice_Service` valida invoice existente, monto positivo y que el pago no exceda el saldo disponible al crear o editar pagos
   - el modulo mantiene estados internos de invoice para compatibilidad, pero expone un estado de cobranza visible `pending`, `partial` y `paid`
@@ -548,10 +556,10 @@ super-mechanic/
 
 - Estado: completada.
 - Archivos auditados:
-  - `includes/processes/class-process-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
   - `includes/processes/class-process-repository.php`
   - `includes/dashboard/class-dashboard-service.php`
-  - `includes/invoices/class-invoice-service.php`
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
   - `includes/class-plugin.php`
   - `includes/dashboard/class-client-dashboard-controller.php`
   - `includes/attachments/class-attachment-service.php`
@@ -575,7 +583,7 @@ super-mechanic/
   - `Client_Dashboard_Controller`, `Attachment_Service`, `Document_Service` y `Download_Service` mantienen la descarga protegida de documentos visibles en portal cliente.
 - Resultado tecnico:
   - clasificacion general: `ESTABLE CON RIESGOS`
-  - sin errores de sintaxis detectados en `class-plugin.php`, `class-process-service.php` y `class-invoice-service.php`
+  - sin errores de sintaxis detectados en `Plugin` (`includes/class-plugin.php`), `Process_Service` (`includes/processes/class-process-service.php`) e `Invoice_Service` (`includes/invoices/class-invoice-service.php`)
   - bootstrap real confirmado en `includes/class-plugin.php`
 - Riesgo principal confirmado:
   - la persistencia de procesos y la escritura de step logs siguen sin compartir una frontera transaccional comun; si falla el log posterior, el proceso puede quedar actualizado aunque el metodo devuelva error.
@@ -665,9 +673,9 @@ super-mechanic/
 - Estado: implementada.
 - Modulo activo ampliado: `includes/reports/`
 - Archivos modificados:
-  - `includes/reports/class-report-repository.php`
-  - `includes/reports/class-report-service.php`
-  - `includes/reports/class-report-admin-controller.php`
+  - `Report_Repository` (definido en `includes/reports/class-report-repository.php`)
+  - `Report_Service` (definido en `includes/reports/class-report-service.php`)
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
 - Integracion real:
   - `Report_Repository` agrega consultas reutilizables para quotes, invoices, payments y totales financieros base
   - `Report_Service` valida filtros financieros por fechas, `quote_status` e `invoice_status`
@@ -705,9 +713,9 @@ super-mechanic/
 - Estado: implementada.
 - Modulo activo consolidado: `includes/reports/`
 - Archivos modificados:
-  - `includes/reports/class-report-repository.php`
-  - `includes/reports/class-report-service.php`
-  - `includes/reports/class-report-admin-controller.php`
+  - `Report_Repository` (definido en `includes/reports/class-report-repository.php`)
+  - `Report_Service` (definido en `includes/reports/class-report-service.php`)
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
 - Clases ampliadas:
   - `Report_Repository`
   - `Report_Service`
@@ -728,7 +736,7 @@ super-mechanic/
   - `sm_invoices`
   - `sm_payments`
 - Validacion tecnica:
-  - sin errores de sintaxis PHP en `class-report-repository.php`, `class-report-service.php` y `class-report-admin-controller.php`
+  - sin errores de sintaxis PHP en `Report_Repository` (`includes/reports/class-report-repository.php`), `Report_Service` (`includes/reports/class-report-service.php`) y `Report_Admin_Controller` (`includes/reports/class-report-admin-controller.php`)
   - compatibilidad de 12A y 12B preservada
   - sin cambios en `class-plugin.php` ni `class-admin-menu.php`
 - Alcance explicitamente fuera de 12C:
@@ -745,9 +753,9 @@ super-mechanic/
 - Estado: implementada.
 - Modulo activo ampliado: `includes/reports/`
 - Archivos modificados:
-  - `includes/reports/class-report-repository.php`
-  - `includes/reports/class-report-service.php`
-  - `includes/reports/class-report-admin-controller.php`
+  - `Report_Repository` (definido en `includes/reports/class-report-repository.php`)
+  - `Report_Service` (definido en `includes/reports/class-report-service.php`)
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
 - Clases ampliadas:
   - `Report_Repository`
   - `Report_Service`
@@ -767,7 +775,7 @@ super-mechanic/
   - `sm_invoices`
   - `sm_payments`
 - Validacion tecnica:
-  - sin errores de sintaxis PHP en `class-report-repository.php`, `class-report-service.php` y `class-report-admin-controller.php`
+  - sin errores de sintaxis PHP en `Report_Repository` (`includes/reports/class-report-repository.php`), `Report_Service` (`includes/reports/class-report-service.php`) y `Report_Admin_Controller` (`includes/reports/class-report-admin-controller.php`)
   - sin cambios en `class-plugin.php`
   - sin cambios de schema
 - Alcance explicitamente fuera de 12D:
@@ -785,8 +793,8 @@ super-mechanic/
 - Estado: implementada.
 - Modulo activo endurecido: `includes/reports/`
 - Archivos modificados:
-  - `includes/reports/class-report-service.php`
-  - `includes/reports/class-report-admin-controller.php`
+  - `Report_Service` (definido en `includes/reports/class-report-service.php`)
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
 - Archivos creados:
   - `docs/tasks/2026-03-fase-12b-reportes-financieros-base.md`
   - `docs/tasks/2026-03-fase-12d-reportes-avanzados-base.md`
@@ -821,7 +829,7 @@ super-mechanic/
   - `includes/processes/class-process-transaction-repository.php`
   - `docs/tasks/2026-03-fase-13-integridad-transaccional-endurecimiento-nucleo.md`
 - Archivos modificados:
-  - `includes/processes/class-process-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
 - Clases nuevas o ampliadas:
   - `Process_Transaction_Repository`
   - `Process_Service`
@@ -859,20 +867,20 @@ super-mechanic/
 - `Process_Timeline_Service` deja de etiquetar toda factura como `invoice_issued` y usa tipos de evento alineados al estado real.
 - Los escenarios criticos 4, 7, 8 y 14 quedan alineados al comportamiento real del codigo.
 - Validacion final:
-  - `php -l` sin errores en `class-quote-transaction-repository.php`, `class-quote-service.php`, `class-quote-admin-controller.php`, `class-process-timeline-service.php` y `class-plugin.php`
+  - `php -l` sin errores en `Quote_Transaction_Repository` (`includes/quotes/class-quote-transaction-repository.php`), `Quote_Service` (`includes/quotes/class-quote-service.php`), `Quote_Admin_Controller` (`includes/quotes/class-quote-admin-controller.php`), `Process_Timeline_Service` (`includes/attachments/class-process-timeline-service.php`) y `Plugin` (`includes/class-plugin.php`)
 
 ### Deudas tecnicas activas posteriores a 14B
 - `Client_Vehicle_Service::transfer_vehicle()` sigue sin frontera transaccional dedicada para cierre + reasignacion de ownership.
 - `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` siguen sin atomicidad dedicada.
 - `Report_Service` y `Report_Admin_Controller` deben vigilarse si el modulo `Reports` crece en nuevas subfases.
-- `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen presentes como placeholders/no activos.
+- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen presentes como placeholders/no activos.
 ## 18. Hardening final Fase 15. Integridad financiera de pagos
 
 - Estado: completado.
 - Archivos modificados:
-  - `includes/invoices/class-invoice-service.php`
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
   - `includes/invoices/class-invoice-admin-controller.php`
-  - `includes/reports/class-report-repository.php`
+  - `Report_Repository` (definido en `includes/reports/class-report-repository.php`)
 - Clases ampliadas:
   - `Invoice_Service`
   - `Invoice_Admin_Controller`
@@ -893,7 +901,7 @@ super-mechanic/
 - Archivos modificados:
   - `includes/dashboard/class-mechanic-dashboard-controller.php`
   - `includes/class-plugin.php`
-  - `includes/attachments/class-process-timeline-service.php`
+  - `Process_Timeline_Service` (definido en `includes/attachments/class-process-timeline-service.php`)
   - `docs/CURRENT_STATE.md`
   - `docs/SYSTEM_MAP.md`
   - `docs/MODULE_REGISTRY.md`
@@ -928,7 +936,7 @@ super-mechanic/
 - Estado: implementada.
 - Archivos modificados:
   - `includes/flows/class-flow-step-service.php`
-  - `includes/processes/class-process-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
 - Archivos creados:
   - `docs/tasks/2026-03-fase-19-workflow-operativo-configurable-avanzado.md`
 - Clases ampliadas:
@@ -964,7 +972,7 @@ super-mechanic/
 - Archivos modificados:
   - `includes/helpers/class-document-service.php`
   - `includes/communication/class-event-dispatcher.php`
-  - `includes/invoices/class-invoice-service.php`
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
   - `includes/dashboard/class-dashboard-service.php`
   - `includes/dashboard/class-client-dashboard-controller.php`
   - `includes/dashboard/class-mechanic-dashboard-controller.php`
@@ -987,7 +995,7 @@ super-mechanic/
   - sin cambios en `includes/modules/*`
   - `php -l` OK en los archivos modificados
 - Deuda tecnica abierta:
-  - falta una ruta documental reusable y deduplicada para comprobantes de pago automaticos por `payment_id`
+  - antes de Fase 20B faltaba una ruta documental reusable y deduplicada para comprobantes de pago por `payment_id`; esa deuda queda cerrada por `Document_Service` + `PDF_Service` en la Fase 20B
 
 ## 24. Fase 20B. Comprobante de pago documental
 
@@ -997,7 +1005,7 @@ super-mechanic/
 - Archivos modificados:
   - `includes/helpers/class-document-service.php`
   - `includes/helpers/class-pdf-service.php`
-  - `includes/invoices/class-invoice-service.php`
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
   - `includes/communication/class-event-dispatcher.php`
 - Clases nuevas o ampliadas:
   - `Document_Service`
@@ -1033,9 +1041,9 @@ super-mechanic/
   - `docs/tasks/2026-03-fase-21-configuracion-avanzada-por-taller-negocio.md`
 - Archivos modificados:
   - `includes/class-plugin.php`
-  - `includes/processes/class-process-service.php`
-  - `includes/invoices/class-invoice-service.php`
-  - `includes/quotes/class-quote-service.php`
+  - `Process_Service` (definido en `includes/processes/class-process-service.php`)
+  - `Invoice_Service` (definido en `includes/invoices/class-invoice-service.php`)
+  - `Quote_Service` (definido en `includes/quotes/class-quote-service.php`)
 - Clases nuevas o ampliadas:
   - `Settings_Service`
   - `Plugin`
@@ -1062,9 +1070,9 @@ super-mechanic/
 - Estado: implementada.
 - Modulo activo ampliado: `includes/reports/`
 - Archivos modificados:
-  - `includes/reports/class-report-repository.php`
-  - `includes/reports/class-report-service.php`
-  - `includes/reports/class-report-admin-controller.php`
+  - `Report_Repository` (definido en `includes/reports/class-report-repository.php`)
+  - `Report_Service` (definido en `includes/reports/class-report-service.php`)
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
 - Archivos creados:
   - `docs/tasks/2026-03-fase-22-reportes-operativos-y-financieros-avanzados.md`
 - Clases ampliadas:
@@ -1089,3 +1097,203 @@ super-mechanic/
   - `php -l` OK en `includes/reports/class-report-admin-controller.php`
   - sin cambios de schema
   - sin cambios en `includes/modules/*`
+
+## 27. Fase 23. Portal cliente premium con acciones reales
+
+- Estado: implementada en su base operativa.
+- Archivos creados:
+  - `docs/tasks/2026-03-fase-23-portal-cliente-premium-con-acciones-reales.md`
+- Archivos modificados:
+  - `includes/dashboard/class-client-dashboard-controller.php`
+  - `includes/quotes/class-client-quote-shortcodes.php`
+  - `includes/invoices/class-client-invoice-shortcodes.php`
+- Clases nuevas o ampliadas:
+  - `Client_Dashboard_Controller`
+  - `Client_Quote_Shortcodes`
+  - `Client_Invoice_Shortcodes`
+- Integracion real:
+  - el dashboard cliente pasa a exponer una vista mas integrada del portal con acceso a detalle de proceso desde el mismo entry point
+  - el detalle cliente del proceso muestra resumen operativo, estado derivado, estado financiero agregado, timeline, comentarios visibles, documentos, cotizaciones y facturas relacionadas
+  - el cliente puede registrar comentarios reales sobre el proceso reutilizando `Comment_Service`, con nonce y validacion de acceso sobre el proceso
+  - las cotizaciones e invoices visibles desde el portal agregan accesos directos mas claros a detalle y descarga documental segura
+  - el historial de pagos del cliente expone descarga segura de `payment_receipt` reutilizando `Document_Service` y `Download_Service`
+- Tablas afectadas sin cambios de schema:
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_attachments`
+  - `sm_comments`
+  - `sm_process_step_logs`
+- Validacion tecnica:
+  - `php -l` OK en `includes/dashboard/class-client-dashboard-controller.php`
+  - `php -l` OK en `includes/quotes/class-client-quote-shortcodes.php`
+  - `php -l` OK en `includes/invoices/class-client-invoice-shortcodes.php`
+  - `php -l` OK en `includes/class-plugin.php`
+  - sin cambios de schema
+  - sin cambios en `includes/modules/*`
+
+## 28. Fase 24. Modernizacion visual integral UI/UX
+
+- Estado: implementada como modernizacion progresiva de la capa visual sobre la arquitectura activa.
+- Archivos creados:
+  - `docs/tasks/2026-03-fase-24-modernizacion-visual-integral-ui-ux.md`
+- Archivos modificados:
+  - `includes/class-assets.php`
+  - `includes/class-plugin.php`
+  - `includes/dashboard/class-admin-dashboard-controller.php`
+  - `includes/dashboard/class-client-dashboard-controller.php`
+  - `includes/dashboard/class-mechanic-dashboard-controller.php`
+  - `Report_Admin_Controller` (definido en `includes/reports/class-report-admin-controller.php`)
+  - `includes/quotes/class-client-quote-shortcodes.php`
+  - `includes/invoices/class-client-invoice-shortcodes.php`
+  - `assets/css/admin.css`
+  - `assets/css/client.css`
+  - `assets/css/mechanic.css`
+- Clases nuevas o ampliadas:
+  - `Assets`
+  - `Plugin`
+  - `Admin_Dashboard_Controller`
+  - `Client_Dashboard_Controller`
+  - `Mechanic_Dashboard_Controller`
+  - `Report_Admin_Controller`
+  - `Client_Quote_Shortcodes`
+  - `Client_Invoice_Shortcodes`
+- Integracion real:
+  - `Assets` deja de ser placeholder y pasa a registrar y cargar la capa visual real del plugin
+  - el admin dashboard y reportes reutilizan una capa visual admin comun sin tocar logica ni datasets
+  - el portal cliente y los shortcodes cliente de quotes e invoices reutilizan una capa visual frontend comun
+  - el portal mecanico reutiliza la misma base admin con variantes visuales propias
+  - la fase no altera services, schema, nonces, query args ni descargas seguras existentes
+- Tablas afectadas sin cambios de schema:
+  - ninguna
+- Validacion tecnica:
+  - `php -l` OK en `super-mechanic.php`
+  - `php -l` OK en `includes/class-plugin.php`
+  - `php -l` OK en `includes/class-assets.php`
+  - `php -l` OK en `includes/dashboard/class-admin-dashboard-controller.php`
+  - `php -l` OK en `includes/dashboard/class-client-dashboard-controller.php`
+  - `php -l` OK en `includes/dashboard/class-mechanic-dashboard-controller.php`
+  - `php -l` OK en `includes/reports/class-report-admin-controller.php`
+  - `php -l` OK en `includes/quotes/class-client-quote-shortcodes.php`
+  - `php -l` OK en `includes/invoices/class-client-invoice-shortcodes.php`
+- Deuda tecnica abierta:
+  - la modernizacion visual no cubre aun todas las pantallas admin del plugin
+  - la mejora fue principalmente de markup y CSS; no se expandio la capa JS de forma relevante
+  - si la UI sigue creciendo, convendra extraer helpers o templates de presentacion
+
+## 29. Fase 24B. Cobertura visual restante de paneles admin
+
+- Estado: implementada como cierre visual de las pantallas admin principales pendientes dentro de la misma capa UI de Fase 24.
+- Archivos creados:
+  - `docs/tasks/2026-03-fase-24b-cobertura-visual-restante-paneles-admin.md`
+- Archivos modificados:
+  - `includes/clients/class-client-admin-controller.php`
+  - `includes/clients/class-client-list-table.php`
+  - `includes/vehicles/class-vehicle-admin-controller.php`
+  - `includes/vehicles/class-vehicle-list-table.php`
+  - `includes/processes/class-process-admin-controller.php`
+  - `includes/processes/class-process-list-table.php`
+  - `includes/flows/class-flow-admin-controller.php`
+  - `includes/flows/class-flow-list-table.php`
+  - `includes/class-settings.php`
+  - `assets/css/admin.css`
+- Clases nuevas o ampliadas:
+  - `Client_Admin_Controller`
+  - `Client_List_Table`
+  - `Vehicle_Admin_Controller`
+  - `Vehicle_List_Table`
+  - `Process_Admin_Controller`
+  - `Process_List_Table`
+  - `Flow_Admin_Controller`
+  - `Flow_List_Table`
+  - `Settings`
+- Integracion real:
+  - clientes y vehiculos pasan a reutilizar la shell admin moderna con jerarquia visual, CTA y tablas alineadas al sistema `sm-*`
+  - procesos reutiliza la capa admin comun para listado, filtros, formulario general, tabs y panel `communication` sin tocar services ni handlers
+  - flows reutiliza la misma capa para listado, formulario de flow, vista de pasos y formulario de step sin alterar reorder ni persistencia
+  - ajustes reutiliza la Settings API existente bajo la capa visual admin compartida, sin introducir un flujo paralelo de configuracion
+  - la subfase no altera schema, nonces, query args, bulk actions ni wiring del bootstrap
+- Tablas afectadas sin cambios de schema:
+  - ninguna
+- Validacion tecnica:
+  - `php -l` OK en `super-mechanic.php`
+  - `php -l` OK en `includes/class-plugin.php`
+  - `php -l` OK en todos los PHP modificados por 24B
+  - sin cambios de schema
+  - sin cambios en `includes/modules/*`
+- Deuda tecnica abierta:
+  - `Process_Admin_Controller` sigue concentrando mucha orquestacion y presentacion
+  - la capa visual ya cubre los paneles admin principales, pero si la UI sigue creciendo convendra extraer helpers o templates de presentacion
+
+## 30. Fase 25. Automatizacion del checklist en scripts / CI
+
+- Estado: implementada como base local minima de calidad tecnica reusable y preparada para futura integracion CI/CD.
+- Archivos creados:
+  - `scripts/common.php`
+  - `scripts/php-lint.php`
+  - `scripts/structure-check.php`
+  - `scripts/technical-checklist.php`
+  - `docs/tasks/2026-03-fase-25-automatizacion-checklist-scripts-ci.md`
+- Archivos modificados:
+  - `ARCHITECTURE.md`
+  - `docs/SYSTEM_MAP.md`
+  - `docs/FINAL_ARCHITECTURE_MAP.md`
+  - `docs/CURRENT_STATE.md`
+  - `docs/MODULE_REGISTRY.md`
+  - `docs/DEV_GUIDE.md`
+  - `docs/AI_DEVELOPMENT_PLAYBOOK.md`
+  - `ai/context/WORKFLOW.md`
+  - `docs/PLUGIN_ROADMAP.md`
+- Integracion real:
+  - `php-lint.php` permite validar sintaxis PHP sobre archivo unico, lista o repo completo
+  - `structure-check.php` valida archivos obligatorios, referencias prohibidas a `includes/modules/*` desde PHP activo y referencias basicas potencialmente rotas en archivos criticos
+  - `technical-checklist.php` orquesta lint, chequeo estructural, presencia documental base y validacion simple del schema via git cuando esta disponible
+  - la fase no toca bootstrap, schema ni logica de negocio del plugin
+- Tablas afectadas:
+  - ninguna
+- Validacion tecnica esperada:
+  - scripts ejecutables por terminal local usando PHP
+  - sin cambios en `includes/modules/*`
+  - sin cambios de schema
+- Deuda tecnica abierta:
+  - la fase no agrega CI externo real ni pruebas funcionales de WordPress
+  - la verificacion de schema es heuristica y depende de git cuando esta disponible
+
+## 31. Fase 26. Panel / catalogo de shortcodes
+
+- Estado: implementada como capa admin informativa sobre shortcodes ya activos en el runtime real.
+- Archivos creados:
+  - `includes/class-shortcode-admin-controller.php`
+  - `docs/tasks/2026-03-fase-26-panel-shortcodes.md`
+- Archivos modificados:
+  - `includes/class-plugin.php`
+  - `includes/class-admin-menu.php`
+  - `assets/js/admin.js`
+  - `assets/css/admin.css`
+  - `docs/CURRENT_STATE.md`
+  - `docs/SYSTEM_MAP.md`
+  - `docs/MODULE_REGISTRY.md`
+- Clases nuevas o ampliadas:
+  - `Shortcode_Admin_Controller`
+  - `Plugin`
+  - `Admin_Menu`
+- Integracion real:
+  - `Plugin` registra el nuevo controller admin sin alterar el wiring de shortcodes existentes
+  - `Admin_Menu` agrega el submenu `Shortcodes` dentro de `Super Mechanic`
+  - la nueva pantalla admin muestra solo shortcodes activos detectados en el bootstrap real
+  - el catalogo agrupa por contexto `cliente`, `mecanico` y `general`, pero solo lista entradas realmente activas
+  - `assets/js/admin.js` agrega copia al portapapeles con feedback visual simple
+  - `assets/css/admin.css` amplía la capa `sm-*` para la nueva UI sin crear un sistema visual paralelo
+- Tablas afectadas sin cambios de schema:
+  - ninguna
+- Validacion tecnica:
+  - `php -l` OK en `includes/class-shortcode-admin-controller.php`
+  - `php -l` OK en `includes/class-plugin.php`
+  - `php -l` OK en `includes/class-admin-menu.php`
+  - `php scripts/php-lint.php --all` OK
+- `scripts/structure-check.php` ejecutado con PHP OK, con warnings documentales preexistentes
+  - `php scripts/technical-checklist.php --task=docs/tasks/2026-03-fase-26-panel-shortcodes.md` OK
+- Deuda tecnica abierta:
+  - el catalogo depende de mantener sincronizada su metadata interna con los shortcodes activos del runtime
+  - hoy no existen shortcodes activos de contexto `mecanico` ni `general`; el panel los muestra vacios a proposito para evitar documentacion aspiracional

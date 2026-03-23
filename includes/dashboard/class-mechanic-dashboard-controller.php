@@ -80,9 +80,14 @@ class Mechanic_Dashboard_Controller {
 
 		$process_id = isset( $_GET['process_id'] ) ? absint( wp_unslash( $_GET['process_id'] ) ) : 0;
 
-		echo '<div class="wrap sm-mechanic-dashboard">';
+		echo '<div class="wrap sm-admin-shell sm-mechanic-shell sm-mechanic-dashboard">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Portal mecánico', 'super-mechanic' ) . '</h1>';
-		echo '<p>' . esc_html__( 'Trabaja solo sobre procesos asignados o permitidos por la política actual del sistema.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Trabaja solo sobre procesos asignados o permitidos por la política actual del sistema.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Operación mecánica', 'super-mechanic' ) . '</span>';
+		echo '</div>';
 
 		if ( $process_id > 0 ) {
 			$this->render_process_detail_page( $process_id );
@@ -133,13 +138,13 @@ class Mechanic_Dashboard_Controller {
 		$status_options    = $this->process_service->get_status_options();
 		$process_type_opts = $this->process_service->get_process_type_options();
 
-		echo '<div style="display:flex;gap:16px;flex-wrap:wrap;margin:16px 0 24px;">';
+		echo '<div class="sm-grid sm-grid-cards" style="margin-bottom:24px;">';
 		$this->render_kpi_card( __( 'Procesos activos', 'super-mechanic' ), $kpis['active_processes'] );
 		$this->render_kpi_card( __( 'Esperando aprobación', 'super-mechanic' ), $kpis['pending_approvals'] );
 		$this->render_kpi_card( __( 'Mantenimientos', 'super-mechanic' ), $kpis['maintenance_processes'] );
 		echo '</div>';
 
-		echo '<form method="get" style="margin:0 0 16px;">';
+		echo '<form method="get" class="sm-card sm-filter-card" style="margin-bottom:16px;">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE_SLUG ) . '" />';
 		echo '<select name="filter_process_type">';
 		echo '<option value="">' . esc_html__( 'Todos los tipos', 'super-mechanic' ) . '</option>';
@@ -156,7 +161,7 @@ class Mechanic_Dashboard_Controller {
 		submit_button( __( 'Filtrar', 'super-mechanic' ), '', 'filter_action', false );
 		echo '</form>';
 
-		echo '<table class="widefat striped">';
+		echo '<div class="sm-table-wrap"><table class="widefat striped">';
 		echo '<thead><tr><th>ID</th><th>' . esc_html__( 'Título', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Paso actual', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehículo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actualizado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Detalle', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 
 		if ( empty( $processes ) ) {
@@ -183,7 +188,7 @@ class Mechanic_Dashboard_Controller {
 			}
 		}
 
-		echo '</tbody></table>';
+		echo '</tbody></table></div>';
 	}
 
 	protected function render_process_detail_page( $process_id ) {
@@ -215,13 +220,13 @@ class Mechanic_Dashboard_Controller {
 		$this->render_summary_row( __( 'Notas internas', 'super-mechanic' ), ! empty( $process['internal_notes'] ) ? $process['internal_notes'] : '-' );
 		echo '</tbody></table>';
 
-		echo '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">';
-		echo '<div style="flex:1 1 320px;min-width:320px;">';
+		echo '<div class="sm-ops-grid" style="margin-bottom:20px;">';
+		echo '<div>';
 		$this->render_status_form( $process, $status_opts );
 		$this->render_step_form( $process, $steps );
 		$this->render_comment_form( $process );
 		echo '</div>';
-		echo '<div style="flex:1 1 320px;min-width:320px;">';
+		echo '<div>';
 		$this->render_maintenance_panel( $process, $maintenance );
 		echo '</div>';
 		echo '</div>';
@@ -357,10 +362,10 @@ class Mechanic_Dashboard_Controller {
 	}
 
 	protected function render_kpi_card( $label, $value ) {
-		echo '<div style="background:#fff;border:1px solid #dcdcde;border-radius:6px;padding:16px;min-width:180px;">';
-		echo '<div style="font-size:13px;color:#50575e;margin-bottom:6px;">' . esc_html( $label ) . '</div>';
-		echo '<div style="font-size:28px;font-weight:600;">' . esc_html( absint( $value ) ) . '</div>';
-		echo '</div>';
+		echo '<article class="sm-card sm-kpi-card">';
+		echo '<span class="sm-kpi-label">' . esc_html( $label ) . '</span>';
+		echo '<strong class="sm-kpi-value">' . esc_html( absint( $value ) ) . '</strong>';
+		echo '</article>';
 	}
 
 	protected function render_summary_row( $label, $value ) {
@@ -369,7 +374,7 @@ class Mechanic_Dashboard_Controller {
 
 	protected function render_status_form( array $process, array $status_options ) {
 		echo '<h3>' . esc_html__( 'Actualizar estado', 'super-mechanic' ) . '</h3>';
-		echo '<form method="post" style="background:#fff;border:1px solid #dcdcde;padding:16px;margin-bottom:16px;">';
+		echo '<form method="post" class="sm-card sm-panel-form" style="margin-bottom:16px;">';
 		wp_nonce_field( 'sm_mechanic_update_status', 'sm_mechanic_status_nonce' );
 		echo '<input type="hidden" name="sm_mechanic_operation" value="update_status" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
@@ -390,7 +395,7 @@ class Mechanic_Dashboard_Controller {
 			return;
 		}
 
-		echo '<form method="post" style="background:#fff;border:1px solid #dcdcde;padding:16px;margin-bottom:16px;">';
+		echo '<form method="post" class="sm-card sm-panel-form" style="margin-bottom:16px;">';
 		wp_nonce_field( 'sm_mechanic_update_step', 'sm_mechanic_step_nonce' );
 		echo '<input type="hidden" name="sm_mechanic_operation" value="update_step" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
@@ -405,7 +410,7 @@ class Mechanic_Dashboard_Controller {
 
 	protected function render_comment_form( array $process ) {
 		echo '<h3>' . esc_html__( 'Registrar nota técnica', 'super-mechanic' ) . '</h3>';
-		echo '<form method="post" style="background:#fff;border:1px solid #dcdcde;padding:16px;margin-bottom:16px;">';
+		echo '<form method="post" class="sm-card sm-panel-form" style="margin-bottom:16px;">';
 		wp_nonce_field( 'sm_mechanic_create_comment', 'sm_mechanic_comment_nonce' );
 		echo '<input type="hidden" name="sm_mechanic_operation" value="create_comment" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';

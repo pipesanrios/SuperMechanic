@@ -142,16 +142,26 @@ class Client_Admin_Controller {
 		$list_table = new Client_List_Table( $this->service );
 		$list_table->prepare_items();
 
-		echo '<div class="wrap">';
-		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Clientes', 'super-mechanic' ) . '</h1>';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
-		echo '<hr class="wp-header-end" />';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
+		echo '<h1>' . esc_html__( 'Clientes', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Gestiona la base de clientes del taller con un flujo administrativo mas claro y consistente.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-filter-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-clients" />';
 		wp_nonce_field( 'sm_bulk_delete_clients', 'sm_bulk_delete_nonce' );
 		$list_table->search_box( __( 'Buscar clientes', 'super-mechanic' ), 'sm-clients' );
+		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -182,8 +192,17 @@ class Client_Admin_Controller {
 		$client = wp_parse_args( $client, $defaults );
 		$title  = $is_edit ? __( 'Editar cliente', 'super-mechanic' ) : __( 'Nuevo cliente', 'super-mechanic' );
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Completa los datos clave del cliente sin alterar el flujo operativo existente del modulo.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card">';
 		echo '<form method="post" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit', 'id' => absint( $client['id'] ) ) : array( 'action' => 'new' ) ) ) . '">';
 		wp_nonce_field( 'sm_save_client', 'sm_client_nonce' );
 		echo '<input type="hidden" name="sm_client_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
@@ -196,8 +215,11 @@ class Client_Admin_Controller {
 		$this->render_text_field( 'document_id', __( 'Documento', 'super-mechanic' ), $client['document_id'] );
 		$this->render_textarea_field( 'notes', __( 'Notas', 'super-mechanic' ), $client['notes'] );
 		echo '</table>';
-		submit_button( $is_edit ? __( 'Actualizar cliente', 'super-mechanic' ) : __( 'Crear cliente', 'super-mechanic' ) );
+		echo '<div class="sm-form-actions">';
+		submit_button( $is_edit ? __( 'Actualizar cliente', 'super-mechanic' ) : __( 'Crear cliente', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -326,7 +348,7 @@ class Client_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_notice( $message, $type ) {
-		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible sm-notice-card"><p>' . esc_html( $message ) . '</p></div>';
 	}
 
 	/**

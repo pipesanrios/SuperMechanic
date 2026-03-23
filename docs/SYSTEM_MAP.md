@@ -49,6 +49,7 @@
 - Communication / Notifications
 - Documents / PDF / Secure Downloads
 - Client Portal por shortcodes
+- Scripts locales de validacion tecnica en `scripts/`
 
 ## Modulos presentes pero no activos en el bootstrap real
 
@@ -129,6 +130,7 @@
 
 - Core:
   - `Plugin`
+  - `Assets`
   - `Activator`
   - `Deactivator`
   - `Installer`
@@ -213,13 +215,20 @@
   - `Notification_Repository`
   - `Notification_Service`
   - `Event_Dispatcher`
-  - `Client_Comment_Shortcodes`
-  - integracion admin en `Process_Admin_Controller`
+- `Client_Comment_Shortcodes`
+- integracion admin en `Process_Admin_Controller`
 - Documents / Secure Downloads:
   - `Document_Service`
   - `PDF_Service`
   - `Download_Service`
   - `Settings_Service`
+- Shortcodes admin:
+  - `Shortcode_Admin_Controller`
+- Scripts locales:
+  - `scripts/common.php`
+  - `scripts/php-lint.php`
+  - `scripts/structure-check.php`
+  - `scripts/technical-checklist.php`
 
 ## Shortcodes actuales
 
@@ -246,6 +255,7 @@
 - `Vehiculos`
 - `Procesos`
 - `Flujos`
+- `Shortcodes`
 - `Ajustes`
 
 ## Dashboards reales
@@ -464,6 +474,17 @@ Al cerrar cualquier fase o subfase real, actualizar:
 
 Registrar solo cambios reales detectables en el codigo y evitar duplicar historial.
 
+## Actualizacion Fase 25. Automatizacion del checklist en scripts / CI
+
+- Integracion real consolidada:
+  - la carpeta `scripts/` agrega una base local minima y portable para validacion tecnica
+  - `php-lint.php` soporta lint por archivo, lista o repo completo
+  - `structure-check.php` endurece validaciones basicas sobre archivos clave y rutas sensibles
+  - `technical-checklist.php` combina lint, chequeo estructural y verificaciones documentales simples de cierre
+- Riesgos arquitectonicos actualizados:
+  - los scripts no reemplazan validacion funcional real dentro de WordPress
+  - cualquier futura integracion CI/CD debe reutilizar estos entry points y no crear una segunda capa paralela de validacion
+
 ## Actualizacion Fase 12A. Reportes base operativos
 
 - Modulo activo nuevo:
@@ -596,3 +617,46 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
 - Riesgos arquitectonicos actualizados:
   - el modulo `Reports` sigue siendo admin-only y no debe absorber logica de dashboard operativo vivo
   - los derivados operativos del modulo deben seguir siendo lectura agregada y no una segunda fuente de verdad
+## Actualizacion Fase 23. Portal cliente premium con acciones reales
+
+- Integracion real consolidada:
+  - `Client_Dashboard_Controller` ahora puede renderizar un detalle integrado de proceso para cliente desde el portal principal
+  - el detalle cliente del proceso expone resumen, estado derivado, estado financiero agregado, timeline, comentarios visibles, formulario de comentario y documentos del proceso
+  - `Client_Quote_Shortcodes` refuerza accesos directos a detalle y PDF de quote
+  - `Client_Invoice_Shortcodes` expone estado de cobranza visible y descarga segura de `payment_receipt`
+- Riesgos arquitectonicos actualizados:
+- el portal premium sigue dependiendo de validacion estricta de ownership en dashboard, quotes, invoices y comments
+- cualquier ampliacion futura debe seguir reutilizando `Comment_Service`, `Document_Service` y `Download_Service` sin crear endpoints paralelos
+
+## Actualizacion Fase 26. Panel / catalogo de shortcodes
+
+- Integracion real consolidada:
+  - `Shortcode_Admin_Controller` agrega una pantalla admin informativa para shortcodes activos del runtime
+  - el menú admin incorpora `Super Mechanic -> Shortcodes` sin crear un sistema de navegación paralelo
+  - la página reutiliza `Assets`, `assets/css/admin.css` y `assets/js/admin.js`
+  - el catálogo muestra solo shortcodes activos detectados en las clases reales ya cableadas al bootstrap
+- Riesgos arquitectonicos actualizados:
+  - si en el futuro se agregan shortcodes nuevos, el catálogo debe mantenerse alineado con el bootstrap real y no con documentación aspiracional
+  - el catálogo es una capa informativa; no debe convertirse en una segunda fuente de registro ni de ejecución de shortcodes
+
+## Actualizacion Fase 24. Modernizacion visual integral UI/UX
+
+- Integracion real consolidada:
+  - `Assets` deja de ser placeholder y pasa a registrar y cargar la capa visual propia del plugin
+  - admin dashboard, reportes y portal mecanico reutilizan la capa admin con componentes visuales compartidos
+  - dashboard cliente y shortcodes cliente de quotes e invoices reutilizan la capa frontend con estilos comunes
+  - la modernizacion mantiene formularios, nonces, query args y descargas seguras existentes sin crear rutas paralelas
+- Riesgos arquitectonicos actualizados:
+  - la capa visual no debe terminar duplicada entre assets no cableados y nuevos estilos ad hoc en controllers
+  - cualquier futura ampliacion UI debe seguir priorizando clases CSS reutilizables sobre estilos inline dispersos
+
+## Actualizacion Fase 24B. Cobertura visual restante de paneles admin
+
+- Integracion real consolidada:
+  - `Client_Admin_Controller` y `Vehicle_Admin_Controller` modernizan listados y formularios sin alterar handlers, nonces ni bulk actions
+  - `Process_Admin_Controller` moderniza listado, filtros, formulario general, tabs y panel `communication` sin tocar la orquestacion del modulo
+  - `Flow_Admin_Controller` moderniza listado, formularios y vista de pasos manteniendo acciones existentes y el flujo de reorder
+  - `Settings` reutiliza la capa admin comun sobre la Settings API ya cableada
+  - `Client_List_Table`, `Vehicle_List_Table`, `Process_List_Table` y `Flow_List_Table` agregan jerarquia visual y badges sin modificar consultas ni paginacion
+- Riesgos arquitectonicos actualizados:
+  - la modernizacion sigue apoyandose en controllers grandes; si el admin crece mas, convendra extraer helpers de presentacion sin mover logica a nuevas capas paralelas

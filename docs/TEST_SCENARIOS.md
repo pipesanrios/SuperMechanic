@@ -386,3 +386,26 @@ Si existe diferencia entre estos escenarios
 y el comportamiento real del código:
 
 la fuente de verdad es el código real del plugin.
+==================================================
+ESCENARIO 18 — PORTAL CLIENTE PREMIUM OPERATIVO
+==================================================
+
+Estado Fase 23: OK
+
+Flujo:
+
+Cliente autenticado
+→ abre su panel principal
+→ entra al detalle de un proceso propio
+→ consulta estado derivado y estado financiero
+→ descarga documentos permitidos
+→ revisa quotes, invoices y pagos relacionados
+→ registra un comentario visible para staff
+
+Resultado esperado:
+
+- acceso restringido a procesos propios
+- detalle integrado del proceso sin exponer datos ajenos
+- descargas seguras de `quote_pdf`, `invoice_pdf` y `payment_receipt`
+- comentarios creados mediante `Comment_Service`
+- sin pagos online ni bypass de ownership

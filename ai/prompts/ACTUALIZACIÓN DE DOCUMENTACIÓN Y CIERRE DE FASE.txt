@@ -16,6 +16,7 @@ Objetivo de este prompt:
 
 Estado esperado:
 El trabajo debe quedar marcado como COMPLETA solo si no quedan inconsistencias relevantes entre código y documentación afectada.
+- el Prompt Master debe quedar alineado con el estado final
 
 Reglas de alcance:
 
@@ -36,13 +37,15 @@ Antes de actualizar documentación debes:
 
 1. revisar el código realmente implementado en este trabajo
 2. comparar los cambios con la documentación actual
-3. identificar archivos, clases, tablas y módulos realmente afectados
+3. identificar archivos, clases, tablas, módulos y assets realmente afectados
 4. verificar si hubo cambios reales en narrativa operativa, fases, módulos activos, riesgos o deuda técnica
 5. usar el código real del proyecto como fuente principal de verdad
+- verificar si el Prompt Master refleja correctamente el estado actual del sistema
+- verificar si AI_CONTEXT.md refleja correctamente el estado actual del sistema
 
 Debes confirmar y reportar explícitamente:
 
-- qué archivos fueron realmente modificados en el trabajo cerrado
+- qué archivos de código y assets fueron realmente modificados en el trabajo cerrado
 - qué archivos nuevos se crearon, si aplica
 - que el código compila o al menos pasa validación sintáctica disponible
 - que no hay errores de sintaxis PHP en los archivos relevantes
@@ -55,6 +58,7 @@ Aclaración importante:
 “bootstrap no roto” significa como mínimo:
 
 - validación sintáctica del entry point principal del plugin
+- validación sintáctica de `includes/class-plugin.php` si fue afectado o si el trabajo toca wiring del sistema
 - validación sintáctica de los archivos PHP modificados
 
 Si no puedes validar la carga completa del plugin dentro de WordPress, debes decirlo explícitamente.
@@ -73,7 +77,7 @@ Actualizar si fueron afectados por el trabajo real:
 /docs/SYSTEM_MAP.md
 /docs/CURRENT_STATE.md
 /docs/MODULE_REGISTRY.md
-/docs/DATABASE_MAP.md
+/docs/DATABASE_MAP.md solo si hubo cambios reales de tablas, relaciones, integridad o desalineaciones con el schema/documentación
 
 Actualizar solo si aplica realmente:
 
@@ -174,14 +178,58 @@ Actualizar si aplica:
 
 12. CONTEXTOS AI Y PROMPTS
 
-- actualizar solo si el trabajo cambió de forma real:
+- actualizar solo si el trabajo cambió de forma real (incluyendo AI_CONTEXT.md):
+  - evitar que AI_CONTEXT.md crezca innecesariamente o duplique información de docs técnicos
   - fases o subfases reconocidas
   - módulos activos
   - deuda técnica viva
   - narrativa operativa base
   - criterios de cierre o consistencia
+- prioridad de verdad:
+  1. código real
+  2. ARCHITECTURE.md y docs técnicos base
+  3. contextos rápidos AI
+  4. prompts operativos
 - mantener consistencia entre docs técnicos, contextos rápidos y prompts
 - evitar duplicar narrativa desactualizada en varios archivos
+- corregir prompts o contextos solo si quedaron desalineados con el estado real ya documentado
+
+
+==================================================
+13. SINCRONIZACIÓN DEL PROMPT MASTER (OBLIGATORIO)
+==================================================
+
+Debes revisar específicamente:
+
+\ai\prompts\PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC.txt
+
+Y validar que esté alineado con el estado real del sistema.
+
+Debes comprobar:
+
+- fases actuales (incluyendo subfases como 20B, 24B si existen)
+- módulos activos reales
+- capas transversales (incluyendo UI / assets si ya forman parte del sistema)
+- reglas críticas vigentes (arquitectura, seguridad, UI)
+- narrativa operativa base
+
+Si detectas desalineación:
+
+- corregir SOLO los bloques necesarios del Prompt Master
+- no reescribirlo completo innecesariamente
+- mantener consistencia con documentación técnica base
+
+Reglas:
+
+- el Prompt Master es la puerta de entrada de toda nueva sesión
+- debe reflejar el estado real del sistema, no un estado histórico
+- no puede quedar desactualizado respecto a código o docs
+
+Debes indicar explícitamente en el cierre:
+
+- si el Prompt Master fue revisado
+- si fue actualizado o no
+- qué secciones se corrigieron (si aplica)
 
 ==================================================
 REGLAS DE DOCUMENTACIÓN
@@ -214,6 +262,108 @@ Generar un resumen técnico con:
 - validaciones realmente ejecutadas
 - validaciones no ejecutadas, si aplica
 
+
+==================================================
+CHECKLIST DE CIERRE OBLIGATORIO (GATE DE CALIDAD)
+==================================================
+
+Antes de declarar el trabajo como COMPLETA debes validar:
+
+==================================================
+1. INTEGRIDAD DE CÓDIGO
+==================================================
+
+- [ ] todos los archivos PHP modificados pasan `php -l`
+- [ ] no hay errores de sintaxis
+- [ ] no se rompió el bootstrap del plugin
+- [ ] `includes/class-plugin.php` sigue cargando correctamente si fue afectado
+- [ ] autoload y namespaces siguen resolviendo correctamente
+
+==================================================
+2. RESPETO DE ARQUITECTURA
+==================================================
+
+- [ ] no se creó lógica fuera de services/repositorios sin justificación
+- [ ] no se duplicó lógica existente
+- [ ] SQL solo está en repositories
+- [ ] no se tocó `includes/modules/*`
+- [ ] controllers no contienen lógica de negocio indebida
+
+==================================================
+3. SEGURIDAD
+==================================================
+
+- [ ] ownership validado en accesos relevantes
+- [ ] descargas pasan por `Document_Service` + `Download_Service`
+- [ ] no se expuso `file_url`
+- [ ] nonces siguen presentes en formularios
+- [ ] no se abrieron endpoints inseguros
+
+==================================================
+4. UI / UX (SI APLICA)
+==================================================
+
+- [ ] no se rompieron formularios existentes
+- [ ] no se rompieron query args (`process_id`, `quote_id`, etc.)
+- [ ] botones y acciones siguen funcionando
+- [ ] descargas siguen funcionando
+- [ ] se reutilizó el sistema visual (`sm-*`)
+- [ ] no se introdujo CSS global agresivo
+
+==================================================
+5. DOCUMENTACIÓN
+==================================================
+
+- [ ] ARCHITECTURE.md actualizado si aplica
+- [ ] SYSTEM_MAP.md consistente
+- [ ] CURRENT_STATE.md actualizado
+- [ ] MODULE_REGISTRY.md consistente
+- [ ] DATABASE_MAP.md actualizado si aplica
+- [ ] task file actualizado correctamente
+- [ ] no hay contradicciones entre docs y código
+
+==================================================
+6. CONTEXTOS AI Y PROMPTS
+==================================================
+
+- [ ] contextos AI alineados con el estado real
+- [ ] no existen fases desactualizadas en prompts
+- [ ] no hay narrativa duplicada o contradictoria
+- [ ] AI_CONTEXT.md alineado con el estado real (fases, shortcodes, scripts, deuda técnica)
+
+==================================================
+7. PROMPT MASTER
+==================================================
+
+- [ ] Prompt Master revisado
+- [ ] fases actualizadas
+- [ ] módulos activos correctos
+- [ ] capas transversales correctas
+- [ ] reglas críticas alineadas con el sistema actual
+- [ ] no hay desalineación con código ni docs
+
+==================================================
+8. ALCANCE Y CONSISTENCIA
+==================================================
+
+- [ ] no se amplió el alcance original
+- [ ] no se introdujeron features no solicitados
+- [ ] cambios mínimos y seguros
+- [ ] el sistema sigue coherente globalmente
+
+==================================================
+REGLA FINAL
+==================================================
+
+Si cualquier punto falla:
+
+→ el estado final NO puede ser COMPLETA
+
+Debe marcarse como:
+- PARCIAL, o
+- NECESITA CORRECCIONES
+
+y explicar claramente por qué.
 ==================================================
 ESTADO FINAL OBLIGATORIO
 ========================
@@ -221,7 +371,8 @@ ESTADO FINAL OBLIGATORIO
 Debes cerrar respondiendo explícitamente:
 
 - Estado final del trabajo: COMPLETA o PARCIAL
-- Motivo breve si no queda COMPLETA
+- inconsistencias pendientes, si existen
+- motivo breve si no queda COMPLETA
 
 ==================================================
 FORMATO DE RESPUESTA

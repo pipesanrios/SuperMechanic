@@ -153,6 +153,12 @@ Esto verifica:
 - permisos
 - dependencias
 
+Chequeo técnico local mínimo recomendado desde Fase 25:
+
+- `php scripts/php-lint.php --all`
+- `php scripts/structure-check.php`
+- `php scripts/technical-checklist.php --task=docs/tasks/<task-file>.md`
+
 ==================================================
 5 ACTUALIZACIÓN DE DOCUMENTACIÓN
 ==================================================
@@ -275,3 +281,15 @@ y
 código
 
 la fuente de verdad es siempre el código actual.
+
+==================================================
+BASE DE AUTOMATIZACIÓN LOCAL — FASE 25
+==================================================
+
+Desde Fase 25 existe una base local reusable en `scripts/` para:
+
+- lint PHP
+- chequeo estructural
+- checklist técnico de cierre
+
+Su objetivo es preparar una futura integración CI/CD sin introducir todavía pipelines externos complejos.

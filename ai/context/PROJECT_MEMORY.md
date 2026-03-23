@@ -275,16 +275,23 @@ Estado funcional consolidado:
 
 - `reports` ya forma parte del bootstrap real
 - el portal cliente está operativo con descargas seguras, timeline, comentarios y notificaciones
+- la Fase 23 amplía el portal cliente con detalle integrado de proceso, estado financiero agregado y comentarios reales del cliente
 - el portal mecánico ya es operativo dentro del admin actual
+- la Fase 24 agrega una capa real de assets y moderniza dashboard admin, reportes, portal cliente y portal mecánico sin tocar lógica de negocio
+- la Fase 24B extiende la misma capa visual a clientes, vehículos, procesos, flujos y ajustes admin sin tocar lógica de negocio
+- la Fase 25 agrega una base local reusable de validación técnica en `scripts/` para lint, chequeo estructural y checklist de cierre
+- la Fase 26 agrega una pantalla admin `Super Mechanic -> Shortcodes` para documentar y copiar shortcodes activos sin alterar su lógica
 - `Access_Control_Service` centraliza ownership y visibilidad
 - `Process_Derived_State_Service` ya forma parte del runtime real
 - `payment_receipt` ya forma parte de la capa documental reusable por `payment_id`
-- Fases 12A, 12B, 12C, 12D, 12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20 y 22 ya tienen huella real en código y documentación
+- los shortcodes activos del runtime siguen siendo de contexto cliente; no existen aún shortcodes activos de mecánico o contexto general
+- Fases 12A, 12B, 12C, 12D, 12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 24B, 25 y 26 ya tienen huella real en código y documentación
 
 Deudas técnicas activas que no deben ocultarse:
 
 - `Client_Vehicle_Service::transfer_vehicle()` sigue sin repositorio transaccional dedicado
 - `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` siguen sin atomicidad dedicada
 - `Report_Service` mantiene concentración de lógica y debe vigilarse si el módulo crece
-- varios placeholders raíz siguen presentes pero no cableados al bootstrap real
+- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen presentes como placeholders raíz no cableados al bootstrap real
 - la exposición UI explícita del comprobante de pago sigue pendiente si se decide hacerla visible en una fase futura
+- la automatización de Fase 25 sigue siendo técnica y local; todavía no sustituye CI real ni pruebas funcionales WordPress

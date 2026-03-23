@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Quotes;
 
+use Super_Mechanic\Assets;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Download_Service;
 
@@ -33,6 +34,8 @@ class Client_Quote_Shortcodes {
 	}
 
 	public function render_client_quotes( $atts = array() ) {
+		Assets::enqueue_client_assets();
+
 		$guard = $this->guard_access();
 		if ( $guard ) {
 			return $guard;
@@ -49,10 +52,11 @@ class Client_Quote_Shortcodes {
 		);
 
 		ob_start();
-		echo '<div class="sm-client-quotes">';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Número', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-client-ui sm-client-quotes">';
+		echo '<div class="sm-client-header"><div><h2 class="sm-client-title">' . esc_html__( 'Cotizaciones', 'super-mechanic' ) . '</h2><p class="sm-client-subtitle">' . esc_html__( 'Revisa, descarga y responde las cotizaciones disponibles.', 'super-mechanic' ) . '</p></div><span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Acción cliente', 'super-mechanic' ) . '</span></div>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Número', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $quotes ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay cotizaciones disponibles.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No hay cotizaciones disponibles.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $quotes as $quote ) {
 				echo '<tr>';
@@ -61,6 +65,11 @@ class Client_Quote_Shortcodes {
 				echo '<td>' . esc_html( $this->humanize_key( $quote['status'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_money( $quote['grand_total'], $quote['currency'] ) ) . '</td>';
 				echo '<td>' . esc_html( $quote['created_at'] ) . '</td>';
+				echo '<td><a href="' . esc_url( add_query_arg( 'quote_id', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a>';
+				if ( $this->download_service->can_generate_pdf() ) {
+					echo ' | <a href="' . esc_url( $this->download_service->get_download_url( 'quote_pdf', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'PDF', 'super-mechanic' ) . '</a>';
+				}
+				echo '</td>';
 				echo '</tr>';
 			}
 		}
@@ -71,6 +80,8 @@ class Client_Quote_Shortcodes {
 	}
 
 	public function render_client_quote_detail( $atts = array() ) {
+		Assets::enqueue_client_assets();
+
 		$guard = $this->guard_access();
 		if ( $guard ) {
 			return $guard;
@@ -95,12 +106,12 @@ class Client_Quote_Shortcodes {
 		}
 
 		ob_start();
-		echo '<div class="sm-client-quote-detail">';
-		echo '<h3>' . esc_html( $quote['quote_number'] ) . '</h3>';
+		echo '<div class="sm-client-ui sm-client-quote-detail">';
+		echo '<div class="sm-client-header"><div><h3 class="sm-client-title">' . esc_html( $quote['quote_number'] ) . '</h3><p class="sm-client-subtitle">' . esc_html__( 'Detalle completo de la cotización y acciones disponibles.', 'super-mechanic' ) . '</p></div><span class="sm-client-badge sm-client-badge-primary">' . esc_html( $this->humanize_key( $quote['status'] ) ) . '</span></div>';
 		echo '<p><strong>' . esc_html__( 'Estado', 'super-mechanic' ) . ':</strong> ' . esc_html( $this->humanize_key( $quote['status'] ) ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Proceso', 'super-mechanic' ) . ':</strong> ' . esc_html( ! empty( $quote['process_title'] ) ? $quote['process_title'] : __( 'Sin título', 'super-mechanic' ) ) . '</p>';
 		if ( $this->download_service->can_generate_pdf() ) {
-			echo '<p><a class="button button-secondary" href="' . esc_url( $this->download_service->get_download_url( 'quote_pdf', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'Descargar PDF', 'super-mechanic' ) . '</a></p>';
+			echo '<p><a class="button button-secondary sm-client-button-secondary" href="' . esc_url( $this->download_service->get_download_url( 'quote_pdf', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'Descargar PDF', 'super-mechanic' ) . '</a></p>';
 		}
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Etiqueta', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Descripción', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Precio', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $items ) ) {
@@ -127,13 +138,13 @@ class Client_Quote_Shortcodes {
 		}
 		if ( 'sent' === $quote['status'] ) {
 			echo '<h4>' . esc_html__( 'Acciones del cliente', 'super-mechanic' ) . '</h4>';
-			echo '<form method="post">';
+			echo '<form method="post" class="sm-client-form-grid">';
 			echo '<input type="hidden" name="sm_client_quote_action" value="approve" />';
 			echo '<input type="hidden" name="quote_id" value="' . esc_attr( absint( $quote['id'] ) ) . '" />';
 			wp_nonce_field( 'sm_client_quote_action_' . absint( $quote['id'] ), 'sm_client_quote_action_nonce' );
 			submit_button( __( 'Aprobar cotización', 'super-mechanic' ), 'primary', 'submit', false );
 			echo '</form>';
-			echo '<form method="post" style="margin-top:12px;">';
+			echo '<form method="post" class="sm-client-form-grid" style="margin-top:12px;">';
 			echo '<input type="hidden" name="sm_client_quote_action" value="reject" />';
 			echo '<input type="hidden" name="quote_id" value="' . esc_attr( absint( $quote['id'] ) ) . '" />';
 			wp_nonce_field( 'sm_client_quote_action_' . absint( $quote['id'] ), 'sm_client_quote_action_nonce' );

@@ -64,6 +64,12 @@ Confirmar:
 * no SQL fuera de repository
 * no ruptura de módulos existentes
 
+Desde Fase 25, ejecutar además:
+
+* `php scripts/php-lint.php --all`
+* `php scripts/structure-check.php`
+* `php scripts/technical-checklist.php --task=docs/tasks/<task-file>.md`
+
 ==================================================
 6. AUDITORÍA (RECOMENDADO)
 ==========================

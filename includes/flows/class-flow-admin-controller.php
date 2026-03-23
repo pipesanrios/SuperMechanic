@@ -173,16 +173,26 @@ class Flow_Admin_Controller {
 		$list_table = new Flow_List_Table( $this->flow_service );
 		$list_table->prepare_items();
 
-		echo '<div class="wrap">';
-		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Flujos', 'super-mechanic' ) . '</h1>';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
-		echo '<hr class="wp-header-end" />';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
+		echo '<h1>' . esc_html__( 'Flujos', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Organiza los flujos operativos y sus pasos dentro del mismo lenguaje visual aprobado para el admin.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-filter-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-flows" />';
 		wp_nonce_field( 'sm_bulk_delete_flows', 'sm_bulk_delete_nonce' );
 		$list_table->search_box( __( 'Buscar flujos', 'super-mechanic' ), 'sm-flows' );
+		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -212,8 +222,17 @@ class Flow_Admin_Controller {
 		$title         = $is_edit ? __( 'Editar flujo', 'super-mechanic' ) : __( 'Nuevo flujo', 'super-mechanic' );
 		$process_types = $this->flow_service->get_process_type_options();
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Define el flujo y su disponibilidad sin modificar la lógica funcional del módulo.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card">';
 		echo '<form method="post" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit', 'id' => absint( $flow['id'] ) ) : array( 'action' => 'new' ) ) ) . '">';
 		wp_nonce_field( 'sm_save_flow', 'sm_flow_nonce' );
 		echo '<input type="hidden" name="sm_flow_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
@@ -224,8 +243,11 @@ class Flow_Admin_Controller {
 		$this->render_textarea_field( 'description', __( 'Descripción', 'super-mechanic' ), $flow['description'] );
 		$this->render_checkbox_field( 'is_active', __( 'Activo', 'super-mechanic' ), ! empty( $flow['is_active'] ), __( 'Habilitar este flujo para su uso.', 'super-mechanic' ) );
 		echo '</table>';
-		submit_button( $is_edit ? __( 'Actualizar flujo', 'super-mechanic' ) : __( 'Crear flujo', 'super-mechanic' ) );
+		echo '<div class="sm-form-actions">';
+		submit_button( $is_edit ? __( 'Actualizar flujo', 'super-mechanic' ) : __( 'Crear flujo', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -244,16 +266,24 @@ class Flow_Admin_Controller {
 
 		$steps = $this->step_service->get_steps_by_flow( $flow_id );
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( sprintf( __( 'Pasos del flujo: %s', 'super-mechanic' ), $flow['name'] ) ) . '</h1>';
-		echo '<p>' . esc_html__( 'Gestiona el pipeline del flujo y el orden operativo de sus pasos.', 'super-mechanic' ) . '</p>';
-		echo '<p><a href="' . esc_url( $this->get_page_url( array( 'action' => 'new_step', 'flow_id' => absint( $flow_id ) ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir paso', 'super-mechanic' ) . '</a> '; 
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button">' . esc_html__( 'Volver a flujos', 'super-mechanic' ) . '</a></p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Gestiona el pipeline del flujo, el orden de pasos y sus banderas operativas sin alterar el comportamiento del módulo.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new_step', 'flow_id' => absint( $flow_id ) ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir paso', 'super-mechanic' ) . '</a> ';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver a flujos', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-flows" />';
 		echo '<input type="hidden" name="flow_id" value="' . esc_attr( absint( $flow_id ) ) . '" />';
 		echo '<input type="hidden" name="sm_flow_operation" value="reorder_steps" />';
 		wp_nonce_field( 'sm_reorder_flow_steps', 'sm_flow_steps_nonce' );
+		echo '<div class="sm-table-wrap">';
 		echo '<table class="widefat striped">';
 		echo '<thead><tr>';
 		echo '<th>' . esc_html__( 'Orden', 'super-mechanic' ) . '</th>';
@@ -304,8 +334,12 @@ class Flow_Admin_Controller {
 		}
 
 		echo '</tbody></table>';
-		submit_button( __( 'Guardar orden', 'super-mechanic' ) );
+		echo '</div>';
+		echo '<div class="sm-form-actions">';
+		submit_button( __( 'Guardar orden', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -344,9 +378,17 @@ class Flow_Admin_Controller {
 			wp_die( esc_html__( 'Debes seleccionar un flujo válido para gestionar pasos.', 'super-mechanic' ) );
 		}
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
-		echo '<p>' . esc_html( sprintf( __( 'Flujo: %s', 'super-mechanic' ), $flow['name'] ) ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html( sprintf( __( 'Flujo: %s', 'super-mechanic' ), $flow['name'] ) ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'steps', 'id' => absint( $step['flow_id'] ) ) ) ) . '" class="button button-secondary">' . esc_html__( 'Volver a pasos', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card">';
 		echo '<form method="post" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit_step', 'id' => absint( $step['id'] ), 'flow_id' => absint( $step['flow_id'] ) ) : array( 'action' => 'new_step', 'flow_id' => absint( $step['flow_id'] ) ) ) ) . '">';
 		wp_nonce_field( 'sm_save_flow_step', 'sm_flow_step_nonce' );
 		echo '<input type="hidden" name="sm_flow_operation" value="' . esc_attr( $is_edit ? 'update_step' : 'create_step' ) . '" />';
@@ -362,8 +404,11 @@ class Flow_Admin_Controller {
 		$this->render_checkbox_field( 'requires_note', __( 'Requiere nota', 'super-mechanic' ), ! empty( $step['requires_note'] ) );
 		$this->render_checkbox_field( 'is_active', __( 'Activo', 'super-mechanic' ), ! empty( $step['is_active'] ) );
 		echo '</table>';
-		submit_button( $is_edit ? __( 'Actualizar paso', 'super-mechanic' ) : __( 'Crear paso', 'super-mechanic' ) );
+		echo '<div class="sm-form-actions">';
+		submit_button( $is_edit ? __( 'Actualizar paso', 'super-mechanic' ) : __( 'Crear paso', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -579,7 +624,7 @@ class Flow_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_notice( $message, $type ) {
-		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible sm-notice-card"><p>' . esc_html( $message ) . '</p></div>';
 	}
 
 	/**

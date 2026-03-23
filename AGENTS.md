@@ -114,6 +114,8 @@ paperwork
 predelivery  
 quotes  
 invoices  
+payments  
+reports  
 attachments  
 communication  
 dashboard  

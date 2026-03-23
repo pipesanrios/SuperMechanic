@@ -160,14 +160,22 @@ class Settings {
 			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
 		}
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Ajustes de Super Mechanic', 'super-mechanic' ) . '</h1>';
-		echo '<p>' . esc_html__( 'Configura los parámetros base del taller, formatos y tipos de proceso disponibles.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Configura los parámetros base del taller, formatos y tipos de proceso disponibles desde una vista más clara y consistente.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card sm-settings-card">';
 		echo '<form method="post" action="options.php">';
 		settings_fields( self::OPTION_GROUP );
 		do_settings_sections( self::PAGE_SLUG );
-		submit_button();
+		echo '<div class="sm-form-actions">';
+		submit_button( __( 'Guardar ajustes', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 

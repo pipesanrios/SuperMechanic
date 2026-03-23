@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Dashboard;
 
+use Super_Mechanic\Assets;
 use Super_Mechanic\Attachments\Attachment_Service;
 use Super_Mechanic\Attachments\Process_Timeline_Service;
 use Super_Mechanic\Communication\Comment_Service;
@@ -42,6 +43,8 @@ class Client_Dashboard_Controller {
 	}
 
 	public function render_dashboard( $user_id = null ) {
+		Assets::enqueue_client_assets();
+
 		$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
 		$profile = $this->service->get_client_profile_data( $user_id );
 
@@ -53,13 +56,27 @@ class Client_Dashboard_Controller {
 		$notifications = $this->get_client_notifications_data( $user_id, 5 );
 		$comments      = $this->get_recent_client_comments( $user_id, 5 );
 		$name          = trim( $profile['first_name'] . ' ' . $profile['last_name'] );
+		$comment_notice = $this->handle_process_comment_submission( $user_id );
+		$requested_process_id = $this->get_requested_process_id();
 
 		ob_start();
-		echo '<div class="sm-client-dashboard">';
-		echo '<h2>' . esc_html__( 'Mi panel', 'super-mechanic' ) . '</h2>';
-		echo '<p><strong>' . esc_html( $name ) . '</strong></p>';
+		echo '<div class="sm-client-ui sm-client-dashboard">';
+		echo '<div class="sm-client-header">';
+		echo '<div>';
+		echo '<h2 class="sm-client-title">' . esc_html__( 'Mi panel', 'super-mechanic' ) . '</h2>';
+		echo '<p class="sm-client-meta"><strong>' . esc_html( $name ) . '</strong></p>';
 		if ( ! empty( $profile['email'] ) ) {
-			echo '<p>' . esc_html( $profile['email'] ) . '</p>';
+			echo '<p class="sm-client-meta">' . esc_html( $profile['email'] ) . '</p>';
+		}
+		echo '</div>';
+		echo '<span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Portal cliente', 'super-mechanic' ) . '</span>';
+		echo '</div>';
+		if ( '' !== $comment_notice ) {
+			echo wp_kses_post( $comment_notice );
+		}
+		if ( $requested_process_id ) {
+			echo '<h3>' . esc_html__( 'Detalle del proceso', 'super-mechanic' ) . '</h3>';
+			echo $this->render_process_detail( $requested_process_id, $user_id );
 		}
 		echo '<h3>' . esc_html__( 'Vehiculos', 'super-mechanic' ) . '</h3>';
 		echo $this->render_vehicles( $user_id );
@@ -112,13 +129,15 @@ class Client_Dashboard_Controller {
 		$processes = $this->service->get_client_processes( $user_id, array( 'per_page' => 20 ) );
 
 		ob_start();
-		echo '<table class="widefat striped"><thead><tr><th>ID</th><th>' . esc_html__( 'Titulo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehiculo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actualizado', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>ID</th><th>' . esc_html__( 'Titulo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado operativo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado financiero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehiculo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Accesos rapidos', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $processes ) ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No hay procesos vinculados.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="7">' . esc_html__( 'No hay procesos vinculados.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $processes as $process ) {
 				$vehicle = trim( $process['vehicle_make'] . ' ' . $process['vehicle_model'] );
 				$status  = ucwords( str_replace( '_', ' ', $process['status'] ) );
+				$financial = $this->get_process_financial_snapshot( $user_id, $process );
+				$detail_url = add_query_arg( 'process_id', absint( $process['id'] ) );
 				if ( ! empty( $process['vehicle_plate'] ) ) {
 					$vehicle .= ' - ' . $process['vehicle_plate'];
 				}
@@ -130,8 +149,13 @@ class Client_Dashboard_Controller {
 				echo '<td>' . esc_html( $process['title'] ) . '</td>';
 				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $process['process_type'] ) ) ) . '</td>';
 				echo '<td>' . esc_html( $status ) . '</td>';
+				echo '<td>' . esc_html( $financial['label'] ) . '</td>';
 				echo '<td>' . esc_html( $vehicle ) . '</td>';
-				echo '<td>' . esc_html( ! empty( $process['updated_at'] ) ? $process['updated_at'] : $process['created_at'] ) . '</td>';
+				echo '<td>';
+				echo '<a href="' . esc_url( $detail_url ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a>';
+				echo ' | <a href="' . esc_url( $detail_url . '#sm-process-documents' ) . '">' . esc_html__( 'Documentos', 'super-mechanic' ) . '</a>';
+				echo ' | <a href="' . esc_url( $detail_url . '#sm-process-finance' ) . '">' . esc_html__( 'Facturacion', 'super-mechanic' ) . '</a>';
+				echo '</td>';
 				echo '</tr>';
 			}
 		}
@@ -159,9 +183,9 @@ class Client_Dashboard_Controller {
 		);
 
 		ob_start();
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $quotes ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay cotizaciones registradas.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No hay cotizaciones registradas.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $quotes as $quote ) {
 				echo '<tr>';
@@ -170,6 +194,11 @@ class Client_Dashboard_Controller {
 				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $quote['status'] ) ) ) . '</td>';
 				echo '<td>' . esc_html( number_format_i18n( (float) $quote['grand_total'], 2 ) ) . ' ' . esc_html( $quote['currency'] ) . '</td>';
 				echo '<td>' . esc_html( $quote['created_at'] ) . '</td>';
+				echo '<td><a href="' . esc_url( add_query_arg( 'quote_id', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a>';
+				if ( $this->download_service->can_generate_pdf() ) {
+					echo ' | <a href="' . esc_url( $this->download_service->get_download_url( 'quote_pdf', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'PDF', 'super-mechanic' ) . '</a>';
+				}
+				echo '</td>';
 				echo '</tr>';
 			}
 		}
@@ -237,11 +266,65 @@ class Client_Dashboard_Controller {
 				echo '<td>' . esc_html( number_format_i18n( (float) $invoice['amount_paid'], 2 ) ) . ' ' . esc_html( $invoice['currency'] ) . '</td>';
 				echo '<td>' . esc_html( number_format_i18n( (float) $invoice['balance_due'], 2 ) ) . ' ' . esc_html( $invoice['currency'] ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $invoice['due_date'] ) ? $invoice['due_date'] : '-' ) . '</td>';
-				echo '<td><a href="' . esc_url( add_query_arg( 'invoice_id', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( add_query_arg( 'invoice_id', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a>';
+				if ( $this->download_service->can_generate_pdf() ) {
+					echo ' | <a href="' . esc_url( $this->download_service->get_download_url( 'invoice_pdf', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'PDF', 'super-mechanic' ) . '</a>';
+				}
+				echo '</td>';
 				echo '</tr>';
 			}
 		}
 		echo '</tbody></table>';
+
+		return (string) ob_get_clean();
+	}
+
+	public function render_process_detail( $process_id, $user_id = null ) {
+		$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+		$process = $this->get_client_process_by_id( $user_id, $process_id );
+
+		if ( empty( $process ) ) {
+			return '<p>' . esc_html__( 'No tienes acceso a este proceso.', 'super-mechanic' ) . '</p>';
+		}
+
+		$quotes    = $this->get_process_quotes_for_user( $user_id, absint( $process['id'] ) );
+		$invoices  = $this->get_process_invoices_for_user( $user_id, absint( $process['id'] ) );
+		$financial = $this->get_process_financial_snapshot( $user_id, $process, $invoices );
+		$vehicle   = trim( $process['vehicle_make'] . ' ' . $process['vehicle_model'] );
+
+		if ( ! empty( $process['vehicle_plate'] ) ) {
+			$vehicle .= ' - ' . $process['vehicle_plate'];
+		}
+
+		ob_start();
+		echo '<div class="sm-client-process-detail">';
+		echo '<p><a href="' . esc_url( remove_query_arg( 'process_id' ) ) . '">' . esc_html__( 'Volver al panel', 'super-mechanic' ) . '</a></p>';
+		echo '<table class="widefat striped" style="max-width:760px;"><tbody>';
+		echo '<tr><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><td>' . esc_html( ! empty( $process['title'] ) ? $process['title'] : '#' . absint( $process['id'] ) ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><td>' . esc_html( ucwords( str_replace( '_', ' ', $process['process_type'] ) ) ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Estado base', 'super-mechanic' ) . '</th><td>' . esc_html( ucwords( str_replace( '_', ' ', $process['status'] ) ) ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Estado derivado', 'super-mechanic' ) . '</th><td>' . esc_html( ! empty( $process['derived_status_label'] ) ? $process['derived_status_label'] : __( 'No disponible', 'super-mechanic' ) ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Estado financiero', 'super-mechanic' ) . '</th><td>' . esc_html( $financial['label'] ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Vehiculo', 'super-mechanic' ) . '</th><td>' . esc_html( $vehicle ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Ultima actualizacion', 'super-mechanic' ) . '</th><td>' . esc_html( ! empty( $process['updated_at'] ) ? $process['updated_at'] : $process['created_at'] ) . '</td></tr>';
+		echo '</tbody></table>';
+
+		echo '<h4 id="sm-process-quotes">' . esc_html__( 'Cotizaciones relacionadas', 'super-mechanic' ) . '</h4>';
+		echo $this->render_process_quotes_table( $quotes );
+
+		echo '<h4 id="sm-process-finance">' . esc_html__( 'Facturas y pagos', 'super-mechanic' ) . '</h4>';
+		echo $this->render_process_invoices_table( $invoices );
+
+		echo '<h4 id="sm-process-documents">' . esc_html__( 'Documentos del proceso', 'super-mechanic' ) . '</h4>';
+		echo $this->render_process_documents( absint( $process['id'] ), $user_id );
+
+		echo '<h4>' . esc_html__( 'Timeline', 'super-mechanic' ) . '</h4>';
+		echo $this->render_process_timeline( absint( $process['id'] ), $user_id );
+
+		echo '<h4>' . esc_html__( 'Comentarios', 'super-mechanic' ) . '</h4>';
+		echo $this->render_process_comments( absint( $process['id'] ), $user_id );
+		echo $this->render_process_comment_form( absint( $process['id'] ), $user_id );
+		echo '</div>';
 
 		return (string) ob_get_clean();
 	}
@@ -366,6 +449,264 @@ class Client_Dashboard_Controller {
 		}
 
 		return $this->notification_service->get_client_notifications( $client_id, array( 'per_page' => $limit, 'orderby' => 'created_at', 'order' => 'DESC' ) );
+	}
+
+	protected function get_requested_process_id() {
+		return isset( $_GET['process_id'] ) ? absint( wp_unslash( $_GET['process_id'] ) ) : 0;
+	}
+
+	protected function get_client_process_by_id( $user_id, $process_id ) {
+		$process_id = absint( $process_id );
+
+		if ( ! $process_id ) {
+			return array();
+		}
+
+		foreach ( $this->service->get_client_processes( $user_id, array( 'per_page' => 200 ) ) as $process ) {
+			if ( absint( $process['id'] ) === $process_id ) {
+				return $process;
+			}
+		}
+
+		return array();
+	}
+
+	protected function get_process_quotes_for_user( $user_id, $process_id ) {
+		$client_id = $this->service->get_client_id_by_user_id( $user_id );
+
+		if ( ! $client_id ) {
+			return array();
+		}
+
+		return array_values(
+			array_filter(
+				$this->quote_service->get_quotes_for_user(
+					$user_id,
+					array(
+						'client_id' => $client_id,
+						'per_page'  => 100,
+						'orderby'   => 'created_at',
+						'order'     => 'DESC',
+					)
+				),
+				static function ( $quote ) use ( $process_id ) {
+					return absint( $quote['process_id'] ) === absint( $process_id );
+				}
+			)
+		);
+	}
+
+	protected function get_process_invoices_for_user( $user_id, $process_id ) {
+		$client_id = $this->service->get_client_id_by_user_id( $user_id );
+
+		if ( ! $client_id ) {
+			return array();
+		}
+
+		$invoices = array_values(
+			array_filter(
+				$this->invoice_service->get_invoices_for_user(
+					$user_id,
+					array(
+						'client_id' => $client_id,
+						'per_page'  => 100,
+						'orderby'   => 'created_at',
+						'order'     => 'DESC',
+					)
+				),
+				static function ( $invoice ) use ( $process_id ) {
+					return absint( $invoice['process_id'] ) === absint( $process_id );
+				}
+			)
+		);
+
+		foreach ( $invoices as $index => $invoice ) {
+			$invoices[ $index ] = $this->invoice_service->append_collection_state( $invoice );
+		}
+
+		return $invoices;
+	}
+
+	protected function get_process_financial_snapshot( $user_id, array $process, array $invoices = null ) {
+		if ( null === $invoices ) {
+			$invoices = $this->get_process_invoices_for_user( $user_id, absint( $process['id'] ) );
+		}
+
+		if ( empty( $invoices ) ) {
+			return array(
+				'label' => __( 'Sin facturas emitidas', 'super-mechanic' ),
+			);
+		}
+
+		$total_grand    = 0.0;
+		$total_balance  = 0.0;
+		$currency       = '';
+		$single_currency = true;
+
+		foreach ( $invoices as $invoice ) {
+			$total_grand   += (float) $invoice['grand_total'];
+			$total_balance += (float) $invoice['balance_due'];
+
+			if ( '' === $currency ) {
+				$currency = (string) $invoice['currency'];
+			} elseif ( $currency !== (string) $invoice['currency'] ) {
+				$single_currency = false;
+			}
+		}
+
+		if ( $total_balance <= 0 && $total_grand > 0 ) {
+			$label = __( 'Pagado', 'super-mechanic' );
+		} elseif ( $total_balance < $total_grand ) {
+			$label = __( 'Pago parcial', 'super-mechanic' );
+		} else {
+			$label = __( 'Pendiente de pago', 'super-mechanic' );
+		}
+
+		if ( $single_currency ) {
+			$label .= ' - ' . $this->format_money( $total_balance, $currency ) . ' ' . __( 'pendiente', 'super-mechanic' );
+		}
+
+		return array(
+			'label' => $label,
+		);
+	}
+
+	protected function render_process_quotes_table( array $quotes ) {
+		ob_start();
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $quotes ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No hay cotizaciones relacionadas.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $quotes as $quote ) {
+				echo '<tr>';
+				echo '<td>' . esc_html( $quote['quote_number'] ) . '</td>';
+				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $quote['status'] ) ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money( $quote['grand_total'], $quote['currency'] ) ) . '</td>';
+				echo '<td><a href="' . esc_url( add_query_arg( 'quote_id', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a>';
+				if ( $this->download_service->can_generate_pdf() ) {
+					echo ' | <a href="' . esc_url( $this->download_service->get_download_url( 'quote_pdf', absint( $quote['id'] ) ) ) . '">' . esc_html__( 'PDF', 'super-mechanic' ) . '</a>';
+				}
+				echo '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table>';
+
+		return (string) ob_get_clean();
+	}
+
+	protected function render_process_invoices_table( array $invoices ) {
+		ob_start();
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Saldo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pagos', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $invoices ) ) {
+			echo '<tr><td colspan="6">' . esc_html__( 'No hay facturas relacionadas.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $invoices as $invoice ) {
+				$payments = $this->invoice_service->get_payments( absint( $invoice['id'] ) );
+				$status   = ucwords( str_replace( '_', ' ', $invoice['status'] ) );
+
+				if ( ! empty( $invoice['collection_label'] ) ) {
+					$status .= ' (' . $invoice['collection_label'] . ')';
+				}
+
+				echo '<tr>';
+				echo '<td>' . esc_html( $invoice['invoice_number'] ) . '</td>';
+				echo '<td>' . esc_html( $status ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money( $invoice['grand_total'], $invoice['currency'] ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money( $invoice['balance_due'], $invoice['currency'] ) ) . '</td>';
+				echo '<td>';
+				if ( empty( $payments ) ) {
+					echo esc_html__( 'Sin pagos registrados', 'super-mechanic' );
+				} else {
+					foreach ( $payments as $payment ) {
+						echo '<div>';
+						echo esc_html( $payment['payment_date'] ) . ' - ' . esc_html( $this->format_money( $payment['amount'], $invoice['currency'] ) );
+						if ( $this->download_service->can_generate_pdf() ) {
+							echo ' <a href="' . esc_url( $this->download_service->get_download_url( 'payment_receipt', absint( $payment['id'] ) ) ) . '">' . esc_html__( 'Comprobante', 'super-mechanic' ) . '</a>';
+						}
+						echo '</div>';
+					}
+				}
+				echo '</td>';
+				echo '<td><a href="' . esc_url( add_query_arg( 'invoice_id', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a>';
+				if ( $this->download_service->can_generate_pdf() ) {
+					echo ' | <a href="' . esc_url( $this->download_service->get_download_url( 'invoice_pdf', absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'PDF', 'super-mechanic' ) . '</a>';
+				}
+				echo '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table>';
+
+		return (string) ob_get_clean();
+	}
+
+	protected function render_process_comment_form( $process_id, $user_id = null ) {
+		$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
+
+		if ( ! $this->service->user_can_access_client_process( $user_id, $process_id ) ) {
+			return '';
+		}
+
+		ob_start();
+		echo '<form method="post" style="margin-top:12px;">';
+		wp_nonce_field( 'sm_client_process_comment_' . absint( $process_id ), 'sm_client_process_comment_nonce' );
+		echo '<input type="hidden" name="sm_client_process_comment_action" value="create" />';
+		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process_id ) ) . '" />';
+		echo '<label for="sm_client_process_comment_content_' . esc_attr( absint( $process_id ) ) . '">' . esc_html__( 'Enviar comentario al taller', 'super-mechanic' ) . '</label><br />';
+		echo '<textarea id="sm_client_process_comment_content_' . esc_attr( absint( $process_id ) ) . '" name="content" class="large-text" rows="4" required></textarea><br />';
+		echo '<button type="submit" class="button button-primary">' . esc_html__( 'Enviar comentario', 'super-mechanic' ) . '</button>';
+		echo '</form>';
+
+		return (string) ob_get_clean();
+	}
+
+	protected function handle_process_comment_submission( $user_id ) {
+		if ( ! is_user_logged_in() || 'POST' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
+			return '';
+		}
+
+		if ( empty( $_POST['sm_client_process_comment_action'] ) || 'create' !== sanitize_key( wp_unslash( $_POST['sm_client_process_comment_action'] ) ) ) {
+			return '';
+		}
+
+		$process_id = isset( $_POST['process_id'] ) ? absint( wp_unslash( $_POST['process_id'] ) ) : 0;
+		$nonce      = isset( $_POST['sm_client_process_comment_nonce'] ) ? wp_unslash( $_POST['sm_client_process_comment_nonce'] ) : '';
+		$content    = isset( $_POST['content'] ) ? wp_unslash( $_POST['content'] ) : '';
+		$client_id  = $this->service->get_client_id_by_user_id( $user_id );
+
+		if ( ! $process_id || ! wp_verify_nonce( $nonce, 'sm_client_process_comment_' . $process_id ) ) {
+			return '<div class="notice notice-error"><p>' . esc_html__( 'No fue posible validar el comentario enviado.', 'super-mechanic' ) . '</p></div>';
+		}
+
+		if ( ! $this->service->user_can_access_client_process( $user_id, $process_id ) ) {
+			return '<div class="notice notice-error"><p>' . esc_html__( 'No tienes acceso a este proceso.', 'super-mechanic' ) . '</p></div>';
+		}
+
+		$result = $this->comment_service->create_comment(
+			array(
+				'object_type'       => 'process',
+				'object_id'         => $process_id,
+				'process_id'        => $process_id,
+				'author_user_id'    => $user_id,
+				'author_client_id'  => $client_id,
+				'comment_type'      => 'client_message',
+				'content'           => $content,
+				'is_internal'       => 0,
+				'is_client_visible' => 1,
+				'status'            => 'published',
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
+		}
+
+		return '<div class="notice notice-success"><p>' . esc_html__( 'Tu comentario fue enviado correctamente.', 'super-mechanic' ) . '</p></div>';
+	}
+
+	protected function format_money( $amount, $currency ) {
+		return number_format_i18n( (float) $amount, 2 ) . ' ' . sanitize_text_field( (string) $currency );
 	}
 
 	protected function get_recent_client_comments( $user_id, $limit = 5 ) {

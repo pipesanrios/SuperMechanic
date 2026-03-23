@@ -36,6 +36,12 @@ Riesgos o puntos sensibles:
 - cualquier cambio en `class-plugin.php` afecta el wiring real del sistema
 - el bootstrap actual usa `includes/*`; no debe mezclarse con `includes/modules/*` sin migracion explicita
 
+Cambios tecnicos recientes confirmados:
+- `class-assets.php` deja de ser placeholder y pasa a registrar styles/scripts propios para admin y frontend
+- `class-plugin.php` registra la capa de assets junto al resto del wiring principal
+- en Fase 25, la carpeta `scripts/` agrega tooling local reusable para lint, chequeo estructural y checklist tecnico sin alterar el runtime del plugin
+- en Fase 26, `class-shortcode-admin-controller.php` agrega un catálogo admin de shortcodes activos y `class-admin-menu.php` incorpora la nueva página `Shortcodes`
+
 --------------------------------------------------
 
 ## Security
@@ -110,6 +116,7 @@ Cambios tecnicos recientes confirmados:
 - `Settings_Service` agrega una capa central reusable sobre la option `sm_settings`
 - la configuracion avanzada queda agrupada en `business`, `process`, `financial` y `notifications`
 - los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
+- en Fase 24B, `class-settings.php` reutiliza la shell visual admin sobre la Settings API existente sin alterar guardado ni estructura de options
 
 --------------------------------------------------
 
@@ -145,6 +152,9 @@ Riesgos o puntos sensibles:
 - cualquier cambio impacta ownership, procesos, quotes, invoices y portal cliente
 - no romper relacion con `sm_client_id` cuando el frontend cliente depende de ese contexto
 
+Cambios tecnicos recientes confirmados:
+- en Fase 24B, `Client_Admin_Controller` y `Client_List_Table` modernizan listado, formulario, CTA y mensajes con la capa `sm-*` sin tocar handlers ni queries
+
 --------------------------------------------------
 
 ## Vehicles
@@ -176,6 +186,9 @@ Estado:
 Riesgos o puntos sensibles:
 - cambios en vehiculos afectan procesos y ownership cliente-vehiculo
 - no romper relaciones existentes con clientes y procesos
+
+Cambios tecnicos recientes confirmados:
+- en Fase 24B, `Vehicle_Admin_Controller` y `Vehicle_List_Table` modernizan listado, formulario y jerarquia visual sin alterar acciones, relaciones ni wiring
 
 --------------------------------------------------
 
@@ -247,6 +260,7 @@ Cambios tecnicos recientes confirmados:
 - `Flow_Step_Service` valida transiciones lineales minimas entre pasos activos usando `step_order`
 - el modulo sigue sin grafo de transiciones explicito; hoy solo permite movimiento al paso activo inmediatamente siguiente o anterior
 - esta validacion se expone para que `Process_Service` reutilice el flujo como fuente de verdad y no replique reglas en controllers
+- en Fase 24B, `Flow_Admin_Controller` y `Flow_List_Table` modernizan listado, formularios y vista de pasos sin tocar persistencia ni reorder existente
 
 --------------------------------------------------
 
@@ -304,6 +318,7 @@ Cambios tecnicos recientes confirmados:
 - en Fase 19, entrar en un paso final sincroniza el proceso a `completed` por la ruta operativa simple y registra el log asociado
 - en Fase 21, `Process_Service` reutiliza `Settings_Service` para permitir o bloquear `allow_step_back`
 - en Fase 21, la auto-finalizacion sobre paso final pasa a depender de `auto_complete_on_final_step`
+- en Fase 24B, `Process_Admin_Controller` y `Process_List_Table` modernizan listado, filtros, formulario general, tabs y panel `communication` sin alterar services, nonces ni tabs hijas del modulo
 
 --------------------------------------------------
 
@@ -455,6 +470,8 @@ Cambios tecnicos recientes confirmados:
 - en Fase 18, `Mechanic_Dashboard_Controller` pasa a exponer listado, detalle y acciones operativas minimas para procesos accesibles de mecanico
 - en Fase 18, el portal mecanico reutiliza `Process_Service` para cambios de paso/estado, `Comment_Service` para notas internas y `Process_Timeline_Service` para timeline consolidada
 - en Fase 20, `Dashboard_Service` agrega decoracion reusable de estados derivados de proceso para portal cliente y portal mecanico
+- en Fase 24, `Admin_Dashboard_Controller`, `Client_Dashboard_Controller` y `Mechanic_Dashboard_Controller` modernizan markup y jerarquia visual sin tocar logica de negocio
+- en Fase 24, la capa visual pasa a depender del wiring comun de `Assets` en lugar de assets sueltos no registrados
 
 --------------------------------------------------
 
@@ -947,9 +964,10 @@ Cambios tecnicos recientes confirmados:
 - `Report_Service` devuelve comparacion no disponible cuando el baseline no es valido y la UI renderiza `N/A`
 - `Report_Service` agrega un resumen ejecutivo simple con metricas de alto nivel
 - `Report_Admin_Controller` agrega la seccion `Reportes avanzados base` sin tocar bootstrap ni frontend cliente
- - en 12E, `Report_Service` reutiliza los limites de `Report_Repository` como fuente unica para listados recientes
- - en 12E, `Report_Admin_Controller` endurece la lectura de filtros admin y deja de renderizar comparativas monetarias sinteticas cuando no hay datos
- - en 12E, la deuda tecnica del modulo queda explicitada en la documentacion sin cambiar schema ni exportaciones soportadas
+- en 12E, `Report_Service` reutiliza los limites de `Report_Repository` como fuente unica para listados recientes
+- en 12E, `Report_Admin_Controller` endurece la lectura de filtros admin y deja de renderizar comparativas monetarias sinteticas cuando no hay datos
+- en 12E, la deuda tecnica del modulo queda explicitada en la documentacion sin cambiar schema ni exportaciones soportadas
+- en Fase 24, `Report_Admin_Controller` mejora la presentacion visual y de filtros sin alterar datasets, filtros ni exportacion
 
 Deuda tecnica vigente:
 - `Report_Service` sigue siendo grande y conviene vigilarlo si el modulo incorpora nuevas capas analiticas
@@ -1016,3 +1034,13 @@ Riesgos o puntos sensibles:
 - evitar dependencias circulares con services de dominio
 - no volver a mover ownership al dashboard o a shortcodes cliente
 - mantener alineado el acceso documental con esta politica comun
+## Actualizacion Fase 23. Portal cliente premium con acciones reales
+
+### Dashboard / Client Portal
+- Cambios tecnicos recientes confirmados:
+  - `Client_Dashboard_Controller` agrega detalle integrado de proceso para cliente con resumen operativo y financiero
+  - el portal cliente ahora permite registrar comentarios de proceso reutilizando `Comment_Service`
+  - el detalle integrado reutiliza `Attachment_Service`, `Process_Timeline_Service`, `Quote_Service` e `Invoice_Service` sin mover logica de negocio a controllers
+  - `Client_Invoice_Shortcodes` expone descarga segura de `payment_receipt`
+  - `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` refuerzan accesos a detalle y documentos seguros
+  - en Fase 24, `Client_Dashboard_Controller`, `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` modernizan la capa visual sin tocar ownership, nonces ni descargas

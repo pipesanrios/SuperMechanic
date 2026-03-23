@@ -132,16 +132,26 @@ class Process_Admin_Controller {
 		$list_table = new Process_List_Table( $this->service );
 		$list_table->prepare_items();
 
-		echo '<div class="wrap">';
-		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Procesos', 'super-mechanic' ) . '</h1>';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="page-title-action">' . esc_html__( 'Anadir nuevo', 'super-mechanic' ) . '</a>';
-		echo '<hr class="wp-header-end" />';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
+		echo '<h1>' . esc_html__( 'Procesos', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Administra el hub operativo del plugin con filtros, estados y acciones mas claras sin tocar la lógica del dominio.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
 		$this->render_filter_form( $list_table );
+		echo '<div class="sm-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-processes" />';
 		wp_nonce_field( 'sm_bulk_delete_processes', 'sm_bulk_delete_nonce' );
+		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -177,8 +187,16 @@ class Process_Admin_Controller {
 		$status_options = $this->service->get_status_options();
 		$current_tab    = $this->get_current_tab( $process, $is_edit );
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap sm-admin-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Conserva el flujo operativo del proceso mientras mejoras claridad visual, navegación y lectura de estados.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
 
 		if ( $is_edit ) {
 			$this->render_tabs( absint( $process['id'] ), $process['process_type'], $current_tab );
@@ -226,6 +244,7 @@ class Process_Admin_Controller {
 			return;
 		}
 
+		echo '<div class="sm-card sm-form-card sm-section">';
 		echo '<form method="post" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit', 'id' => absint( $process['id'] ) ) : array( 'action' => 'new' ) ) ) . '">';
 		wp_nonce_field( 'sm_save_process', 'sm_process_nonce' );
 		echo '<input type="hidden" name="sm_process_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
@@ -241,8 +260,11 @@ class Process_Admin_Controller {
 		$this->render_datetime_field( 'due_date', __( 'Fecha objetivo', 'super-mechanic' ), $process['due_date'] );
 		$this->render_datetime_field( 'completed_at', __( 'Fecha de finalizacion', 'super-mechanic' ), $process['completed_at'] );
 		echo '</table>';
-		submit_button( $is_edit ? __( 'Actualizar proceso', 'super-mechanic' ) : __( 'Crear proceso', 'super-mechanic' ) );
+		echo '<div class="sm-form-actions">';
+		submit_button( $is_edit ? __( 'Actualizar proceso', 'super-mechanic' ) : __( 'Crear proceso', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -395,23 +417,29 @@ class Process_Admin_Controller {
 		$process_types = $this->service->get_process_type_options();
 		$statuses      = $this->service->get_status_options();
 
-		echo '<form method="get" style="margin: 0 0 12px;">';
+		echo '<div class="sm-card sm-filter-card sm-section">';
+		echo '<form method="get" class="sm-process-filter-form">';
 		echo '<input type="hidden" name="page" value="super-mechanic-processes" />';
-		echo '<select name="filter_process_type">';
+		echo '<div class="sm-filter-grid">';
+		echo '<div class="sm-filter-field"><label for="filter_process_type">' . esc_html__( 'Tipo de proceso', 'super-mechanic' ) . '</label><select id="filter_process_type" name="filter_process_type">';
 		echo '<option value="">' . esc_html__( 'Todos los tipos', 'super-mechanic' ) . '</option>';
 		foreach ( $process_types as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $process_type, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
-		echo '</select> ';
-		echo '<select name="filter_status">';
+		echo '</select></div>';
+		echo '<div class="sm-filter-field"><label for="filter_status">' . esc_html__( 'Estado', 'super-mechanic' ) . '</label><select id="filter_status" name="filter_status">';
 		echo '<option value="">' . esc_html__( 'Todos los estados', 'super-mechanic' ) . '</option>';
 		foreach ( $statuses as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $status, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
-		echo '</select> ';
-		submit_button( __( 'Filtrar', 'super-mechanic' ), '', 'filter_action', false );
+		echo '</select></div>';
+		echo '</div>';
+		echo '<div class="sm-form-actions">';
+		submit_button( __( 'Filtrar', 'super-mechanic' ), 'secondary', 'filter_action', false );
 		$list_table->search_box( __( 'Buscar procesos', 'super-mechanic' ), 'sm-processes' );
+		echo '</div>';
 		echo '</form>';
+		echo '</div>';
 	}
 
 	protected function render_tabs( $process_id, $process_type, $current_tab ) {
@@ -435,7 +463,7 @@ class Process_Admin_Controller {
 			$tabs['paperwork'] = __( 'Paperwork', 'super-mechanic' );
 		}
 
-		echo '<nav class="nav-tab-wrapper" style="margin-bottom:16px;">';
+		echo '<nav class="nav-tab-wrapper sm-nav-tab-wrapper sm-section" aria-label="' . esc_attr__( 'Navegacion del proceso', 'super-mechanic' ) . '">';
 		foreach ( $tabs as $tab => $label ) {
 			$class = 'nav-tab';
 			if ( $tab === $current_tab ) {
@@ -477,8 +505,10 @@ class Process_Admin_Controller {
 		$comments       = $this->comment_service->get_process_comments( $process_id, array( 'per_page' => 200, 'orderby' => 'created_at', 'order' => 'DESC' ) );
 		$notifications  = $this->notification_service->get_notifications( array( 'process_id' => $process_id, 'per_page' => 100, 'orderby' => 'created_at', 'order' => 'DESC' ) );
 
-		echo '<h2>' . esc_html__( 'Comentarios y mensajes', 'super-mechanic' ) . '</h2>';
-		echo '<form method="post" style="margin:16px 0 24px;">';
+		echo '<div class="sm-grid sm-grid-two sm-section">';
+		echo '<div class="sm-card sm-form-card">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Comentarios y mensajes', 'super-mechanic' ) . '</h2></div>';
+		echo '<form method="post" class="sm-process-comment-form">';
 		wp_nonce_field( 'sm_process_comment_action', 'sm_process_comment_nonce' );
 		echo '<input type="hidden" name="sm_process_comment_operation" value="create" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( $process_id ) . '" />';
@@ -487,9 +517,14 @@ class Process_Admin_Controller {
 		echo '<tr><th scope="row"><label for="sm_process_comment_content">' . esc_html__( 'Contenido', 'super-mechanic' ) . '</label></th><td><textarea id="sm_process_comment_content" name="content" rows="5" class="large-text" required></textarea></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Visibilidad', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_internal" value="1" checked /> ' . esc_html__( 'Solo uso interno', 'super-mechanic' ) . '</label><br /><label><input type="checkbox" name="is_client_visible" value="1" /> ' . esc_html__( 'Visible para el cliente', 'super-mechanic' ) . '</label></td></tr>';
 		echo '</table>';
-		submit_button( __( 'Guardar comentario', 'super-mechanic' ) );
+		echo '<div class="sm-form-actions">';
+		submit_button( __( 'Guardar comentario', 'super-mechanic' ), 'primary', 'submit', false );
+		echo '</div>';
 		echo '</form>';
-
+		echo '</div>';
+		echo '<div class="sm-card">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Historial operativo', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap">';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Contenido', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Visibilidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $comments ) ) {
 			echo '<tr><td colspan="6">' . esc_html__( 'No hay comentarios para este proceso.', 'super-mechanic' ) . '</td></tr>';
@@ -507,9 +542,12 @@ class Process_Admin_Controller {
 			}
 		}
 		echo '</tbody></table>';
-
-		echo '<hr />';
-		echo '<h2>' . esc_html__( 'Feed de notificaciones', 'super-mechanic' ) . '</h2>';
+		echo '</div>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Feed de notificaciones', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap">';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Titulo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Mensaje', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Destinatario', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $notifications ) ) {
 			echo '<tr><td colspan="5">' . esc_html__( 'No hay notificaciones para este proceso.', 'super-mechanic' ) . '</td></tr>';
@@ -525,10 +563,12 @@ class Process_Admin_Controller {
 			}
 		}
 		echo '</tbody></table>';
+		echo '</div>';
+		echo '</div>';
 	}
 
 	protected function render_notice( $message, $type ) {
-		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible sm-notice-card"><p>' . esc_html( $message ) . '</p></div>';
 	}
 
 	protected function render_vehicle_select_field( $selected_vehicle_id, $vehicles ) {
