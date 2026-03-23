@@ -250,5 +250,7 @@ Notas operativas:
 - `Access_Control_Service` es la política central de ownership y visibilidad
 - el portal mecánico ya es operativo dentro del admin actual
 - `Process_Derived_State_Service` ya existe como capa reusable para estados derivados
+- `payment_receipt` ya existe como documento lógico reusable por `payment_id`
+- `reports` ya expone métricas avanzadas operativas y financieras reutilizables
 - `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos
 - `includes/modules/*` sigue siendo legacy de referencia, no arquitectura activa

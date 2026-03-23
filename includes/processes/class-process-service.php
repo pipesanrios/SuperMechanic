@@ -13,6 +13,7 @@ use Super_Mechanic\Flows\Flow_Service;
 use Super_Mechanic\Flows\Flow_Step_Repository;
 use Super_Mechanic\Flows\Flow_Step_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Repository;
 use Super_Mechanic\Vehicles\Vehicle_Service;
 use WP_Error;
@@ -56,8 +57,9 @@ class Process_Service {
 	protected $flow_step_service;
 	protected $flow_step_repository;
 	protected $access_control_service;
+	protected $settings_service;
 
-	public function __construct( Process_Repository $repository = null, Vehicle_Service $vehicle_service = null, Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Flow_Service $flow_service = null, Flow_Step_Service $flow_step_service = null, Flow_Step_Repository $flow_step_repository = null, Process_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null ) {
+	public function __construct( Process_Repository $repository = null, Vehicle_Service $vehicle_service = null, Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Flow_Service $flow_service = null, Flow_Step_Service $flow_step_service = null, Flow_Step_Repository $flow_step_repository = null, Process_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null ) {
 		$this->repository                = $repository ? $repository : new Process_Repository();
 		$this->vehicle_service           = $vehicle_service ? $vehicle_service : new Vehicle_Service();
 		$this->client_service            = $client_service ? $client_service : new Client_Service();
@@ -68,6 +70,7 @@ class Process_Service {
 		$this->flow_step_repository      = $flow_step_repository ? $flow_step_repository : new Flow_Step_Repository();
 		$this->transaction_repository    = $transaction_repository ? $transaction_repository : new Process_Transaction_Repository();
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service( $this->client_service, $this->client_vehicle_repository, $this->repository );
+		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
 	}
 
 	public function create_process( array $data ) {
@@ -430,6 +433,10 @@ class Process_Service {
 			return $valid_transition;
 		}
 
+		if ( ! $this->is_step_back_allowed( absint( $process['flow_id'] ), absint( $process['current_step_id'] ), $step_id ) ) {
+			return new WP_Error( 'sm_process_step_back_disabled', __( 'La configuracion actual del taller no permite retroceder pasos.', 'super-mechanic' ) );
+		}
+
 		$log_data = $this->build_step_transition_log_data( absint( $process['flow_id'] ), absint( $process['current_step_id'] ), $step_id );
 
 		if ( is_wp_error( $log_data ) ) {
@@ -443,7 +450,7 @@ class Process_Service {
 		$status_changed  = false;
 		$previous_status = sanitize_key( $process['status'] );
 
-		if ( $this->flow_step_service->is_final_step( absint( $process['flow_id'] ), $step_id ) ) {
+		if ( $this->should_auto_complete_on_final_step() && $this->flow_step_service->is_final_step( absint( $process['flow_id'] ), $step_id ) ) {
 			if ( ! $this->is_final_process_status( $previous_status ) ) {
 				$this->mark_process_as_completed( $update_data );
 				$status_log = $this->build_status_change_log_data(
@@ -714,7 +721,11 @@ class Process_Service {
 			return $valid_transition;
 		}
 
-		if ( $this->flow_step_service->is_final_step( absint( $stored_data['flow_id'] ), $target_step_id ) ) {
+		if ( ! $this->is_step_back_allowed( absint( $stored_data['flow_id'] ), $current_step_id, $target_step_id ) ) {
+			return new WP_Error( 'sm_process_step_back_disabled', __( 'La configuracion actual del taller no permite retroceder pasos.', 'super-mechanic' ) );
+		}
+
+		if ( $this->should_auto_complete_on_final_step() && $this->flow_step_service->is_final_step( absint( $stored_data['flow_id'] ), $target_step_id ) ) {
 			if ( ! $this->is_final_process_status( $target_status ) ) {
 				$data['status']        = 'completed';
 				$stored_data['status'] = 'completed';
@@ -761,6 +772,58 @@ class Process_Service {
 
 	protected function is_valid_datetime_value( $value ) {
 		return false !== strtotime( $value );
+	}
+
+	/**
+	 * Check whether workshop settings allow step back transitions.
+	 *
+	 * @param int $flow_id      Flow ID.
+	 * @param int $from_step_id Current step ID.
+	 * @param int $to_step_id   Target step ID.
+	 * @return bool
+	 */
+	protected function is_step_back_allowed( $flow_id, $from_step_id, $to_step_id ) {
+		if ( ! $this->is_step_back_transition( $flow_id, $from_step_id, $to_step_id ) ) {
+			return true;
+		}
+
+		return (bool) $this->settings_service->get_setting( 'process', 'allow_step_back', true );
+	}
+
+	/**
+	 * Detect a backwards adjacent step transition.
+	 *
+	 * @param int $flow_id      Flow ID.
+	 * @param int $from_step_id Current step ID.
+	 * @param int $to_step_id   Target step ID.
+	 * @return bool
+	 */
+	protected function is_step_back_transition( $flow_id, $from_step_id, $to_step_id ) {
+		$flow_id      = absint( $flow_id );
+		$from_step_id = absint( $from_step_id );
+		$to_step_id   = absint( $to_step_id );
+
+		if ( ! $flow_id || ! $from_step_id || ! $to_step_id ) {
+			return false;
+		}
+
+		$from_step = $this->flow_step_repository->get_by_flow_and_id( $flow_id, $from_step_id );
+		$to_step   = $this->flow_step_repository->get_by_flow_and_id( $flow_id, $to_step_id );
+
+		if ( ! $from_step || ! $to_step ) {
+			return false;
+		}
+
+		return absint( $to_step['step_order'] ) < absint( $from_step['step_order'] );
+	}
+
+	/**
+	 * Check whether final steps should auto-complete the process.
+	 *
+	 * @return bool
+	 */
+	protected function should_auto_complete_on_final_step() {
+		return (bool) $this->settings_service->get_setting( 'process', 'auto_complete_on_final_step', true );
 	}
 
 	/**

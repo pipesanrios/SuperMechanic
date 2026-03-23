@@ -321,6 +321,25 @@ Resultado esperado:
 - sin duplicar el flujo admin completo del proceso
 
 ==================================================
+ESCENARIO 17 — REPORTES AVANZADOS
+==================================================
+
+Estado Fase 22: OK
+
+Flujo:
+
+Administrador con `sm_manage_plugin`
+→ abre `Super Mechanic -> Reportes`
+→ aplica filtros por fechas, tipo, estado, estado derivado, moneda o método de pago
+
+Resultado esperado:
+
+- métricas operativas avanzadas visibles
+- métricas financieras avanzadas visibles
+- comparativas solo cuando existe período anterior equivalente
+- exportación CSV previa sigue limitada a las vistas soportadas
+
+==================================================
 RESUMEN FASE 14
 ==================================================
 

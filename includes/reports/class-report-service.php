@@ -66,8 +66,11 @@ class Report_Service {
 				'date_to'        => '',
 				'process_status' => '',
 				'process_type'   => '',
+				'derived_status' => '',
 				'quote_status'   => '',
 				'invoice_status' => '',
+				'currency'       => '',
+				'payment_method' => '',
 				'limit'          => Report_Repository::DEFAULT_RECENT_LIMIT,
 			)
 		);
@@ -83,12 +86,18 @@ class Report_Service {
 
 		$status_options = array_keys( $this->get_process_status_options() );
 		$type_options   = array_keys( $this->get_process_type_options() );
+		$derived_options = array_keys( $this->get_derived_status_options() );
 		$quote_options  = array_keys( $this->get_quote_status_options() );
 		$invoice_options = array_keys( $this->get_invoice_status_options() );
+		$currency_options = array_keys( $this->get_currency_options() );
+		$payment_method_options = array_keys( $this->get_payment_method_options() );
 		$process_status = sanitize_key( $filters['process_status'] );
 		$process_type   = sanitize_key( $filters['process_type'] );
+		$derived_status = sanitize_key( $filters['derived_status'] );
 		$quote_status   = sanitize_key( $filters['quote_status'] );
 		$invoice_status = sanitize_key( $filters['invoice_status'] );
+		$currency       = strtoupper( sanitize_text_field( (string) $filters['currency'] ) );
+		$payment_method = sanitize_key( $filters['payment_method'] );
 
 		if ( ! in_array( $process_status, $status_options, true ) ) {
 			$process_status = '';
@@ -96,6 +105,10 @@ class Report_Service {
 
 		if ( ! in_array( $process_type, $type_options, true ) ) {
 			$process_type = '';
+		}
+
+		if ( ! in_array( $derived_status, $derived_options, true ) ) {
+			$derived_status = '';
 		}
 
 		if ( ! in_array( $quote_status, $quote_options, true ) ) {
@@ -106,13 +119,24 @@ class Report_Service {
 			$invoice_status = '';
 		}
 
+		if ( ! in_array( $currency, $currency_options, true ) ) {
+			$currency = '';
+		}
+
+		if ( ! in_array( $payment_method, $payment_method_options, true ) ) {
+			$payment_method = '';
+		}
+
 		return array(
 			'date_from'      => $date_from,
 			'date_to'        => $date_to,
 			'process_status' => $process_status,
 			'process_type'   => $process_type,
+			'derived_status' => $derived_status,
 			'quote_status'   => $quote_status,
 			'invoice_status' => $invoice_status,
+			'currency'       => $currency,
+			'payment_method' => $payment_method,
 			'limit'          => min( Report_Repository::MAX_RECENT_LIMIT, max( 1, absint( $filters['limit'] ) ) ),
 		);
 	}
@@ -140,6 +164,8 @@ class Report_Service {
 
 		$filters['quote_status']   = '';
 		$filters['invoice_status'] = '';
+		$filters['currency']       = '';
+		$filters['payment_method'] = '';
 
 		return $filters;
 	}
@@ -155,6 +181,7 @@ class Report_Service {
 
 		$filters['process_status'] = '';
 		$filters['process_type']   = '';
+		$filters['derived_status'] = '';
 
 		return $filters;
 	}
@@ -337,13 +364,19 @@ class Report_Service {
 		$filters = $this->get_operational_filters( $filters );
 
 		return array(
-			'filters'            => $filters,
-			'process_status'     => $this->repository->get_process_counts_by_status( $filters ),
-			'process_types'      => $this->repository->get_process_counts_by_type( $filters ),
-			'recent_processes'   => $this->repository->get_recent_processes( $filters ),
-			'recent_maintenance' => $this->repository->get_recent_maintenance( $filters ),
-			'recent_clients'     => $this->repository->get_recent_clients( $filters ),
-			'recent_vehicles'    => $this->repository->get_recent_vehicles( $filters ),
+			'filters'              => $filters,
+			'process_status'       => $this->repository->get_process_counts_by_status( $filters ),
+			'process_types'        => $this->repository->get_process_counts_by_type( $filters ),
+			'derived_status'       => $this->repository->get_process_counts_by_derived_status( $filters ),
+			'process_type_status'  => $this->build_process_type_status_matrix_rows( $this->repository->get_process_type_status_matrix( $filters ) ),
+			'completed_processes'  => $this->repository->get_completed_process_count( $filters ),
+			'ready_for_delivery'   => $this->repository->get_ready_for_delivery_count( $filters ),
+			'flow_time_summary'    => $this->repository->get_process_flow_time_summary( $filters ),
+			'recent_activity'      => $this->repository->get_recent_activity_summary( $filters ),
+			'recent_processes'     => $this->repository->get_recent_processes( $filters ),
+			'recent_maintenance'   => $this->repository->get_recent_maintenance( $filters ),
+			'recent_clients'       => $this->repository->get_recent_clients( $filters ),
+			'recent_vehicles'      => $this->repository->get_recent_vehicles( $filters ),
 		);
 	}
 
@@ -357,14 +390,18 @@ class Report_Service {
 		$filters = $this->get_financial_filters( $filters );
 
 		return array(
-			'filters'                  => $filters,
-			'quote_status'             => $this->repository->get_quote_counts_by_status( $filters ),
-			'recent_quotes'            => $this->repository->get_recent_quotes( $filters ),
-			'invoice_status'           => $this->repository->get_invoice_counts_by_status( $filters ),
+			'filters'                   => $filters,
+			'quote_status'              => $this->repository->get_quote_counts_by_status( $filters ),
+			'recent_quotes'             => $this->repository->get_recent_quotes( $filters ),
+			'invoice_status'            => $this->repository->get_invoice_counts_by_status( $filters ),
 			'invoice_collection_status' => $this->repository->get_invoice_collection_counts( $filters ),
+			'invoice_aging'            => $this->repository->get_invoice_aging_summary( $filters ),
 			'recent_invoices'          => $this->repository->get_recent_invoices( $filters ),
 			'recent_payments'          => $this->repository->get_recent_payments( $filters ),
 			'income_by_period'         => $this->repository->get_income_by_period( $filters ),
+			'payment_methods'          => $this->repository->get_payment_method_breakdown( $filters ),
+			'top_clients_invoiced'     => $this->repository->get_top_clients_by_invoiced_amount( $filters ),
+			'top_clients_paid'         => $this->repository->get_top_clients_by_paid_amount( $filters ),
 			'total_invoiced'           => $this->repository->get_invoiced_amounts_by_currency( $filters ),
 			'total_paid'               => $this->repository->get_paid_amounts_by_currency( $filters ),
 			'total_outstanding'        => $this->repository->get_outstanding_balances_by_currency( $filters ),
@@ -411,9 +448,12 @@ class Report_Service {
 			'invoice_comparison'     => $this->build_count_comparison_block( $invoice_current, $invoice_previous ),
 			'payment_comparison'     => $this->build_currency_comparison_block( $payment_current, $payment_previous ),
 			'process_status'         => $this->repository->get_process_grouped_by_status( $current_filters ),
+			'process_derived_status' => $this->repository->get_process_counts_by_derived_status( $current_filters ),
 			'process_types'          => $this->repository->get_process_grouped_by_type( $current_filters ),
 			'quote_status'           => $this->repository->get_quote_grouped_by_status( $current_filters ),
 			'invoice_status'         => $this->repository->get_invoice_grouped_by_status( $current_filters ),
+			'invoice_aging'          => $this->repository->get_invoice_aging_summary( $current_filters ),
+			'payment_methods'        => $this->repository->get_payment_method_breakdown( $current_filters ),
 		);
 	}
 
@@ -536,6 +576,52 @@ class Report_Service {
 			'overdue'        => __( 'Overdue', 'super-mechanic' ),
 			'cancelled'      => __( 'Cancelled', 'super-mechanic' ),
 			'refunded'       => __( 'Refunded', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	 * Get derived process status options.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_derived_status_options() {
+		return array(
+			'waiting_approval'  => __( 'Waiting approval', 'super-mechanic' ),
+			'waiting_payment'   => __( 'Waiting payment', 'super-mechanic' ),
+			'ready_for_delivery' => __( 'Ready for delivery', 'super-mechanic' ),
+			'completed'         => __( 'Completed', 'super-mechanic' ),
+			'open'              => __( 'Open', 'super-mechanic' ),
+			'in_progress'       => __( 'In progress', 'super-mechanic' ),
+			'on_hold'           => __( 'On hold', 'super-mechanic' ),
+			'cancelled'         => __( 'Cancelled', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	 * Get supported currency options from known operational defaults.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_currency_options() {
+		return array(
+			'USD' => 'USD',
+			'EUR' => 'EUR',
+			'MXN' => 'MXN',
+		);
+	}
+
+	/**
+	 * Get supported payment method options.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_payment_method_options() {
+		return array(
+			'cash'     => __( 'Cash', 'super-mechanic' ),
+			'transfer' => __( 'Transfer', 'super-mechanic' ),
+			'card'     => __( 'Card', 'super-mechanic' ),
+			'check'    => __( 'Check', 'super-mechanic' ),
+			'other'    => __( 'Other', 'super-mechanic' ),
 		);
 	}
 
@@ -850,5 +936,25 @@ class Report_Service {
 	 */
 	protected function format_decimal_for_export( $value ) {
 		return number_format( (float) $value, 2, '.', '' );
+	}
+
+	/**
+	 * Build UI-friendly rows from the process type/status matrix.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Raw rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	protected function build_process_type_status_matrix_rows( array $rows ) {
+		$formatted = array();
+
+		foreach ( $rows as $row ) {
+			$formatted[] = array(
+				'process_type' => isset( $row['process_type'] ) ? (string) $row['process_type'] : '',
+				'status'       => isset( $row['status'] ) ? (string) $row['status'] : '',
+				'total'        => isset( $row['total'] ) ? absint( $row['total'] ) : 0,
+			);
+		}
+
+		return $formatted;
 	}
 }

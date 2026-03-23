@@ -106,6 +106,11 @@ Riesgos o puntos sensibles:
 - cambios en settings afectan moneda, tipos de proceso y panel cliente
 - requiere sanitizacion estricta en guardado
 
+Cambios tecnicos recientes confirmados:
+- `Settings_Service` agrega una capa central reusable sobre la option `sm_settings`
+- la configuracion avanzada queda agrupada en `business`, `process`, `financial` y `notifications`
+- los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
+
 --------------------------------------------------
 
 ## Clients
@@ -297,6 +302,8 @@ Cambios tecnicos recientes confirmados:
 - la implementacion final valida inicio y confirmacion real de transaccion antes de devolver exito
 - en Fase 19, `Process_Service` deja de aceptar saltos arbitrarios entre pasos del mismo flujo
 - en Fase 19, entrar en un paso final sincroniza el proceso a `completed` por la ruta operativa simple y registra el log asociado
+- en Fase 21, `Process_Service` reutiliza `Settings_Service` para permitir o bloquear `allow_step_back`
+- en Fase 21, la auto-finalizacion sobre paso final pasa a depender de `auto_complete_on_final_step`
 
 --------------------------------------------------
 
@@ -487,6 +494,9 @@ Riesgos o puntos sensibles:
 - su aprobacion controla la generacion de invoices
 - no romper validaciones de ownership, estados ni salida PDF
 
+Cambios tecnicos recientes confirmados:
+- en Fase 21, `Quote_Service` reutiliza `Settings_Service` para moneda por defecto y nombre del negocio en salida imprimible
+
 --------------------------------------------------
 
 ## Invoices
@@ -534,6 +544,8 @@ Cambios tecnicos recientes confirmados:
 - el hardening final de Fase 15 deja `sm_payments` como fuente de verdad financiera para validacion, saldo y resumen de cobranza
 - `Invoice_Service` expone `get_invoice_payment_summary()` y reutiliza ese calculo para validar ediciones de pago sin doble conteo
 - `Invoice_Admin_Controller` mantiene la UI del proceso, pero separa con labels explicitos `Estado de factura` y `Estado de pago`
+- en Fase 20B, `Invoice_Service` expone acceso reusable a `payment_id`, contexto consolidado del comprobante y render HTML del payment receipt
+- en Fase 21, `Invoice_Service` reutiliza `Settings_Service` para moneda, nombre del negocio y `allow_partial_payments`
 
 --------------------------------------------------
 
@@ -573,6 +585,7 @@ Cambios tecnicos recientes confirmados:
 - `Invoice_Service` expone un resumen reusable de cobranza con estados visibles `pending`, `partial` y `paid` sin romper los estados internos del modulo de invoices
 - `Invoice_Admin_Controller` muestra estado de cobro por invoice y restringe la captura admin a metodos de pago soportados
 - `Reports` ahora reutiliza `sm_payments` y `sm_invoices` para exponer estado de cobro agregado e ingresos basicos por periodo
+- en Fase 20B, cada pago puede resolverse documentalmente como `payment_receipt` unico por `payment_id`, sin persistencia de archivos ni attachments nuevos
 
 --------------------------------------------------
 
@@ -599,6 +612,7 @@ Clases principales:
 - `Document_Service`
 - `PDF_Service`
 - `Download_Service`
+- `Settings_Service`
 
 Dependencias:
 - quotes
@@ -621,6 +635,8 @@ Riesgos o puntos sensibles:
 - la auditoria pre-Fase 12 confirma que dashboard cliente y flujo de adjuntos protegidos siguen usando esta capa comun
 - la Fase 17 exige que cualquier nuevo entry point documental reutilice la politica central de `Access_Control_Service` y no vuelva a introducir checks divergentes
 - en Fase 20, la automatizacion documental sigue siendo logica y no persistente; no debe evolucionar a persistencia automatica sin una ruta deduplicada por objeto logico
+- en Fase 20B, `Document_Service` agrega `payment_receipt` como documento logico reusable por `payment_id`
+- en Fase 20B, `PDF_Service` genera el comprobante de pago bajo demanda reutilizando `Invoice_Service`
 
 --------------------------------------------------
 
@@ -938,6 +954,11 @@ Cambios tecnicos recientes confirmados:
 Deuda tecnica vigente:
 - `Report_Service` sigue siendo grande y conviene vigilarlo si el modulo incorpora nuevas capas analiticas
 - cualquier indice nuevo sugerido por performance debe tratarse como mejora futura hasta existir en `class-schema.php`
+
+Actualizacion Fase 22:
+- `Report_Repository` agrega agregados avanzados para estados derivados, readiness operativa, aging, pagos por metodo y top clientes
+- `Report_Service` amplía filtros con `derived_status`, `currency` y `payment_method` manteniendo el patron por bloques
+- `Report_Admin_Controller` expone tablas avanzadas nuevas sin romper exportacion CSV previa
 
 --------------------------------------------------
 

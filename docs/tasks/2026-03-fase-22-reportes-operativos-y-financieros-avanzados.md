@@ -1,0 +1,22 @@
+# Fase 22. Reportes operativos y financieros avanzados
+
+- Estado: completado
+- Modulo: `includes/reports/`
+- Archivos modificados:
+  - `includes/reports/class-report-repository.php`
+  - `includes/reports/class-report-service.php`
+  - `includes/reports/class-report-admin-controller.php`
+- Alcance real:
+  - métricas operativas avanzadas
+  - métricas financieras avanzadas
+  - filtros ampliados razonables
+  - preservación de comparativas y CSV existente
+- Notas técnicas finales:
+  - sin cambios de schema
+  - sin cambios en `includes/modules/*`
+  - SQL nuevo concentrado en `Report_Repository`
+  - `Report_Service` conserva orquestación por bloques
+  - la UI admin solo se amplió para exponer datasets nuevos
+- Deudas técnicas abiertas:
+  - vigilar crecimiento futuro de `Report_Service`
+  - evaluar índices futuros solo si el volumen real lo justifica

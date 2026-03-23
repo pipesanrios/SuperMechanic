@@ -278,7 +278,8 @@ Estado funcional consolidado:
 - el portal mecánico ya es operativo dentro del admin actual
 - `Access_Control_Service` centraliza ownership y visibilidad
 - `Process_Derived_State_Service` ya forma parte del runtime real
-- Fases 12A, 12B, 12C, 12D, 12E, 13, 14, 14B, 15, 16, 17, 18, 19 y 20 ya tienen huella real en código y documentación
+- `payment_receipt` ya forma parte de la capa documental reusable por `payment_id`
+- Fases 12A, 12B, 12C, 12D, 12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20 y 22 ya tienen huella real en código y documentación
 
 Deudas técnicas activas que no deben ocultarse:
 
@@ -286,4 +287,4 @@ Deudas técnicas activas que no deben ocultarse:
 - `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` siguen sin atomicidad dedicada
 - `Report_Service` mantiene concentración de lógica y debe vigilarse si el módulo crece
 - varios placeholders raíz siguen presentes pero no cableados al bootstrap real
-- sigue faltando una ruta documental reusable para comprobantes automáticos de pago
+- la exposición UI explícita del comprobante de pago sigue pendiente si se decide hacerla visible en una fase futura

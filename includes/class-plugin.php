@@ -27,6 +27,7 @@ use Super_Mechanic\Helpers\Document_Service;
 use Super_Mechanic\Flows\Flow_Admin_Controller;
 use Super_Mechanic\Helpers\Download_Service;
 use Super_Mechanic\Helpers\PDF_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Invoices\Client_Invoice_Shortcodes;
 use Super_Mechanic\Invoices\Invoice_Admin_Controller;
 use Super_Mechanic\Invoices\Invoice_Service;
@@ -53,6 +54,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Plugin {
 	protected $settings;
+	protected $settings_service;
 	protected $admin_menu;
 	protected $client_admin_controller;
 	protected $vehicle_admin_controller;
@@ -93,14 +95,15 @@ class Plugin {
 
 	public function __construct() {
 		$this->settings                      = new Settings();
+		$this->settings_service              = new Settings_Service();
 		$this->client_admin_controller       = new Client_Admin_Controller();
 		$this->vehicle_admin_controller      = new Vehicle_Admin_Controller();
-		$this->process_service               = new Process_Service();
+		$this->process_service               = new Process_Service( null, null, null, null, null, null, null, null, null, null, $this->settings_service );
 		$this->maintenance_service           = new Maintenance_Service();
 		$this->pre_delivery_service          = new Pre_Delivery_Service();
 		$this->paperwork_service             = new Paperwork_Service();
-		$this->quote_service                 = new Quote_Service( null, null, $this->process_service, $this->maintenance_service );
-		$this->invoice_service               = new Invoice_Service( null, null, null, $this->quote_service );
+		$this->quote_service                 = new Quote_Service( null, null, $this->process_service, $this->maintenance_service, null, null, null, null, $this->settings_service );
+		$this->invoice_service               = new Invoice_Service( null, null, null, $this->quote_service, null, null, null, $this->settings_service );
 		$this->pdf_service                   = new PDF_Service( $this->invoice_service, $this->quote_service );
 		$this->dashboard_service             = new Dashboard_Service( null, null, $this->process_service );
 		$this->report_service                = new Report_Service( null, $this->process_service );

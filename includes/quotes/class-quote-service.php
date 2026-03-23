@@ -9,10 +9,10 @@ namespace Super_Mechanic\Quotes;
 
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Repository;
-use Super_Mechanic\Settings;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -29,8 +29,9 @@ class Quote_Service {
 	protected $event_dispatcher;
 	protected $transaction_repository;
 	protected $access_control_service;
+	protected $settings_service;
 
-	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null ) {
+	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null ) {
 		$this->repository                = $repository ? $repository : new Quote_Repository();
 		$this->item_repository           = $item_repository ? $item_repository : new Quote_Item_Repository();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
@@ -39,6 +40,7 @@ class Quote_Service {
 		$this->event_dispatcher          = $event_dispatcher ? $event_dispatcher : Event_Dispatcher::get_instance();
 		$this->transaction_repository    = $transaction_repository ? $transaction_repository : new Quote_Transaction_Repository();
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service( null, $this->client_vehicle_repository, null, $this->repository );
+		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
 	}
 
 	public function create_quote( array $data ) {
@@ -504,12 +506,10 @@ class Quote_Service {
 			return new WP_Error( 'sm_quote_not_found', __( 'La cotizacion no existe.', 'super-mechanic' ) );
 		}
 
-		$settings = get_option( Settings::OPTION_NAME, array() );
-
 		return array(
 			'quote'       => $quote,
 			'items'       => $this->get_quote_items( $quote_id ),
-			'company'     => ! empty( $settings['company_name'] ) ? sanitize_text_field( $settings['company_name'] ) : __( 'Super Mechanic', 'super-mechanic' ),
+			'company'     => sanitize_text_field( $this->settings_service->get_setting( 'business', 'business_name', __( 'Super Mechanic', 'super-mechanic' ) ) ),
 			'client_name' => ! empty( $quote['client_name'] ) ? $quote['client_name'] : __( 'Cliente no asignado', 'super-mechanic' ),
 		);
 	}
@@ -691,8 +691,7 @@ class Quote_Service {
 	}
 
 	protected function get_default_currency() {
-		$settings = get_option( Settings::OPTION_NAME, array() );
-		return ! empty( $settings['default_currency'] ) ? sanitize_text_field( $settings['default_currency'] ) : 'USD';
+		return sanitize_text_field( $this->settings_service->get_setting( 'business', 'currency', 'USD' ) );
 	}
 
 	/**

@@ -988,3 +988,104 @@ super-mechanic/
   - `php -l` OK en los archivos modificados
 - Deuda tecnica abierta:
   - falta una ruta documental reusable y deduplicada para comprobantes de pago automaticos por `payment_id`
+
+## 24. Fase 20B. Comprobante de pago documental
+
+- Estado: implementada.
+- Archivos creados:
+  - `docs/tasks/2026-03-fase-20b-comprobante-de-pago-documental.md`
+- Archivos modificados:
+  - `includes/helpers/class-document-service.php`
+  - `includes/helpers/class-pdf-service.php`
+  - `includes/invoices/class-invoice-service.php`
+  - `includes/communication/class-event-dispatcher.php`
+- Clases nuevas o ampliadas:
+  - `Document_Service`
+  - `PDF_Service`
+  - `Invoice_Service`
+  - `Event_Dispatcher`
+- Integracion real:
+  - `Document_Service` agrega el tipo documental logico `payment_receipt` resuelto por `payment_id`
+  - la deduplicacion se resuelve por identidad logica del pago: un comprobante por `payment_id`, generado bajo demanda y sin persistencia fisica
+  - `PDF_Service` genera el comprobante reutilizando `Invoice_Service` como fuente de contexto consolidado
+  - `Invoice_Service` expone acceso reusable a pago, contexto del comprobante, HTML imprimible y filename estable del receipt
+  - `Event_Dispatcher` prepara disponibilidad documental logica tanto para `invoice_paid` como para `payment_registered`, sin crear attachments ni archivos fisicos
+- Tablas afectadas sin cambios de schema:
+  - `sm_payments`
+  - `sm_invoices`
+  - `sm_processes`
+  - `sm_clients`
+- Validacion tecnica:
+  - `php -l` OK en `includes/invoices/class-invoice-service.php`
+  - `php -l` OK en `includes/helpers/class-pdf-service.php`
+  - `php -l` OK en `includes/helpers/class-document-service.php`
+  - `php -l` OK en `includes/communication/class-event-dispatcher.php`
+  - sin cambios de schema
+  - sin cambios en `includes/modules/*`
+- Deuda tecnica abierta:
+  - la ruta documental reusable ya existe, pero la exposicion UI explicita del comprobante en admin o shortcodes queda para una fase futura si se considera necesaria
+
+## 25. Fase 21. Configuracion avanzada por taller / negocio
+
+- Estado: implementada.
+- Archivos creados:
+  - `includes/helpers/class-settings-service.php`
+  - `docs/tasks/2026-03-fase-21-configuracion-avanzada-por-taller-negocio.md`
+- Archivos modificados:
+  - `includes/class-plugin.php`
+  - `includes/processes/class-process-service.php`
+  - `includes/invoices/class-invoice-service.php`
+  - `includes/quotes/class-quote-service.php`
+- Clases nuevas o ampliadas:
+  - `Settings_Service`
+  - `Plugin`
+  - `Process_Service`
+  - `Invoice_Service`
+  - `Quote_Service`
+- Integracion real:
+  - `Settings_Service` centraliza configuracion avanzada del negocio sobre la option `sm_settings`
+  - la estructura base queda organizada en `business`, `process`, `financial` y `notifications`
+  - la capa aplica defaults seguros y fallback minimo hacia settings legacy de negocio para no romper comportamiento actual
+  - `Process_Service` reutiliza configuracion para `allow_step_back` y `auto_complete_on_final_step`
+  - `Invoice_Service` reutiliza configuracion para `allow_partial_payments`, moneda y nombre del negocio
+  - `Quote_Service` reutiliza configuracion para moneda y nombre del negocio
+- Tablas afectadas sin cambios de schema:
+  - `wp_options`
+- Validacion tecnica esperada:
+  - sin cambios de schema
+  - sin cambios en `includes/modules/*`
+- Deuda tecnica abierta:
+  - queda pendiente una UI admin minima para editar `sm_settings` si se considera necesaria en una fase futura
+
+## 26. Fase 22. Reportes operativos y financieros avanzados
+
+- Estado: implementada.
+- Modulo activo ampliado: `includes/reports/`
+- Archivos modificados:
+  - `includes/reports/class-report-repository.php`
+  - `includes/reports/class-report-service.php`
+  - `includes/reports/class-report-admin-controller.php`
+- Archivos creados:
+  - `docs/tasks/2026-03-fase-22-reportes-operativos-y-financieros-avanzados.md`
+- Clases ampliadas:
+  - `Report_Repository`
+  - `Report_Service`
+  - `Report_Admin_Controller`
+- Integracion real:
+  - `Report_Repository` agrega agregados avanzados para estado derivado de procesos, cruce tipo/estado, readiness operativa, tiempos basicos, actividad agregada, aging de invoices, pagos por metodo y top clientes
+  - `Report_Service` amplía filtros con `derived_status`, `currency` y `payment_method` y mantiene la orquestacion por bloques del modulo
+  - `Report_Admin_Controller` expone los nuevos bloques avanzados sin romper la exportacion CSV existente
+- Tablas afectadas sin cambios de schema:
+  - `sm_processes`
+  - `sm_process_step_logs`
+  - `sm_pre_delivery`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_clients`
+- Validacion tecnica:
+  - `php -l` OK en `includes/reports/class-report-repository.php`
+  - `php -l` OK en `includes/reports/class-report-service.php`
+  - `php -l` OK en `includes/reports/class-report-admin-controller.php`
+  - sin cambios de schema
+  - sin cambios en `includes/modules/*`

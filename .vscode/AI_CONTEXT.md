@@ -222,6 +222,7 @@ Fases ya consolidadas en código:
 - 18: portal mecánico real
 - 19: workflow operativo configurable avanzado
 - 20: automatización documental y estados derivados seguros
+- 22: reportes operativos y financieros avanzados
 
 Deuda técnica viva:
 
@@ -229,7 +230,7 @@ Deuda técnica viva:
 - `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen como placeholders/no activos
 - `Client_Vehicle_Service::transfer_vehicle()` y `Flow_Service::delete_flow()` / `Flow_Step_Service::reorder_steps()` todavía no tienen una frontera transaccional dedicada
 - `Report_Service` sigue siendo grande y debe vigilarse si el módulo crece
-- falta una ruta documental reusable y deduplicada para comprobantes automáticos de pago por `payment_id`
+- la exposición UI explícita del `payment_receipt` sigue pendiente si en una fase futura se quiere mostrar con botones dedicados
 
 ==================================================
 DOCUMENTACIÓN COMPLETA

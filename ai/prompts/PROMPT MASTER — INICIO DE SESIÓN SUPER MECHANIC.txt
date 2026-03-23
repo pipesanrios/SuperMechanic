@@ -41,7 +41,7 @@ Y además:
 - ai/context/PROJECT_MEMORY.md
 - ai/context/WORKFLOW.md
 - ai/rules/*
-- ai/prompts/*
+- ai/prompts/* solo lo necesario para detectar desalineaciones o prompts operativos relevantes
 
 ==================================================
 REGLAS CRÍTICAS
@@ -54,6 +54,7 @@ REGLAS CRÍTICAS
 - NO duplicar lógica existente; reutilizar services
 - No exponer `file_url` directo al cliente
 - Usar `Document_Service` y `Download_Service`
+- Cualquier cambio en portal cliente, portal mecánico o documentos debe respetar ownership y visibilidad usando la capa actual de services
 - Priorizar siempre el código real si contradice documentación
 
 ==================================================
@@ -64,9 +65,10 @@ El usuario definirá el objetivo específico después de este prompt.
 
 Debes:
 
-- validar que el objetivo no esté ya implementado
+- validar si el objetivo ya está implementado total o parcialmente
 - validar que no duplique lógica existente
 - validar que encaje en la arquitectura actual
+- verificar que las clases, archivos y tablas necesarias existan realmente antes de implementar
 
 ==================================================
 ANÁLISIS PREVIO OBLIGATORIO
@@ -82,6 +84,8 @@ Antes de editar debes responder con:
 6. riesgos
 7. archivos AI / prompts / docs a consolidar o corregir
 8. criterio de consolidación documental
+
+Si detectas desalineaciones importantes entre código, docs y prompts, debes reportarlas en este bloque antes de implementar.
 
 No generar código en ese primer bloque.
 
@@ -107,7 +111,7 @@ Versión plugin: 0.1.0
 Schema: 1.9.0  
 
 Fases:
-12A–12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20
+12A–12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20, 20B
 
 Módulos activos reales:
 
@@ -140,6 +144,7 @@ Notas de consistencia:
 - varios contextos rápidos AI pueden quedar por detrás del estado real del código y de `docs/*`
 - si hay diferencias entre este prompt, otros prompts y la documentación técnica, manda el código real y luego `ARCHITECTURE.md`, `docs/SYSTEM_MAP.md`, `docs/FINAL_ARCHITECTURE_MAP.md`, `docs/CURRENT_STATE.md`, `docs/MODULE_REGISTRY.md` y `docs/DATABASE_MAP.md`
 - no asumir `20A` ni nuevas subfases si no están confirmadas en código y documentación base
+- recordar que `20B` ya existe si el código y la documentación técnica lo confirman
 
 ==================================================
 CIERRE

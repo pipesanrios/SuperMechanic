@@ -629,8 +629,11 @@ class Report_Repository {
 				'date_to'        => '',
 				'process_status' => '',
 				'process_type'   => '',
+				'derived_status' => '',
 				'quote_status'   => '',
 				'invoice_status' => '',
+				'currency'       => '',
+				'payment_method' => '',
 				'limit'          => self::DEFAULT_RECENT_LIMIT,
 			)
 		);
@@ -756,6 +759,11 @@ class Report_Repository {
 			$params[]  = $filters['invoice_status'];
 		}
 
+		if ( '' !== $filters['currency'] ) {
+			$clauses[] = $alias . '.currency = %s';
+			$params[]  = strtoupper( (string) $filters['currency'] );
+		}
+
 		$date_sql = $this->build_date_range_where( $alias . '.created_at', $filters, $params );
 
 		if ( '' !== $date_sql ) {
@@ -784,6 +792,16 @@ class Report_Repository {
 		if ( '' !== $filters['invoice_status'] ) {
 			$clauses[] = $invoice_alias . '.status = %s';
 			$params[]  = $filters['invoice_status'];
+		}
+
+		if ( '' !== $filters['currency'] ) {
+			$clauses[] = $invoice_alias . '.currency = %s';
+			$params[]  = strtoupper( (string) $filters['currency'] );
+		}
+
+		if ( '' !== $filters['payment_method'] ) {
+			$clauses[] = $payment_alias . '.payment_method = %s';
+			$params[]  = $filters['payment_method'];
 		}
 
 		$date_sql = $this->build_date_range_where( $payment_alias . '.payment_date', $filters, $params );
@@ -826,6 +844,370 @@ class Report_Repository {
 		return "SELECT pay.invoice_id, COALESCE(SUM(pay.amount), 0) AS total_paid
 			FROM {$this->get_payments_table_name()} pay
 			GROUP BY pay.invoice_id";
+	}
+
+	/**
+	 * Get advanced process metrics grouped by derived status.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_process_counts_by_derived_status( array $filters = array() ) {
+		global $wpdb;
+
+		$filters           = $this->normalize_filters( $filters );
+		$params            = array();
+		$process_clauses   = $this->build_process_filter_fragments( $filters, $params, 'p' );
+		$date_sql          = $this->build_date_range_where( 'p.created_at', $filters, $params );
+		$payment_totals_sql = $this->get_payment_totals_subquery();
+
+		if ( '' !== $date_sql ) {
+			$process_clauses[] = $date_sql;
+		}
+
+		$derived_clause = $this->build_derived_status_filter_clause( $filters, 'derived_status', $params );
+
+		if ( '' !== $derived_clause ) {
+			$process_clauses[] = $derived_clause;
+		}
+
+		$where = empty( $process_clauses ) ? '' : 'WHERE ' . implode( ' AND ', $process_clauses );
+		$sql   = "SELECT derived_status AS label, COUNT(process_id) AS total
+			FROM (
+				SELECT p.id AS process_id,
+					CASE
+						WHEN pre.delivery_ready = 1 THEN 'ready_for_delivery'
+						WHEN invoice_metrics.invoice_pending_count > 0 THEN 'waiting_payment'
+						WHEN quote_metrics.quote_waiting_approval_count > 0 THEN 'waiting_approval'
+						WHEN p.status = 'completed' THEN 'completed'
+						ELSE p.status
+					END AS derived_status
+				FROM {$this->get_processes_table_name()} p
+				LEFT JOIN {$this->get_pre_delivery_table_name()} pre ON pre.process_id = p.id
+				LEFT JOIN (
+					SELECT q.process_id,
+						SUM(CASE WHEN q.status = 'sent' THEN 1 ELSE 0 END) AS quote_waiting_approval_count
+					FROM {$this->get_quotes_table_name()} q
+					GROUP BY q.process_id
+				) quote_metrics ON quote_metrics.process_id = p.id
+				LEFT JOIN (
+					SELECT i.process_id,
+						SUM(
+							CASE
+								WHEN i.status IN ('cancelled', 'refunded') THEN 0
+								WHEN COALESCE(payment_totals.total_paid, 0) >= i.grand_total AND i.grand_total > 0 THEN 0
+								ELSE 1
+							END
+						) AS invoice_pending_count
+					FROM {$this->get_invoices_table_name()} i
+					LEFT JOIN ({$payment_totals_sql}) payment_totals ON payment_totals.invoice_id = i.id
+					GROUP BY i.process_id
+				) invoice_metrics ON invoice_metrics.process_id = p.id
+				{$where}
+			) process_derived
+			GROUP BY derived_status
+			ORDER BY total DESC, derived_status ASC";
+		$query = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows  = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Get process matrix by type and status.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_process_type_status_matrix( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_process_where_clause( $filters, $params, 'p' );
+		$sql     = "SELECT p.process_type, p.status, COUNT(p.id) AS total
+			FROM {$this->get_processes_table_name()} p
+			{$where}
+			GROUP BY p.process_type, p.status
+			ORDER BY p.process_type ASC, total DESC, p.status ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Count finalized processes in range.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return int
+	 */
+	public function get_completed_process_count( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$clauses = $this->build_process_filter_fragments( $filters, $params, 'p' );
+		$clauses[] = "p.status = 'completed'";
+		$date_sql  = $this->build_date_range_where( 'p.completed_at', $filters, $params );
+
+		if ( '' !== $date_sql ) {
+			$clauses[] = $date_sql;
+		}
+
+		$where = 'WHERE ' . implode( ' AND ', $clauses );
+		$sql   = "SELECT COUNT(p.id) AS total
+			FROM {$this->get_processes_table_name()} p
+			{$where}";
+		$query = $wpdb->prepare( $sql, $params );
+
+		return absint( $wpdb->get_var( $query ) );
+	}
+
+	/**
+	 * Count ready-for-delivery processes in range.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return int
+	 */
+	public function get_ready_for_delivery_count( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$clauses = $this->build_process_filter_fragments( $filters, $params, 'p' );
+		$clauses[] = 'pre.delivery_ready = 1';
+		$date_sql  = $this->build_date_range_where( 'pre.delivery_ready_at', $filters, $params );
+
+		if ( '' !== $date_sql ) {
+			$clauses[] = $date_sql;
+		}
+
+		$where = 'WHERE ' . implode( ' AND ', $clauses );
+		$sql   = "SELECT COUNT(p.id) AS total
+			FROM {$this->get_processes_table_name()} p
+			INNER JOIN {$this->get_pre_delivery_table_name()} pre ON pre.process_id = p.id
+			{$where}";
+		$query = $wpdb->prepare( $sql, $params );
+
+		return absint( $wpdb->get_var( $query ) );
+	}
+
+	/**
+	 * Get average process step transition times in hours.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_process_flow_time_summary( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$clauses = $this->build_process_filter_fragments( $filters, $params, 'p' );
+		$clauses[] = "l.action_type = 'step_transition'";
+		$date_sql  = $this->build_date_range_where( 'l.created_at', $filters, $params );
+
+		if ( '' !== $date_sql ) {
+			$clauses[] = $date_sql;
+		}
+
+		$where = 'WHERE ' . implode( ' AND ', $clauses );
+		$sql   = "SELECT p.process_type AS label,
+				COUNT(DISTINCT p.id) AS process_count,
+				ROUND(AVG(step_events.transition_count), 2) AS avg_step_transitions,
+				ROUND(AVG(step_events.elapsed_hours), 2) AS avg_elapsed_hours
+			FROM {$this->get_processes_table_name()} p
+			INNER JOIN (
+				SELECT l.process_id,
+					COUNT(l.id) AS transition_count,
+					(TIMESTAMPDIFF(SECOND, MIN(l.created_at), MAX(l.created_at)) / 3600) AS elapsed_hours
+				FROM {$this->get_process_step_logs_table_name()} l
+				WHERE l.action_type = 'step_transition'
+				GROUP BY l.process_id
+			) step_events ON step_events.process_id = p.id
+			INNER JOIN {$this->get_process_step_logs_table_name()} l ON l.process_id = p.id
+			{$where}
+			GROUP BY p.process_type
+			ORDER BY process_count DESC, p.process_type ASC";
+		$query = $wpdb->prepare( $sql, $params );
+		$rows  = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Get recent aggregated activity across logs, quotes, invoices and payments.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_recent_activity_summary( array $filters = array() ) {
+		global $wpdb;
+
+		$filters  = $this->normalize_filters( $filters );
+		$params   = array();
+		$date_sql = $this->build_date_range_where( 'activity_created_at', $filters, $params );
+		$where    = '' !== $date_sql ? 'WHERE ' . $date_sql : '';
+		$params[] = $filters['limit'];
+		$sql      = "SELECT activity_type AS label, COUNT(*) AS total, MAX(activity_created_at) AS latest_created_at
+			FROM (
+				SELECT l.action_type AS activity_type, l.created_at AS activity_created_at
+				FROM {$this->get_process_step_logs_table_name()} l
+				WHERE l.customer_visible = 1
+				UNION ALL
+				SELECT CONCAT('quote_', q.status) AS activity_type, q.created_at AS activity_created_at
+				FROM {$this->get_quotes_table_name()} q
+				UNION ALL
+				SELECT CONCAT('invoice_', i.status) AS activity_type, i.created_at AS activity_created_at
+				FROM {$this->get_invoices_table_name()} i
+				UNION ALL
+				SELECT CONCAT('payment_', pay.payment_method) AS activity_type, pay.payment_date AS activity_created_at
+				FROM {$this->get_payments_table_name()} pay
+			) activity_feed
+			{$where}
+			GROUP BY activity_type
+			ORDER BY latest_created_at DESC, total DESC
+			LIMIT %d";
+		$query    = $wpdb->prepare( $sql, $params );
+		$rows     = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Get advanced invoice aging summary.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_invoice_aging_summary( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$payment_totals_sql = $this->get_payment_totals_subquery();
+		$sql     = "SELECT aging_label AS label, COUNT(*) AS total
+			FROM (
+				SELECT CASE
+					WHEN i.status IN ('cancelled', 'refunded') THEN 'closed'
+					WHEN COALESCE(payment_totals.total_paid, 0) >= i.grand_total AND i.grand_total > 0 THEN 'paid'
+					WHEN COALESCE(payment_totals.total_paid, 0) > 0 AND COALESCE(payment_totals.total_paid, 0) < i.grand_total THEN 'partial'
+					WHEN i.due_date IS NOT NULL AND i.due_date <> '' AND i.due_date < CURDATE() THEN 'overdue'
+					ELSE 'pending'
+				END AS aging_label
+				FROM {$this->get_invoices_table_name()} i
+				LEFT JOIN ({$payment_totals_sql}) payment_totals ON payment_totals.invoice_id = i.id
+				{$where}
+			) invoice_aging
+			GROUP BY aging_label
+			ORDER BY total DESC, aging_label ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Get payment totals grouped by payment method and currency.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_payment_method_breakdown( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_payment_where_clause( $filters, $params, 'pay', 'i' );
+		$sql     = "SELECT pay.payment_method AS label, i.currency, COUNT(pay.id) AS total, COALESCE(SUM(pay.amount), 0) AS amount_total
+			FROM {$this->get_payments_table_name()} pay
+			INNER JOIN {$this->get_invoices_table_name()} i ON i.id = pay.invoice_id
+			{$where}
+			GROUP BY pay.payment_method, i.currency
+			ORDER BY amount_total DESC, pay.payment_method ASC, i.currency ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Get top clients by invoiced amount.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_top_clients_by_invoiced_amount( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$sql     = "SELECT i.client_id,
+				CONCAT_WS(' ', c.first_name, c.last_name) AS client_name,
+				i.currency,
+				COUNT(i.id) AS total,
+				COALESCE(SUM(i.grand_total), 0) AS amount_total
+			FROM {$this->get_invoices_table_name()} i
+			LEFT JOIN {$this->get_clients_table_name()} c ON c.id = i.client_id
+			{$where}
+			GROUP BY i.client_id, client_name, i.currency
+			ORDER BY amount_total DESC, total DESC
+			LIMIT 10";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Get top clients by paid amount.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_top_clients_by_paid_amount( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_payment_where_clause( $filters, $params, 'pay', 'i' );
+		$sql     = "SELECT i.client_id,
+				CONCAT_WS(' ', c.first_name, c.last_name) AS client_name,
+				i.currency,
+				COUNT(pay.id) AS total,
+				COALESCE(SUM(pay.amount), 0) AS amount_total
+			FROM {$this->get_payments_table_name()} pay
+			INNER JOIN {$this->get_invoices_table_name()} i ON i.id = pay.invoice_id
+			LEFT JOIN {$this->get_clients_table_name()} c ON c.id = i.client_id
+			{$where}
+			GROUP BY i.client_id, client_name, i.currency
+			ORDER BY amount_total DESC, total DESC
+			LIMIT 10";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Build the derived status filter clause.
+	 *
+	 * @param array<string, mixed> $filters     Filters.
+	 * @param string               $column_name Column alias.
+	 * @param array<int, mixed>    $params      Query params.
+	 * @return string
+	 */
+	protected function build_derived_status_filter_clause( array $filters, $column_name, array &$params ) {
+		if ( empty( $filters['derived_status'] ) ) {
+			return '';
+		}
+
+		$params[] = $filters['derived_status'];
+
+		return $column_name . ' = %s';
 	}
 
 	/**
@@ -903,5 +1285,27 @@ class Report_Repository {
 		$tables = Schema::get_tables();
 
 		return $tables['payments'];
+	}
+
+	/**
+	 * Get process step logs table name.
+	 *
+	 * @return string
+	 */
+	protected function get_process_step_logs_table_name() {
+		$tables = Schema::get_tables();
+
+		return $tables['process_step_logs'];
+	}
+
+	/**
+	 * Get pre-delivery table name.
+	 *
+	 * @return string
+	 */
+	protected function get_pre_delivery_table_name() {
+		$tables = Schema::get_tables();
+
+		return $tables['pre_delivery'];
 	}
 }

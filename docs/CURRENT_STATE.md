@@ -6,7 +6,7 @@
 - Version interna actual:
   - plugin: `0.1.0`
   - schema: `1.9.0`
-- Estado general del sistema: funcional a nivel base para operacion admin y portal cliente, estable con riesgos; la arquitectura activa sigue en `includes/*`, la capa documental segura sigue operativa y el modulo `Reports` ya cubre la base operativa 12A, la base financiera 12B, la consolidacion 12C y la capa de reportes avanzados base 12D sin cambios de schema.
+- Estado general del sistema: funcional a nivel base para operacion admin y portal cliente, estable con riesgos; la arquitectura activa sigue en `includes/*`, la capa documental segura sigue operativa y ahora tambien cubre comprobantes de pago logicos por `payment_id` sin persistencia fisica, mientras `Reports` ya cubre la base operativa 12A, la base financiera 12B, la consolidacion 12C y la capa de reportes avanzados base 12D sin cambios de schema.
 - Actualizacion Fase 14: auditoria funcional basada en escenarios completada a nivel de codigo, con endurecimiento minimo de visibilidad en actividad reciente del portal cliente y clasificacion real de escenarios en `docs/TEST_SCENARIOS.md`.
 - Ajuste 14B: escenarios criticos 7, 8 y 14 corregidos con cambios minimos sobre `quotes` y `attachments`; el escenario 4 queda alineado documentalmente con el flujo real de `processes`.
 - Estado de cierre: Fase 17 base de control de acceso, visibilidad y ownership aplicada sobre el schema `1.9.0`, sin cambios de schema y sin impacto en bootstrap.
@@ -39,7 +39,7 @@
 
 ## Fase actual en desarrollo
 
-- Fase operativa actual: cierre operativo posterior a Fase 16.
+- Fase operativa actual: cierre operativo posterior a Fase 20B.
 - Bloques funcionales pendientes mas claros:
   - auditoria avanzada
   - firma digital
@@ -257,10 +257,48 @@
 - Capacidades reales implementadas:
   - disponibilidad documental automatica no persistente para `quote_approved` e `invoice_issued`
   - sin generacion automatica de attachments o archivos fisicos redundantes
-  - `invoice_paid` conserva notificacion y coherencia financiera, pero no genera comprobante automatico por falta de ruta documental reusable actual
+  - `invoice_paid` conserva notificacion y coherencia financiera sobre la misma capa documental comun
   - estados derivados de proceso seguros para `waiting_approval`, `waiting_payment`, `ready_for_delivery` y `completed`
   - `ready_for_delivery` solo se deriva desde `pre_delivery.delivery_ready = 1`
   - el estado visible de cobranza de invoices se expone de forma reusable para dashboard y portal
+- Cambios de schema:
+  - ninguno
+
+## Actualizacion Fase 20B. Comprobante de pago documental
+
+- Estado: implementada como cierre de la deuda documental pendiente sobre pagos.
+- Componentes reales ampliados:
+  - `includes/helpers/class-document-service.php`
+  - `includes/helpers/class-pdf-service.php`
+  - `includes/invoices/class-invoice-service.php`
+  - `includes/communication/class-event-dispatcher.php`
+- Capacidades reales implementadas:
+  - `payment_receipt` como tipo documental logico unico por `payment_id`
+  - generacion PDF bajo demanda sin persistir archivos fisicos
+  - sin creacion automatica de attachments
+- acceso documental del comprobante resuelto por acceso a la invoice asociada
+- disponibilidad logica del receipt preparada desde `payment_registered` e `invoice_paid` sin duplicacion de artefactos
+- Cambios de schema:
+  - ninguno
+
+## Actualizacion Fase 21. Configuracion avanzada por taller / negocio
+
+- Estado: completada como capa transversal minima de configuracion por `wp_options`, sin cambios de schema ni UI pesada.
+- Componentes reales ampliados:
+  - `includes/helpers/class-settings-service.php`
+  - `includes/class-plugin.php`
+  - `includes/processes/class-process-service.php`
+  - `includes/invoices/class-invoice-service.php`
+  - `includes/quotes/class-quote-service.php`
+- Capacidades reales implementadas:
+  - storage central en option `sm_settings`
+  - grupos normalizados `business`, `process`, `financial` y `notifications`
+  - defaults seguros con preservacion del comportamiento actual
+  - fallback minimo a settings legacy existentes para `business_name` y `currency`
+  - `Process_Service` respeta `allow_step_back` y `auto_complete_on_final_step`
+  - `Invoice_Service` respeta `allow_partial_payments` y reutiliza moneda/nombre del negocio desde la capa central
+  - `Quote_Service` reutiliza moneda/nombre del negocio desde la capa central
+  - validacion PHP confirmada para `includes/helpers/class-settings-service.php` y `includes/quotes/class-quote-service.php`
 - Cambios de schema:
   - ninguno
 
@@ -279,6 +317,7 @@
 - `Report_Service` y `Report_Admin_Controller` siguen siendo puntos a vigilar si el modulo `Reports` crece.
 - los placeholders raiz pueden inducir a error si se documentan como arquitectura operativa.
 - `Document_Service`, `Download_Service` y algunos entry points cliente siguen requiriendo vigilancia continua para asegurar que toda descarga protegida termine usando la politica central sin checks divergentes.
+- la exposicion visual del nuevo `payment_receipt` todavia no tiene entry points UI dedicados en admin ni shortcodes cliente
 
 ## Pendientes inmediatos
 
@@ -390,5 +429,27 @@
   - atomicidad basica para `update_current_step()` y su `step_transition`
   - dispatch de eventos solo despues de persistencia exitosa
   - validacion real de `START TRANSACTION` y `COMMIT`, con `ROLLBACK` seguro en fallo
+- Cambios de schema:
+  - ninguno
+
+## Actualizacion Fase 22. Reportes operativos y financieros avanzados
+
+- Estado: implementada como ampliacion avanzada del modulo `Reports` sin crear arquitectura paralela.
+- Componentes reales ampliados:
+  - `includes/reports/class-report-repository.php`
+  - `includes/reports/class-report-service.php`
+  - `includes/reports/class-report-admin-controller.php`
+- Capacidades reales implementadas:
+  - procesos por estado derivado
+  - matriz de procesos por tipo y estado
+  - procesos finalizados por período
+  - procesos listos para entrega por período
+  - tiempos básicos de transición por tipo de proceso
+  - actividad reciente relevante agregada
+  - aging simple de invoices
+  - pagos por método
+  - top clientes por facturación
+  - top clientes por cobro
+  - filtros ampliados con `derived_status`, `currency` y `payment_method`
 - Cambios de schema:
   - ninguno

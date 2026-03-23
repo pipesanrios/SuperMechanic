@@ -111,6 +111,23 @@ class Document_Service {
 					'delivery'     => 'binary',
 				);
 
+			case 'payment_receipt':
+				$payment = $this->invoice_service->get_payment( $id );
+
+				if ( ! $payment ) {
+					return new WP_Error( 'sm_payment_not_found', __( 'El pago no existe.', 'super-mechanic' ) );
+				}
+
+				return array(
+					'type'         => $type,
+					'id'           => $id,
+					'resource'     => $payment,
+					'resource_key' => 'payment',
+					'filename'     => $this->invoice_service->get_payment_receipt_pdf_filename( $id ),
+					'content_type' => 'application/pdf',
+					'delivery'     => 'binary',
+				);
+
 			case 'attachment':
 				$attachment = $this->attachment_service->get_attachment( $id );
 
@@ -141,7 +158,7 @@ class Document_Service {
 	public function can_download_document_type( $type ) {
 		$type = sanitize_key( $type );
 
-		if ( in_array( $type, array( 'invoice_pdf', 'quote_pdf' ), true ) ) {
+		if ( in_array( $type, array( 'invoice_pdf', 'quote_pdf', 'payment_receipt' ), true ) ) {
 			return $this->pdf_service->can_generate_pdf();
 		}
 
@@ -171,6 +188,9 @@ class Document_Service {
 
 			case 'quote_pdf':
 				return $this->quote_service->user_can_access_quote( $user_id, $id );
+
+			case 'payment_receipt':
+				return $this->invoice_service->user_can_access_payment( $user_id, $id );
 
 			case 'attachment':
 				return $this->attachment_service->user_can_access_attachment( $user_id, $id );
@@ -213,6 +233,7 @@ class Document_Service {
 		switch ( $document['type'] ) {
 			case 'invoice_pdf':
 			case 'quote_pdf':
+			case 'payment_receipt':
 				$pdf = $this->pdf_service->generate_document_pdf( $document['type'], $document['id'] );
 
 				if ( is_wp_error( $pdf ) ) {
@@ -277,7 +298,22 @@ class Document_Service {
 				return $this->get_document( 'invoice_pdf', $invoice_id );
 
 			case 'invoice_paid':
-				return new WP_Error( 'sm_document_automation_unsupported', __( 'No existe aun una ruta documental reusable para comprobantes de pago automaticos.', 'super-mechanic' ) );
+				$payment_id = ! empty( $payload['payment_id'] ) ? absint( $payload['payment_id'] ) : 0;
+
+				if ( ! $payment_id ) {
+					return new WP_Error( 'sm_document_automation_invalid_payment', __( 'La automatizacion documental requiere un pago valido.', 'super-mechanic' ) );
+				}
+
+				return $this->get_document( 'payment_receipt', $payment_id );
+
+			case 'payment_registered':
+				$payment_id = ! empty( $payload['payment_id'] ) ? absint( $payload['payment_id'] ) : 0;
+
+				if ( ! $payment_id ) {
+					return new WP_Error( 'sm_document_automation_invalid_payment', __( 'La automatizacion documental requiere un pago valido.', 'super-mechanic' ) );
+				}
+
+				return $this->get_document( 'payment_receipt', $payment_id );
 		}
 
 		return new WP_Error( 'sm_document_automation_invalid_event', __( 'El evento indicado no soporta automatizacion documental.', 'super-mechanic' ) );

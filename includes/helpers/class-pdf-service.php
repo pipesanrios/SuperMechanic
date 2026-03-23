@@ -72,6 +72,16 @@ class PDF_Service {
 	}
 
 	/**
+	 * Generate payment receipt PDF content.
+	 *
+	 * @param int $payment_id Payment ID.
+	 * @return array<string, string>|WP_Error
+	 */
+	public function generate_payment_receipt_pdf( $payment_id ) {
+		return $this->generate_document_pdf( 'payment_receipt', $payment_id );
+	}
+
+	/**
 	 * Generate PDF content for a supported document type.
 	 *
 	 * @param string $type Document type.
@@ -174,6 +184,15 @@ class PDF_Service {
 				}
 
 				return $this->quote_service->render_quote_printable_html( $context );
+
+			case 'payment_receipt':
+				$context = $this->invoice_service->get_payment_receipt_context( $id );
+
+				if ( is_wp_error( $context ) ) {
+					return $context;
+				}
+
+				return $this->invoice_service->render_payment_receipt_html( $context );
 		}
 
 		return new WP_Error( 'sm_pdf_document_invalid_type', __( 'El tipo de documento PDF no es compatible.', 'super-mechanic' ) );
@@ -196,6 +215,9 @@ class PDF_Service {
 
 			case 'quote_pdf':
 				return $this->quote_service->get_quote_pdf_filename( $id );
+
+			case 'payment_receipt':
+				return $this->invoice_service->get_payment_receipt_pdf_filename( $id );
 		}
 
 		return new WP_Error( 'sm_pdf_document_invalid_type', __( 'El tipo de documento PDF no es compatible.', 'super-mechanic' ) );

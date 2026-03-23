@@ -219,6 +219,7 @@
   - `Document_Service`
   - `PDF_Service`
   - `Download_Service`
+  - `Settings_Service`
 
 ## Shortcodes actuales
 
@@ -357,8 +358,31 @@
   - `Invoice_Service` expone enriquecimiento reusable del estado visible de cobranza sobre `sm_payments`
   - dashboard cliente y portal mecanico consumen esos derivados sin trasladar la logica a controllers
 - Riesgos arquitectonicos actualizados:
-  - no existe aun una ruta documental reusable para comprobantes de pago automaticos y por eso `invoice_paid` no materializa documento nuevo
   - cualquier futura persistencia documental automatica debe seguir entrando por la capa documental comun y deduplicar por objeto logico
+
+## Actualizacion Fase 20B. Comprobante de pago documental
+
+- Integracion real consolidada:
+  - `Document_Service` resuelve `payment_receipt` como documento logico unico por `payment_id`
+  - `PDF_Service` genera el comprobante de pago bajo demanda reutilizando `Invoice_Service`
+  - `Invoice_Service` expone acceso a pago, contexto consolidado del receipt, HTML imprimible y filename estable
+  - `Event_Dispatcher` garantiza disponibilidad logica del receipt para `payment_registered` e `invoice_paid` sin crear archivos ni attachments
+- Riesgos arquitectonicos actualizados:
+  - cualquier futura exposicion UI del comprobante debe seguir usando `Download_Service` y no enlaces o renderers paralelos
+  - la deduplicacion debe seguir anclada al `payment_id` y no a eventos de negocio, para evitar receipts duplicados por el mismo pago
+
+## Actualizacion Fase 21. Configuracion avanzada por taller / negocio
+
+- Integracion real consolidada:
+  - `Settings_Service` centraliza lectura y escritura de configuracion avanzada usando la option `sm_settings`
+  - la configuracion queda agrupada en `business`, `process`, `financial` y `notifications`
+  - `Settings_Service` aplica defaults que preservan el comportamiento actual y mantiene fallback minimo hacia settings legacy de negocio
+  - `Process_Service` reutiliza la capa central para `allow_step_back` y `auto_complete_on_final_step`
+  - `Invoice_Service` reutiliza la capa central para `currency`, `business_name` y `allow_partial_payments`
+  - `Quote_Service` reutiliza la capa central para `currency` y `business_name`
+- Riesgos arquitectonicos actualizados:
+  - la configuracion avanzada no debe fragmentarse entre lectura directa de `wp_options` y `Settings_Service`
+  - cualquier futura UI de configuracion debe seguir usando la misma estructura `sm_settings` y no crear una segunda fuente de verdad
 
 ## Flujos principales del negocio
 
@@ -562,3 +586,13 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
   - el estado de cobro visible no debe confundirse con el estado operativo interno de la invoice
   - `amount_paid` y `balance_due` en `sm_invoices` siguen existiendo por compatibilidad, pero no deben volver a usarse como fuente primaria de decision
   - cualquier futura pasarela de pago debe seguir delegando reglas de saldo al service y no introducir SQL fuera de repositories
+
+## Actualizacion Fase 22. Reportes operativos y financieros avanzados
+
+- Integracion real consolidada:
+  - `Report_Repository` agrega agregados avanzados para estados derivados, aging de invoices, pagos por metodo, top clientes y actividad operativa agregada
+  - `Report_Service` mantiene la orquestacion del modulo por bloques y amplia filtros con `derived_status`, `currency` y `payment_method`
+  - `Report_Admin_Controller` expone tablas admin nuevas para analitica operativa y financiera reutilizable
+- Riesgos arquitectonicos actualizados:
+  - el modulo `Reports` sigue siendo admin-only y no debe absorber logica de dashboard operativo vivo
+  - los derivados operativos del modulo deben seguir siendo lectura agregada y no una segunda fuente de verdad

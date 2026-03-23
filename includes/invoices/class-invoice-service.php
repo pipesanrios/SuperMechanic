@@ -9,8 +9,8 @@ namespace Super_Mechanic\Invoices;
 
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Quotes\Quote_Service;
-use Super_Mechanic\Settings;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -67,6 +67,7 @@ class Invoice_Service {
 	 * @var Access_Control_Service
 	 */
 	protected $access_control_service;
+	protected $settings_service;
 
 	/**
 	 * Constructor.
@@ -78,7 +79,7 @@ class Invoice_Service {
 	 * @param Event_Dispatcher|null               $event_dispatcher       Event dispatcher.
 	 * @param Invoice_Transaction_Repository|null $transaction_repository Transaction repository.
 	 */
-	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null ) {
+	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null ) {
 		$this->repository             = $repository ? $repository : new Invoice_Repository();
 		$this->item_repository        = $item_repository ? $item_repository : new Invoice_Item_Repository();
 		$this->payment_repository     = $payment_repository ? $payment_repository : new Payment_Repository();
@@ -86,6 +87,7 @@ class Invoice_Service {
 		$this->event_dispatcher       = $event_dispatcher ? $event_dispatcher : Event_Dispatcher::get_instance();
 		$this->transaction_repository = $transaction_repository ? $transaction_repository : new Invoice_Transaction_Repository();
 		$this->access_control_service = $access_control_service ? $access_control_service : new Access_Control_Service( null, null, null, null, $this->repository );
+		$this->settings_service       = $settings_service ? $settings_service : new Settings_Service();
 	}
 
 	/**
@@ -360,6 +362,35 @@ class Invoice_Service {
 	}
 
 	/**
+	 * Get payment by ID.
+	 *
+	 * @param int $payment_id Payment ID.
+	 * @return array<string, mixed>|null
+	 */
+	public function get_payment( $payment_id ) {
+		return $this->payment_repository->get_by_id( $payment_id );
+	}
+
+	/**
+	 * Check whether a user can access a payment receipt through its invoice.
+	 *
+	 * @param int $user_id    User ID.
+	 * @param int $payment_id Payment ID.
+	 * @return bool
+	 */
+	public function user_can_access_payment( $user_id, $payment_id ) {
+		$user_id    = absint( $user_id );
+		$payment_id = absint( $payment_id );
+		$payment    = $this->get_payment( $payment_id );
+
+		if ( ! $user_id || ! $payment || empty( $payment['invoice_id'] ) ) {
+			return false;
+		}
+
+		return $this->user_can_access_invoice( $user_id, absint( $payment['invoice_id'] ) );
+	}
+
+	/**
 	 * Add payment.
 	 *
 	 * @param int                  $invoice_id Invoice ID.
@@ -409,15 +440,18 @@ class Invoice_Service {
 		$this->event_dispatcher->dispatch(
 			'payment_registered',
 			array(
-				'invoice_id'   => absint( $invoice_id ),
-				'process_id'   => ! empty( $invoice['process_id'] ) ? absint( $invoice['process_id'] ) : 0,
-				'client_id'    => ! empty( $invoice['client_id'] ) ? absint( $invoice['client_id'] ) : 0,
-				'amount'       => $data['amount'],
-				'triggered_by' => get_current_user_id(),
+				'payment_id'    => absint( $inserted ),
+				'invoice_id'    => absint( $invoice_id ),
+				'process_id'    => ! empty( $invoice['process_id'] ) ? absint( $invoice['process_id'] ) : 0,
+				'client_id'     => ! empty( $invoice['client_id'] ) ? absint( $invoice['client_id'] ) : 0,
+				'amount'        => $data['amount'],
+				'payment_date'  => $data['payment_date'],
+				'payment_method'=> $data['payment_method'],
+				'triggered_by'  => get_current_user_id(),
 			)
 		);
 
-		$this->dispatch_invoice_paid_if_transitioned( $invoice_id, $previous_summary, get_current_user_id() );
+		$this->dispatch_invoice_paid_if_transitioned( $invoice_id, $previous_summary, get_current_user_id(), $inserted );
 
 		return $inserted;
 	}
@@ -465,7 +499,7 @@ class Invoice_Service {
 
 		$this->recalculate_balance( absint( $payment['invoice_id'] ) );
 
-		$this->dispatch_invoice_paid_if_transitioned( absint( $payment['invoice_id'] ), $previous_summary, get_current_user_id() );
+		$this->dispatch_invoice_paid_if_transitioned( absint( $payment['invoice_id'] ), $previous_summary, get_current_user_id(), $payment_id );
 
 		return true;
 	}
@@ -935,6 +969,107 @@ class Invoice_Service {
 	}
 
 	/**
+	 * Build consolidated payment receipt context.
+	 *
+	 * @param int $payment_id Payment ID.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function get_payment_receipt_context( $payment_id ) {
+		$payment_id = absint( $payment_id );
+		$payment    = $this->get_payment( $payment_id );
+
+		if ( ! $payment ) {
+			return new WP_Error( 'sm_payment_not_found', __( 'El pago no existe.', 'super-mechanic' ) );
+		}
+
+		$invoice_id = ! empty( $payment['invoice_id'] ) ? absint( $payment['invoice_id'] ) : 0;
+		$context    = $this->get_invoice_print_context( $invoice_id );
+
+		if ( is_wp_error( $context ) ) {
+			return $context;
+		}
+
+		$payment_summary = $this->get_invoice_payment_summary( $invoice_id );
+
+		if ( is_wp_error( $payment_summary ) ) {
+			return $payment_summary;
+		}
+
+		$invoice = isset( $context['invoice'] ) && is_array( $context['invoice'] ) ? $context['invoice'] : array();
+
+		return array(
+			'payment_id'      => $payment_id,
+			'payment'         => $payment,
+			'invoice'         => $invoice,
+			'company'         => isset( $context['company'] ) ? $context['company'] : sanitize_text_field( $this->settings_service->get_setting( 'business', 'business_name', __( 'Super Mechanic', 'super-mechanic' ) ) ),
+			'client_name'     => isset( $context['client_name'] ) ? $context['client_name'] : __( 'Cliente no asignado', 'super-mechanic' ),
+			'process_title'   => ! empty( $invoice['process_title'] ) ? $invoice['process_title'] : '',
+			'payment_status'  => ! empty( $payment_summary['payment_status'] ) ? sanitize_key( $payment_summary['payment_status'] ) : 'pending',
+			'remaining_balance' => isset( $payment_summary['remaining_balance'] ) ? (float) $payment_summary['remaining_balance'] : 0.0,
+		);
+	}
+
+	/**
+	 * Render printable HTML for a payment receipt.
+	 *
+	 * @param array<string, mixed> $context Receipt context.
+	 * @return string
+	 */
+	public function render_payment_receipt_html( array $context ) {
+		$payment     = isset( $context['payment'] ) && is_array( $context['payment'] ) ? $context['payment'] : array();
+		$invoice     = isset( $context['invoice'] ) && is_array( $context['invoice'] ) ? $context['invoice'] : array();
+		$company     = isset( $context['company'] ) ? $context['company'] : __( 'Super Mechanic', 'super-mechanic' );
+		$client_name = isset( $context['client_name'] ) ? $context['client_name'] : __( 'Cliente no asignado', 'super-mechanic' );
+		$currency    = ! empty( $invoice['currency'] ) ? $invoice['currency'] : $this->get_default_currency();
+		$status      = ! empty( $context['payment_status'] ) ? sanitize_key( $context['payment_status'] ) : 'pending';
+		$process_ref = ! empty( $context['process_title'] ) ? $context['process_title'] : ( ! empty( $invoice['process_id'] ) ? '#' . absint( $invoice['process_id'] ) : '-' );
+
+		ob_start();
+		echo '<div class="sm-payment-receipt-print">';
+		echo '<h1>' . esc_html( $company ) . '</h1>';
+		echo '<h2>' . esc_html( sprintf( __( 'Comprobante de pago #%d', 'super-mechanic' ), absint( $context['payment_id'] ) ) ) . '</h2>';
+		echo '<p><strong>' . esc_html__( 'Factura:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['invoice_number'] ) ? $invoice['invoice_number'] : '#' . absint( $invoice['id'] ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Cliente:', 'super-mechanic' ) . '</strong> ' . esc_html( $client_name ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Proceso:', 'super-mechanic' ) . '</strong> ' . esc_html( $process_ref ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Fecha de pago:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $payment['payment_date'] ) ? $payment['payment_date'] : '-' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Metodo de pago:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $payment['payment_method'] ) ? $this->humanize_key( $payment['payment_method'] ) : '-' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Monto pagado:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( ! empty( $payment['amount'] ) ? $payment['amount'] : 0, $currency ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Estado de cobro luego del pago:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->humanize_key( $status ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Saldo pendiente:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( isset( $context['remaining_balance'] ) ? $context['remaining_balance'] : 0, $currency ) ) . '</p>';
+
+		if ( ! empty( $payment['reference'] ) ) {
+			echo '<p><strong>' . esc_html__( 'Referencia:', 'super-mechanic' ) . '</strong> ' . esc_html( $payment['reference'] ) . '</p>';
+		}
+
+		if ( ! empty( $payment['notes'] ) ) {
+			echo '<p><strong>' . esc_html__( 'Notas:', 'super-mechanic' ) . '</strong> ' . esc_html( $payment['notes'] ) . '</p>';
+		}
+
+		echo '</div>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Build a predictable payment receipt file name.
+	 *
+	 * @param int $payment_id Payment ID.
+	 * @return string
+	 */
+	public function get_payment_receipt_pdf_filename( $payment_id ) {
+		$payment = $this->get_payment( $payment_id );
+
+		if ( ! $payment ) {
+			return 'payment-receipt-' . absint( $payment_id ) . '.pdf';
+		}
+
+		$invoice = ! empty( $payment['invoice_id'] ) ? $this->get_invoice( absint( $payment['invoice_id'] ) ) : null;
+		$base    = ! empty( $invoice['invoice_number'] ) ? sanitize_file_name( strtolower( $invoice['invoice_number'] ) ) : 'invoice-' . ( ! empty( $payment['invoice_id'] ) ? absint( $payment['invoice_id'] ) : '0' );
+
+		return $base . '-payment-' . absint( $payment_id ) . '.pdf';
+	}
+
+	/**
 	 * Build a predictable invoice PDF file name.
 	 *
 	 * @param int $invoice_id Invoice ID.
@@ -1126,9 +1261,7 @@ class Invoice_Service {
 	 * @return string
 	 */
 	protected function get_default_currency() {
-		$settings = get_option( Settings::OPTION_NAME, array() );
-
-		return ! empty( $settings['default_currency'] ) ? sanitize_text_field( $settings['default_currency'] ) : 'USD';
+		return sanitize_text_field( $this->settings_service->get_setting( 'business', 'currency', 'USD' ) );
 	}
 
 	/**
@@ -1243,7 +1376,23 @@ class Invoice_Service {
 			);
 		}
 
+		if ( ! $this->allows_partial_payments() && $amount < $available_balance ) {
+			return new WP_Error(
+				'sm_partial_payments_disabled',
+				__( 'La configuracion actual del taller no permite pagos parciales.', 'super-mechanic' )
+			);
+		}
+
 		return true;
+	}
+
+	/**
+	 * Check whether partial payments are enabled.
+	 *
+	 * @return bool
+	 */
+	protected function allows_partial_payments() {
+		return (bool) $this->settings_service->get_setting( 'financial', 'allow_partial_payments', true );
 	}
 
 	/**
@@ -1326,7 +1475,7 @@ class Invoice_Service {
 	 * @param int                 $triggered_by      User ID.
 	 * @return void
 	 */
-	protected function dispatch_invoice_paid_if_transitioned( $invoice_id, array $previous_summary, $triggered_by ) {
+	protected function dispatch_invoice_paid_if_transitioned( $invoice_id, array $previous_summary, $triggered_by, $payment_id = 0 ) {
 		$current_summary = $this->get_invoice_payment_summary( $invoice_id );
 
 		if ( is_wp_error( $current_summary ) ) {
@@ -1340,6 +1489,7 @@ class Invoice_Service {
 			$this->event_dispatcher->dispatch(
 				'invoice_paid',
 				array(
+					'payment_id'   => absint( $payment_id ),
 					'invoice_id'   => absint( $invoice_id ),
 					'triggered_by' => absint( $triggered_by ),
 				)

@@ -18,6 +18,8 @@ Aclaraciones importantes:
 - la Fase 12D de reportes avanzados base tampoco modifica schema; reutiliza `sm_processes`, `sm_quotes`, `sm_invoices` y `sm_payments`
 - la Fase 17 de control de acceso, visibilidad y ownership tampoco modifica schema; reutiliza relaciones y ownership ya existentes sobre `sm_client_vehicles`, `sm_processes`, `sm_quotes`, `sm_invoices`, `sm_attachments`, `sm_comments` y `sm_notifications`
 - la Fase 20 de automatizacion documental y estados derivados tampoco modifica schema; reutiliza `sm_processes`, `sm_quotes`, `sm_invoices`, `sm_payments` y `sm_pre_delivery`
+- la Fase 20B de comprobante de pago documental tampoco modifica schema; reutiliza `sm_payments`, `sm_invoices`, `sm_processes` y `sm_clients`
+- la Fase 21 de configuracion avanzada por taller / negocio tampoco modifica schema; reutiliza `wp_options` con la option `sm_settings`
 
 --------------------------------------------------
 
@@ -686,6 +688,7 @@ Notas operativas actuales:
 - la validacion y el resumen de cobranza usan `sm_payments` como fuente de verdad y soportan exclusion del pago actual al editar
 - `Reports` reutiliza `payment_date` como criterio temporal para ingresos basicos por periodo
 - la Fase 20 sigue reutilizando `sm_payments` como unica fuente de verdad para el estado derivado visible de cobranza y no agrega tablas de comprobantes
+- la Fase 20B agrega comprobante documental logico por `payment_id` sin columnas nuevas, sin tabla nueva y sin persistencia fisica del receipt
 
 --------------------------------------------------
 
@@ -856,6 +859,7 @@ Relaciones principales del schema real:
 - El Refactor A reutiliza tablas existentes y traslada consultas de dashboards a `Process_Repository` sin cambiar reglas de integridad.
 - El Fix D-R refuerza estas mismas reglas en dashboard cliente y shortcode de documentos del proceso, evitando exposicion por `file_url` directo.
 - La Fase 17 centraliza estas mismas reglas de ownership y visibilidad en `Access_Control_Service` sin agregar columnas nuevas ni duplicar fuentes de verdad de acceso.
+- La Fase 20B reutiliza esas mismas reglas para `payment_receipt`, resolviendo acceso por la invoice asociada al pago sin crear una tabla documental nueva.
 
 ## Tablas criticas del sistema
 
@@ -1028,3 +1032,38 @@ Si el schema cambia en futuras fases, actualizar tambien:
 - La automatizacion documental de `quote_approved` e `invoice_issued` se resuelve como disponibilidad logica desde `Document_Service` y `PDF_Service`, sin persistir attachments nuevos.
 - `ready_for_delivery` se deriva desde `sm_pre_delivery.delivery_ready` y no agrega columnas nuevas a `sm_processes`.
 - `waiting_payment` se deriva desde invoices + pagos agregados y no agrega columnas nuevas ni cache adicional.
+
+## Nota Fase 20B. Comprobante de pago documental
+
+- La Fase 20B no modifica schema ni agrega tablas.
+- El cierre funcional reutiliza:
+  - `sm_payments`
+  - `sm_invoices`
+  - `sm_processes`
+  - `sm_clients`
+- El comprobante de pago se resuelve como documento logico reusable por `payment_id`; no agrega columnas, no crea attachments y no persiste PDFs.
+
+## Nota Fase 21. Configuracion avanzada por taller / negocio
+
+- La Fase 21 no modifica schema ni agrega tablas.
+- La configuracion avanzada reutiliza:
+  - `wp_options` mediante la option `sm_settings`
+- Los grupos base de configuracion quedan organizados en:
+  - `business`
+  - `process`
+  - `financial`
+  - `notifications`
+- Los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio.
+
+## Nota Fase 22. Reportes operativos y financieros avanzados
+
+- La Fase 22 no modifica schema ni agrega tablas.
+- El modulo `Reports` amplía su lectura reutilizando:
+  - `sm_processes`
+  - `sm_process_step_logs`
+  - `sm_pre_delivery`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_clients`
+- Los estados derivados operativos del modulo se resuelven como lectura agregada sobre datos ya persistidos; no agregan columnas nuevas.

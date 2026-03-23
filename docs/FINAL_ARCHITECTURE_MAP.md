@@ -41,6 +41,10 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - Clases esperadas: `Settings`.
 - Dependencias: Core, Billing, Dashboards, Processes.
 - Estado: implementado.
+- Avance real confirmado:
+  - `Settings_Service` agrega una capa transversal reusable sobre la option `sm_settings`
+  - la configuracion avanzada queda agrupada en `business`, `process`, `financial` y `notifications`
+  - los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
 
 ### Clients
 
@@ -168,6 +172,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - `Invoice_Service` valida que altas y ediciones de pagos no excedan el saldo pendiente de la invoice
   - el modulo expone un estado visible de cobranza (`pending`, `partial`, `paid`) sin reemplazar los estados internos de invoice
   - la UI admin de invoices muestra pagos, saldo y estado de cobro dentro del contexto del proceso
+  - en Fase 20B, cada pago puede resolverse como documento logico unico `payment_receipt` por `payment_id` sin persistencia fisica
 
 ### Attachments
 
@@ -207,12 +212,13 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - dashboard cliente y shortcode de documentos del proceso ya no exponen `file_url` directo para adjuntos protegidos
   - en Fase 17, el acceso documental sigue alineado porque `Document_Service` delega sobre `Invoice_Service`, `Quote_Service` y `Attachment_Service`, ya endurecidos por la capa central
   - en Fase 20, `quote_approved` e `invoice_issued` preparan disponibilidad documental automatica desde la capa comun sin persistir attachments nuevos
+  - en Fase 20B, `Document_Service` agrega `payment_receipt` como documento logico reusable por `payment_id`
+  - en Fase 20B, `PDF_Service` genera el comprobante de pago bajo demanda sin crear attachments automaticos ni duplicar artefactos
 - Pendiente:
   - reportes formales
   - auditoria avanzada
   - firma digital
   - almacenamiento externo
-  - comprobante automatico reusable y deduplicado para `invoice_paid`
 
 ### Client Portal
 
@@ -354,8 +360,18 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - `sm_payments` queda como unica fuente de verdad para validacion, saldo y resumen de cobranza
   - `Invoice_Service` expone `get_invoice_payment_summary()` y soporta exclusion de `payment_id` al editar pagos
   - `Invoice_Service` sigue recalculando `amount_paid`, `balance_due`, `paid_at` y el estado interno de invoice despues de cada mutacion solo por compatibilidad operativa
-  - `Report_Repository` agrega estado de cobro agregado de invoices e ingresos basicos por periodo sobre `payment_date`
-  - `Report_Admin_Controller` expone ese bloque financiero ampliado sin tocar dashboard ni bootstrap
+- `Report_Repository` agrega estado de cobro agregado de invoices e ingresos basicos por periodo sobre `payment_date`
+- `Report_Admin_Controller` expone ese bloque financiero ampliado sin tocar dashboard ni bootstrap
+
+### Settings 21 / Processes 21 / Financial 21
+- Estado: configuracion avanzada base implementada sin cambios de schema.
+- Avance real confirmado:
+  - `Settings_Service` centraliza lectura y escritura de configuracion avanzada usando `sm_settings`
+  - `Process_Service` reutiliza configuracion para `allow_step_back` y `auto_complete_on_final_step`
+  - `Invoice_Service` reutiliza configuracion para `allow_partial_payments`, moneda y nombre del negocio
+  - `Quote_Service` reutiliza configuracion para moneda y nombre del negocio
+- Riesgo residual:
+  - cualquier futura UI de configuracion debe seguir usando la misma estructura central y no reintroducir lectura directa dispersa de options
 
 ### Documents 20 / Processes 20
 - Estado: automatizacion documental minima y estados derivados seguros implementados sin cambios de schema.
@@ -366,8 +382,24 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - `Process_Derived_State_Service` centraliza derivados seguros de proceso a partir de `status`, quotes, invoices y `pre_delivery.delivery_ready`
   - `Invoice_Service` expone enriquecimiento reusable del estado visible de cobranza para portal y dashboard
 - Riesgo residual:
-  - sigue faltando una ruta documental reusable y deduplicada para comprobantes automaticos de pago por `payment_id`
   - cualquier evolucion futura hacia persistencia documental automatica debe deduplicar por objeto logico y seguir entrando por la capa documental comun
+
+### Documents 20B / Payments 20B
+- Estado: comprobante de pago documental implementado sin cambios de schema.
+- Avance real confirmado:
+  - `Document_Service` resuelve `payment_receipt` por `payment_id` como documento logico unico
+  - `Invoice_Service` expone el contexto consolidado del comprobante usando pago, invoice, estado visible de cobranza, cliente y referencia de proceso ya existentes
+  - `PDF_Service` renderiza el comprobante bajo demanda y `Download_Service` puede servirlo sin flujo paralelo
+  - `Event_Dispatcher` solo garantiza disponibilidad logica del receipt en `payment_registered` e `invoice_paid`, sin persistencia de archivos
+- Riesgo residual:
+  - la fase no agrega botones ni entry points visuales nuevos; si en una subfase futura se exponen desde UI, deben reutilizar la misma ruta documental comun
+
+### Reports 22
+- Estado: ampliado con métricas avanzadas operativas y financieras sin cambios de schema.
+- Avance real confirmado:
+  - el modulo agrega lectura agregada de estado derivado de procesos, readiness operativa, aging de invoices, pagos por metodo y top clientes
+  - los filtros se amplian con `derived_status`, `currency` y `payment_method`
+  - `Report_Admin_Controller` expone los nuevos bloques sin romper la exportacion CSV admin existente
 
 ### Deudas técnicas transversales vigentes
 

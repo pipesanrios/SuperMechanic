@@ -113,10 +113,12 @@ class Event_Dispatcher {
 
 	public function handle_payment_registered( $payload ) {
 		$this->get_notification_service()->notify_payment_registered( is_array( $payload ) ? $payload : array() );
+		$this->prepare_automated_document( 'payment_registered', is_array( $payload ) ? $payload : array() );
 	}
 
 	public function handle_invoice_paid( $payload ) {
 		$this->get_notification_service()->notify_invoice_paid( is_array( $payload ) ? $payload : array() );
+		$this->prepare_automated_document( 'invoice_paid', is_array( $payload ) ? $payload : array() );
 	}
 
 	public function handle_document_uploaded( $payload ) {
