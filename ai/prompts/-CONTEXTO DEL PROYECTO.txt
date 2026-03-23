@@ -1,0 +1,151 @@
+CONTEXTO DEL PROYECTO — SUPER MECHANIC
+
+Estás trabajando en el plugin WordPress "Super Mechanic".
+
+==================================================
+LECTURA OBLIGATORIA
+===================
+
+Antes de cualquier implementación debes leer:
+
+1. AGENTS_BOOTSTRAP.md
+2. AGENTS.md
+3. ARCHITECTURE.md
+
+Luego revisar documentación clave:
+
+docs/SYSTEM_MAP.md
+docs/FINAL_ARCHITECTURE_MAP.md
+docs/CURRENT_STATE.md
+docs/MODULE_REGISTRY.md
+docs/DATABASE_MAP.md
+docs/DOMAIN_MODEL.md
+docs/MODULE_DEPENDENCY_MAP.md
+docs/SECURITY_MODEL.md
+docs/PERFORMANCE_STRATEGY.md
+docs/PLUGIN_ROADMAP.md
+
+Y contexto de IA:
+
+ai/context/*
+ai/rules/*
+ai/prompts/*
+
+==================================================
+FUENTE DE VERDAD
+================
+
+* El código real del plugin es la fuente principal de verdad
+* La documentación debe reflejar el código, no al revés
+* El estado actual del sistema debe leerse siempre desde:
+
+docs/CURRENT_STATE.md
+
+No asumir estado del sistema sin verificar ese archivo.
+
+==================================================
+ARQUITECTURA REAL
+=================
+
+Arquitectura activa:
+
+includes/*
+
+Legacy (NO USAR):
+
+includes/modules/*
+
+Capas:
+
+Controller → integración WordPress
+Service → lógica de negocio
+Repository → acceso a datos
+Database → schema
+
+Regla crítica:
+
+SQL solo en Repository
+
+==================================================
+REGLAS CRÍTICAS
+===============
+
+* No usar includes/modules/*
+* No SQL fuera de repository
+* No exponer file_url directo
+* Validar ownership siempre
+* Usar Download_Service para descargas
+* Respetar límites de módulos
+* No acoplar servicios directamente a repositories externos
+
+==================================================
+MODO DE TRABAJO
+===============
+
+ANTES de generar código debes responder con:
+
+1. módulos afectados
+2. archivos a modificar
+3. archivos nuevos
+4. tablas involucradas
+5. dependencias
+6. riesgos
+
+NO generar código aún.
+
+Esperar confirmación explícita antes de implementar.
+
+Excepción:
+
+si el prompt maestro de la sesión indica analizar primero y luego ejecutar directamente, se debe continuar tras presentar el análisis previo.
+
+==================================================
+ALCANCE
+=======
+
+* No modificar código fuera del alcance definido
+* No introducir cambios estructurales sin justificación
+* No reescribir módulos completos innecesariamente
+* Priorizar cambios mínimos y seguros
+
+==================================================
+OBJETIVO
+========
+
+Mantener consistencia arquitectónica, integridad de datos y alineación entre código y documentación en todo momento.
+
+==================================================
+ESTADO REAL RESUMIDO
+====================
+
+Versión real del plugin: 0.1.0
+Versión real del schema: 1.9.0
+
+Módulos activos confirmados en bootstrap:
+
+clients
+vehicles
+relations
+flows
+processes
+maintenance
+predelivery
+paperwork
+dashboard
+reports
+quotes
+invoices
+attachments
+communication
+helpers documentales
+
+Fases recientes con huella real en código:
+
+12A
+12B
+12C
+12D
+12E
+13
+14
+14B

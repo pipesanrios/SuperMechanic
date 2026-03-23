@@ -1,0 +1,227 @@
+<?php
+/**
+ * Client vehicle relation service.
+ *
+ * @package Super_Mechanic
+ */
+
+namespace Super_Mechanic\Relations;
+
+use Super_Mechanic\Clients\Client_Service;
+use Super_Mechanic\Vehicles\Vehicle_Service;
+use WP_Error;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Handles client vehicle relation business rules.
+ */
+class Client_Vehicle_Service {
+	/**
+	 * Relation repository.
+	 *
+	 * @var Client_Vehicle_Repository
+	 */
+	protected $repository;
+
+	/**
+	 * Client service.
+	 *
+	 * @var Client_Service
+	 */
+	protected $client_service;
+
+	/**
+	 * Vehicle service.
+	 *
+	 * @var Vehicle_Service
+	 */
+	protected $vehicle_service;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Client_Vehicle_Repository|null $repository      Relation repository.
+	 * @param Client_Service|null            $client_service  Client service.
+	 * @param Vehicle_Service|null           $vehicle_service Vehicle service.
+	 */
+	public function __construct( Client_Vehicle_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null ) {
+		$this->repository      = $repository ? $repository : new Client_Vehicle_Repository();
+		$this->client_service  = $client_service ? $client_service : new Client_Service();
+		$this->vehicle_service = $vehicle_service ? $vehicle_service : new Vehicle_Service();
+	}
+
+	/**
+	 * Assign a vehicle to a client.
+	 *
+	 * @param int                 $client_id Client ID.
+	 * @param int                 $vehicle_id Vehicle ID.
+	 * @param array<string, mixed> $args      Relation args.
+	 * @return int|WP_Error
+	 */
+	public function assign_vehicle_to_client( $client_id, $vehicle_id, $args = array() ) {
+		$client_id  = absint( $client_id );
+		$vehicle_id = absint( $vehicle_id );
+		$args       = wp_parse_args(
+			$args,
+			array(
+				'ownership_type'      => 'owner',
+				'start_date'          => current_time( 'Y-m-d' ),
+				'end_date'            => null,
+				'is_primary'          => true,
+				'replace_primary'     => true,
+			)
+		);
+
+		$validation = $this->validate_relation( $client_id, $vehicle_id, $args['ownership_type'] );
+		if ( is_wp_error( $validation ) ) {
+			return $validation;
+		}
+
+		if ( $args['is_primary'] && $args['replace_primary'] ) {
+			$this->end_active_primary_relations( $vehicle_id, $args['start_date'] );
+		}
+
+		$relation_id = $this->repository->create_relation(
+			array(
+				'client_id'      => $client_id,
+				'vehicle_id'     => $vehicle_id,
+				'ownership_type' => sanitize_text_field( $args['ownership_type'] ),
+				'start_date'     => $args['start_date'],
+				'end_date'       => $args['end_date'],
+				'is_primary'     => $args['is_primary'] ? 1 : 0,
+			)
+		);
+
+		if ( false === $relation_id ) {
+			return new WP_Error( 'sm_relation_create_failed', __( 'No fue posible crear la relación cliente-vehículo.', 'super-mechanic' ) );
+		}
+
+		if ( $args['is_primary'] ) {
+			$this->repository->sync_vehicle_primary_client( $vehicle_id, $client_id );
+		}
+
+		return $relation_id;
+	}
+
+	/**
+	 * Transfer a vehicle to a new client.
+	 *
+	 * @param int                 $vehicle_id Vehicle ID.
+	 * @param int                 $from_client_id Previous client ID.
+	 * @param int                 $to_client_id New client ID.
+	 * @param array<string, mixed> $args       Transfer args.
+	 * @return int|WP_Error
+	 */
+	public function transfer_vehicle( $vehicle_id, $from_client_id, $to_client_id, $args = array() ) {
+		$vehicle_id     = absint( $vehicle_id );
+		$from_client_id = absint( $from_client_id );
+		$to_client_id   = absint( $to_client_id );
+		$args           = wp_parse_args(
+			$args,
+			array(
+				'transfer_date'       => current_time( 'Y-m-d' ),
+				'ownership_type'      => 'owner',
+			)
+		);
+
+		$current_owner = $this->repository->get_current_owner( $vehicle_id );
+		if ( empty( $current_owner ) ) {
+			return new WP_Error( 'sm_relation_no_current_owner', __( 'El vehículo no tiene propietario actual registrado.', 'super-mechanic' ) );
+		}
+
+		if ( absint( $current_owner['client_id'] ) !== $from_client_id ) {
+			return new WP_Error( 'sm_relation_owner_mismatch', __( 'El cliente origen no coincide con el propietario actual.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->repository->end_relation( absint( $current_owner['id'] ), $args['transfer_date'] ) ) {
+			return new WP_Error( 'sm_relation_end_failed', __( 'No fue posible finalizar la relación anterior.', 'super-mechanic' ) );
+		}
+
+		return $this->assign_vehicle_to_client(
+			$to_client_id,
+			$vehicle_id,
+			array(
+				'ownership_type'  => $args['ownership_type'],
+				'start_date'      => $args['transfer_date'],
+				'is_primary'      => true,
+				'replace_primary' => false,
+			)
+		);
+	}
+
+	/**
+	 * Get all clients for a vehicle.
+	 *
+	 * @param int                 $vehicle_id Vehicle ID.
+	 * @param array<string, mixed> $args      Query args.
+	 * @return array<int, array<string, mixed>>|WP_Error
+	 */
+	public function get_vehicle_clients( $vehicle_id, $args = array() ) {
+		$vehicle_id = absint( $vehicle_id );
+		if ( ! $vehicle_id || ! $this->vehicle_service->get_vehicle( $vehicle_id ) ) {
+			return new WP_Error( 'sm_vehicle_not_found', __( 'El vehículo no existe.', 'super-mechanic' ) );
+		}
+
+		return $this->repository->get_by_vehicle( $vehicle_id, $args );
+	}
+
+	/**
+	 * Get all vehicles for a client.
+	 *
+	 * @param int                 $client_id Client ID.
+	 * @param array<string, mixed> $args     Query args.
+	 * @return array<int, array<string, mixed>>|WP_Error
+	 */
+	public function get_client_vehicles( $client_id, $args = array() ) {
+		$client_id = absint( $client_id );
+		if ( ! $client_id || ! $this->client_service->get_client( $client_id ) ) {
+			return new WP_Error( 'sm_client_not_found', __( 'El cliente no existe.', 'super-mechanic' ) );
+		}
+
+		return $this->repository->get_by_client( $client_id, $args );
+	}
+
+	/**
+	 * Validate relation endpoints.
+	 *
+	 * @param int    $client_id      Client ID.
+	 * @param int    $vehicle_id     Vehicle ID.
+	 * @param string $ownership_type Ownership type.
+	 * @return true|WP_Error
+	 */
+	protected function validate_relation( $client_id, $vehicle_id, $ownership_type ) {
+		$errors = new WP_Error();
+
+		if ( ! $client_id || ! $this->client_service->get_client( $client_id ) ) {
+			$errors->add( 'sm_relation_invalid_client', __( 'El cliente indicado no existe.', 'super-mechanic' ) );
+		}
+
+		if ( ! $vehicle_id || ! $this->vehicle_service->get_vehicle( $vehicle_id ) ) {
+			$errors->add( 'sm_relation_invalid_vehicle', __( 'El vehículo indicado no existe.', 'super-mechanic' ) );
+		}
+
+		if ( '' === trim( (string) $ownership_type ) ) {
+			$errors->add( 'sm_relation_invalid_type', __( 'El tipo de relación es obligatorio.', 'super-mechanic' ) );
+		}
+
+		return $errors->has_errors() ? $errors : true;
+	}
+
+	/**
+	 * End current primary relations for a vehicle.
+	 *
+	 * @param int    $vehicle_id Vehicle ID.
+	 * @param string $end_date   End date.
+	 * @return void
+	 */
+	protected function end_active_primary_relations( $vehicle_id, $end_date ) {
+		$relations = $this->repository->get_active_relations_by_vehicle( $vehicle_id );
+
+		foreach ( $relations as $relation ) {
+			if ( ! empty( $relation['is_primary'] ) ) {
+				$this->repository->end_relation( absint( $relation['id'] ), $end_date );
+			}
+		}
+	}
+}

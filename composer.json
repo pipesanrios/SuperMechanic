@@ -1,0 +1,11 @@
+{
+    "name": "super-mechanic/super-mechanic",
+    "description": "Base modular scaffold for the Super Mechanic WordPress plugin.",
+    "type": "wordpress-plugin",
+    "autoload": {
+        "psr-4": {
+            "Super_Mechanic\\": "includes/"
+        }
+    },
+    "require": {}
+}

@@ -1,0 +1,308 @@
+AUDITORÍA DE INTEGRIDAD DEL SISTEMA — SUPER MECHANIC
+
+Contexto:
+Plugin WordPress "Super Mechanic".
+
+El proyecto ya tiene documentación técnica:
+
+/ARCHITECTURE.md
+/docs/FINAL_ARCHITECTURE_MAP.md
+/docs/SYSTEM_MAP.md
+/docs/CURRENT_STATE.md
+/docs/DEV_GUIDE.md
+/docs/MODULE_REGISTRY.md
+/docs/DATABASE_MAP.md
+/AGENTS.md
+/readme.txt (si existe)
+
+Objetivo:
+Revisar si el estado actual del plugin mantiene integridad arquitectónica, modular y de base de datos, y detectar si alguna fase o cambio reciente rompió dependencias.
+
+Si existe cualquier diferencia entre documentación y código, usar el código real como fuente de verdad y reportar la desalineación.
+
+==================================================
+ALCANCE DE LA AUDITORÍA
+==================================================
+
+Debes revisar:
+
+1. integridad de arquitectura
+2. integridad de módulos
+3. integridad de base de datos
+4. integridad de bootstrap
+5. integridad de permisos
+6. integridad de shortcodes
+7. integridad de flujos de negocio
+8. coherencia entre documentación y código real
+9. integridad del sistema documental y PDFs
+
+==================================================
+1. REVISAR ARQUITECTURA
+==================================================
+
+Confirmar que se sigue respetando:
+
+- Repository = acceso a BD
+- Service = lógica de negocio
+- Controller = UI admin
+- Shortcodes = frontend cliente
+- REST Controller solo cuando aplique
+
+Detectar:
+
+- SQL fuera de repository
+- lógica de negocio metida en controllers
+- duplicación fuerte de lógica entre services
+- módulos con responsabilidades mezcladas
+- uso accidental de includes/modules/* como si fuera arquitectura activa
+
+==================================================
+2. REVISAR MÓDULOS
+==================================================
+
+Revisar integridad de estos módulos activos:
+
+- Core / Bootstrap
+- Security
+- Settings
+- Clients
+- Vehicles
+- Client-Vehicle Relations
+- Flows
+- Processes
+- Maintenance
+- Pre-Delivery
+- Paperwork
+- Dashboard
+- Quotes
+- Invoices
+- Payments
+- Attachments
+- Communication
+
+Revisar también el estado de:
+
+- REST API (placeholder o activa)
+- WooCommerce integration (parcial o integrada)
+- includes/modules/* como capa legacy
+
+Confirmar:
+
+- clases principales existentes
+- dependencias coherentes
+- integración con class-plugin.php
+- no hay referencias rotas a clases o archivos
+
+==================================================
+3. REVISAR BASE DE DATOS
+==================================================
+
+Revisar tablas reales:
+
+- sm_clients
+- sm_vehicles
+- sm_client_vehicles
+- sm_flows
+- sm_flow_steps
+- sm_processes
+- sm_process_step_logs
+- sm_process_parts
+- sm_process_meta
+- sm_maintenance
+- sm_maintenance_parts
+- sm_maintenance_labor
+- sm_pre_delivery
+- sm_paperwork
+- sm_paperwork_items
+- sm_quotes
+- sm_quote_items
+- sm_invoices
+- sm_invoice_items
+- sm_payments
+- sm_attachments
+- sm_comments
+- sm_notifications
+
+Confirmar:
+
+- integridad lógica entre tablas
+- relaciones esperadas
+- columnas críticas presentes
+- índices importantes si aplica
+- no hay cambios peligrosos no documentados
+
+==================================================
+4. REVISAR BOOTSTRAP DEL PLUGIN
+==================================================
+
+Revisar:
+
+- super-mechanic.php
+- includes/class-plugin.php
+- includes/autoloader.php
+- hooks de activación/desactivación
+- carga de módulos
+
+Confirmar:
+
+- módulos cargan correctamente
+- no hay clases registradas pero no usadas
+- no hay módulos implementados sin bootstrap correcto
+- Event_Dispatcher, Attachment_Service, Comment_Service, Notification_Service y Process_Timeline_Service siguen cableados correctamente si aplican
+- PDF_Service y Download_Service están cableados correctamente si ya existen
+
+==================================================
+5. REVISAR PERMISOS Y SEGURIDAD
+==================================================
+
+Confirmar uso correcto de:
+
+- current_user_can()
+- nonces
+- sanitización
+- escaping
+- ownership validation
+- consultas preparadas
+
+Detectar:
+
+- pantallas admin sin validación
+- shortcodes cliente sin ownership
+- servicios sensibles sin validación suficiente
+- riesgo de exposición cruzada por client_vehicles / dashboard cliente / shortcodes
+- riesgo en descargas de quote/invoice/attachment/PDF si ya existen
+
+==================================================
+6. REVISAR SHORTCODES Y DASHBOARD
+==================================================
+
+Confirmar integridad de:
+
+- shortcodes cliente
+- dashboard admin
+- dashboard mechanic
+- dashboard client
+
+Detectar:
+
+- shortcodes rotos
+- dependencias faltantes
+- acceso indebido a datos ajenos
+- widgets o feeds que dependan de módulos no cargados
+
+==================================================
+7. REVISAR FLUJOS DE NEGOCIO
+==================================================
+
+Validar coherencia de estos flujos:
+
+1. Cliente → Vehículo → Relación cliente-vehículo → Proceso
+2. Process → Maintenance
+3. Process → Pre-Delivery
+4. Process → Paperwork
+5. Maintenance → Quote
+6. Quote approved → Invoice
+7. Invoice → Payments
+8. Process → Attachments
+9. Process → Communication
+10. Process → Timeline
+11. Process / Quote / Invoice / Attachment / Comment / Notification → Client visibility
+12. Quote / Invoice / Attachment → Download o PDF si ya existe
+
+Detectar si alguna integración está incompleta o frágil.
+
+==================================================
+8. COMPARAR CON DOCUMENTACIÓN
+==================================================
+
+Comparar el código real con:
+
+/ARCHITECTURE.md
+/docs/FINAL_ARCHITECTURE_MAP.md
+/docs/SYSTEM_MAP.md
+/docs/CURRENT_STATE.md
+/docs/DEV_GUIDE.md
+/docs/MODULE_REGISTRY.md
+/docs/DATABASE_MAP.md
+/AGENTS.md
+/readme.txt (si existe)
+
+Detectar:
+
+- diferencias entre documentación y código
+- módulos documentados pero no implementados
+- módulos implementados pero no documentados
+- nombres de tablas desalineados
+- fases marcadas incorrectamente como completas/parciales
+
+==================================================
+9. REVISAR SISTEMA DOCUMENTAL Y PDF
+==================================================
+
+Si existen componentes PDF o de descarga, revisar:
+
+- PDF_Service
+- Download_Service
+- integración con quotes
+- integración con invoices
+- integración con attachments
+- ownership y seguridad de descarga
+- riesgo de duplicación de lógica documental
+
+==================================================
+10. RESULTADO DE LA AUDITORÍA
+==================================================
+
+Clasificar el sistema en una de estas categorías:
+
+- ESTABLE
+- ESTABLE CON RIESGOS
+- NECESITA CORRECCIONES
+- INCONSISTENTE
+
+==================================================
+11. ESTADO POR FASES
+==================================================
+
+Clasificar cada fase desde la 1 hasta la 11 como:
+
+- COMPLETA
+- PARCIAL
+- NO ENCONTRADA
+
+==================================================
+12. SI DETECTAS PROBLEMAS
+==================================================
+
+Debes indicar:
+
+- archivo afectado
+- módulo afectado
+- tipo de problema
+- riesgo técnico
+- corrección recomendada
+
+Si el problema es pequeño, puedes proponer la corrección exacta.
+
+Si el problema afecta arquitectura o varios módulos, primero listar impacto antes de proponer cambios.
+
+==================================================
+FORMATO DE RESPUESTA
+==================================================
+
+Responder con:
+
+1. Estado general del sistema
+2. Problemas detectados
+3. Riesgos técnicos
+4. Módulos correctos
+5. Módulos con observaciones
+6. Diferencias entre código y documentación
+7. Estado por fases (1 a 11)
+8. Correcciones recomendadas
+9. Si el sistema está listo para continuar con la siguiente fase
+
+No pseudocódigo.
+No explicación larga.
+Auditoría técnica clara y estructurada.
+No proponer refactor global si el problema es local.

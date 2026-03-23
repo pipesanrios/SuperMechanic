@@ -1,0 +1,59 @@
+SCOPE GUARD — CONTROL DE ALCANCE DE IMPLEMENTACIÓN
+
+Antes de generar código define:
+
+1. módulos afectados
+2. archivos a modificar
+3. archivos nuevos
+4. tablas involucradas
+
+==================================================
+RESTRICCIONES
+==================================================
+
+No modificar:
+
+- módulos fuera del alcance
+- includes/modules/*
+- bootstrap sin necesidad
+- lógica no relacionada
+
+Si necesitas modificar otro módulo:
+
+- justificarlo
+- añadirlo al alcance antes de continuar
+
+==================================================
+MÓDULOS CRÍTICOS
+==================================================
+
+Evitar modificar sin justificación:
+
+processes
+quotes
+invoices
+payments
+attachments
+communication
+dashboard
+relations
+
+==================================================
+REGLA
+==================================================
+
+- usar Repository / Service / Controller
+- no duplicar lógica
+- máximo 3 módulos por cambio
+
+==================================================
+RESPUESTA
+==================================================
+
+1. alcance
+2. archivos a modificar
+3. archivos nuevos
+4. tablas
+5. confirmación de no afectar otros módulos
+
+NO generar código.

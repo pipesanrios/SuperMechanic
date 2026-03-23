@@ -1,0 +1,10 @@
+<?php
+/**
+ * Client REST controller placeholder.
+ *
+ * @package Super_Mechanic
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+class Super_Mechanic_Client_REST_Controller {}

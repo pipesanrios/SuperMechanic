@@ -1,0 +1,154 @@
+PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC
+
+Estás trabajando en el plugin WordPress "Super Mechanic".
+
+Objetivo de este prompt:
+
+- reconstruir contexto real antes de tocar código
+- obligar a usar el código como fuente principal de verdad
+- mantener una sola narrativa operativa coherente para nuevas sesiones con Codex
+
+==================================================
+LECTURA OBLIGATORIA
+==================================================
+
+Antes de cualquier cambio debes leer:
+
+1. AGENTS_BOOTSTRAP.md
+2. AGENTS.md
+3. ARCHITECTURE.md
+
+Luego revisar obligatoriamente:
+
+- docs/SYSTEM_MAP.md
+- docs/FINAL_ARCHITECTURE_MAP.md
+- docs/CURRENT_STATE.md
+- docs/MODULE_REGISTRY.md
+- docs/DATABASE_MAP.md
+- docs/DOMAIN_MODEL.md
+- docs/MODULE_DEPENDENCY_MAP.md
+- docs/SECURITY_MODEL.md
+- docs/PERFORMANCE_STRATEGY.md
+- docs/PLUGIN_ROADMAP.md
+- docs/DEV_GUIDE.md
+- docs/AI_DEVELOPMENT_PLAYBOOK.md
+- docs/TEST_SCENARIOS.md
+
+Y además:
+
+- .vscode/AI_CONTEXT.md
+- ai/context/AGENTS_QUICK_CONTEXT.md
+- ai/context/PROJECT_MEMORY.md
+- ai/context/WORKFLOW.md
+- ai/rules/*
+- ai/prompts/*
+
+==================================================
+REGLAS CRÍTICAS
+==================================================
+
+- La arquitectura activa real está en `includes/*`
+- `includes/modules/*` es legacy y no debe extenderse
+- SQL solo en repositories
+- NO cambiar schema salvo que el usuario lo indique explícitamente
+- NO duplicar lógica existente; reutilizar services
+- No exponer `file_url` directo al cliente
+- Usar `Document_Service` y `Download_Service`
+- Priorizar siempre el código real si contradice documentación
+
+==================================================
+OBJETIVO DE LA SESIÓN
+==================================================
+
+El usuario definirá el objetivo específico después de este prompt.
+
+Debes:
+
+- validar que el objetivo no esté ya implementado
+- validar que no duplique lógica existente
+- validar que encaje en la arquitectura actual
+
+==================================================
+ANÁLISIS PREVIO OBLIGATORIO
+==================================================
+
+Antes de editar debes responder con:
+
+1. módulos afectados
+2. archivos a modificar
+3. archivos nuevos
+4. tablas involucradas
+5. dependencias
+6. riesgos
+7. archivos AI / prompts / docs a consolidar o corregir
+8. criterio de consolidación documental
+
+No generar código en ese primer bloque.
+
+==================================================
+EJECUCIÓN
+==================================================
+
+Después del análisis previo:
+
+- ejecutar directamente salvo que el usuario indique lo contrario
+- mantener cambios mínimos y seguros
+- no ampliar alcance
+- no crear services innecesarios
+- validar sintaxis PHP
+- validar escenarios funcionales básicos
+- confirmar que el bootstrap no se rompió
+
+==================================================
+ESTADO REAL BASE
+==================================================
+
+Versión plugin: 0.1.0  
+Schema: 1.9.0  
+
+Fases:
+12A–12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20
+
+Módulos activos reales:
+
+clients
+vehicles
+relations
+processes
+flows
+maintenance
+predelivery
+paperwork
+quotes
+invoices
+payments
+reports
+attachments
+communication
+dashboard
+
+Capas activas transversales:
+
+- core / bootstrap
+- security
+- settings
+- documents / PDF / secure downloads
+- client portal
+
+Notas de consistencia:
+
+- varios contextos rápidos AI pueden quedar por detrás del estado real del código y de `docs/*`
+- si hay diferencias entre este prompt, otros prompts y la documentación técnica, manda el código real y luego `ARCHITECTURE.md`, `docs/SYSTEM_MAP.md`, `docs/FINAL_ARCHITECTURE_MAP.md`, `docs/CURRENT_STATE.md`, `docs/MODULE_REGISTRY.md` y `docs/DATABASE_MAP.md`
+- no asumir `20A` ni nuevas subfases si no están confirmadas en código y documentación base
+
+==================================================
+CIERRE
+==================================================
+
+1. validar sintaxis PHP
+2. confirmar que el plugin carga
+3. confirmar que no rompiste otros módulos
+4. actualizar documentación afectada
+5. actualizar prompts/contextos si aplica
+6. asegurar consistencia total entre código, docs y prompts
+7. documentar deudas técnicas abiertas

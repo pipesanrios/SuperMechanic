@@ -1,0 +1,161 @@
+ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE
+
+Acabamos de terminar una fase o subfase del plugin Super Mechanic.
+
+==================================================
+CONTEXTO DE CIERRE
+==================
+
+La fase ya fue implementada, corregida y validada previamente.
+
+Estado esperado:
+La fase debe quedar marcada como COMPLETA si no se detectan inconsistencias.
+
+No rehacer implementación.
+No ampliar alcance.
+No reauditar todo el plugin.
+Solo consolidar el cierre documental final usando el código real actual.
+
+==================================================
+VALIDACIÓN PREVIA (ANTES DE DOCUMENTAR)
+=======================================
+
+Antes de actualizar la documentación debes:
+
+1. revisar el código implementado en esta fase
+2. comparar los cambios con la documentación existente
+3. identificar archivos, clases, tablas y módulos realmente afectados
+4. usar el código real del proyecto como fuente principal de verdad
+
+Confirmar:
+
+* que el código compila
+* que no hay errores de sintaxis PHP
+* que el bootstrap del plugin no se rompió
+
+Solo después actualizar la documentación.
+
+==================================================
+ARCHIVOS A ACTUALIZAR
+=====================
+
+/ARCHITECTURE.md
+/docs/FINAL_ARCHITECTURE_MAP.md
+/docs/SYSTEM_MAP.md
+/docs/CURRENT_STATE.md
+/docs/MODULE_REGISTRY.md
+/docs/DATABASE_MAP.md
+
+Actualizar solo si aplica:
+
+/docs/DEV_GUIDE.md
+/docs/tasks/<task-file-de-la-fase>.md
+/readme.txt
+/AGENTS.md
+
+==================================================
+TAREAS
+======
+
+1. ARCHITECTURE.md
+
+* agregar entrada en bitácora de fases
+* registrar archivos creados/modificados
+* registrar clases nuevas
+* registrar tablas nuevas o modificadas
+* registrar integraciones
+* actualizar estado del proyecto si cambió
+
+2. FINAL_ARCHITECTURE_MAP.md
+
+* actualizar módulos afectados
+* ajustar dependencias si aplica
+* reflejar estado técnico actual
+
+3. SYSTEM_MAP.md
+
+* actualizar módulos activos
+* actualizar clases clave
+* actualizar tablas por módulo
+* actualizar menús/shortcodes si aplica
+* actualizar riesgos arquitectónicos si aparecen
+
+4. CURRENT_STATE.md
+   Actualizar:
+
+* fase completada
+* estado general del sistema
+* módulos activos
+* módulos parciales
+* últimos cambios técnicos
+* riesgos actuales
+* pendientes inmediatos
+
+5. MODULE_REGISTRY.md
+
+* registrar módulos nuevos o modificados
+* actualizar clases principales
+* actualizar dependencias
+* actualizar estado del módulo
+
+6. DATABASE_MAP.md
+
+* registrar tablas nuevas o modificadas
+* actualizar relaciones si aplica
+* actualizar reglas de integridad
+* corregir desalineaciones con código real
+
+7. DEV_GUIDE.md
+
+* solo si cambiaron reglas o convenciones
+
+8. TASK FILE DE LA FASE
+
+* actualizar estado: completado / parcial / bloqueado
+* registrar notas técnicas finales
+* registrar desviaciones si existieron
+
+9. README.TXT
+
+* solo si cambió versión o alcance funcional visible
+
+10. AGENTS.md
+
+* solo si cambiaron reglas de trabajo con IA
+
+==================================================
+RESUMEN TÉCNICO DE LA FASE
+==========================
+
+Generar un resumen con:
+
+* archivos creados o modificados
+* clases implementadas
+* tablas creadas o modificadas
+* métodos principales agregados
+* hooks o shortcodes registrados
+* cambios en class-plugin.php
+* integración con módulos existentes
+* mejoras o tareas pendientes
+
+==================================================
+REGLAS
+======
+
+* no duplicar información
+* no borrar historial útil
+* registrar solo cambios reales
+* no reescribir archivos completos innecesariamente
+* mantener coherencia con el código real
+* priorizar código sobre documentación en caso de conflicto
+
+==================================================
+FORMATO DE RESPUESTA
+====================
+
+Responder con:
+
+1. archivos de documentación actualizados
+2. bloques modificados de cada archivo
+3. estado final del task file
+4. resumen técnico de la fase

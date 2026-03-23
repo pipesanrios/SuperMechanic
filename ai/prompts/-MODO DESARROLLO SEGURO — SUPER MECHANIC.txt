@@ -1,0 +1,134 @@
+MODO DESARROLLO SEGURO — SUPER MECHANIC
+
+Contexto:
+Estás trabajando en el plugin WordPress "Super Mechanic".
+
+==================================================
+FUENTE DE VERDAD
+==================================================
+
+Usar siempre como referencia principal:
+
+- código real en `includes/*`
+- `includes/class-plugin.php` como composition root
+- `includes/database/class-schema.php` para versión y tablas
+
+La documentación y los prompts deben alinearse con el código, no al revés.
+
+==================================================
+LECTURA MÍNIMA OBLIGATORIA
+==================================================
+
+Antes de generar código debes revisar:
+
+- AGENTS_BOOTSTRAP.md
+- AGENTS.md
+- ARCHITECTURE.md
+- docs/SYSTEM_MAP.md
+- docs/FINAL_ARCHITECTURE_MAP.md
+- docs/CURRENT_STATE.md
+- docs/MODULE_REGISTRY.md
+- docs/DATABASE_MAP.md
+- docs/DEV_GUIDE.md
+- readme.txt
+
+==================================================
+REALIDAD ARQUITECTÓNICA DEL PROYECTO
+==================================================
+
+La arquitectura activa real del plugin está en:
+
+includes/*
+
+La carpeta:
+
+includes/modules/*
+
+existe como capa legacy/paralela y no debe tocarse salvo migración explícita.
+
+==================================================
+ANÁLISIS PREVIO OBLIGATORIO
+==================================================
+
+Antes de generar código debes mostrar:
+
+1. módulos afectados
+2. archivos que se modificarán
+3. archivos nuevos que se crearán
+4. tablas involucradas
+5. dependencias con otros módulos
+6. riesgos potenciales
+
+No generar código todavía.
+
+Si la sesión o el prompt maestro ordenan continuar después del análisis, ejecutar directamente tras ese bloque.
+Si no, esperar confirmación.
+
+==================================================
+REGLAS DE IMPLEMENTACIÓN
+==================================================
+
+- No crear nuevas tablas sin revisar `DATABASE_MAP.md`
+- No reescribir archivos completos si el cambio puede resolverse modificando métodos o bloques específicos
+- Preferir cambios incrementales
+- Reutilizar services, repositories y helpers ya activos
+- No introducir SQL fuera de `Repository`
+- No asumir que un módulo está pendiente solo por documentación vieja
+
+Respetar arquitectura:
+
+Repository
+Service
+Controller
+Shortcodes
+REST Controller (solo cuando aplique)
+
+==================================================
+REGLAS DE SEGURIDAD
+==================================================
+
+Siempre usar:
+
+- `current_user_can()`
+- nonces
+- sanitización y escaping de WordPress
+- consultas preparadas
+- validación de ownership
+
+Nunca confiar en:
+
+- `process_id`
+- `object_id`
+- `client_id`
+- `invoice_id`
+- `quote_id`
+- `attachment_id`
+
+sin validar acceso real.
+
+==================================================
+CIERRE DE FASE
+==================================================
+
+Cuando la implementación esté completa también debes actualizar la documentación correspondiente:
+
+- /ARCHITECTURE.md
+- /docs/FINAL_ARCHITECTURE_MAP.md
+- /docs/SYSTEM_MAP.md
+- /docs/CURRENT_STATE.md
+- /docs/MODULE_REGISTRY.md
+- /docs/DATABASE_MAP.md
+- /docs/DEV_GUIDE.md si cambiaron reglas del proyecto
+- /docs/tasks/<task-file-de-la-fase>.md si existe
+- /readme.txt si cambió versión o changelog
+- /AGENTS.md si cambiaron reglas operativas del proyecto
+
+==================================================
+NOTAS DE ESTADO ACTUAL
+==================================================
+
+- `super-mechanic.php` y `SM_PLUGIN_VERSION` siguen en `0.1.0`
+- `Schema::get_schema_version()` sigue en `1.9.0`
+- `reports` ya es módulo activo real
+- el portal cliente está operativo con descargas seguras, timeline, comentarios y notificaciones
+- `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos

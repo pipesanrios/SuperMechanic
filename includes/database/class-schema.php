@@ -1,0 +1,557 @@
+<?php
+/**
+ * Database schema definitions.
+ *
+ * @package Super_Mechanic
+ */
+
+namespace Super_Mechanic\Database;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Defines the plugin database schema.
+ */
+class Schema {
+	/**
+	 * Get the current schema version.
+	 *
+	 * @return string
+	 */
+	public static function get_schema_version() {
+		return '1.9.0';
+	}
+
+	/**
+	 * Get all plugin tables using the active WordPress prefix.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function get_tables() {
+		global $wpdb;
+
+		return array(
+			'clients'           => $wpdb->prefix . 'sm_clients',
+			'vehicles'          => $wpdb->prefix . 'sm_vehicles',
+			'client_vehicles'   => $wpdb->prefix . 'sm_client_vehicles',
+			'flows'             => $wpdb->prefix . 'sm_flows',
+			'flow_steps'        => $wpdb->prefix . 'sm_flow_steps',
+			'processes'         => $wpdb->prefix . 'sm_processes',
+			'process_step_logs' => $wpdb->prefix . 'sm_process_step_logs',
+			'process_parts'     => $wpdb->prefix . 'sm_process_parts',
+			'process_meta'      => $wpdb->prefix . 'sm_process_meta',
+			'maintenance'       => $wpdb->prefix . 'sm_maintenance',
+			'maintenance_parts' => $wpdb->prefix . 'sm_maintenance_parts',
+			'maintenance_labor' => $wpdb->prefix . 'sm_maintenance_labor',
+			'pre_delivery'      => $wpdb->prefix . 'sm_pre_delivery',
+			'paperwork'         => $wpdb->prefix . 'sm_paperwork',
+			'paperwork_items'   => $wpdb->prefix . 'sm_paperwork_items',
+			'quotes'            => $wpdb->prefix . 'sm_quotes',
+			'quote_items'       => $wpdb->prefix . 'sm_quote_items',
+			'invoices'          => $wpdb->prefix . 'sm_invoices',
+			'invoice_items'     => $wpdb->prefix . 'sm_invoice_items',
+			'payments'          => $wpdb->prefix . 'sm_payments',
+			'attachments'       => $wpdb->prefix . 'sm_attachments',
+			'comments'          => $wpdb->prefix . 'sm_comments',
+			'notifications'     => $wpdb->prefix . 'sm_notifications',
+		);
+	}
+
+	/**
+	 * Get dbDelta-compatible SQL statements for all plugin tables.
+	 *
+	 * @return array<string>
+	 */
+	public static function get_sql() {
+		global $wpdb;
+
+		$tables                = self::get_tables();
+		$charset_collate       = $wpdb->get_charset_collate();
+		$clients_table         = $tables['clients'];
+		$vehicles_table        = $tables['vehicles'];
+		$client_vehicles_table = $tables['client_vehicles'];
+		$flows_table           = $tables['flows'];
+		$flow_steps_table      = $tables['flow_steps'];
+		$processes_table       = $tables['processes'];
+		$step_logs_table       = $tables['process_step_logs'];
+		$parts_table           = $tables['process_parts'];
+		$process_meta_table    = $tables['process_meta'];
+		$maintenance_table     = $tables['maintenance'];
+		$maintenance_parts     = $tables['maintenance_parts'];
+		$maintenance_labor     = $tables['maintenance_labor'];
+		$pre_delivery_table    = $tables['pre_delivery'];
+		$paperwork_table       = $tables['paperwork'];
+		$paperwork_items_table = $tables['paperwork_items'];
+		$quotes_table          = $tables['quotes'];
+		$quote_items_table     = $tables['quote_items'];
+		$invoices_table        = $tables['invoices'];
+		$invoice_items_table   = $tables['invoice_items'];
+		$payments_table        = $tables['payments'];
+		$attachments_table     = $tables['attachments'];
+		$comments_table        = $tables['comments'];
+		$notifications_table   = $tables['notifications'];
+
+		return array(
+			"CREATE TABLE {$clients_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				first_name varchar(100) NOT NULL,
+				last_name varchar(100) DEFAULT NULL,
+				email varchar(190) DEFAULT NULL,
+				phone varchar(50) DEFAULT NULL,
+				document_id varchar(100) DEFAULT NULL,
+				notes text DEFAULT NULL,
+				status varchar(50) NOT NULL default 'active',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY email (email),
+				KEY phone (phone),
+				KEY status (status)
+			) {$charset_collate};",
+			"CREATE TABLE {$vehicles_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				client_id bigint(20) unsigned NOT NULL,
+				type varchar(50) NOT NULL,
+				make varchar(100) NOT NULL,
+				model varchar(100) NOT NULL,
+				year smallint(5) unsigned DEFAULT NULL,
+				vin varchar(100) DEFAULT NULL,
+				plate varchar(50) DEFAULT NULL,
+				color varchar(50) DEFAULT NULL,
+				mileage bigint(20) unsigned DEFAULT NULL,
+				notes text DEFAULT NULL,
+				status varchar(50) NOT NULL default 'active',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY client_id (client_id),
+				KEY vin (vin),
+				KEY plate (plate),
+				KEY status (status)
+			) {$charset_collate};",
+			"CREATE TABLE {$client_vehicles_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				client_id bigint(20) unsigned NOT NULL,
+				vehicle_id bigint(20) unsigned NOT NULL,
+				ownership_type varchar(50) NOT NULL default 'owner',
+				start_date date NOT NULL,
+				end_date date DEFAULT NULL,
+				is_primary tinyint(1) NOT NULL default 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY client_id (client_id),
+				KEY vehicle_id (vehicle_id),
+				KEY ownership_type (ownership_type),
+				KEY is_primary (is_primary),
+				KEY current_owner (vehicle_id,end_date,is_primary)
+			) {$charset_collate};",
+			"CREATE TABLE {$flows_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				name varchar(150) NOT NULL,
+				slug varchar(150) NOT NULL,
+				flow_type varchar(50) NOT NULL,
+				process_type varchar(50) DEFAULT NULL,
+				description text DEFAULT NULL,
+				is_default tinyint(1) NOT NULL default 0,
+				is_active tinyint(1) NOT NULL default 1,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY slug (slug),
+				KEY flow_type (flow_type),
+				KEY process_type (process_type),
+				KEY is_active (is_active)
+			) {$charset_collate};",
+			"CREATE TABLE {$flow_steps_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				flow_id bigint(20) unsigned NOT NULL,
+				step_key varchar(100) NOT NULL,
+				step_label varchar(150) NOT NULL,
+				step_order int(10) unsigned NOT NULL default 0,
+				step_type varchar(50) NOT NULL default 'standard',
+				is_required tinyint(1) NOT NULL default 0,
+				is_initial tinyint(1) NOT NULL default 0,
+				is_final tinyint(1) NOT NULL default 0,
+				requires_approval tinyint(1) NOT NULL default 0,
+				requires_note tinyint(1) NOT NULL default 0,
+				is_active tinyint(1) NOT NULL default 1,
+				metadata longtext DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY flow_id (flow_id),
+				KEY step_order (step_order),
+				KEY is_initial (is_initial),
+				KEY is_active (is_active),
+				UNIQUE KEY flow_step_key (flow_id,step_key)
+			) {$charset_collate};",
+			"CREATE TABLE {$processes_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				vehicle_id bigint(20) unsigned NOT NULL,
+				client_id bigint(20) unsigned DEFAULT 0,
+				flow_id bigint(20) unsigned DEFAULT 0,
+				process_type varchar(50) NOT NULL,
+				title varchar(190) NOT NULL,
+				description text DEFAULT NULL,
+				internal_notes longtext DEFAULT NULL,
+				current_step_id bigint(20) unsigned DEFAULT NULL,
+				status varchar(50) NOT NULL default 'draft',
+				priority varchar(50) NOT NULL default 'normal',
+				opened_at datetime DEFAULT NULL,
+				due_date datetime DEFAULT NULL,
+				completed_at datetime DEFAULT NULL,
+				closed_at datetime DEFAULT NULL,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				assigned_to bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY vehicle_id (vehicle_id),
+				KEY client_id (client_id),
+				KEY flow_id (flow_id),
+				KEY current_step_id (current_step_id),
+				KEY status (status),
+				KEY process_type (process_type),
+				KEY opened_at (opened_at),
+				KEY due_date (due_date)
+			) {$charset_collate};",
+			"CREATE TABLE {$step_logs_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				flow_step_id bigint(20) unsigned DEFAULT NULL,
+				action_type varchar(50) NOT NULL,
+				message text DEFAULT NULL,
+				internal_note text DEFAULT NULL,
+				customer_visible tinyint(1) NOT NULL default 0,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY process_id (process_id),
+				KEY flow_step_id (flow_step_id),
+				KEY action_type (action_type),
+				KEY customer_visible (customer_visible)
+			) {$charset_collate};",
+			"CREATE TABLE {$parts_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				part_name varchar(190) NOT NULL,
+				part_code varchar(100) DEFAULT NULL,
+				quantity decimal(10,2) NOT NULL default 1.00,
+				unit_price decimal(12,2) DEFAULT NULL,
+				total_price decimal(12,2) DEFAULT NULL,
+				status varchar(50) NOT NULL default 'pending',
+				note text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY process_id (process_id),
+				KEY status (status),
+				KEY part_code (part_code)
+			) {$charset_collate};",
+			"CREATE TABLE {$process_meta_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				meta_key varchar(191) NOT NULL,
+				meta_value longtext DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY process_id (process_id),
+				KEY meta_key (meta_key),
+				KEY process_meta_key (process_id,meta_key)
+			) {$charset_collate};",
+			"CREATE TABLE {$maintenance_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				diagnosis longtext DEFAULT NULL,
+				client_approved tinyint(1) NOT NULL default 0,
+				approved_at datetime DEFAULT NULL,
+				mechanic_id bigint(20) unsigned DEFAULT NULL,
+				estimated_hours decimal(10,2) DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY process_id (process_id),
+				KEY mechanic_id (mechanic_id),
+				KEY client_approved (client_approved)
+			) {$charset_collate};",
+			"CREATE TABLE {$maintenance_parts} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				maintenance_id bigint(20) unsigned NOT NULL,
+				part_name varchar(190) NOT NULL,
+				quantity decimal(10,2) NOT NULL default 1.00,
+				unit_price decimal(12,2) NOT NULL default 0.00,
+				total_price decimal(12,2) NOT NULL default 0.00,
+				notes text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY maintenance_id (maintenance_id)
+			) {$charset_collate};",
+			"CREATE TABLE {$maintenance_labor} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				maintenance_id bigint(20) unsigned NOT NULL,
+				description varchar(190) NOT NULL,
+				hours decimal(10,2) NOT NULL default 0.00,
+				hour_rate decimal(12,2) NOT NULL default 0.00,
+				total_price decimal(12,2) NOT NULL default 0.00,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY maintenance_id (maintenance_id)
+			) {$charset_collate};",
+			"CREATE TABLE {$pre_delivery_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				insurance_required tinyint(1) NOT NULL default 0,
+				insurance_completed tinyint(1) NOT NULL default 0,
+				insurance_completed_at datetime DEFAULT NULL,
+				plate_required tinyint(1) NOT NULL default 0,
+				plate_completed tinyint(1) NOT NULL default 0,
+				plate_completed_at datetime DEFAULT NULL,
+				final_review_required tinyint(1) NOT NULL default 0,
+				final_review_completed tinyint(1) NOT NULL default 0,
+				final_review_completed_at datetime DEFAULT NULL,
+				delivery_ready tinyint(1) NOT NULL default 0,
+				delivery_ready_at datetime DEFAULT NULL,
+				assigned_user_id bigint(20) unsigned DEFAULT NULL,
+				notes text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY process_id (process_id),
+				KEY assigned_user_id (assigned_user_id),
+				KEY delivery_ready (delivery_ready)
+			) {$charset_collate};",
+			"CREATE TABLE {$paperwork_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				paperwork_type varchar(100) DEFAULT NULL,
+				target_date date DEFAULT NULL,
+				completed_date date DEFAULT NULL,
+				assigned_user_id bigint(20) unsigned DEFAULT NULL,
+				status varchar(50) NOT NULL default 'pending',
+				notes text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY process_id (process_id),
+				KEY assigned_user_id (assigned_user_id),
+				KEY status (status),
+				KEY target_date (target_date)
+			) {$charset_collate};",
+			"CREATE TABLE {$paperwork_items_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				paperwork_id bigint(20) unsigned NOT NULL,
+				item_key varchar(100) NOT NULL,
+				item_label varchar(150) NOT NULL,
+				is_required tinyint(1) NOT NULL default 0,
+				is_completed tinyint(1) NOT NULL default 0,
+				completed_at datetime DEFAULT NULL,
+				notes text DEFAULT NULL,
+				sort_order int(10) unsigned NOT NULL default 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY paperwork_id (paperwork_id),
+				KEY sort_order (sort_order),
+				KEY is_completed (is_completed)
+			) {$charset_collate};",
+			"CREATE TABLE {$quotes_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned NOT NULL,
+				client_id bigint(20) unsigned DEFAULT NULL,
+				quote_number varchar(100) NOT NULL,
+				status varchar(50) NOT NULL default 'draft',
+				currency varchar(10) NOT NULL default 'USD',
+				subtotal decimal(12,2) NOT NULL default 0.00,
+				tax_total decimal(12,2) NOT NULL default 0.00,
+				discount_total decimal(12,2) NOT NULL default 0.00,
+				grand_total decimal(12,2) NOT NULL default 0.00,
+				notes longtext DEFAULT NULL,
+				approved_by_client tinyint(1) NOT NULL default 0,
+				approved_at datetime DEFAULT NULL,
+				rejected_at datetime DEFAULT NULL,
+				rejection_reason text DEFAULT NULL,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY quote_number (quote_number),
+				KEY process_id (process_id),
+				KEY client_id (client_id),
+				KEY status (status),
+				KEY approved_by_client (approved_by_client)
+			) {$charset_collate};",
+			"CREATE TABLE {$quote_items_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				quote_id bigint(20) unsigned NOT NULL,
+				item_type varchar(20) NOT NULL,
+				reference_id bigint(20) unsigned DEFAULT NULL,
+				label varchar(190) NOT NULL,
+				description text DEFAULT NULL,
+				quantity decimal(10,2) NOT NULL default 1.00,
+				unit_price decimal(12,2) NOT NULL default 0.00,
+				line_total decimal(12,2) NOT NULL default 0.00,
+				sort_order int(10) unsigned NOT NULL default 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY quote_id (quote_id),
+				KEY item_type (item_type),
+				KEY sort_order (sort_order)
+			) {$charset_collate};",
+			"CREATE TABLE {$invoices_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				process_id bigint(20) unsigned DEFAULT NULL,
+				quote_id bigint(20) unsigned DEFAULT NULL,
+				client_id bigint(20) unsigned DEFAULT NULL,
+				invoice_number varchar(100) NOT NULL,
+				status varchar(50) NOT NULL default 'draft',
+				currency varchar(10) NOT NULL default 'USD',
+				subtotal decimal(12,2) NOT NULL default 0.00,
+				tax_total decimal(12,2) NOT NULL default 0.00,
+				discount_total decimal(12,2) NOT NULL default 0.00,
+				grand_total decimal(12,2) NOT NULL default 0.00,
+				amount_paid decimal(12,2) NOT NULL default 0.00,
+				balance_due decimal(12,2) NOT NULL default 0.00,
+				issued_at datetime DEFAULT NULL,
+				due_date date DEFAULT NULL,
+				paid_at datetime DEFAULT NULL,
+				notes longtext DEFAULT NULL,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY invoice_number (invoice_number),
+				KEY process_id (process_id),
+				KEY quote_id (quote_id),
+				KEY client_id (client_id),
+				KEY status (status),
+				KEY due_date (due_date)
+			) {$charset_collate};",
+			"CREATE TABLE {$invoice_items_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				invoice_id bigint(20) unsigned NOT NULL,
+				item_type varchar(20) NOT NULL,
+				reference_id bigint(20) unsigned DEFAULT NULL,
+				label varchar(190) NOT NULL,
+				description text DEFAULT NULL,
+				quantity decimal(10,2) NOT NULL default 1.00,
+				unit_price decimal(12,2) NOT NULL default 0.00,
+				line_total decimal(12,2) NOT NULL default 0.00,
+				sort_order int(10) unsigned NOT NULL default 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY invoice_id (invoice_id),
+				KEY item_type (item_type),
+				KEY sort_order (sort_order),
+				KEY invoice_sort_order (invoice_id,sort_order)
+			) {$charset_collate};",
+			"CREATE TABLE {$payments_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				invoice_id bigint(20) unsigned NOT NULL,
+				payment_date datetime NOT NULL,
+				amount decimal(12,2) NOT NULL default 0.00,
+				payment_method varchar(50) NOT NULL,
+				reference varchar(100) DEFAULT NULL,
+				notes text DEFAULT NULL,
+				received_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY invoice_id (invoice_id),
+				KEY payment_date (payment_date),
+				KEY payment_method (payment_method),
+				KEY invoice_payment_date (invoice_id,payment_date)
+			) {$charset_collate};",
+			"CREATE TABLE {$attachments_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				object_type varchar(50) NOT NULL default 'process',
+				object_id bigint(20) unsigned NOT NULL default 0,
+				process_id bigint(20) unsigned DEFAULT NULL,
+				client_id bigint(20) unsigned DEFAULT NULL,
+				vehicle_id bigint(20) unsigned DEFAULT NULL,
+				attachment_type varchar(50) NOT NULL default 'document',
+				title varchar(190) NOT NULL,
+				description text DEFAULT NULL,
+				file_url text NOT NULL,
+				file_path text DEFAULT NULL,
+				mime_type varchar(100) NOT NULL,
+				file_size bigint(20) unsigned NOT NULL default 0,
+				is_internal tinyint(1) NOT NULL default 1,
+				is_client_visible tinyint(1) NOT NULL default 0,
+				uploaded_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY object_type (object_type),
+				KEY object_id (object_id),
+				KEY process_id (process_id),
+				KEY client_id (client_id),
+				KEY vehicle_id (vehicle_id),
+				KEY attachment_type (attachment_type),
+				KEY is_internal (is_internal),
+				KEY is_client_visible (is_client_visible)
+			) {$charset_collate};",
+            "CREATE TABLE {$comments_table} (
+                id bigint(20) unsigned NOT NULL auto_increment,
+                object_type varchar(50) NOT NULL,
+                object_id bigint(20) unsigned NOT NULL default 0,
+                process_id bigint(20) unsigned DEFAULT NULL,
+                client_id bigint(20) unsigned DEFAULT NULL,
+                vehicle_id bigint(20) unsigned DEFAULT NULL,
+                parent_id bigint(20) unsigned DEFAULT NULL,
+                author_user_id bigint(20) unsigned DEFAULT NULL,
+                author_client_id bigint(20) unsigned DEFAULT NULL,
+                comment_type varchar(50) NOT NULL default 'internal_note',
+                content longtext NOT NULL,
+                is_internal tinyint(1) NOT NULL default 1,
+                is_client_visible tinyint(1) NOT NULL default 0,
+                status varchar(30) NOT NULL default 'published',
+                created_at datetime NOT NULL,
+                updated_at datetime NOT NULL,
+                PRIMARY KEY  (id),
+                KEY object_type (object_type),
+                KEY object_id (object_id),
+                KEY process_id (process_id),
+                KEY client_id (client_id),
+                KEY vehicle_id (vehicle_id),
+                KEY parent_id (parent_id),
+                KEY author_user_id (author_user_id),
+                KEY author_client_id (author_client_id),
+                KEY comment_type (comment_type),
+                KEY is_internal (is_internal),
+                KEY is_client_visible (is_client_visible),
+                KEY status (status)
+            ) {$charset_collate};",
+            "CREATE TABLE {$notifications_table} (
+                id bigint(20) unsigned NOT NULL auto_increment,
+                recipient_type varchar(20) NOT NULL,
+                recipient_id bigint(20) unsigned NOT NULL,
+                object_type varchar(50) DEFAULT NULL,
+                object_id bigint(20) unsigned DEFAULT NULL,
+                process_id bigint(20) unsigned DEFAULT NULL,
+                notification_type varchar(50) NOT NULL,
+                title varchar(190) NOT NULL,
+                message text DEFAULT NULL,
+                data_json longtext DEFAULT NULL,
+                is_read tinyint(1) NOT NULL default 0,
+                read_at datetime DEFAULT NULL,
+                created_at datetime NOT NULL,
+                updated_at datetime NOT NULL,
+                is_system tinyint(1) NOT NULL default 1,
+                PRIMARY KEY  (id),
+                KEY recipient_type (recipient_type),
+                KEY recipient_id (recipient_id),
+                KEY object_type (object_type),
+                KEY object_id (object_id),
+                KEY process_id (process_id),
+                KEY notification_type (notification_type),
+                KEY is_read (is_read),
+                KEY is_system (is_system)
+            ) {$charset_collate};",
+		);
+	}
+}
+
+
