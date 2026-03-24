@@ -5,14 +5,14 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Stable tag: 0.1.0
-License: GPLv2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+License: Proprietary
+License URI: https://mardisom.com/license
 
 Super Mechanic is an advanced vehicle management system for mechanic workshops and dealerships, developed by Mardisom Devs.
 
 == Description ==
 
-Super Mechanic is a professional management system designed for:
+Super Mechanic is a professional vehicle management system designed for:
 
 * mechanic workshops
 * automotive service centers
@@ -20,26 +20,26 @@ Super Mechanic is a professional management system designed for:
 * vehicle dealerships
 * fleet management operations
 
-The plugin provides a structured workflow for managing vehicles, processes, maintenance operations, administrative paperwork, quotations, invoices and customer interactions.
+The plugin provides a structured workflow to manage vehicles, service processes, maintenance operations, administrative paperwork, quotations, invoices, and customer interactions.
 
-It is built with a modular architecture designed for scalability and long-term maintenance.
+Built with a modular architecture, Super Mechanic is designed for scalability, performance, and long-term maintainability.
 
 Developed by **Mardisom Devs**
 https://mardisom.com
 
 == Core Features ==
 
-### Vehicle and Client Management
+=== Vehicle and Client Management ===
 
-* Client database
-* Vehicle registry
-* Client–vehicle relationships
-* Ownership transfer support
-* Vehicle history tracking
+* client database
+* vehicle registry
+* client–vehicle relationships
+* ownership transfer support
+* vehicle history tracking
 
-### Process Tracking
+=== Process Tracking ===
 
-Track the complete lifecycle of a vehicle service:
+Track the complete lifecycle of a vehicle:
 
 * inspection
 * diagnostics
@@ -48,7 +48,7 @@ Track the complete lifecycle of a vehicle service:
 * administrative paperwork
 * delivery preparation
 
-### Maintenance Management
+=== Maintenance Management ===
 
 * technical diagnostics
 * maintenance notes
@@ -56,27 +56,28 @@ Track the complete lifecycle of a vehicle service:
 * labor tracking
 * mechanic assignments
 
-### Quotes and Approvals
+=== Quotes and Approvals ===
 
 * service quotations
 * itemized quotes
 * client approval workflow
 
-### Invoices and Payments
+=== Invoices and Payments ===
 
 * invoice generation
 * invoice items
 * payment tracking
-* printable invoice documents`r`n* reusable invoice PDF download base (requires a compatible PDF engine)
+* printable invoice documents
+* reusable PDF download base (requires a compatible PDF engine)
 
-### Document Management
+=== Document Management ===
 
 * file attachments
 * process documents
 * internal vs client-visible files
 * timeline integration
 
-### Client Portal
+=== Client Portal ===
 
 Shortcodes allow customers to:
 
@@ -85,7 +86,7 @@ Shortcodes allow customers to:
 * view invoices and quotes
 * access shared documents
 
-### Admin Dashboards
+=== Admin Dashboards ===
 
 Separate dashboards for:
 
@@ -97,19 +98,19 @@ Separate dashboards for:
 
 Super Mechanic follows a modular architecture:
 
-Repository
-Service
-Controller
-REST Controller (when needed)
-Admin UI
-Frontend Shortcodes
+* Repository
+* Service
+* Controller
+* REST Controller (when applicable)
+* Admin UI
+* Frontend Shortcodes
 
 Principles:
 
 * SQL queries isolated in repositories
-* business logic in services
-* UI handled by controllers
-* client features via shortcodes
+* business logic handled in services
+* controllers manage WordPress integration
+* frontend powered by shortcodes
 * secure data access and ownership validation
 
 == Security ==
@@ -123,6 +124,15 @@ The plugin follows WordPress security best practices:
 * output escaping
 * ownership validation for client data
 
+== Licensing ==
+
+Super Mechanic is distributed under a proprietary license.
+
+Usage of the plugin requires a valid license key for activation, updates, and access to premium features.
+
+For licensing details:
+https://mardisom.com/license
+
 == Installation ==
 
 1. Upload the plugin folder to:
@@ -135,9 +145,9 @@ The plugin follows WordPress security best practices:
 
 == Requirements ==
 
-WordPress 6.0 or newer
-PHP 7.4 or newer
-MySQL 5.7+ or MariaDB equivalent
+* WordPress 6.0 or newer
+* PHP 7.4 or newer
+* MySQL 5.7+ or MariaDB equivalent
 
 == Frequently Asked Questions ==
 
@@ -149,13 +159,13 @@ Yes. The architecture is designed to support large volumes of vehicles, processe
 
 Yes. Vehicles are stored generically and can represent cars, motorcycles, or other vehicle types.
 
-= Does it support customer portals? =
+= Does it include a client portal? =
 
-Yes. The plugin includes frontend shortcodes that allow clients to view vehicles, documents, invoices and service progress.
+Yes. The plugin includes frontend shortcodes that allow clients to view vehicles, documents, invoices, and service progress.
 
 = Is the plugin extendable? =
 
-Yes. The modular architecture allows developers to extend features through services, repositories and controllers.
+Yes. The modular architecture allows developers to extend functionality through services, repositories, and controllers.
 
 == Screenshots ==
 
@@ -194,4 +204,3 @@ Initial release of Super Mechanic.
 
 Mardisom Devs
 https://mardisom.com
-
