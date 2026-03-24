@@ -41,12 +41,12 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 ### Settings
 
 - Proposito: configuracion global del plugin.
-- Tablas: `wp_options` mediante `super_mechanic_settings` y `sm_db_version`.
+- Tablas: `wp_options` mediante `sm_settings`, `super_mechanic_settings` (legacy UI) y `sm_db_version`.
 - Clases esperadas: `Settings`.
 - Dependencias: Core, Billing, Dashboards, Processes.
 - Estado: implementado.
 - Avance real confirmado:
-  - `Settings_Service` agrega una capa transversal reusable sobre la option `sm_settings`
+  - `Settings_Service` agrega una capa transversal reusable sobre la option `sm_settings` con fallback de lectura desde `super_mechanic_settings`
   - la configuracion avanzada queda agrupada en `business`, `process`, `financial` y `notifications`
   - los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
   - en Fase 24B, `Settings` reutiliza la shell visual admin sobre la Settings API existente sin crear un flujo paralelo de configuracion
@@ -78,6 +78,8 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - Clases esperadas: `Client_Vehicle_Repository`, `Client_Vehicle_Service`.
 - Dependencias: Clients, Vehicles.
 - Estado: implementado.
+- Avance real confirmado:
+  - en Fase 26B, `Client_Vehicle_Transaction_Repository` encapsula la transferencia de ownership para evitar estados parciales entre cierre de relacion anterior, nueva relacion y sync del `client_id` legacy del vehiculo
 
 ### Processes
 
@@ -113,6 +115,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - Estado: implementado.
 - Avance real confirmado:
   - en Fase 24B, `Flow_Admin_Controller` y `Flow_List_Table` modernizan listado, formularios y vista de pasos sin alterar reorder ni persistencia del modulo
+  - en Fase 26B, `Flow_Transaction_Repository` encapsula atomicidad minima para borrado de flujo y reorder de pasos
 
 ### Maintenance
 
@@ -150,6 +153,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - `Dashboard_Service` opera como capa agregadora sin SQL directo
   - la persistencia usada por dashboards se concentra en `Process_Repository` via `Process_Service`
   - admin dashboard, mechanic dashboard y client dashboard conservaron compatibilidad funcional
+  - en Fase 26B, `Client_Process_View_Service` extrae parte de la agregacion pesada del portal cliente sin convertir el controller en backend de negocio
   - en Fase 18, `Mechanic_Dashboard_Controller` agrega un portal operativo real para mecanicos sin duplicar la arquitectura del admin
   - el portal mecanico reutiliza timeline, comments, attachments y mantenimiento en modo lectura, y concentra acciones minimas en `Process_Service` y `Comment_Service`
   - en Fase 24, el admin dashboard y el portal mecanico pasan a reutilizar una capa visual comun sin alterar la logica operativa
@@ -227,6 +231,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - en Fase 20, `quote_approved` e `invoice_issued` preparan disponibilidad documental automatica desde la capa comun sin persistir attachments nuevos
   - en Fase 20B, `Document_Service` agrega `payment_receipt` como documento logico reusable por `payment_id`
   - en Fase 20B, `PDF_Service` genera el comprobante de pago bajo demanda sin crear attachments automaticos ni duplicar artefactos
+  - en Fase 26B, el admin de adjuntos deja de enlazar `file_url` directo y reutiliza `Download_Service` tambien en la capa admin
 - Pendiente:
   - reportes formales
   - auditoria avanzada
@@ -382,7 +387,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 ### Settings 21 / Processes 21 / Financial 21
 - Estado: configuracion avanzada base implementada sin cambios de schema.
 - Avance real confirmado:
-  - `Settings_Service` centraliza lectura y escritura de configuracion avanzada usando `sm_settings`
+  - `Settings_Service` centraliza lectura y escritura de configuracion avanzada usando `sm_settings`, mientras la UI clasica mantiene `super_mechanic_settings` como compatibilidad legacy
   - `Process_Service` reutiliza configuracion para `allow_step_back` y `auto_complete_on_final_step`
   - `Invoice_Service` reutiliza configuracion para `allow_partial_payments`, moneda y nombre del negocio
   - `Quote_Service` reutiliza configuracion para moneda y nombre del negocio
@@ -419,13 +424,12 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 
 ### Deudas técnicas transversales vigentes
 
-- `Client_Vehicle_Service::transfer_vehicle()` todavía encadena cierre de ownership previo + nueva asignacion sin una frontera transaccional dedicada; por prudencia se documenta como deuda y no se endurece ad hoc fuera de un repository transaccional especifico.
-- `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` siguen operando sin atomicidad dedicada sobre `sm_flows` y `sm_flow_steps`; conviene resolverlo en una fase futura con repositorio transaccional del modulo, no con SQL disperso en services.
 - `Report_Service` sigue concentrando bastante logica de orquestacion; el modulo permanece funcional, pero debe vigilarse si crecen filtros o bloques analiticos.
 - `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos y no como parte del runtime real.
 - la capa visual ya cubre dashboards, reportes, shortcodes cliente y paneles admin principales, pero si la UI sigue creciendo convendra extraer helpers o templates de presentacion
 - la base de automatizacion de Fase 25 cubre solo validacion tecnica minima local; todavia no sustituye pruebas funcionales ni CI real
 - la Fase 26 introduce metadata admin para documentar shortcodes activos; si se agregan nuevos shortcodes en el futuro, esa capa debe mantenerse alineada con el bootstrap real
+- las rutas admin de PDF de quotes e invoices siguen como excepcion controlada por nonce/capability y aun no se unifican con `Download_Service`
 ## Actualizacion Fase 23. Portal cliente premium con acciones reales
 
 ### Client Portal
@@ -436,3 +440,6 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - invoices y pagos exponen descarga segura de `payment_receipt` mediante la capa documental comun
 - Riesgo residual:
   - la experiencia premium sigue apoyandose en shortcodes y query args validados; cualquier futura navegacion mas rica debe conservar la misma politica de acceso y nonces
+
+
+

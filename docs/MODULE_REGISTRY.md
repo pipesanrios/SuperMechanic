@@ -93,7 +93,7 @@ Proposito:
 Configurar parametros globales del plugin.
 
 Tablas:
-- `wp_options` mediante `super_mechanic_settings`
+- `wp_options` mediante `sm_settings` y fallback legacy `super_mechanic_settings`
 - `wp_options` mediante `sm_db_version`
 
 Clases principales:
@@ -113,7 +113,7 @@ Riesgos o puntos sensibles:
 - requiere sanitizacion estricta en guardado
 
 Cambios tecnicos recientes confirmados:
-- `Settings_Service` agrega una capa central reusable sobre la option `sm_settings`
+- `Settings_Service` agrega una capa central reusable sobre la option `sm_settings` y mantiene compatibilidad de lectura con `super_mechanic_settings`
 - la configuracion avanzada queda agrupada en `business`, `process`, `financial` y `notifications`
 - los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
 - en Fase 24B, `class-settings.php` reutiliza la shell visual admin sobre la Settings API existente sin alterar guardado ni estructura de options
@@ -220,7 +220,7 @@ Estado:
 Riesgos o puntos sensibles:
 - es critico para permisos de frontend cliente
 - cualquier cambio puede exponer datos de otros clientes si se rompe ownership
-- `transfer_vehicle()` sigue cerrando ownership previo y creando la nueva relacion sin una frontera transaccional dedicada; la deuda queda documentada hasta introducir un repository transaccional especifico del modulo
+- aunque `transfer_vehicle()` ya usa una frontera transaccional minima en 26B, cualquier futura escritura adicional del modulo debe seguir entrando por infraestructura transaccional dedicada
 
 --------------------------------------------------
 
@@ -254,7 +254,7 @@ Estado:
 Riesgos o puntos sensibles:
 - cambios en flows alteran comportamiento de procesos
 - revisar impacto en logs y estados antes de modificar estructura de pasos
-- `delete_flow()` y `reorder_steps()` siguen sin atomicidad dedicada; cualquier endurecimiento futuro debe vivir en infraestructura transaccional del modulo y no en SQL disperso dentro de services
+- `delete_flow()` y `reorder_steps()` ya usan atomicidad minima en 26B; cualquier futura escritura compleja del modulo debe seguir ese mismo patron y no volver a SQL disperso en services
 
 Cambios tecnicos recientes confirmados:
 - `Flow_Step_Service` valida transiciones lineales minimas entre pasos activos usando `step_order`
@@ -435,6 +435,7 @@ Tablas:
 
 Clases principales:
 - `Dashboard_Service`
+- `Client_Process_View_Service`
 - `Admin_Dashboard_Controller`
 - `Mechanic_Dashboard_Controller`
 - `Client_Dashboard_Controller`
@@ -472,6 +473,7 @@ Cambios tecnicos recientes confirmados:
 - en Fase 20, `Dashboard_Service` agrega decoracion reusable de estados derivados de proceso para portal cliente y portal mecanico
 - en Fase 24, `Admin_Dashboard_Controller`, `Client_Dashboard_Controller` y `Mechanic_Dashboard_Controller` modernizan markup y jerarquia visual sin tocar logica de negocio
 - en Fase 24, la capa visual pasa a depender del wiring comun de `Assets` en lugar de assets sueltos no registrados
+- en Fase 26B, `Client_Process_View_Service` extrae agregacion de lectura del portal cliente sin mover SQL fuera de repositories ni duplicar ownership
 
 --------------------------------------------------
 
@@ -692,6 +694,7 @@ Riesgos o puntos sensibles:
 - no exponer documentos internos al cliente
 - validar MIME, ownership, visibilidad y resolucion real del archivo antes de servirlo
 - no reintroducir `file_url` directo en dashboard cliente o shortcodes de documentos del proceso
+- no reintroducir `file_url` directo tampoco en UI admin cuando ya exista una ruta segura reusable
 
 --------------------------------------------------
 
@@ -1044,3 +1047,5 @@ Riesgos o puntos sensibles:
   - `Client_Invoice_Shortcodes` expone descarga segura de `payment_receipt`
   - `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` refuerzan accesos a detalle y documentos seguros
   - en Fase 24, `Client_Dashboard_Controller`, `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` modernizan la capa visual sin tocar ownership, nonces ni descargas
+
+

@@ -1,391 +1,80 @@
-ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE
-
-Acabamos de terminar una fase, subfase, fix o bloque de trabajo del plugin Super Mechanic.
+CIERRE DE FASE — SUPER MECHANIC (OPTIMIZADO)
 
 ==================================================
-CONTEXTO DE CIERRE
-==================
-
-La implementación ya fue realizada, corregida y validada previamente.
-
-Objetivo de este prompt:
-
-- consolidar el cierre documental final
-- corregir desalineaciones entre código, docs y contextos AI
-- dejar una narrativa técnica coherente para la siguiente ventana o sesión
-
-Estado esperado:
-El trabajo debe quedar marcado como COMPLETA solo si no quedan inconsistencias relevantes entre código y documentación afectada.
-- el Prompt Master debe quedar alineado con el estado final
-
-Reglas de alcance:
-
-- no rehacer implementación
-- no ampliar alcance
-- no reauditar todo el plugin
-- no convertir el cierre documental en una nueva fase de desarrollo
-- usar el código real actual como fuente principal de verdad
-- partir de los archivos realmente modificados por el trabajo ya realizado
-
-No releer todo el proyecto desde cero salvo que detectes una desalineación importante que lo haga necesario.
-
-==================================================
-VALIDACIÓN PREVIA OBLIGATORIA
-=============================
-
-Antes de actualizar documentación debes:
-
-1. revisar el código realmente implementado en este trabajo
-2. comparar los cambios con la documentación actual
-3. identificar archivos, clases, tablas, módulos y assets realmente afectados
-4. verificar si hubo cambios reales en narrativa operativa, fases, módulos activos, riesgos o deuda técnica
-5. usar el código real del proyecto como fuente principal de verdad
-- verificar si el Prompt Master refleja correctamente el estado actual del sistema
-- verificar si AI_CONTEXT.md refleja correctamente el estado actual del sistema
-
-Debes confirmar y reportar explícitamente:
-
-- qué archivos de código y assets fueron realmente modificados en el trabajo cerrado
-- qué archivos nuevos se crearon, si aplica
-- que el código compila o al menos pasa validación sintáctica disponible
-- que no hay errores de sintaxis PHP en los archivos relevantes
-- que el bootstrap del plugin no se rompió
-- qué validaciones sí se ejecutaron
-- qué validaciones no se pudieron ejecutar
-
-Aclaración importante:
-
-“bootstrap no roto” significa como mínimo:
-
-- validación sintáctica del entry point principal del plugin
-- validación sintáctica de `includes/class-plugin.php` si fue afectado o si el trabajo toca wiring del sistema
-- validación sintáctica de los archivos PHP modificados
-
-Si no puedes validar la carga completa del plugin dentro de WordPress, debes decirlo explícitamente.
-No inventar validaciones no ejecutadas.
-
-Solo después actualizar la documentación.
-
-==================================================
-ARCHIVOS BASE A REVISAR Y ACTUALIZAR
-====================================
-
-Actualizar si fueron afectados por el trabajo real:
-
-/ARCHITECTURE.md
-/docs/FINAL_ARCHITECTURE_MAP.md
-/docs/SYSTEM_MAP.md
-/docs/CURRENT_STATE.md
-/docs/MODULE_REGISTRY.md
-/docs/DATABASE_MAP.md solo si hubo cambios reales de tablas, relaciones, integridad o desalineaciones con el schema/documentación
-
-Actualizar solo si aplica realmente:
-
-/docs/DEV_GUIDE.md
-/docs/TEST_SCENARIOS.md
-/docs/tasks/<task-file-relacionado>.md
-/readme.txt
-/AGENTS.md
-/.vscode/AI_CONTEXT.md
-/ai/context/AGENTS_QUICK_CONTEXT.md
-/ai/context/PROJECT_MEMORY.md
-/ai/context/WORKFLOW.md
-/ai/prompts/* solo si el trabajo cambió de verdad la narrativa operativa o corrige una desalineación detectada
-
-Reglas:
-
-- si el task file ya existe, actualizarlo
-- si no existe, crearlo solo si realmente aporta trazabilidad útil
-- no inventar task files innecesarios
-- no tocar prompts o contextos que no quedaron afectados
-
-==================================================
-TAREAS DE CIERRE
-================
-
-1. ARCHITECTURE.md
-
-- agregar o completar la entrada correspondiente en la bitácora de fases o trabajo
-- registrar archivos creados o modificados
-- registrar clases nuevas o ampliadas
-- registrar tablas nuevas o modificadas
-- registrar integraciones realizadas
-- actualizar estado del proyecto si cambió realmente
-
-2. FINAL_ARCHITECTURE_MAP.md
-
-- actualizar módulos afectados
-- ajustar dependencias si aplica
-- reflejar el estado técnico real actual
-
-3. SYSTEM_MAP.md
-
-- actualizar módulos activos o afectados
-- actualizar clases clave
-- actualizar tablas por módulo si aplica
-- actualizar menús, shortcodes o entry points si aplica
-- actualizar riesgos arquitectónicos si aparecieron o cambiaron
-
-4. CURRENT_STATE.md
-
-Actualizar si aplica:
-
-- fase o bloque completado
-- estado general del sistema
-- módulos activos
-- módulos parciales
-- últimos cambios técnicos
-- riesgos actuales
-- pendientes inmediatos
-
-5. MODULE_REGISTRY.md
-
-- registrar módulos nuevos o modificados
-- actualizar clases principales
-- actualizar dependencias
-- actualizar estado del módulo
-
-6. DATABASE_MAP.md
-
-- registrar tablas nuevas o modificadas
-- actualizar relaciones si aplica
-- actualizar reglas de integridad si aplica
-- corregir desalineaciones con el código real
-
-7. DEV_GUIDE.md
-
-- actualizar solo si cambiaron reglas, convenciones o criterios de implementación
-
-8. TEST_SCENARIOS.md
-
-- actualizar solo si cambió el comportamiento funcional real, la cobertura de escenarios o el estado de un escenario
-
-9. TASK FILE RELACIONADO
-
-- actualizar estado: completado / parcial / bloqueado
-- registrar notas técnicas finales
-- registrar desviaciones respecto al alcance original si existieron
-- registrar deuda técnica abierta
-- registrar lo que quedó deliberadamente fuera de alcance
-
-10. README.TXT
-
-- actualizar solo si cambió versión, changelog o alcance funcional visible
-
-11. AGENTS.md
-
-- actualizar solo si cambiaron reglas operativas de trabajo con IA
-
-12. CONTEXTOS AI Y PROMPTS
-
-- actualizar solo si el trabajo cambió de forma real (incluyendo AI_CONTEXT.md):
-  - evitar que AI_CONTEXT.md crezca innecesariamente o duplique información de docs técnicos
-  - fases o subfases reconocidas
-  - módulos activos
-  - deuda técnica viva
-  - narrativa operativa base
-  - criterios de cierre o consistencia
-- prioridad de verdad:
-  1. código real
-  2. ARCHITECTURE.md y docs técnicos base
-  3. contextos rápidos AI
-  4. prompts operativos
-- mantener consistencia entre docs técnicos, contextos rápidos y prompts
-- evitar duplicar narrativa desactualizada en varios archivos
-- corregir prompts o contextos solo si quedaron desalineados con el estado real ya documentado
-
-
-==================================================
-13. SINCRONIZACIÓN DEL PROMPT MASTER (OBLIGATORIO)
+OBJETIVO
 ==================================================
 
-Debes revisar específicamente:
-
-\ai\prompts\PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC.txt
-
-Y validar que esté alineado con el estado real del sistema.
-
-Debes comprobar:
-
-- fases actuales (incluyendo subfases como 20B, 24B si existen)
-- módulos activos reales
-- capas transversales (incluyendo UI / assets si ya forman parte del sistema)
-- reglas críticas vigentes (arquitectura, seguridad, UI)
-- narrativa operativa base
-
-Si detectas desalineación:
-
-- corregir SOLO los bloques necesarios del Prompt Master
-- no reescribirlo completo innecesariamente
-- mantener consistencia con documentación técnica base
-
-Reglas:
-
-- el Prompt Master es la puerta de entrada de toda nueva sesión
-- debe reflejar el estado real del sistema, no un estado histórico
-- no puede quedar desactualizado respecto a código o docs
-
-Debes indicar explícitamente en el cierre:
-
-- si el Prompt Master fue revisado
-- si fue actualizado o no
-- qué secciones se corrigieron (si aplica)
+- alinear código, docs y contextos AI
+- cerrar fase sin inconsistencias
+- mantener coherencia técnica
 
 ==================================================
-REGLAS DE DOCUMENTACIÓN
-=======================
-
-- no duplicar información
-- no borrar historial útil
-- registrar solo cambios reales
-- no reescribir archivos completos innecesariamente
-- mantener coherencia con el código real
-- priorizar código sobre documentación en caso de conflicto
-- si un documento contradice al código, corregir el documento y dejar constancia breve de la desalineación detectada
-- no marcar el trabajo como COMPLETA si queda una inconsistencia relevante sin resolver
-
-==================================================
-RESUMEN TÉCNICO OBLIGATORIO
-===========================
-
-Generar un resumen técnico con:
-
-- archivos creados o modificados
-- clases implementadas o ampliadas
-- tablas creadas o modificadas
-- métodos principales agregados o modificados
-- hooks o shortcodes registrados, si aplica
-- cambios en class-plugin.php, si aplica
-- integración con módulos existentes
-- mejoras o tareas pendientes
-- deuda técnica abierta
-- validaciones realmente ejecutadas
-- validaciones no ejecutadas, si aplica
-
-
-==================================================
-CHECKLIST DE CIERRE OBLIGATORIO (GATE DE CALIDAD)
+VALIDACIÓN PREVIA
 ==================================================
 
-Antes de declarar el trabajo como COMPLETA debes validar:
+Debes:
+
+- revisar código implementado
+- identificar archivos modificados/nuevos
+- validar sintaxis PHP
+- verificar que bootstrap no se rompió
+
+Indicar explícitamente:
+
+- validaciones ejecutadas
+- validaciones no ejecutadas
 
 ==================================================
-1. INTEGRIDAD DE CÓDIGO
+ACTUALIZACIÓN DOCUMENTAL
 ==================================================
 
-- [ ] todos los archivos PHP modificados pasan `php -l`
-- [ ] no hay errores de sintaxis
-- [ ] no se rompió el bootstrap del plugin
-- [ ] `includes/class-plugin.php` sigue cargando correctamente si fue afectado
-- [ ] autoload y namespaces siguen resolviendo correctamente
+Actualizar SOLO si aplica:
+
+- ARCHITECTURE.md
+- SYSTEM_MAP.md
+- CURRENT_STATE.md
+- MODULE_REGISTRY.md
+- DATABASE_MAP.md (si hubo cambios reales)
+
+Contextos AI:
+
+- AI_CONTEXT.md (mantener resumen, no duplicar docs)
+- AGENTS_QUICK_CONTEXT.md (solo si aplica)
+- prompts solo si hay desalineación
 
 ==================================================
-2. RESPETO DE ARQUITECTURA
+CONTROL DE CONSISTENCIA
 ==================================================
 
-- [ ] no se creó lógica fuera de services/repositorios sin justificación
-- [ ] no se duplicó lógica existente
-- [ ] SQL solo está en repositories
-- [ ] no se tocó `includes/modules/*`
-- [ ] controllers no contienen lógica de negocio indebida
+- código es la fuente de verdad
+- no duplicar narrativa entre archivos
+- AI_CONTEXT debe ser resumen, no documentación
 
 ==================================================
-3. SEGURIDAD
+PROMPT MASTER
 ==================================================
 
-- [ ] ownership validado en accesos relevantes
-- [ ] descargas pasan por `Document_Service` + `Download_Service`
-- [ ] no se expuso `file_url`
-- [ ] nonces siguen presentes en formularios
-- [ ] no se abrieron endpoints inseguros
+- verificar alineación con estado real
+- actualizar solo si es necesario
 
 ==================================================
-4. UI / UX (SI APLICA)
+CHECKLIST
 ==================================================
 
-- [ ] no se rompieron formularios existentes
-- [ ] no se rompieron query args (`process_id`, `quote_id`, etc.)
-- [ ] botones y acciones siguen funcionando
-- [ ] descargas siguen funcionando
-- [ ] se reutilizó el sistema visual (`sm-*`)
-- [ ] no se introdujo CSS global agresivo
+- sintaxis PHP OK
+- arquitectura respetada
+- seguridad intacta
+- UI no rota
+- docs consistentes
+- contextos alineados
 
 ==================================================
-5. DOCUMENTACIÓN
+RESPUESTA
 ==================================================
 
-- [ ] ARCHITECTURE.md actualizado si aplica
-- [ ] SYSTEM_MAP.md consistente
-- [ ] CURRENT_STATE.md actualizado
-- [ ] MODULE_REGISTRY.md consistente
-- [ ] DATABASE_MAP.md actualizado si aplica
-- [ ] task file actualizado correctamente
-- [ ] no hay contradicciones entre docs y código
-
-==================================================
-6. CONTEXTOS AI Y PROMPTS
-==================================================
-
-- [ ] contextos AI alineados con el estado real
-- [ ] no existen fases desactualizadas en prompts
-- [ ] no hay narrativa duplicada o contradictoria
-- [ ] AI_CONTEXT.md alineado con el estado real (fases, shortcodes, scripts, deuda técnica)
-
-==================================================
-7. PROMPT MASTER
-==================================================
-
-- [ ] Prompt Master revisado
-- [ ] fases actualizadas
-- [ ] módulos activos correctos
-- [ ] capas transversales correctas
-- [ ] reglas críticas alineadas con el sistema actual
-- [ ] no hay desalineación con código ni docs
-
-==================================================
-8. ALCANCE Y CONSISTENCIA
-==================================================
-
-- [ ] no se amplió el alcance original
-- [ ] no se introdujeron features no solicitados
-- [ ] cambios mínimos y seguros
-- [ ] el sistema sigue coherente globalmente
-
-==================================================
-REGLA FINAL
-==================================================
-
-Si cualquier punto falla:
-
-→ el estado final NO puede ser COMPLETA
-
-Debe marcarse como:
-- PARCIAL, o
-- NECESITA CORRECCIONES
-
-y explicar claramente por qué.
-==================================================
-ESTADO FINAL OBLIGATORIO
-========================
-
-Debes cerrar respondiendo explícitamente:
-
-- Estado final del trabajo: COMPLETA o PARCIAL
-- inconsistencias pendientes, si existen
-- motivo breve si no queda COMPLETA
-
-==================================================
-FORMATO DE RESPUESTA
-====================
-
-Responder con:
-
-1. archivos de documentación actualizados
-2. bloques modificados de cada archivo
-3. estado final del task file, si aplica
-4. resultado de validaciones ejecutadas
-5. validaciones no ejecutadas, si aplica
-6. desalineaciones corregidas, si existieron
-7. deuda técnica abierta
-8. estado final del trabajo
-9. resumen técnico del cierre
+1. archivos actualizados
+2. cambios aplicados
+3. validaciones ejecutadas
+4. validaciones no ejecutadas
+5. deuda técnica
+6. estado final (COMPLETA / PARCIAL)

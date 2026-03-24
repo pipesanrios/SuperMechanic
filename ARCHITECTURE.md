@@ -1051,7 +1051,7 @@ super-mechanic/
   - `Invoice_Service`
   - `Quote_Service`
 - Integracion real:
-  - `Settings_Service` centraliza configuracion avanzada del negocio sobre la option `sm_settings`
+  - `Settings_Service` centraliza configuracion avanzada del negocio sobre la option `sm_settings`, manteniendo compatibilidad de lectura con la option legacy `super_mechanic_settings` usada por la UI clasica
   - la estructura base queda organizada en `business`, `process`, `financial` y `notifications`
   - la capa aplica defaults seguros y fallback minimo hacia settings legacy de negocio para no romper comportamiento actual
   - `Process_Service` reutiliza configuracion para `allow_step_back` y `auto_complete_on_final_step`
@@ -1063,7 +1063,7 @@ super-mechanic/
   - sin cambios de schema
   - sin cambios en `includes/modules/*`
 - Deuda tecnica abierta:
-  - queda pendiente una UI admin minima para editar `sm_settings` si se considera necesaria en una fase futura
+  - queda pendiente consolidar la UI admin clasica hacia `Settings_Service`/`sm_settings` si se decide retirar la option legacy `super_mechanic_settings` en una fase futura
 
 ## 26. Fase 22. Reportes operativos y financieros avanzados
 
@@ -1297,3 +1297,61 @@ super-mechanic/
 - Deuda tecnica abierta:
   - el catalogo depende de mantener sincronizada su metadata interna con los shortcodes activos del runtime
   - hoy no existen shortcodes activos de contexto `mecanico` ni `general`; el panel los muestra vacios a proposito para evitar documentacion aspiracional
+
+## 32. Fase 26B. Hardening arquitectural pre-SaaS
+
+- Estado: implementada como fase de endurecimiento arquitectural previo a una futura base API / integraciones externas / SaaS.
+- Archivos creados:
+  - `includes/dashboard/class-client-process-view-service.php`
+  - `includes/relations/class-client-vehicle-transaction-repository.php`
+  - `includes/flows/class-flow-transaction-repository.php`
+  - `docs/tasks/2026-03-fase-26b-hardening-arquitectural-pre-saas.md`
+- Archivos modificados:
+  - `includes/dashboard/class-client-dashboard-controller.php`
+  - `includes/class-plugin.php`
+  - `includes/relations/class-client-vehicle-service.php`
+  - `includes/flows/class-flow-service.php`
+  - `includes/flows/class-flow-step-service.php`
+  - `includes/attachments/class-attachment-admin-controller.php`
+  - `docs/CURRENT_STATE.md`
+  - `docs/SYSTEM_MAP.md`
+  - `docs/FINAL_ARCHITECTURE_MAP.md`
+  - `docs/MODULE_REGISTRY.md`
+  - `docs/DATABASE_MAP.md`
+  - `docs/PERFORMANCE_STRATEGY.md`
+  - `docs/PLUGIN_ROADMAP.md`
+- Clases nuevas o ampliadas:
+  - `Client_Process_View_Service`
+  - `Client_Vehicle_Transaction_Repository`
+  - `Flow_Transaction_Repository`
+  - `Client_Dashboard_Controller`
+  - `Plugin`
+  - `Client_Vehicle_Service`
+  - `Flow_Service`
+  - `Flow_Step_Service`
+  - `Attachment_Admin_Controller`
+- Integracion real:
+  - `Client_Dashboard_Controller` deja de concentrar parte de la resolucion de datasets cliente y delega esa lectura en `Client_Process_View_Service`
+  - `Client_Process_View_Service` reutiliza services existentes del sistema y no introduce SQL nuevo ni ownership paralelo
+  - `Client_Vehicle_Service::transfer_vehicle()` pasa a ejecutarse dentro de `Client_Vehicle_Transaction_Repository`
+  - `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` pasan a ejecutarse dentro de `Flow_Transaction_Repository`
+  - el admin de adjuntos deja de enlazar `file_url` directo y reutiliza `Download_Service`
+  - la documentacion base consolida contradicciones criticas sobre el modelo real de settings (`sm_settings` + fallback legacy `super_mechanic_settings`), `plate`, `flow_step_id` y estado real de fase
+- Tablas afectadas sin cambios de schema:
+  - `sm_client_vehicles`
+  - `sm_vehicles`
+  - `sm_flows`
+  - `sm_flow_steps`
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_attachments`
+  - `sm_comments`
+- Deuda tecnica abierta:
+  - `Process_Admin_Controller` sigue concentrando mucha orquestacion admin
+  - las rutas admin de PDF de quotes e invoices siguen como excepcion controlada por nonce/capability y no pasan aun por `Download_Service`
+  - la base local de scripts sigue siendo validacion tecnica minima y no reemplaza pruebas funcionales WordPress ni CI real
+
+
+

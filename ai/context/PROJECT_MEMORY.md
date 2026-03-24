@@ -1,80 +1,54 @@
-PROJECT MEMORY — SUPER MECHANIC
+PROJECT MEMORY — SUPER MECHANIC (OPTIMIZADO)
 
-Este archivo resume el estado estructural del proyecto para reconstrucción rápida de contexto por IA.
+Memoria estructural del proyecto para reconstrucción rápida por IA.
 
-No reemplaza la documentación técnica completa.
+No reemplaza documentación técnica.
 
 ==================================================
-INFORMACIÓN GENERAL
-===================
+PROYECTO
+==================================================
 
-Proyecto:
 Super Mechanic
 
-Tipo:
-Plugin WordPress
+Plugin WordPress para gestión de:
 
-Propósito:
-Sistema de gestión para:
+- talleres
+- concesionarios
+- vehículos
+- procesos
+- mantenimiento
+- trámites
+- cotizaciones
+- facturación
+- portal cliente
 
-* talleres mecánicos
-* concesionarios
-* gestión de vehículos
-* seguimiento de procesos
-* mantenimiento
-* trámites administrativos
-* cotizaciones
-* facturación
-* portal cliente
-
-Stack técnico:
+==================================================
+STACK
+==================================================
 
 PHP
 WordPress Plugin Architecture
 MySQL
-VSCode
-Codex / ChatGPT
+VSCode + Codex / ChatGPT
 
 ==================================================
-ARQUITECTURA PRINCIPAL
-======================
+ARQUITECTURA BASE
+==================================================
 
-Arquitectura modular obligatoria:
+Patrón:
 
-Repository
-Service
-Controller
-REST Controller (cuando aplique)
-Admin UI
-Shortcodes frontend
+Controller → Service → Repository
 
 Reglas:
 
-Repository → acceso a base de datos
-Service → lógica de negocio
-Controller → UI admin
-Shortcodes → frontend cliente
-
-Nunca colocar SQL fuera de Repository.
+- SQL solo en Repository
+- usar `includes/*`
+- no usar `includes/modules/*`
+- no duplicar lógica
 
 ==================================================
-ESTRUCTURA REAL DEL PLUGIN
-==========================
-
-super-mechanic/
-super-mechanic.php
-uninstall.php
-
-includes/
-
-class-plugin.php
-class-roles.php
-class-capabilities.php
-class-admin-menu.php
-class-settings.php
-class-rest-api.php
-
-Módulos principales:
+MÓDULOS CLAVE
+==================================================
 
 clients
 vehicles
@@ -82,216 +56,84 @@ relations
 flows
 processes
 maintenance
-predelivery
-paperwork
 dashboard
 reports
 quotes
 invoices
+payments
 attachments
 communication
-helpers
-integrations
-
-Arquitectura activa:
-
-includes/*
-
-Legacy (NO USAR):
-
-includes/modules/*
 
 ==================================================
-BASE DE DATOS PRINCIPAL
-=======================
-
-Tablas principales:
-
-sm_clients
-sm_vehicles
-sm_client_vehicles
-
-sm_flows
-sm_flow_steps
-
-sm_processes
-sm_process_step_logs
-sm_process_parts
-sm_process_meta
-
-sm_maintenance
-sm_maintenance_parts
-sm_maintenance_labor
-
-sm_pre_delivery
-
-sm_paperwork
-sm_paperwork_items
-
-sm_quotes
-sm_quote_items
-
-sm_invoices
-sm_invoice_items
-sm_payments
-
-sm_attachments
-sm_comments
-sm_notifications
-
-Fuente de verdad del schema:
-
-docs/DATABASE_MAP.md
-
+FLUJO CENTRAL
 ==================================================
-MÓDULOS PRINCIPALES
-===================
-
-Core / Bootstrap
-Security
-Settings
-Clients
-Vehicles
-Client-Vehicle Relations
-Flows
-Processes
-Maintenance
-Pre-Delivery
-Paperwork
-Dashboard
-Reports
-Quotes
-Invoices
-Payments
-Attachments
-Communication
-Helpers
-Integrations
-
-==================================================
-FLUJOS PRINCIPALES DEL SISTEMA
-==============================
 
 Cliente
 → Vehículo
-→ Relación cliente-vehículo
 → Proceso
+→ Maintenance / Quote / Invoice / Payment
 
-Proceso puede incluir:
+Elementos asociados:
 
-Process
-→ Maintenance
-→ Pre-Delivery
-→ Paperwork
-
-Maintenance
-→ Quote
-
-Quote approved
-→ Invoice
-
-Invoice
-→ Payments
-
-Process
-→ Attachments
-→ Communication
-→ Timeline
-
-Cliente puede acceder a:
-
-Process
-Quote
-Invoice
-Attachments
-Comments
-Notifications
+- attachments
+- comments
+- notifications
+- timeline
 
 ==================================================
-DOCUMENTACIÓN DEL PROYECTO
-==========================
+ESTADO ACTUAL
+==================================================
 
-ARCHITECTURE.md
-docs/FINAL_ARCHITECTURE_MAP.md
-docs/SYSTEM_MAP.md
-docs/CURRENT_STATE.md
-docs/DEV_GUIDE.md
-docs/MODULE_REGISTRY.md
-docs/DATABASE_MAP.md
-docs/tasks/
+plugin: 0.1.0  
+schema: 1.9.0  
 
-AGENTS.md
-readme.txt
+Fases consolidadas:
+12A–26B
 
-La documentación debe actualizarse al finalizar cada fase.
+Ver detalle:
+→ docs/CURRENT_STATE.md
+
+==================================================
+PUNTOS CLAVE DEL SISTEMA
+==================================================
+
+- portal cliente operativo
+- portal mecánico operativo
+- ownership centralizado
+- documentos seguros
+- workflow configurable
+- UI moderna base
+- scripts locales de validación
+- hardening pre-SaaS aplicado
+
+==================================================
+DEUDA TÉCNICA ACTIVA
+==================================================
+
+- REST API no activa
+- placeholders en core (rest-api, hooks, post-types)
+- PDF admin fuera de Download_Service
+- sin CI/CD real
+- sin pruebas runtime automatizadas
 
 ==================================================
 FUENTE DE VERDAD
-================
+==================================================
 
-Si existe diferencia entre:
-
-* documentación
-* código
-
-La fuente de verdad siempre es:
-
-EL CÓDIGO REAL DEL PROYECTO.
-
-El estado del sistema debe reconstruirse desde:
-
-docs/CURRENT_STATE.md
+1. código (`includes/*`)
+2. docs técnicos
+3. contextos AI
 
 ==================================================
-REGLA ANTI ALUCINACIÓN
-======================
-
-Antes de generar código:
-
-* verificar que el archivo exista
-* verificar que la clase exista
-* verificar que la tabla exista
-* verificar que el módulo esté activo en includes/*
-
-Si algo no puede verificarse en el código real:
-
-indicarlo antes de implementar.
-
-Nunca asumir implementaciones inexistentes.
-
+REGLA ANTI-ALUCINACIÓN
 ==================================================
-ACTUALIZACIÓN DE MEMORIA OPERATIVA
-==================================
 
-Versión real del plugin:
+Antes de implementar:
 
-0.1.0
+- verificar archivo
+- verificar clase
+- verificar tabla
+- verificar módulo activo
 
-Versión real del schema:
-
-1.9.0
-
-Estado funcional consolidado:
-
-- `reports` ya forma parte del bootstrap real
-- el portal cliente está operativo con descargas seguras, timeline, comentarios y notificaciones
-- la Fase 23 amplía el portal cliente con detalle integrado de proceso, estado financiero agregado y comentarios reales del cliente
-- el portal mecánico ya es operativo dentro del admin actual
-- la Fase 24 agrega una capa real de assets y moderniza dashboard admin, reportes, portal cliente y portal mecánico sin tocar lógica de negocio
-- la Fase 24B extiende la misma capa visual a clientes, vehículos, procesos, flujos y ajustes admin sin tocar lógica de negocio
-- la Fase 25 agrega una base local reusable de validación técnica en `scripts/` para lint, chequeo estructural y checklist de cierre
-- la Fase 26 agrega una pantalla admin `Super Mechanic -> Shortcodes` para documentar y copiar shortcodes activos sin alterar su lógica
-- `Access_Control_Service` centraliza ownership y visibilidad
-- `Process_Derived_State_Service` ya forma parte del runtime real
-- `payment_receipt` ya forma parte de la capa documental reusable por `payment_id`
-- los shortcodes activos del runtime siguen siendo de contexto cliente; no existen aún shortcodes activos de mecánico o contexto general
-- Fases 12A, 12B, 12C, 12D, 12E, 13, 14, 14B, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 24B, 25 y 26 ya tienen huella real en código y documentación
-
-Deudas técnicas activas que no deben ocultarse:
-
-- `Client_Vehicle_Service::transfer_vehicle()` sigue sin repositorio transaccional dedicado
-- `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` siguen sin atomicidad dedicada
-- `Report_Service` mantiene concentración de lógica y debe vigilarse si el módulo crece
-- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen presentes como placeholders raíz no cableados al bootstrap real
-- la exposición UI explícita del comprobante de pago sigue pendiente si se decide hacerla visible en una fase futura
-- la automatización de Fase 25 sigue siendo técnica y local; todavía no sustituye CI real ni pruebas funcionales WordPress
+Si no existe → indicarlo
+No asumir implementaciones

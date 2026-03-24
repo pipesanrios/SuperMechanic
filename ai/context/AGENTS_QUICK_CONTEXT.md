@@ -1,270 +1,80 @@
 AGENTS QUICK CONTEXT — SUPER MECHANIC
 
-Este archivo proporciona un contexto rápido del proyecto para agentes de IA.
+Este archivo es un punto de arranque rápido para agentes de IA.
 
-Debe leerse antes de realizar análisis o generar código.
+NO contiene detalle completo del sistema.
 
-No reemplaza la documentación completa.
+==================================================
+LECTURA OBLIGATORIA
+==================================================
+
+Antes de trabajar, revisar:
+
+1. ARCHITECTURE.md
+2. docs/CURRENT_STATE.md
+3. .vscode/AI_CONTEXT.md
 
 ==================================================
 PROYECTO
-========
+==================================================
 
-Nombre:
 Super Mechanic
 
-Tipo:
-Plugin WordPress
+Plugin WordPress modular para:
 
-Propósito:
-Sistema modular para gestión de:
-
-* talleres mecánicos
-* concesionarios
-* procesos de vehículos
-* mantenimiento
-* trámites administrativos
-* cotizaciones
-* facturación
-* portal cliente
+- talleres mecánicos
+- concesionarios
+- gestión de vehículos
+- mantenimiento
+- procesos
+- cotizaciones
+- facturación
+- portal cliente
 
 ==================================================
-ARQUITECTURA PRINCIPAL
-======================
-
-Arquitectura modular obligatoria:
-
-Repository
-Service
-Controller
-Shortcodes
-REST Controller (cuando aplique)
-
-Responsabilidades:
-
-Repository
-→ acceso a base de datos
-
-Service
-→ lógica de negocio
-
-Controller
-→ UI admin
-
-Shortcodes
-→ frontend cliente
-
-Regla crítica:
-
-SQL solo permitido en Repository.
-
+ARQUITECTURA BASE
 ==================================================
-ESTRUCTURA ACTIVA DEL PLUGIN
-============================
 
-super-mechanic/
+Patrón obligatorio:
 
-super-mechanic.php
-uninstall.php
+Controller → Service → Repository
 
-includes/
+Reglas clave:
 
-class-plugin.php
-class-roles.php
-class-capabilities.php
-class-admin-menu.php
-class-settings.php
-class-rest-api.php
-
-Módulos principales:
-
-clients
-vehicles
-relations
-flows
-processes
-maintenance
-predelivery
-paperwork
-dashboard
-reports
-quotes
-invoices
-attachments
-communication
-helpers
-integrations
-
-Arquitectura activa:
-
-includes/*
-
-Legacy (NO USAR):
-
-includes/modules/*
-
-==================================================
-BASE DE DATOS PRINCIPAL
-=======================
-
-Tablas principales:
-
-sm_clients
-sm_vehicles
-sm_client_vehicles
-
-sm_flows
-sm_flow_steps
-
-sm_processes
-sm_process_step_logs
-sm_process_parts
-sm_process_meta
-
-sm_maintenance
-sm_maintenance_parts
-sm_maintenance_labor
-
-sm_pre_delivery
-
-sm_paperwork
-sm_paperwork_items
-
-sm_quotes
-sm_quote_items
-
-sm_invoices
-sm_invoice_items
-sm_payments
-
-sm_attachments
-sm_comments
-sm_notifications
-
-Fuente de verdad del schema:
-
-docs/DATABASE_MAP.md
-
-==================================================
-FLUJO PRINCIPAL DEL SISTEMA
-===========================
-
-Cliente
-→ Vehículo
-→ Relación cliente-vehículo
-→ Proceso
-
-Proceso
-→ Maintenance
-→ Quote
-→ Invoice
-→ Payment
-
-Durante el proceso pueden existir:
-
-attachments
-comments
-notifications
-timeline de pasos
-
-==================================================
-FUENTE DE VERDAD
-================
-
-Si existe diferencia entre:
-
-* código
-* documentación
-
-La fuente de verdad es siempre:
-
-EL CÓDIGO REAL DEL PROYECTO.
-
-El estado actual del sistema debe consultarse en:
-
-docs/CURRENT_STATE.md
+- SQL solo en Repository
+- usar `includes/*`
+- NO usar `includes/modules/*` (legacy)
+- no duplicar lógica
 
 ==================================================
 REGLAS CRÍTICAS
-===============
-
-* Nunca colocar SQL fuera de Repository
-* No modificar includes/modules/*
-* Validar ownership siempre
-* Aplicar sanitización y escaping
-* No exponer file_url directo
-* Usar Download_Service y Document_Service para descargas seguras
-
-==================================================
-DOCUMENTACIÓN COMPLETA
-======================
-
-ARCHITECTURE.md
-docs/SYSTEM_MAP.md
-docs/CURRENT_STATE.md
-docs/MODULE_REGISTRY.md
-docs/DATABASE_MAP.md
-docs/DOMAIN_MODEL.md
-docs/PLUGIN_ROADMAP.md
-docs/TEST_SCENARIOS.md
-docs/PLUGIN_LIFECYCLE.md
-
-Reglas IA:
-
-ai/rules/*
-
-==================================================
-ESTADO CONSOLIDADO ACTUAL
 ==================================================
 
-Versiones reales:
+- validar ownership siempre
+- no exponer `file_url`
+- usar `Document_Service` + `Download_Service`
+- mantener sanitización y escaping
+- no romper UI existente ni query args
+- reutilizar sistema visual `sm-*`
 
-plugin
-0.1.0
+==================================================
+FUENTE DE VERDAD
+==================================================
 
-schema
-1.9.0
+Siempre manda:
 
-Fases cerradas relevantes:
+1. código real (`includes/*`)
+2. documentación técnica
+3. contextos AI
 
-12A
-12B
-12C
-12D
-12E
-13
-14
-14B
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-24B
-25
-26
+==================================================
+NOTA
+==================================================
 
-Notas operativas:
+Este archivo NO reemplaza:
 
-- `reports` ya es módulo activo real en `includes/reports/`
-- el portal cliente está activo con dashboard, quotes, invoices, attachments, comments, notifications y timeline
-- el portal cliente ya expone detalle integrado de proceso, comentarios reales del cliente y comprobantes `payment_receipt` por descarga segura
-- `Download_Service` y `Document_Service` siguen siendo el flujo obligatorio para descargas protegidas
-- `Access_Control_Service` es la política central de ownership y visibilidad
-- el portal mecánico ya es operativo dentro del admin actual
-- `Process_Derived_State_Service` ya existe como capa reusable para estados derivados
-- `payment_receipt` ya existe como documento lógico reusable por `payment_id`
-- `reports` ya expone métricas avanzadas operativas y financieras reutilizables
-- `Assets` ya forma parte del wiring real para la capa visual del plugin
-- dashboards, reportes y shortcodes cliente principales ya comparten una modernización visual base
-- clientes, vehículos, procesos, flujos y ajustes admin ya reutilizan la capa visual admin principal tras 24B
-- la Fase 25 agrega una base local reusable en `scripts/` para lint, chequeo estructural y checklist técnico
-- la Fase 26 agrega un panel admin `Shortcodes` para visualizar y copiar los shortcodes activos del runtime real
-- hoy los shortcodes activos siguen siendo solo de cliente; no hay shortcodes activos de mecánico o contexto general
-- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos
-- `includes/modules/*` sigue siendo legacy de referencia, no arquitectura activa
+- AI_CONTEXT.md (contexto operativo)
+- CURRENT_STATE.md (estado real)
+- ARCHITECTURE.md (arquitectura completa)
+
+Su función es únicamente orientar el arranque del agente.

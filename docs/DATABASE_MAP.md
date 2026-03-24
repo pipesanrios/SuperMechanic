@@ -19,7 +19,7 @@ Aclaraciones importantes:
 - la Fase 17 de control de acceso, visibilidad y ownership tampoco modifica schema; reutiliza relaciones y ownership ya existentes sobre `sm_client_vehicles`, `sm_processes`, `sm_quotes`, `sm_invoices`, `sm_attachments`, `sm_comments` y `sm_notifications`
 - la Fase 20 de automatizacion documental y estados derivados tampoco modifica schema; reutiliza `sm_processes`, `sm_quotes`, `sm_invoices`, `sm_payments` y `sm_pre_delivery`
 - la Fase 20B de comprobante de pago documental tampoco modifica schema; reutiliza `sm_payments`, `sm_invoices`, `sm_processes` y `sm_clients`
-- la Fase 21 de configuracion avanzada por taller / negocio tampoco modifica schema; reutiliza `wp_options` con la option `sm_settings`
+- la Fase 21 de configuracion avanzada por taller / negocio tampoco modifica schema; reutiliza `wp_options` con `sm_settings` y conserva `super_mechanic_settings` como option legacy de la UI clasica
 
 --------------------------------------------------
 
@@ -291,7 +291,7 @@ Indices importantes:
 Notas operativas actuales:
 - `Process_Service` escribe logs operativos reales de `step_initialized`, `step_transition` y `status_changed`
 - el `flow_step_id` se valida contra el flujo actual antes de registrar transiciones o cambios de estado
-- riesgo vigente: la escritura del log sigue ocurriendo despues de persistir el cambio principal del proceso, sin una frontera transaccional comun
+- la Fase 13 ya encapsula la escritura principal de proceso y logs operativos base dentro de una frontera transaccional del modulo
 - Fase 19 endurece la alcanzabilidad del `flow_step_id` en runtime: el cambio de paso solo admite pasos activos adyacentes por `step_order`
 
 --------------------------------------------------
@@ -1047,7 +1047,7 @@ Si el schema cambia en futuras fases, actualizar tambien:
 
 - La Fase 21 no modifica schema ni agrega tablas.
 - La configuracion avanzada reutiliza:
-  - `wp_options` mediante la option `sm_settings`
+  - `wp_options` mediante la option `sm_settings` y la option legacy `super_mechanic_settings`
 - Los grupos base de configuracion quedan organizados en:
   - `business`
   - `process`
@@ -1079,3 +1079,23 @@ Si el schema cambia en futuras fases, actualizar tambien:
   - `sm_attachments`
   - `sm_comments`
 - La vista integrada del portal cliente sigue resolviendo ownership y descargas sobre datos ya persistidos; no introduce columnas nuevas ni rutas paralelas de persistencia.
+
+## Nota Fase 26B. Hardening arquitectural pre-SaaS
+
+- La Fase 26B no modifica schema ni agrega tablas.
+- El endurecimiento reutiliza:
+  - `sm_client_vehicles`
+  - `sm_vehicles`
+  - `sm_flows`
+  - `sm_flow_steps`
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_attachments`
+  - `sm_comments`
+- La fase agrega fronteras transaccionales para escrituras ya existentes en `relations` y `flows`, pero no introduce columnas nuevas.
+- La correccion documental de 26B consolida el modelo real de settings (`sm_settings` + fallback legacy `super_mechanic_settings`), `plate` y `flow_step_id` sin alterar el schema.
+
+
+

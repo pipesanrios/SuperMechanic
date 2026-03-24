@@ -75,6 +75,61 @@ if ($structureResult['exit_code'] !== 0) {
     $errors[] = 'Fallo structure-check.php';
 }
 
+$checks[] = 'Sin contradicciones documentales criticas conocidas';
+$criticalDocs = [
+    'docs/SYSTEM_MAP.md',
+    'docs/FINAL_ARCHITECTURE_MAP.md',
+    'docs/CURRENT_STATE.md',
+    'docs/MODULE_REGISTRY.md',
+    'docs/DATABASE_MAP.md',
+    'docs/PERFORMANCE_STRATEGY.md',
+];
+$forbiddenDocTerms = [
+    'plate_number' => 'La documentacion todavia referencia `plate_number`; la columna real es `plate`.',
+];
+
+foreach ($criticalDocs as $doc) {
+    if (!sm_script_path_exists($doc)) {
+        continue;
+    }
+
+    $contents = file_get_contents(sm_script_abs_path($doc));
+
+    if (!is_string($contents)) {
+        $warnings[] = 'No se pudo leer el documento critico: ' . $doc;
+        continue;
+    }
+
+    foreach ($forbiddenDocTerms as $term => $message) {
+        if (strpos($contents, $term) !== false) {
+            $warnings[] = $message . ' Archivo: ' . $doc;
+        }
+    }
+}
+
+$checks[] = 'Sin enlaces directos inseguros por file_url en runtime activo';
+$phpFiles = sm_script_collect_files(['php'], ['includes/modules', '.git', 'node_modules', 'vendor']);
+
+foreach ($phpFiles as $path) {
+    if (!(strpos($path, 'includes/') === 0 || in_array($path, ['super-mechanic.php', 'uninstall.php'], true))) {
+        continue;
+    }
+
+    $contents = file_get_contents(sm_script_abs_path($path));
+
+    if (!is_string($contents)) {
+        $warnings[] = 'No se pudo leer para validar file_url: ' . $path;
+        continue;
+    }
+
+    foreach (preg_split('/\R/', $contents) as $line) {
+        if (strpos($line, 'href') !== false && strpos($line, 'file_url') !== false) {
+            $errors[] = 'Existe un posible enlace directo por file_url en runtime activo: ' . $path;
+            break;
+        }
+    }
+}
+
 sm_script_out('Checklist tecnico');
 sm_script_out('Repositorio: ' . $repoRoot);
 

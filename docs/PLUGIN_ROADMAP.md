@@ -76,6 +76,9 @@ implementado
 Workflow configurable avanzado:
 implementado en su base lineal actual
 
+Hardening arquitectural pre-SaaS:
+implementado como fase puente previa a API / integraciones externas
+
 ==================================================
 FASE 11 — PORTAL CLIENTE
 ==================================================
@@ -270,6 +273,7 @@ Pendientes posteriores a ese estado:
 - firma digital
 - almacenamiento externo
 - CI/CD real sobre la base local de scripts introducida en Fase 25
+- consolidación opcional de las rutas admin de PDF sobre la capa documental común si se considera rentable
 
 ==================================================
 REGLAS DEL ROADMAP

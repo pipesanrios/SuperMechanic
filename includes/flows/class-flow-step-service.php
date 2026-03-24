@@ -30,14 +30,22 @@ class Flow_Step_Service {
 	protected $flow_service;
 
 	/**
+	 * Transaction repository.
+	 *
+	 * @var Flow_Transaction_Repository
+	 */
+	protected $transaction_repository;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Flow_Step_Repository|null $repository   Step repository.
 	 * @param Flow_Service|null         $flow_service Flow service.
 	 */
-	public function __construct( Flow_Step_Repository $repository = null, Flow_Service $flow_service = null ) {
-		$this->repository   = $repository ? $repository : new Flow_Step_Repository();
-		$this->flow_service = $flow_service ? $flow_service : new Flow_Service();
+	public function __construct( Flow_Step_Repository $repository = null, Flow_Service $flow_service = null, Flow_Transaction_Repository $transaction_repository = null ) {
+		$this->repository             = $repository ? $repository : new Flow_Step_Repository();
+		$this->flow_service           = $flow_service ? $flow_service : new Flow_Service();
+		$this->transaction_repository = $transaction_repository ? $transaction_repository : new Flow_Transaction_Repository();
 	}
 
 	/**
@@ -164,25 +172,33 @@ class Flow_Step_Service {
 			return new WP_Error( 'sm_flow_not_found', __( 'El flujo no existe.', 'super-mechanic' ) );
 		}
 
-		$position = 1;
-		foreach ( $ordered_step_ids as $step_id ) {
-			$step = $this->repository->get_by_id( $step_id );
-			if ( ! $step || absint( $step['flow_id'] ) !== $flow_id ) {
-				continue;
+		return $this->transaction_repository->run_in_transaction(
+			function () use ( $flow_id, $ordered_step_ids ) {
+				$position = 1;
+
+				foreach ( $ordered_step_ids as $step_id ) {
+					$step = $this->repository->get_by_id( $step_id );
+					if ( ! $step || absint( $step['flow_id'] ) !== $flow_id ) {
+						continue;
+					}
+
+					if ( ! $this->repository->update(
+						$step_id,
+						array(
+							'step_order' => $position,
+						)
+					) ) {
+						return new WP_Error( 'sm_flow_step_reorder_failed', __( 'No fue posible reordenar los pasos del flujo.', 'super-mechanic' ) );
+					}
+
+					++$position;
+				}
+
+				$this->normalize_step_order( $flow_id );
+
+				return true;
 			}
-
-			$this->repository->update(
-				$step_id,
-				array(
-					'step_order' => $position,
-				)
-			);
-			++$position;
-		}
-
-		$this->normalize_step_order( $flow_id );
-
-		return true;
+		);
 	}
 
 	/**

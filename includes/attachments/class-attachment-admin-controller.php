@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Attachments;
 
+use Super_Mechanic\Helpers\Download_Service;
 use Super_Mechanic\Processes\Process_Service;
 use WP_Error;
 
@@ -19,11 +20,13 @@ class Attachment_Admin_Controller {
 	protected $attachment_service;
 	protected $timeline_service;
 	protected $process_service;
+	protected $download_service;
 
-	public function __construct( Attachment_Service $attachment_service = null, Process_Timeline_Service $timeline_service = null, Process_Service $process_service = null ) {
+	public function __construct( Attachment_Service $attachment_service = null, Process_Timeline_Service $timeline_service = null, Process_Service $process_service = null, Download_Service $download_service = null ) {
 		$this->attachment_service = $attachment_service ? $attachment_service : new Attachment_Service();
 		$this->timeline_service   = $timeline_service ? $timeline_service : new Process_Timeline_Service();
 		$this->process_service    = $process_service ? $process_service : new Process_Service();
+		$this->download_service   = $download_service ? $download_service : new Download_Service();
 	}
 
 	public function register_hooks() {
@@ -161,7 +164,7 @@ class Attachment_Admin_Controller {
 				echo '<tr>';
 				echo '<td>' . esc_html( $attachment['title'] ) . '<br /><small>' . esc_html( $attachment['description'] ) . '</small></td>';
 				echo '<td>' . esc_html( $attachment['attachment_type'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $attachment['file_url'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Abrir archivo', 'super-mechanic' ) . '</a><br /><small>' . esc_html( $attachment['mime_type'] ) . '</small></td>';
+				echo '<td><a href="' . esc_url( $this->download_service->get_download_url( 'attachment', absint( $attachment['id'] ) ) ) . '">' . esc_html__( 'Descargar archivo', 'super-mechanic' ) . '</a><br /><small>' . esc_html( $attachment['mime_type'] ) . '</small></td>';
 				echo '<td>' . esc_html( ! empty( $attachment['is_internal'] ) ? __( 'Interno', 'super-mechanic' ) : __( 'Operativo', 'super-mechanic' ) ) . ' / ' . esc_html( ! empty( $attachment['is_client_visible'] ) ? __( 'Visible cliente', 'super-mechanic' ) : __( 'Oculto cliente', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( $attachment['created_at'] ) . '</td>';
 				echo '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $toggle_url ) . '">' . esc_html__( 'Cambiar visibilidad', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Eliminar este documento?', 'super-mechanic' ) ) . '\');">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a></td>';

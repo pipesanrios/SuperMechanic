@@ -39,16 +39,24 @@ class Client_Vehicle_Service {
 	protected $vehicle_service;
 
 	/**
+	 * Transaction repository.
+	 *
+	 * @var Client_Vehicle_Transaction_Repository
+	 */
+	protected $transaction_repository;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Client_Vehicle_Repository|null $repository      Relation repository.
 	 * @param Client_Service|null            $client_service  Client service.
 	 * @param Vehicle_Service|null           $vehicle_service Vehicle service.
 	 */
-	public function __construct( Client_Vehicle_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null ) {
-		$this->repository      = $repository ? $repository : new Client_Vehicle_Repository();
-		$this->client_service  = $client_service ? $client_service : new Client_Service();
-		$this->vehicle_service = $vehicle_service ? $vehicle_service : new Vehicle_Service();
+	public function __construct( Client_Vehicle_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Client_Vehicle_Transaction_Repository $transaction_repository = null ) {
+		$this->repository             = $repository ? $repository : new Client_Vehicle_Repository();
+		$this->client_service         = $client_service ? $client_service : new Client_Service();
+		$this->vehicle_service        = $vehicle_service ? $vehicle_service : new Vehicle_Service();
+		$this->transaction_repository = $transaction_repository ? $transaction_repository : new Client_Vehicle_Transaction_Repository();
 	}
 
 	/**
@@ -134,19 +142,23 @@ class Client_Vehicle_Service {
 			return new WP_Error( 'sm_relation_owner_mismatch', __( 'El cliente origen no coincide con el propietario actual.', 'super-mechanic' ) );
 		}
 
-		if ( ! $this->repository->end_relation( absint( $current_owner['id'] ), $args['transfer_date'] ) ) {
-			return new WP_Error( 'sm_relation_end_failed', __( 'No fue posible finalizar la relación anterior.', 'super-mechanic' ) );
-		}
+		return $this->transaction_repository->run_in_transaction(
+			function () use ( $args, $current_owner, $to_client_id, $vehicle_id ) {
+				if ( ! $this->repository->end_relation( absint( $current_owner['id'] ), $args['transfer_date'] ) ) {
+					return new WP_Error( 'sm_relation_end_failed', __( 'No fue posible finalizar la relación anterior.', 'super-mechanic' ) );
+				}
 
-		return $this->assign_vehicle_to_client(
-			$to_client_id,
-			$vehicle_id,
-			array(
-				'ownership_type'  => $args['ownership_type'],
-				'start_date'      => $args['transfer_date'],
-				'is_primary'      => true,
-				'replace_primary' => false,
-			)
+				return $this->assign_vehicle_to_client(
+					$to_client_id,
+					$vehicle_id,
+					array(
+						'ownership_type'  => $args['ownership_type'],
+						'start_date'      => $args['transfer_date'],
+						'is_primary'      => true,
+						'replace_primary' => false,
+					)
+				);
+			}
 		);
 	}
 

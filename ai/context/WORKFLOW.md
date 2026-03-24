@@ -1,105 +1,85 @@
-WORKFLOW IA — SUPER MECHANIC
+WORKFLOW IA — SUPER MECHANIC (OPTIMIZADO)
+
+Define el flujo estándar de trabajo con IA.
 
 ==================================================
-
 1. INICIO DE SESIÓN
-   ==================================================
+==================================================
 
-Pegar:
+Cargar:
 
-* PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC
-* CONTEXTO DEL PROYECTO
-* MODO DESARROLLO SEGURO
-* SCOPE GUARD
+- PROMPT MASTER — SUPER MECHANIC
+
+Opcional según necesidad:
+
+- AI_CONTEXT.md
+- AGENTS_QUICK_CONTEXT.md
 
 ==================================================
 2. DEFINICIÓN DE ALCANCE
-========================
+==================================================
 
-Describir claramente:
+Definir claramente:
 
-* funcionalidad / bug / fase
-* objetivo exacto
+- funcionalidad / bug / fase
+- objetivo específico
 
 ==================================================
-3. ANÁLISIS PREVIO
-==================
+3. ANÁLISIS PREVIO (OBLIGATORIO)
+==================================================
 
-Usar:
+El agente debe identificar:
 
-MODO DESARROLLO SEGURO
+- módulos afectados
+- archivos a modificar
+- archivos nuevos
+- tablas involucradas
+- dependencias
+- riesgos
 
-El agente debe responder con:
-
-* módulos afectados
-* archivos a modificar
-* archivos nuevos
-* tablas
-* dependencias
-* riesgos
-
-NO generar código.
-
-Esperar confirmación solo si la sesión lo pide expresamente.
-Si el prompt maestro ordena "analizar primero y luego ejecutar directamente", continuar sin una segunda espera.
+NO generar código en esta etapa.
 
 ==================================================
 4. IMPLEMENTACIÓN
-=================
+==================================================
 
-Después de confirmar el análisis:
-
-* generar código
-* respetar arquitectura
-* mantener cambios mínimos
+- cambios mínimos y seguros
+- respetar arquitectura
+- no duplicar lógica existente
 
 ==================================================
 5. VALIDACIÓN
-=============
+==================================================
 
-Confirmar:
+Validar:
 
-* php -l sin errores
-* bootstrap no roto
-* no SQL fuera de repository
-* no ruptura de módulos existentes
+- `php -l`
+- bootstrap no roto
+- SQL solo en repository
 
-Desde Fase 25, ejecutar además:
+Desde Fase 25:
 
-* `php scripts/php-lint.php --all`
-* `php scripts/structure-check.php`
-* `php scripts/technical-checklist.php --task=docs/tasks/<task-file>.md`
+- `php scripts/php-lint.php --all`
+- `php scripts/structure-check.php`
+- `php scripts/technical-checklist.php --task=<task>.md`
 
 ==================================================
-6. AUDITORÍA (RECOMENDADO)
-==========================
+6. CORRECCIONES (SI APLICA)
+==================================================
+
+- fixes mínimos
+- no ampliar alcance
+
+==================================================
+7. CIERRE
+==================================================
 
 Usar:
 
-AUDITORÍA DE INTEGRIDAD DEL SISTEMA
-
-Para validar:
-
-* arquitectura
-* integridad de módulos
-* coherencia documental
+- ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE
 
 ==================================================
-7. CORRECCIONES (SI APLICA)
-===========================
-
-Aplicar fixes mínimos sin ampliar alcance.
-
+REGLA CLAVE
 ==================================================
-8. CIERRE DE FASE
-=================
 
-Usar:
-
-ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE
-
-==================================================
-REGLA GENERAL
-=============
-
-Nunca saltar directamente a implementación sin análisis previo.
+Nunca implementar sin análisis previo.

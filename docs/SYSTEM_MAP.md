@@ -79,7 +79,7 @@
 ## Tablas por modulo
 
 - Settings:
-  - `wp_options` con `super_mechanic_settings`
+  - `wp_options` con `sm_settings` para configuracion avanzada y `super_mechanic_settings` como storage legacy de la UI clasica
   - `wp_options` con `sm_db_version`
 - Clients:
   - `sm_clients`
@@ -185,6 +185,7 @@
   - `Paperwork_Admin_Controller`
 - Dashboards:
   - `Dashboard_Service`
+  - `Client_Process_View_Service`
   - `Admin_Dashboard_Controller`
   - `Mechanic_Dashboard_Controller`
   - `Client_Dashboard_Controller`
@@ -384,7 +385,7 @@
 ## Actualizacion Fase 21. Configuracion avanzada por taller / negocio
 
 - Integracion real consolidada:
-  - `Settings_Service` centraliza lectura y escritura de configuracion avanzada usando la option `sm_settings`
+  - `Settings_Service` centraliza lectura y escritura de configuracion avanzada usando la option `sm_settings` y absorbe defaults/fallbacks desde `super_mechanic_settings`
   - la configuracion queda agrupada en `business`, `process`, `financial` y `notifications`
   - `Settings_Service` aplica defaults que preservan el comportamiento actual y mantiene fallback minimo hacia settings legacy de negocio
   - `Process_Service` reutiliza la capa central para `allow_step_back` y `auto_complete_on_final_step`
@@ -392,7 +393,7 @@
   - `Quote_Service` reutiliza la capa central para `currency` y `business_name`
 - Riesgos arquitectonicos actualizados:
   - la configuracion avanzada no debe fragmentarse entre lectura directa de `wp_options` y `Settings_Service`
-  - cualquier futura UI de configuracion debe seguir usando la misma estructura `sm_settings` y no crear una segunda fuente de verdad
+  - cualquier futura consolidacion de UI debe migrar la edicion hacia `sm_settings`; mientras tanto, `super_mechanic_settings` sigue existiendo como compatibilidad legacy
 
 ## Flujos principales del negocio
 
@@ -484,6 +485,18 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
 - Riesgos arquitectonicos actualizados:
   - los scripts no reemplazan validacion funcional real dentro de WordPress
   - cualquier futura integracion CI/CD debe reutilizar estos entry points y no crear una segunda capa paralela de validacion
+
+## Actualizacion Fase 26B. Hardening arquitectural pre-SaaS
+
+- Integracion real consolidada:
+  - `Client_Dashboard_Controller` delega resolucion de detalle cliente, comentarios recientes y snapshot financiero en `Client_Process_View_Service`
+  - `Client_Process_View_Service` actua como capa de agregacion de lectura y reutiliza `Dashboard_Service`, `Quote_Service`, `Invoice_Service` y `Comment_Service` sin introducir SQL nuevo
+  - `Client_Vehicle_Service::transfer_vehicle()` pasa a usar `Client_Vehicle_Transaction_Repository`
+  - `Flow_Service::delete_flow()` y `Flow_Step_Service::reorder_steps()` pasan a usar `Flow_Transaction_Repository`
+  - el panel admin de adjuntos deja de abrir `file_url` directo y reutiliza `Download_Service` tambien para staff/admin
+- Riesgos arquitectonicos actualizados:
+  - el controller cliente queda mas delgado, pero `Process_Admin_Controller` sigue siendo el controller mas sensible del sistema
+  - las descargas admin de PDF en quotes e invoices siguen como excepcion controlada por nonce/capability; cualquier futura unificacion debe evitar romper UX admin existente
 
 ## Actualizacion Fase 12A. Reportes base operativos
 
@@ -660,3 +673,6 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
   - `Client_List_Table`, `Vehicle_List_Table`, `Process_List_Table` y `Flow_List_Table` agregan jerarquia visual y badges sin modificar consultas ni paginacion
 - Riesgos arquitectonicos actualizados:
   - la modernizacion sigue apoyandose en controllers grandes; si el admin crece mas, convendra extraer helpers de presentacion sin mover logica a nuevas capas paralelas
+
+
+

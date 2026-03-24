@@ -39,6 +39,20 @@ $criticalReferenceSources = [
     'includes/class-plugin.php',
 ];
 
+$baseDocsForTerms = [
+    'ARCHITECTURE.md',
+    'docs/SYSTEM_MAP.md',
+    'docs/FINAL_ARCHITECTURE_MAP.md',
+    'docs/CURRENT_STATE.md',
+    'docs/MODULE_REGISTRY.md',
+    'docs/DATABASE_MAP.md',
+    'docs/PERFORMANCE_STRATEGY.md',
+];
+
+$forbiddenDocTerms = [
+    'plate_number' => 'La columna inexistente `plate_number` aparece todavia en documentacion base; la columna real es `plate`.',
+];
+
 $warnings           = [];
 $errors             = [];
 $phpFiles           = sm_script_collect_files(['php'], ['includes/modules', '.git', 'node_modules', 'vendor']);
@@ -69,6 +83,13 @@ foreach ($activeRuntimeFiles as $path) {
 
     if (strpos($contents, 'includes/modules/') !== false || strpos($contents, 'includes\\modules\\') !== false) {
         $errors[] = 'Referencia prohibida a includes/modules/* en archivo activo: ' . $path;
+    }
+
+    foreach (preg_split('/\R/', $contents) as $line) {
+        if (strpos($line, 'href') !== false && strpos($line, 'file_url') !== false) {
+            $errors[] = 'Posible enlace directo por file_url en archivo activo: ' . $path;
+            break;
+        }
     }
 }
 
@@ -136,6 +157,25 @@ foreach ($criticalReferenceSources as $path) {
 
         if (!sm_script_path_exists($resolved)) {
             $warnings[] = 'Referencia potencialmente inexistente en ' . $path . ': ' . $reference;
+        }
+    }
+}
+
+foreach ($baseDocsForTerms as $path) {
+    if (!sm_script_path_exists($path)) {
+        continue;
+    }
+
+    $contents = file_get_contents(sm_script_abs_path($path));
+
+    if (!is_string($contents)) {
+        $warnings[] = 'No fue posible leer: ' . $path;
+        continue;
+    }
+
+    foreach ($forbiddenDocTerms as $term => $message) {
+        if (strpos($contents, $term) !== false) {
+            $warnings[] = $message . ' Archivo: ' . $path;
         }
     }
 }

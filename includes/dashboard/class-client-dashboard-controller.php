@@ -30,16 +30,18 @@ class Client_Dashboard_Controller {
 	protected $comment_service;
 	protected $notification_service;
 	protected $download_service;
+	protected $client_process_view_service;
 
-	public function __construct( Dashboard_Service $service = null, Quote_Service $quote_service = null, Invoice_Service $invoice_service = null, Attachment_Service $attachment_service = null, Process_Timeline_Service $process_timeline_service = null, Comment_Service $comment_service = null, Notification_Service $notification_service = null, Download_Service $download_service = null ) {
-		$this->service                  = $service ? $service : new Dashboard_Service();
-		$this->quote_service            = $quote_service ? $quote_service : new Quote_Service();
-		$this->invoice_service          = $invoice_service ? $invoice_service : new Invoice_Service();
-		$this->attachment_service       = $attachment_service ? $attachment_service : new Attachment_Service();
-		$this->process_timeline_service = $process_timeline_service ? $process_timeline_service : new Process_Timeline_Service();
-		$this->comment_service          = $comment_service ? $comment_service : new Comment_Service();
-		$this->notification_service     = $notification_service ? $notification_service : new Notification_Service();
-		$this->download_service         = $download_service ? $download_service : new Download_Service();
+	public function __construct( Dashboard_Service $service = null, Quote_Service $quote_service = null, Invoice_Service $invoice_service = null, Attachment_Service $attachment_service = null, Process_Timeline_Service $process_timeline_service = null, Comment_Service $comment_service = null, Notification_Service $notification_service = null, Download_Service $download_service = null, Client_Process_View_Service $client_process_view_service = null ) {
+		$this->service                      = $service ? $service : new Dashboard_Service();
+		$this->quote_service                = $quote_service ? $quote_service : new Quote_Service();
+		$this->invoice_service              = $invoice_service ? $invoice_service : new Invoice_Service();
+		$this->attachment_service           = $attachment_service ? $attachment_service : new Attachment_Service();
+		$this->process_timeline_service     = $process_timeline_service ? $process_timeline_service : new Process_Timeline_Service();
+		$this->comment_service              = $comment_service ? $comment_service : new Comment_Service();
+		$this->notification_service         = $notification_service ? $notification_service : new Notification_Service();
+		$this->download_service             = $download_service ? $download_service : new Download_Service();
+		$this->client_process_view_service  = $client_process_view_service ? $client_process_view_service : new Client_Process_View_Service( $this->service, $this->quote_service, $this->invoice_service, $this->comment_service );
 	}
 
 	public function render_dashboard( $user_id = null ) {
@@ -54,7 +56,7 @@ class Client_Dashboard_Controller {
 
 		$activity      = $this->service->get_client_recent_activity( $user_id, 10 );
 		$notifications = $this->get_client_notifications_data( $user_id, 5 );
-		$comments      = $this->get_recent_client_comments( $user_id, 5 );
+		$comments      = $this->client_process_view_service->get_recent_client_comments( $user_id, 5 );
 		$name          = trim( $profile['first_name'] . ' ' . $profile['last_name'] );
 		$comment_notice = $this->handle_process_comment_submission( $user_id );
 		$requested_process_id = $this->get_requested_process_id();
@@ -136,7 +138,7 @@ class Client_Dashboard_Controller {
 			foreach ( $processes as $process ) {
 				$vehicle = trim( $process['vehicle_make'] . ' ' . $process['vehicle_model'] );
 				$status  = ucwords( str_replace( '_', ' ', $process['status'] ) );
-				$financial = $this->get_process_financial_snapshot( $user_id, $process );
+				$financial = $this->client_process_view_service->get_process_financial_snapshot( $user_id, $process );
 				$detail_url = add_query_arg( 'process_id', absint( $process['id'] ) );
 				if ( ! empty( $process['vehicle_plate'] ) ) {
 					$vehicle .= ' - ' . $process['vehicle_plate'];
@@ -281,15 +283,15 @@ class Client_Dashboard_Controller {
 
 	public function render_process_detail( $process_id, $user_id = null ) {
 		$user_id = $user_id ? absint( $user_id ) : get_current_user_id();
-		$process = $this->get_client_process_by_id( $user_id, $process_id );
+		$process = $this->client_process_view_service->get_client_process_by_id( $user_id, $process_id );
 
 		if ( empty( $process ) ) {
 			return '<p>' . esc_html__( 'No tienes acceso a este proceso.', 'super-mechanic' ) . '</p>';
 		}
 
-		$quotes    = $this->get_process_quotes_for_user( $user_id, absint( $process['id'] ) );
-		$invoices  = $this->get_process_invoices_for_user( $user_id, absint( $process['id'] ) );
-		$financial = $this->get_process_financial_snapshot( $user_id, $process, $invoices );
+		$quotes    = $this->client_process_view_service->get_process_quotes_for_user( $user_id, absint( $process['id'] ) );
+		$invoices  = $this->client_process_view_service->get_process_invoices_for_user( $user_id, absint( $process['id'] ) );
+		$financial = $this->client_process_view_service->get_process_financial_snapshot( $user_id, $process, $invoices );
 		$vehicle   = trim( $process['vehicle_make'] . ' ' . $process['vehicle_model'] );
 
 		if ( ! empty( $process['vehicle_plate'] ) ) {
@@ -455,122 +457,6 @@ class Client_Dashboard_Controller {
 		return isset( $_GET['process_id'] ) ? absint( wp_unslash( $_GET['process_id'] ) ) : 0;
 	}
 
-	protected function get_client_process_by_id( $user_id, $process_id ) {
-		$process_id = absint( $process_id );
-
-		if ( ! $process_id ) {
-			return array();
-		}
-
-		foreach ( $this->service->get_client_processes( $user_id, array( 'per_page' => 200 ) ) as $process ) {
-			if ( absint( $process['id'] ) === $process_id ) {
-				return $process;
-			}
-		}
-
-		return array();
-	}
-
-	protected function get_process_quotes_for_user( $user_id, $process_id ) {
-		$client_id = $this->service->get_client_id_by_user_id( $user_id );
-
-		if ( ! $client_id ) {
-			return array();
-		}
-
-		return array_values(
-			array_filter(
-				$this->quote_service->get_quotes_for_user(
-					$user_id,
-					array(
-						'client_id' => $client_id,
-						'per_page'  => 100,
-						'orderby'   => 'created_at',
-						'order'     => 'DESC',
-					)
-				),
-				static function ( $quote ) use ( $process_id ) {
-					return absint( $quote['process_id'] ) === absint( $process_id );
-				}
-			)
-		);
-	}
-
-	protected function get_process_invoices_for_user( $user_id, $process_id ) {
-		$client_id = $this->service->get_client_id_by_user_id( $user_id );
-
-		if ( ! $client_id ) {
-			return array();
-		}
-
-		$invoices = array_values(
-			array_filter(
-				$this->invoice_service->get_invoices_for_user(
-					$user_id,
-					array(
-						'client_id' => $client_id,
-						'per_page'  => 100,
-						'orderby'   => 'created_at',
-						'order'     => 'DESC',
-					)
-				),
-				static function ( $invoice ) use ( $process_id ) {
-					return absint( $invoice['process_id'] ) === absint( $process_id );
-				}
-			)
-		);
-
-		foreach ( $invoices as $index => $invoice ) {
-			$invoices[ $index ] = $this->invoice_service->append_collection_state( $invoice );
-		}
-
-		return $invoices;
-	}
-
-	protected function get_process_financial_snapshot( $user_id, array $process, array $invoices = null ) {
-		if ( null === $invoices ) {
-			$invoices = $this->get_process_invoices_for_user( $user_id, absint( $process['id'] ) );
-		}
-
-		if ( empty( $invoices ) ) {
-			return array(
-				'label' => __( 'Sin facturas emitidas', 'super-mechanic' ),
-			);
-		}
-
-		$total_grand    = 0.0;
-		$total_balance  = 0.0;
-		$currency       = '';
-		$single_currency = true;
-
-		foreach ( $invoices as $invoice ) {
-			$total_grand   += (float) $invoice['grand_total'];
-			$total_balance += (float) $invoice['balance_due'];
-
-			if ( '' === $currency ) {
-				$currency = (string) $invoice['currency'];
-			} elseif ( $currency !== (string) $invoice['currency'] ) {
-				$single_currency = false;
-			}
-		}
-
-		if ( $total_balance <= 0 && $total_grand > 0 ) {
-			$label = __( 'Pagado', 'super-mechanic' );
-		} elseif ( $total_balance < $total_grand ) {
-			$label = __( 'Pago parcial', 'super-mechanic' );
-		} else {
-			$label = __( 'Pendiente de pago', 'super-mechanic' );
-		}
-
-		if ( $single_currency ) {
-			$label .= ' - ' . $this->format_money( $total_balance, $currency ) . ' ' . __( 'pendiente', 'super-mechanic' );
-		}
-
-		return array(
-			'label' => $label,
-		);
-	}
-
 	protected function render_process_quotes_table( array $quotes ) {
 		ob_start();
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
@@ -707,26 +593,6 @@ class Client_Dashboard_Controller {
 
 	protected function format_money( $amount, $currency ) {
 		return number_format_i18n( (float) $amount, 2 ) . ' ' . sanitize_text_field( (string) $currency );
-	}
-
-	protected function get_recent_client_comments( $user_id, $limit = 5 ) {
-		$comments  = array();
-		$processes = $this->service->get_client_processes( $user_id, array( 'per_page' => 20 ) );
-
-		foreach ( $processes as $process ) {
-			foreach ( $this->comment_service->get_client_visible_process_comments( absint( $process['id'] ) ) as $comment ) {
-				$comments[] = $comment;
-			}
-		}
-
-		usort(
-			$comments,
-			static function ( $left, $right ) {
-				return strtotime( (string) $right['created_at'] ) <=> strtotime( (string) $left['created_at'] );
-			}
-		);
-
-		return array_slice( $comments, 0, max( 1, absint( $limit ) ) );
 	}
 
 	protected function render_recent_comments_table( $comments ) {

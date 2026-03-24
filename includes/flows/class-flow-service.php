@@ -41,14 +41,22 @@ class Flow_Service {
 	protected $step_repository;
 
 	/**
+	 * Transaction repository.
+	 *
+	 * @var Flow_Transaction_Repository
+	 */
+	protected $transaction_repository;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Flow_Repository|null      $repository      Flow repository.
 	 * @param Flow_Step_Repository|null $step_repository Step repository.
 	 */
-	public function __construct( Flow_Repository $repository = null, Flow_Step_Repository $step_repository = null ) {
-		$this->repository      = $repository ? $repository : new Flow_Repository();
-		$this->step_repository = $step_repository ? $step_repository : new Flow_Step_Repository();
+	public function __construct( Flow_Repository $repository = null, Flow_Step_Repository $step_repository = null, Flow_Transaction_Repository $transaction_repository = null ) {
+		$this->repository             = $repository ? $repository : new Flow_Repository();
+		$this->step_repository        = $step_repository ? $step_repository : new Flow_Step_Repository();
+		$this->transaction_repository = $transaction_repository ? $transaction_repository : new Flow_Transaction_Repository();
 	}
 
 	/**
@@ -117,13 +125,19 @@ class Flow_Service {
 			return new WP_Error( 'sm_flow_not_found', __( 'El flujo no existe.', 'super-mechanic' ) );
 		}
 
-		$this->step_repository->delete_by_flow_id( $id );
+		return $this->transaction_repository->run_in_transaction(
+			function () use ( $id ) {
+				if ( ! $this->step_repository->delete_by_flow_id( $id ) ) {
+					return new WP_Error( 'sm_flow_steps_delete_failed', __( 'No fue posible eliminar los pasos del flujo.', 'super-mechanic' ) );
+				}
 
-		if ( ! $this->repository->delete( $id ) ) {
-			return new WP_Error( 'sm_flow_delete_failed', __( 'No fue posible eliminar el flujo.', 'super-mechanic' ) );
-		}
+				if ( ! $this->repository->delete( $id ) ) {
+					return new WP_Error( 'sm_flow_delete_failed', __( 'No fue posible eliminar el flujo.', 'super-mechanic' ) );
+				}
 
-		return true;
+				return true;
+			}
+		);
 	}
 
 	/**

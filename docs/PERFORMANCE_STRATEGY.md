@@ -117,7 +117,7 @@ sm_vehicles
 
 client_id
 vin
-plate_number
+plate
 
 sm_processes
 
@@ -131,8 +131,24 @@ created_at
 sm_process_step_logs
 
 process_id
-step_id
+flow_step_id
 created_at
+
+==================================================
+REGLA 3B — AGREGACIÓN DE VISTAS
+==================================================
+
+Si un controller cliente o admin necesita armar vistas compuestas:
+
+- priorizar services de lectura/agregacion acotados
+- no reconstruir datasets pesados dentro del controller
+- no mover SQL fuera de repositories
+
+Ejemplo alineado a Fase 26B:
+
+Client_Dashboard_Controller
+→ Client_Process_View_Service
+→ Dashboard_Service / Quote_Service / Invoice_Service / Comment_Service
 
 sm_quotes
 

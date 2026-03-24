@@ -19,6 +19,7 @@ use Super_Mechanic\Communication\Notification_Service;
 use Super_Mechanic\Dashboard\Admin_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Client_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Client_Dashboard_Shortcodes;
+use Super_Mechanic\Dashboard\Client_Process_View_Service;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Dashboard\Mechanic_Dashboard_Controller;
 use Super_Mechanic\Database\Migrator;
@@ -94,6 +95,7 @@ class Plugin {
 	protected $report_service;
 	protected $report_admin_controller;
 	protected $shortcode_admin_controller;
+	protected $client_process_view_service;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -117,11 +119,12 @@ class Plugin {
 		$this->notification_service          = new Notification_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service );
 		$this->event_dispatcher              = Event_Dispatcher::get_instance( $this->notification_service, $this->document_service );
 		$this->comment_service               = new Comment_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->event_dispatcher );
+		$this->client_process_view_service   = new Client_Process_View_Service( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->comment_service );
 		$this->process_timeline_service      = new Process_Timeline_Service( $this->process_service, $this->attachment_service, $this->quote_service, $this->invoice_service, $this->comment_service, $this->notification_service );
 		$this->maintenance_admin_controller  = new Maintenance_Admin_Controller( $this->maintenance_service );
 		$this->pre_delivery_admin_controller = new Pre_Delivery_Admin_Controller( $this->pre_delivery_service );
 		$this->paperwork_admin_controller    = new Paperwork_Admin_Controller( $this->paperwork_service );
-		$this->attachment_admin_controller   = new Attachment_Admin_Controller( $this->attachment_service, $this->process_timeline_service, $this->process_service );
+		$this->attachment_admin_controller   = new Attachment_Admin_Controller( $this->attachment_service, $this->process_timeline_service, $this->process_service, $this->download_service );
 		$this->quote_admin_controller        = new Quote_Admin_Controller( $this->quote_service, $this->invoice_service, $this->pdf_service );
 		$this->invoice_admin_controller      = new Invoice_Admin_Controller( $this->invoice_service, $this->pdf_service );
 		$this->process_admin_controller      = new Process_Admin_Controller(
@@ -140,7 +143,7 @@ class Plugin {
 		$this->admin_dashboard_controller    = new Admin_Dashboard_Controller( $this->dashboard_service );
 		$this->report_admin_controller       = new Report_Admin_Controller( $this->report_service );
 		$this->mechanic_dashboard_controller = new Mechanic_Dashboard_Controller( $this->dashboard_service, $this->process_service, $this->process_timeline_service, $this->comment_service, $this->attachment_service, $this->maintenance_service, null, $this->download_service );
-		$this->client_dashboard_controller   = new Client_Dashboard_Controller( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->process_timeline_service, $this->comment_service, $this->notification_service );
+		$this->client_dashboard_controller   = new Client_Dashboard_Controller( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->process_timeline_service, $this->comment_service, $this->notification_service, $this->download_service, $this->client_process_view_service );
 		$this->client_dashboard_shortcodes   = new Client_Dashboard_Shortcodes( $this->client_dashboard_controller, $this->dashboard_service );
 		$this->client_attachment_shortcodes  = new Client_Attachment_Shortcodes( $this->client_dashboard_controller, $this->dashboard_service, $this->attachment_service, $this->download_service );
 		$this->client_quote_shortcodes       = new Client_Quote_Shortcodes( $this->quote_service, $this->dashboard_service, $this->download_service );
