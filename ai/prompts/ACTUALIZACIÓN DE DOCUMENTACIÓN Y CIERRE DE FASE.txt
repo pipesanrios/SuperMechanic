@@ -1,28 +1,43 @@
-CIERRE DE FASE — SUPER MECHANIC (OPTIMIZADO)
+CIERRE DE FASE — SUPER MECHANIC (ULTRA)
+
+Se ha completado una fase, subfase o bloque de trabajo.
+
+El código ya fue implementado.
 
 ==================================================
 OBJETIVO
 ==================================================
 
-- alinear código, docs y contextos AI
-- cerrar fase sin inconsistencias
-- mantener coherencia técnica
+- consolidar documentación mínima necesaria
+- mantener coherencia código ↔ docs ↔ contextos
+- registrar deuda técnica
+- evitar duplicación o sobre-documentación
+
+==================================================
+REGLAS
+==================================================
+
+- no reimplementar nada
+- no ampliar alcance
+- no rehacer todo el proyecto
+- usar código real como fuente de verdad
+- actualizar SOLO lo afectado
 
 ==================================================
 VALIDACIÓN PREVIA
 ==================================================
 
-Debes:
+Debes verificar:
 
-- revisar código implementado
-- identificar archivos modificados/nuevos
-- validar sintaxis PHP
-- verificar que bootstrap no se rompió
+- archivos realmente modificados
+- archivos nuevos (si hay)
+- que PHP no tiene errores de sintaxis
+- que bootstrap no se rompió (mínimo sintáctico)
+- qué validaciones se ejecutaron
+- qué validaciones no se ejecutaron
 
-Indicar explícitamente:
-
-- validaciones ejecutadas
-- validaciones no ejecutadas
+Si no probaste en WordPress runtime:
+→ decirlo explícitamente
 
 ==================================================
 ACTUALIZACIÓN DOCUMENTAL
@@ -30,51 +45,83 @@ ACTUALIZACIÓN DOCUMENTAL
 
 Actualizar SOLO si aplica:
 
-- ARCHITECTURE.md
-- SYSTEM_MAP.md
-- CURRENT_STATE.md
-- MODULE_REGISTRY.md
-- DATABASE_MAP.md (si hubo cambios reales)
+- ARCHITECTURE.md (cambios estructurales)
+- docs/CURRENT_STATE.md (estado o fase)
+- docs/SYSTEM_MAP.md (si cambian módulos)
+- docs/MODULE_REGISTRY.md (si cambian clases/módulos)
+- docs/DATABASE_MAP.md (solo si cambian tablas)
+- docs/TEST_SCENARIOS.md (si cambia comportamiento)
+- docs/tasks/<task>.md (si existe o es necesario)
 
-Contextos AI:
+AI contextos (solo si aplica):
 
-- AI_CONTEXT.md (mantener resumen, no duplicar docs)
-- AGENTS_QUICK_CONTEXT.md (solo si aplica)
-- prompts solo si hay desalineación
+- .vscode/AI_CONTEXT.md → mantener corto
+- ai/context/* → solo si cambia narrativa real
+
+PROMPTS:
+
+- actualizar solo si hay desalineación real
 
 ==================================================
-CONTROL DE CONSISTENCIA
+CONTROL DE DUPLICACIÓN
 ==================================================
 
-- código es la fuente de verdad
-- no duplicar narrativa entre archivos
-- AI_CONTEXT debe ser resumen, no documentación
+Asegurar:
+
+- CURRENT_STATE.md = estado actual (no historia)
+- ARCHITECTURE.md = estructura técnica
+- AI_CONTEXT.md = resumen corto
+
+Eliminar duplicaciones si aparecen.
 
 ==================================================
 PROMPT MASTER
 ==================================================
 
-- verificar alineación con estado real
-- actualizar solo si es necesario
+Verificar:
+
+- fases actuales correctas
+- módulos correctos
+- reglas vigentes
+
+Actualizar solo si hay desalineación real.
 
 ==================================================
-CHECKLIST
+CHECKLIST MÍNIMO
 ==================================================
 
-- sintaxis PHP OK
-- arquitectura respetada
-- seguridad intacta
-- UI no rota
-- docs consistentes
-- contextos alineados
+Código:
+
+- sintaxis PHP válida
+- bootstrap no roto
+- sin SQL fuera de repository
+- sin uso de `includes/modules/*`
+
+Arquitectura:
+
+- controllers sin lógica indebida
+- services no duplicados
+
+Seguridad:
+
+- sin `file_url`
+- uso correcto de Document_Service / Download_Service
+- ownership respetado
+
+UI (si aplica):
+
+- no romper formularios
+- no romper acciones
 
 ==================================================
-RESPUESTA
+FORMATO DE RESPUESTA
 ==================================================
 
-1. archivos actualizados
-2. cambios aplicados
-3. validaciones ejecutadas
-4. validaciones no ejecutadas
-5. deuda técnica
-6. estado final (COMPLETA / PARCIAL)
+1. archivos modificados
+2. archivos nuevos
+3. cambios relevantes
+4. validaciones realizadas
+5. validaciones no ejecutadas
+6. docs actualizadas
+7. deuda técnica abierta
+8. estado final: COMPLETA / PARCIAL / NECESITA CORRECCIONES

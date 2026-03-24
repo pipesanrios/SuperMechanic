@@ -28,17 +28,33 @@ Leer adicionalmente SOLO si el objetivo lo requiere:
 REGLAS CRÍTICAS
 ==================================================
 
-- La arquitectura activa real está en `includes/*`
-- `includes/modules/*` es legacy y no debe usarse
+Arquitectura:
+
+- usar solo `includes/*`
+- NO usar `includes/modules/*`
 - SQL solo en repositories
-- No duplicar lógica existente
-- Mantener Controller → Service → Repository
-- No exponer `file_url`
-- Usar `Document_Service` + `Download_Service`
-- Respetar ownership con `Access_Control_Service`
-- No romper formularios, nonces ni query args
-- Reutilizar sistema visual `sm-*`
-- No cambiar schema salvo instrucción explícita
+- mantener Controller → Service → Repository
+- no duplicar lógica existente
+
+Seguridad:
+
+- NO exponer `file_url`
+- usar `Document_Service` + `Download_Service`
+- respetar ownership con `Access_Control_Service`
+- mantener nonces y permisos
+
+UI:
+
+- no romper formularios ni query args
+- reutilizar sistema visual `sm-*`
+- no introducir frameworks externos
+
+Generales:
+
+- no cambiar schema salvo instrucción explícita
+- no ampliar alcance sin justificación
+- no reintroducir lógica en controllers
+- no omitir transacciones en operaciones críticas
 
 ==================================================
 ANÁLISIS PREVIO OBLIGATORIO
@@ -77,7 +93,7 @@ plugin: 0.1.0
 schema: 1.9.0
 fases consolidadas: 12A–26B
 
-Ver detalle en:
+Detalle:
 - docs/CURRENT_STATE.md
 - .vscode/AI_CONTEXT.md
 

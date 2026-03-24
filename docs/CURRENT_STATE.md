@@ -1,164 +1,129 @@
-# CURRENT STATE — SUPER MECHANIC (OPTIMIZADO)
+# CURRENT STATE — SUPER MECHANIC
 
-==================================================
-PROYECTO
-==================================================
+## Proyecto
 
-Super Mechanic
+- Proyecto: Super Mechanic
+- Version interna actual:
+  - plugin: `0.1.0`
+  - schema: `1.9.0`
 
-Plugin WordPress modular para gestión de:
+## Estado general
 
-- talleres
-- concesionarios
-- vehículos
-- procesos
-- mantenimiento
-- trámites
-- cotizaciones
-- facturación
-- portal cliente
+- Estado del sistema: funcional a nivel admin, portal cliente y portal mecánico.
+- Arquitectura activa: `includes/*`
+- Nivel actual: pre-SaaS
+- Estabilidad: estable con riesgos controlados
+- Seguridad documental: operativa mediante `Document_Service` + `Download_Service`
+- Ownership y visibilidad: centralizados en `Access_Control_Service`
 
-==================================================
-VERSIONES
-==================================================
+## Fase actual
 
-plugin: 0.1.0  
-schema: 1.9.0  
+- Fase operativa actual: **26B — hardening arquitectural pre-SaaS**
+- Estado: **completa**
 
-==================================================
-ESTADO GENERAL
-==================================================
+## Fases consolidadas
 
-Sistema funcional a nivel:
+- 12A–12E → Reports
+- 13 → Integridad transaccional
+- 14–14B → Validación funcional
+- 15 → Pagos
+- 16 → Automatizaciones y eventos
+- 17 → Ownership y visibilidad
+- 18 → Portal mecánico
+- 19 → Workflow operativo avanzado
+- 20–20B → Capa documental y `payment_receipt`
+- 21 → Settings avanzados
+- 22 → Reportes avanzados
+- 23 → Portal cliente premium
+- 24–24B → Modernización UI/UX
+- 25 → Scripts técnicos de validación
+- 26 → Panel de shortcodes
+- 26B → Hardening pre-SaaS
 
-- admin
-- portal cliente
-- portal mecánico
+## Módulos activos
 
-Arquitectura estable con riesgos controlados.
+- Core / Bootstrap
+- Security
+- Settings
+- Clients
+- Vehicles
+- Client-Vehicle Relations
+- Flows
+- Processes
+- Maintenance
+- Pre-Delivery
+- Paperwork
+- Dashboards
+- Reports
+- Quotes
+- Invoices
+- Payments
+- Attachments / Timeline
+- Communication / Notifications
+- Documents / PDF / Secure Downloads
+- Client Portal
 
-Base técnica consolidada sobre:
+## Módulos parciales o no activos
 
-- `includes/*` como arquitectura activa
-- capa documental segura (`Document_Service`, `Download_Service`)
-- ownership centralizado (`Access_Control_Service`)
-- flujo transaccional base en procesos, relaciones y flows
+- REST API: placeholder / no conectada al bootstrap real
+- WooCommerce integration: scaffold técnico, no integrado funcionalmente
+- `includes/modules/*`: legacy
+- Placeholders raíz:
+  - `includes/class-rest-api.php`
+  - `includes/class-hooks.php`
+  - `includes/class-post-types.php`
 
-==================================================
-FASE ACTUAL
-==================================================
+## Capacidades clave ya operativas
 
-Fase activa: 26B — hardening arquitectural pre-SaaS
-
-Estado: COMPLETA
-
-==================================================
-FASES CONSOLIDADAS
-==================================================
-
-12A–12E → Reports  
-13 → integridad transaccional  
-14–14B → validación funcional  
-15 → pagos  
-16 → automatizaciones  
-17 → ownership  
-18 → portal mecánico  
-19 → workflow avanzado  
-20–20B → capa documental  
-21 → settings  
-22 → reports avanzados  
-23 → portal cliente premium  
-24–24B → UI/UX  
-25 → scripts técnicos  
-26 → panel shortcodes  
-26B → hardening pre-SaaS  
-
-==================================================
-MÓDULOS ACTIVOS
-==================================================
-
-clients  
-vehicles  
-relations  
-flows  
-processes  
-maintenance  
-predelivery  
-paperwork  
-dashboard  
-reports  
-quotes  
-invoices  
-payments  
-attachments  
-communication  
-
-==================================================
-MÓDULOS PARCIALES / NO ACTIVOS
-==================================================
-
-- REST API → placeholder
-- WooCommerce → scaffold
-- includes/modules/* → legacy
-
-==================================================
-CAPACIDADES CLAVE DEL SISTEMA
-==================================================
-
-- portal cliente operativo (quotes, invoices, timeline, comments)
-- portal mecánico operativo
-- workflow configurable
-- reportes operativos y financieros
-- sistema de pagos consolidado
-- documentos seguros + PDF bajo demanda
-- `payment_receipt` lógico por payment
+- Portal cliente con quotes, invoices, timeline, comments, notifications y documentos seguros
+- Portal mecánico operativo dentro del admin
+- Workflow configurable con validación de transiciones
+- Reportes operativos y financieros avanzados
+- Sistema de pagos consolidado sobre `sm_payments`
+- `payment_receipt` lógico por `payment_id`
 - UI moderna reusable (`sm-*`)
-- scripts locales de validación técnica
+- Scripts locales de validación técnica en `scripts/`
 
-==================================================
-DEUDA TÉCNICA ACTIVA
-==================================================
+## Deuda técnica activa
 
-- REST API no implementada
-- placeholders en core (rest-api, hooks, post-types)
-- rutas admin de PDF aún fuera de `Download_Service`
-- falta CI/CD real
-- falta testing funcional en WordPress runtime
-- `Report_Service` y `Process_Admin_Controller` pueden crecer demasiado
+- REST API todavía no implementada
+- Las rutas admin de PDF de quotes e invoices siguen como excepción controlada y no pasan todavía por `Download_Service`
+- `Process_Admin_Controller` y `Report_Service` siguen siendo puntos a vigilar si el sistema crece
+- No existe CI/CD real todavía
+- No hay pruebas funcionales WordPress runtime automatizadas
+- La UI legacy de settings sigue coexistiendo con `sm_settings` mediante compatibilidad legacy
 
-==================================================
-RIESGOS ACTUALES
-==================================================
+## Riesgos actuales
 
-- crecimiento de services tipo “god class”
-- desviaciones en descargas seguras si no se respeta `Download_Service`
-- dependencia fuerte del ownership cliente-vehículo
-- posible desalineación documental si no se mantiene cierre disciplinado
+- Reintroducción de lógica en controllers
+- Crecimiento excesivo de services tipo “god class”
+- Desalineación documental si no se ejecuta cierre disciplinado de fase
+- Reaparición de `file_url` directo en nuevos entry points
+- Confusión por capas legacy si se vuelven a usar
 
-==================================================
-PENDIENTES INMEDIATOS
-==================================================
+## Pendientes inmediatos
 
-- consolidación API base (Fase 27A)
-- definición capa SaaS
-- posible unificación de rutas PDF admin
-- evaluación CI/CD
-- control de crecimiento de reports
+- Fase 24C — UX fixes críticos post smoke test
+- Fase 27A — API base / REST pre-SaaS
+- Evaluar consolidación de rutas admin PDF sobre la misma capa documental segura
+- Evaluar CI/CD real en fase futura
+- Mantener sincronizados docs técnicos base y contextos AI
 
-==================================================
-FUENTE DE VERDAD
-==================================================
+## Fuente de verdad
 
-1. código (`includes/*`)
-2. docs técnicos
-3. contextos AI
+Prioridad:
 
-==================================================
-NOTA
-==================================================
+1. código real (`includes/*`)
+2. `ARCHITECTURE.md`
+3. `docs/SYSTEM_MAP.md`
+4. `docs/FINAL_ARCHITECTURE_MAP.md`
+5. `docs/MODULE_REGISTRY.md`
+6. `docs/DATABASE_MAP.md`
 
-El historial detallado de fases y cambios técnicos debe consultarse en:
+## Nota
 
-- ARCHITECTURE.md
-- docs/tasks/
-- commits del proyecto
+El detalle histórico de implementación por fase debe consultarse en:
+
+- `ARCHITECTURE.md`
+- `docs/tasks/`
+- historial del repositorio
