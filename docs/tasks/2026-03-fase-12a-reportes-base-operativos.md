@@ -62,4 +62,4 @@
 - `Report_Service` valida filtros y normaliza fechas
 - `Report_Admin_Controller` renderiza una UI admin usable y segura
 - no hubo cambios de schema
-- no se modifico el dashboard admin existente mas alla del menu global del plugin
+- no se modifico el Admin Dashboardexistente mas alla del menu global del plugin

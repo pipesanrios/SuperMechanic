@@ -40,7 +40,7 @@ class Admin_Menu {
 	 * @param Process_Admin_Controller     $process_admin_controller     Processes controller.
 	 * @param Flow_Admin_Controller        $flow_admin_controller        Flows controller.
 	 * @param Admin_Dashboard_Controller   $admin_dashboard_controller   Admin dashboard controller.
-	 * @param Mechanic_Dashboard_Controller $mechanic_dashboard_controller Mechanic dashboard controller.
+	 * @param Mechanic_Dashboard_Controller $mechanic_dashboard_controller Mechanic Panel controller.
 	 * @param Report_Admin_Controller      $report_admin_controller      Reports controller.
 	 * @param Shortcode_Admin_Controller   $shortcode_admin_controller   Shortcodes controller.
 	 */

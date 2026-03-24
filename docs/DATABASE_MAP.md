@@ -850,7 +850,7 @@ Relaciones principales del schema real:
 
 ## Reglas de integridad y acceso relevantes
 
-- El portal cliente no debe confiar solo en `invoice_id`, `quote_id` o `attachment_id`; el acceso se valida contra ownership real.
+- El Client Portal no debe confiar solo en `invoice_id`, `quote_id` o `attachment_id`; el acceso se valida contra ownership real.
 - `sm_client_vehicles` y la asociacion cliente-proceso siguen siendo base de seguridad para descargas protegidas.
 - `sm_process_step_logs` ya forma parte operativa de dashboards, timeline y trazabilidad base; cualquier cambio debe preservar consistencia con `sm_processes` y `sm_flow_steps`.
 - `sm_attachments.is_internal = 1` bloquea exposicion cliente.
@@ -1067,7 +1067,7 @@ Si el schema cambia en futuras fases, actualizar tambien:
   - `sm_payments`
   - `sm_clients`
 - Los estados derivados operativos del modulo se resuelven como lectura agregada sobre datos ya persistidos; no agregan columnas nuevas.
-## Nota Fase 23. Portal cliente premium con acciones reales
+## Nota Fase 23. Client Portal premium con acciones reales
 
 - La Fase 23 no modifica schema ni agrega tablas.
 - El cierre funcional reutiliza:
@@ -1078,7 +1078,7 @@ Si el schema cambia en futuras fases, actualizar tambien:
   - `sm_payments`
   - `sm_attachments`
   - `sm_comments`
-- La vista integrada del portal cliente sigue resolviendo ownership y descargas sobre datos ya persistidos; no introduce columnas nuevas ni rutas paralelas de persistencia.
+- La vista integrada del Client Portal sigue resolviendo ownership y descargas sobre datos ya persistidos; no introduce columnas nuevas ni rutas paralelas de persistencia.
 
 ## Nota Fase 26B. Hardening arquitectural pre-SaaS
 

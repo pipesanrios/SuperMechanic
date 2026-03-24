@@ -53,7 +53,7 @@ No puede:
 
 Client
 
-Acceso limitado al portal cliente.
+Acceso limitado al Client Portal.
 
 Puede:
 
@@ -136,7 +136,7 @@ Cliente visible
 
 is_client_visible = 1
 
-Disponible en portal cliente.
+Disponible en Client Portal.
 
 --------------------------------------------------
 
@@ -208,10 +208,10 @@ subir documento
 cambiar estado de proceso
 
 ==================================================
-PORTAL CLIENTE
+Client Portal
 ==================================================
 
-El portal cliente es el punto más sensible.
+El Client Portal es el punto más sensible.
 
 Siempre validar:
 

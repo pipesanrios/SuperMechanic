@@ -149,7 +149,7 @@ Estado:
 - implementado
 
 Riesgos o puntos sensibles:
-- cualquier cambio impacta ownership, procesos, quotes, invoices y portal cliente
+- cualquier cambio impacta ownership, procesos, quotes, invoices y Client Portal
 - no romper relacion con `sm_client_id` cuando el frontend cliente depende de ese contexto
 
 Cambios tecnicos recientes confirmados:
@@ -458,22 +458,22 @@ Estado:
 Riesgos o puntos sensibles:
 - `Dashboard_Service` es transversal y de alto impacto
 - aunque ya no ejecuta SQL directo, sigue siendo una capa sensible por agregacion de multiples modulos
-- cualquier error afecta la experiencia operativa y el portal cliente
+- cualquier error afecta la experiencia operativa y el Client Portal
 
 Cambios tecnicos recientes confirmados:
 - `Dashboard_Service` delega conteos, agrupaciones, actividad reciente y procesos de mecanico a `Process_Service`
-- en Fase 14, la actividad reciente del portal cliente queda filtrada por visibilidad del log (`customer_visible`) para no exponer mensajes internos
+- en Fase 14, la actividad reciente del Client Portal queda filtrada por visibilidad del log (`customer_visible`) para no exponer mensajes internos
 - `Process_Service` expone wrappers orientados a dashboard
 - `Process_Repository` absorbe las consultas SQL reutilizadas por dashboards sin cambiar schema
 - `Client_Dashboard_Controller` ya no expone `file_url` directo para adjuntos visibles; usa `Download_Service` para enlaces protegidos
-- la auditoria pre-Fase 12 confirma compatibilidad funcional minima de admin dashboard, mechanic dashboard y client dashboard sobre esa arquitectura
+- la auditoria pre-Fase 12 confirma compatibilidad funcional minima de admin dashboard, Mechanic Panel y client dashboard sobre esa arquitectura
 - en Fase 17, `Dashboard_Service` deja de resolver ownership por cuenta propia y delega validaciones de cliente/vehiculo/proceso a `Access_Control_Service`
 - en Fase 18, `Mechanic_Dashboard_Controller` pasa a exponer listado, detalle y acciones operativas minimas para procesos accesibles de mecanico
 - en Fase 18, el portal mecanico reutiliza `Process_Service` para cambios de paso/estado, `Comment_Service` para notas internas y `Process_Timeline_Service` para timeline consolidada
-- en Fase 20, `Dashboard_Service` agrega decoracion reusable de estados derivados de proceso para portal cliente y portal mecanico
+- en Fase 20, `Dashboard_Service` agrega decoracion reusable de estados derivados de proceso para Client Portal y portal mecanico
 - en Fase 24, `Admin_Dashboard_Controller`, `Client_Dashboard_Controller` y `Mechanic_Dashboard_Controller` modernizan markup y jerarquia visual sin tocar logica de negocio
 - en Fase 24, la capa visual pasa a depender del wiring comun de `Assets` en lugar de assets sueltos no registrados
-- en Fase 26B, `Client_Process_View_Service` extrae agregacion de lectura del portal cliente sin mover SQL fuera de repositories ni duplicar ownership
+- en Fase 26B, `Client_Process_View_Service` extrae agregacion de lectura del Client Portal sin mover SQL fuera de repositories ni duplicar ownership
 
 --------------------------------------------------
 
@@ -553,7 +553,7 @@ Estado:
 
 Riesgos o puntos sensibles:
 - depende del contexto del proceso en admin
-- cualquier cambio en balance o estados impacta pagos y portal cliente
+- cualquier cambio en balance o estados impacta pagos y Client Portal
 - la salida PDF depende de un motor compatible instalado en el entorno
 - el flujo `create_invoice_from_quote()` depende de mantener coordinacion atomica entre invoice e items aunque la transaccion ya este encapsulada en `Invoice_Transaction_Repository`
 - la consistencia documental del flujo quote -> invoice -> payment debe preservarse al ampliar timeline o reportes
@@ -1037,12 +1037,12 @@ Riesgos o puntos sensibles:
 - evitar dependencias circulares con services de dominio
 - no volver a mover ownership al dashboard o a shortcodes cliente
 - mantener alineado el acceso documental con esta politica comun
-## Actualizacion Fase 23. Portal cliente premium con acciones reales
+## Actualizacion Fase 23. Client Portal premium con acciones reales
 
 ### Dashboard / Client Portal
 - Cambios tecnicos recientes confirmados:
   - `Client_Dashboard_Controller` agrega detalle integrado de proceso para cliente con resumen operativo y financiero
-  - el portal cliente ahora permite registrar comentarios de proceso reutilizando `Comment_Service`
+  - el Client Portal ahora permite registrar comentarios de proceso reutilizando `Comment_Service`
   - el detalle integrado reutiliza `Attachment_Service`, `Process_Timeline_Service`, `Quote_Service` e `Invoice_Service` sin mover logica de negocio a controllers
   - `Client_Invoice_Shortcodes` expone descarga segura de `payment_receipt`
   - `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` refuerzan accesos a detalle y documentos seguros

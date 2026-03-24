@@ -12,7 +12,7 @@ Super Mechanic es un plugin WordPress modular para gestión de:
 - trámites
 - cotizaciones
 - facturación
-- portal cliente
+- Client Portal
 
 El sistema está diseñado para evolucionar hacia una base pre-SaaS sin romper compatibilidad WordPress.
 
@@ -120,7 +120,7 @@ Adjuntos, timeline documental y archivos visibles/internos.
 Comentarios, notificaciones y eventos operativos.
 
 ### Dashboard
-Superficies admin, portal cliente y portal mecánico.
+Superficies admin, Client Portal y Mechanic Panel.
 
 ### Reports
 Reportes operativos y financieros.
@@ -233,8 +233,8 @@ Reglas:
 ### Hitos recientes
 - reports consolidado
 - ownership centralizado
-- portal cliente operativo
-- portal mecánico operativo
+- Client Portal operativo
+- Mechanic Panel operativo
 - `payment_receipt` lógico por `payment_id`
 - panel admin de shortcodes
 - scripts locales de validación técnica

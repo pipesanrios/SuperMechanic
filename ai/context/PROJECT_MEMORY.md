@@ -1,139 +1,38 @@
-PROJECT MEMORY — SUPER MECHANIC (OPTIMIZADO)
+# PROJECT MEMORY — SUPER MECHANIC
 
-Memoria estructural del proyecto para reconstrucción rápida por IA.
+Propósito:
+Registrar decisiones técnicas y cambios relevantes.
 
-No reemplaza documentación técnica.
+---
 
-==================================================
-PROYECTO
-==================================================
+## Decisiones clave
 
-Super Mechanic
-
-Plugin WordPress para gestión de:
-
-- talleres
-- concesionarios
-- vehículos
-- procesos
-- mantenimiento
-- trámites
-- cotizaciones
-- facturación
-- portal cliente
-
-==================================================
-STACK
-==================================================
-
-PHP
-WordPress Plugin Architecture
-MySQL
-VSCode + Codex / ChatGPT
-
-==================================================
-ARQUITECTURA BASE
-==================================================
-
-Patrón:
-
-Controller → Service → Repository
-
-Reglas:
-
+- Arquitectura fija: Controller → Service → Repository
 - SQL solo en Repository
-- usar `includes/*`
-- no usar `includes/modules/*`
-- no duplicar lógica
+- Shortcodes como frontend cliente
+- Download_Service obligatorio para documentos
 
-==================================================
-MÓDULOS CLAVE
-==================================================
+---
 
-clients
-vehicles
-relations
-flows
-processes
-maintenance
-dashboard
-reports
-quotes
-invoices
-payments
-attachments
-communication
+## Cambios recientes
 
-==================================================
-FLUJO CENTRAL
-==================================================
+- Fase 26: Panel de shortcodes implementado
+- Limpieza de prompts y contexto IA
+- Reducción de redundancia documental
 
-Cliente
-→ Vehículo
-→ Proceso
-→ Maintenance / Quote / Invoice / Payment
+---
 
-Elementos asociados:
+## Deuda actual
 
-- attachments
-- comments
-- notifications
-- timeline
+- UX incompleta en admin
+- Mechanic Panel inconsistente
+- Acciones incompletas (botones no funcionales)
+- Sistema de pagos pendiente de validación
 
-==================================================
-ESTADO ACTUAL
-==================================================
+---
 
-plugin: 0.1.0  
-schema: 1.9.0  
+## Próximo foco
 
-Fases consolidadas:
-12A–26B
-
-Ver detalle:
-→ docs/CURRENT_STATE.md
-
-==================================================
-PUNTOS CLAVE DEL SISTEMA
-==================================================
-
-- portal cliente operativo
-- portal mecánico operativo
-- ownership centralizado
-- documentos seguros
-- workflow configurable
-- UI moderna base
-- scripts locales de validación
-- hardening pre-SaaS aplicado
-
-==================================================
-DEUDA TÉCNICA ACTIVA
-==================================================
-
-- REST API no activa
-- placeholders en core (rest-api, hooks, post-types)
-- PDF admin fuera de Download_Service
-- sin CI/CD real
-- sin pruebas runtime automatizadas
-
-==================================================
-FUENTE DE VERDAD
-==================================================
-
-1. código (`includes/*`)
-2. docs técnicos
-3. contextos AI
-
-==================================================
-REGLA ANTI-ALUCINACIÓN
-==================================================
-
-Antes de implementar:
-
-- verificar archivo
-- verificar clase
-- verificar tabla
-- verificar módulo activo
-
-Si no existe → indicarlo
-No asumir implementaciones
+- API base (Fase 27A)
+- Mejora UX
+- Preparación SaaS (tenancy)

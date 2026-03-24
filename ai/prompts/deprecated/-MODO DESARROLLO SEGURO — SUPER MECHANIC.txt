@@ -130,5 +130,5 @@ NOTAS DE ESTADO ACTUAL
 - `super-mechanic.php` y `SM_PLUGIN_VERSION` siguen en `0.1.0`
 - `Schema::get_schema_version()` sigue en `1.9.0`
 - `reports` ya es módulo activo real
-- el portal cliente está operativo con descargas seguras, timeline, comentarios y notificaciones
+- el Client Portal está operativo con descargas seguras, timeline, comentarios y notificaciones
 - `includes/class-rest-api.php`, `includes/class-assets.php`, `includes/class-hooks.php` y `includes/class-post-types.php` deben tratarse como placeholders/no activos

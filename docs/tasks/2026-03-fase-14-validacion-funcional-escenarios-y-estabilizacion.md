@@ -8,8 +8,8 @@
 
 ## 2. Alcance ejecutado
 
-- auditoria de escenarios prioritarios de procesos, invoices, payments, descarga segura, portal cliente, timeline y notifications
-- ajuste minimo de seguridad funcional en actividad reciente del portal cliente
+- auditoria de escenarios prioritarios de procesos, invoices, payments, descarga segura, Client Portal, timeline y notifications
+- ajuste minimo de seguridad funcional en actividad reciente del Client Portal
 - actualizacion documental del estado real de escenarios
 - endurecimiento transaccional minimo de `create_quote_from_maintenance()`
 - alineacion de tipado de eventos de invoice en timeline consolidada
@@ -44,7 +44,7 @@
 - el escenario de aprobacion de quote estaba desalineado: la aprobacion real pertenece al cliente con acceso a una quote enviada
 - la timeline real integra mas fuentes que `sm_process_step_logs`
 - la generacion automatica de quotes desde maintenance tenia fragilidad real y un bug de contrato en el retorno esperado por admin
-- la actividad reciente del portal cliente estaba leyendo logs de proceso sin filtrar `customer_visible`
+- la actividad reciente del Client Portal estaba leyendo logs de proceso sin filtrar `customer_visible`
 - la aprobacion de quote ya estaba cableada para cliente autenticado mediante shortcode
 
 ## 6. Correccion aplicada

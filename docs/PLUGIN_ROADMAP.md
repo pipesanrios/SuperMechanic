@@ -22,7 +22,7 @@ Super Mechanic es un sistema modular para:
 - trámites administrativos
 - cotizaciones
 - facturación
-- portal cliente
+- Client Portal
 
 El plugin está diseñado para operar completamente
 dentro del ecosistema WordPress.
@@ -52,7 +52,7 @@ implementado
 Pagos:
 implementado
 
-Portal cliente:
+Client Portal:
 implementado
 
 Sistema documental:
@@ -70,7 +70,7 @@ implementada en su base actual
 Control de acceso y ownership:
 implementado
 
-Portal mecánico:
+Mechanic Panel:
 implementado
 
 Workflow configurable avanzado:
@@ -80,7 +80,7 @@ Hardening arquitectural pre-SaaS:
 implementado como fase puente previa a API / integraciones externas
 
 ==================================================
-FASE 11 — PORTAL CLIENTE
+FASE 11 — Client Portal
 ==================================================
 
 Objetivo:
@@ -261,7 +261,7 @@ Estado real ya confirmado en código y docs:
 - Fase 15: pagos consolidados sobre `sm_payments` como fuente primaria de verdad financiera
 - Fase 16: automatizaciones y eventos operativos implementados
 - Fase 17: ownership, visibilidad y access control centralizados
-- Fase 18: portal mecánico real implementado
+- Fase 18: Mechanic Panel real implementado
 - Fase 19: workflow operativo lineal endurecido por `step_order`
 - Fase 20: automatización documental lógica y estados derivados implementados
 

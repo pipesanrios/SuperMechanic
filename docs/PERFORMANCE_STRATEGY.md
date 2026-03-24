@@ -21,7 +21,7 @@ El sistema debe poder manejar:
 25 000 cotizaciones
 25 000 facturas
 
-sin degradación severa del backend ni del portal cliente.
+sin degradación severa del backend ni del Client Portal.
 
 ==================================================
 PRINCIPIOS DE RENDIMIENTO
@@ -228,10 +228,10 @@ Nunca exponer:
 file_url directo.
 
 ==================================================
-REGLA 7 — PORTAL CLIENTE
+REGLA 7 — Client Portal
 ==================================================
 
-El portal cliente debe evitar cargar todo.
+El Client Portal debe evitar cargar todo.
 
 Ejemplo:
 

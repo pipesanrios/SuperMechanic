@@ -1,6 +1,6 @@
 <?php
 /**
- * Mechanic dashboard placeholder.
+ * Mechanic Panel placeholder.
  *
  * @package Super_Mechanic
  */

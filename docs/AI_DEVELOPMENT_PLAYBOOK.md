@@ -238,7 +238,7 @@ Fase 17
 control de acceso, visibilidad y ownership
 
 Fase 18
-portal mecánico real
+Mechanic Panel real
 
 Fase 19
 workflow operativo configurable avanzado

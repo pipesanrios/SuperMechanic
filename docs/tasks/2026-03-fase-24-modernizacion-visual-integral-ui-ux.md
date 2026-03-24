@@ -14,7 +14,7 @@
   - `assets/css/mechanic.css`
 - modernizacion progresiva del admin dashboard
 - modernizacion progresiva de reportes admin
-- modernizacion progresiva del portal cliente
+- modernizacion progresiva del Client Portal
 - modernizacion progresiva del portal mecanico
 - mejora visual de shortcodes cliente de quotes e invoices
 

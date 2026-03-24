@@ -71,7 +71,7 @@ class Client_Dashboard_Controller {
 			echo '<p class="sm-client-meta">' . esc_html( $profile['email'] ) . '</p>';
 		}
 		echo '</div>';
-		echo '<span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Portal cliente', 'super-mechanic' ) . '</span>';
+		echo '<span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Client Portal', 'super-mechanic' ) . '</span>';
 		echo '</div>';
 		if ( '' !== $comment_notice ) {
 			echo wp_kses_post( $comment_notice );

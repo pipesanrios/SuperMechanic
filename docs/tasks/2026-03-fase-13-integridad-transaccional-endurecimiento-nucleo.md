@@ -22,7 +22,7 @@
 - cambios de schema
 - indices nuevos
 - REST
-- portal cliente
+- Client Portal
 - reports
 - PDFs
 - WooCommerce

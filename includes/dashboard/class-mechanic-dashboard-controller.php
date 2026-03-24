@@ -1,6 +1,6 @@
 <?php
 /**
- * Mechanic dashboard controller.
+ * Mechanic Panel controller.
  *
  * @package Super_Mechanic
  */
@@ -83,7 +83,7 @@ class Mechanic_Dashboard_Controller {
 		echo '<div class="wrap sm-admin-shell sm-mechanic-shell sm-mechanic-dashboard">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Portal mecánico', 'super-mechanic' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Mechanic Panel', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Trabaja solo sobre procesos asignados o permitidos por la política actual del sistema.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Operación mecánica', 'super-mechanic' ) . '</span>';
@@ -196,7 +196,7 @@ class Mechanic_Dashboard_Controller {
 
 		if ( empty( $process ) ) {
 			$this->render_notice( __( 'No tienes acceso a este proceso o el proceso no existe.', 'super-mechanic' ), 'error' );
-			echo '<p><a href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Volver al portal mecánico', 'super-mechanic' ) . '</a></p>';
+			echo '<p><a href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Volver al Mechanic Panel', 'super-mechanic' ) . '</a></p>';
 			return;
 		}
 
@@ -615,7 +615,7 @@ class Mechanic_Dashboard_Controller {
 
 	protected function ensure_permissions() {
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para usar el portal mecánico.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'No tienes permisos suficientes para usar el Mechanic Panel.', 'super-mechanic' ) );
 		}
 	}
 

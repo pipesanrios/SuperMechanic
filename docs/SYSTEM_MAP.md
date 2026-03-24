@@ -68,13 +68,13 @@
 - Processes -> orquesta Maintenance, Pre-Delivery, Paperwork, Quotes, Invoices, Attachments y Communication.
 - Maintenance -> alimenta Quotes.
 - Quotes -> alimenta Invoices y Documents.
-- Invoices -> alimenta Payments, Documents y portal cliente.
+- Invoices -> alimenta Payments, Documents y Client Portal.
 - Attachments -> alimenta timeline y visibilidad documental.
 - Documents / Secure Downloads -> `Document_Service` resuelve tipo, acceso y payload; `PDF_Service` genera PDFs; `Download_Service` sirve la respuesta protegida.
 - Communication -> alimenta timeline, notificaciones y feed cliente/admin.
 - Dashboards -> consumen Clients, Vehicles, Processes, Quotes, Invoices, Payments, Attachments y Communication.
 - Dashboards -> consultan agregados de procesos via `Process_Service` y `Process_Repository`, sin SQL directo en `Dashboard_Service`.
-- Access Control -> centraliza ownership y visibilidad para dashboard, portal cliente, communication y capa documental.
+- Access Control -> centraliza ownership y visibilidad para dashboard, Client Portal, communication y capa documental.
 
 ## Tablas por modulo
 
@@ -268,7 +268,7 @@
   - ultimos procesos
   - ultimos vehiculos
   - ultimos clientes
-- Mechanic dashboard:
+- Mechanic Panel:
   - activos asignados
   - procesos activos
   - procesos esperando aprobacion
@@ -416,10 +416,10 @@
 4. Solo una quote aprobada y no convertida puede generar invoice en el estado actual.
 5. `Invoice_Service` registra pagos y recalcula balance.
 6. El registro y la edicion de pagos validan que el monto no exceda el saldo pendiente disponible de la invoice.
-7. Quotes e invoices pueden descargarse como PDF desde admin y portal cliente cuando hay motor PDF disponible.
+7. Quotes e invoices pueden descargarse como PDF desde admin y Client Portal cuando hay motor PDF disponible.
 8. La generacion automatica maintenance -> quote usa persistencia atomica para quote e items.
 
-### Flujo de portal cliente
+### Flujo de Client Portal
 
 1. Se resuelve cliente por `sm_client_id` y ownership.
 2. El cliente consulta dashboard.
@@ -630,7 +630,7 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
 - Riesgos arquitectonicos actualizados:
   - el modulo `Reports` sigue siendo admin-only y no debe absorber logica de dashboard operativo vivo
   - los derivados operativos del modulo deben seguir siendo lectura agregada y no una segunda fuente de verdad
-## Actualizacion Fase 23. Portal cliente premium con acciones reales
+## Actualizacion Fase 23. Client Portal premium con acciones reales
 
 - Integracion real consolidada:
   - `Client_Dashboard_Controller` ahora puede renderizar un detalle integrado de proceso para cliente desde el portal principal

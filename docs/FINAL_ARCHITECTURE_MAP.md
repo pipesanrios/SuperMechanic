@@ -152,8 +152,8 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - Avance real confirmado:
   - `Dashboard_Service` opera como capa agregadora sin SQL directo
   - la persistencia usada por dashboards se concentra en `Process_Repository` via `Process_Service`
-  - admin dashboard, mechanic dashboard y client dashboard conservaron compatibilidad funcional
-  - en Fase 26B, `Client_Process_View_Service` extrae parte de la agregacion pesada del portal cliente sin convertir el controller en backend de negocio
+  - admin dashboard, Mechanic Panel y client dashboard conservaron compatibilidad funcional
+  - en Fase 26B, `Client_Process_View_Service` extrae parte de la agregacion pesada del Client Portal sin convertir el controller en backend de negocio
   - en Fase 18, `Mechanic_Dashboard_Controller` agrega un portal operativo real para mecanicos sin duplicar la arquitectura del admin
   - el portal mecanico reutiliza timeline, comments, attachments y mantenimiento en modo lectura, y concentra acciones minimas en `Process_Service` y `Comment_Service`
   - en Fase 24, el admin dashboard y el portal mecanico pasan a reutilizar una capa visual comun sin alterar la logica operativa
@@ -224,7 +224,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
   - `Document_Service` reusable para resolver tipo documental, acceso y payload de descarga
   - `PDF_Service` reusable y especializado para invoices y quotes
   - descarga admin segura de invoice PDF y quote PDF
-  - `Download_Service` reusable para entry points y descargas seguras en portal cliente
+  - `Download_Service` reusable para entry points y descargas seguras en Client Portal
   - proteccion de ownership y visibilidad antes de servir adjuntos cliente
   - dashboard cliente y shortcode de documentos del proceso ya no exponen `file_url` directo para adjuntos protegidos
   - en Fase 17, el acceso documental sigue alineado porque `Document_Service` delega sobre `Invoice_Service`, `Quote_Service` y `Attachment_Service`, ya endurecidos por la capa central
@@ -263,7 +263,7 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - Avance real confirmado:
   - resuelve `client_id` por usuario WordPress
   - valida acceso a `vehicle`, `process`, `quote`, `invoice` y `attachment`
-  - permite reutilizacion desde dashboard, communication y portal cliente sin duplicar ownership
+  - permite reutilizacion desde dashboard, communication y Client Portal sin duplicar ownership
 
 ### REST API futura
 
@@ -313,8 +313,8 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - Evitar que `includes/modules/*` y `includes/*` evolucionen en paralelo sin una migracion explicita.
 - Solo considerar un modulo como implementado cuando este conectado al bootstrap real.
 - No considerar REST ni WooCommerce como integrados mientras no formen parte del flujo principal cableado por `Plugin`.
-- Mantener centralizadas las descargas protegidas para no reintroducir enlaces publicos inseguros en portal cliente.
-- Fase 14 endurece la actividad reciente del portal cliente para reutilizar solo logs de proceso marcados como visibles al cliente.
+- Mantener centralizadas las descargas protegidas para no reintroducir enlaces publicos inseguros en Client Portal.
+- Fase 14 endurece la actividad reciente del Client Portal para reutilizar solo logs de proceso marcados como visibles al cliente.
 - Fase 14B agrega `Quote_Transaction_Repository` como frontera transaccional minima del flujo maintenance -> quote.
 - La timeline consolidada mantiene composicion multi-modulo, pero ahora tipa invoices segun su estado real.
 - Fase 16 amplía el catalogo real de eventos internos sin introducir cron, colas ni integraciones externas, y mantiene a `Notification_Service` como consumidor principal del bus.
@@ -430,11 +430,11 @@ Super Mechanic debe consolidarse como un plugin WordPress modular donde `Plugin`
 - la base de automatizacion de Fase 25 cubre solo validacion tecnica minima local; todavia no sustituye pruebas funcionales ni CI real
 - la Fase 26 introduce metadata admin para documentar shortcodes activos; si se agregan nuevos shortcodes en el futuro, esa capa debe mantenerse alineada con el bootstrap real
 - las rutas admin de PDF de quotes e invoices siguen como excepcion controlada por nonce/capability y aun no se unifican con `Download_Service`
-## Actualizacion Fase 23. Portal cliente premium con acciones reales
+## Actualizacion Fase 23. Client Portal premium con acciones reales
 
 ### Client Portal
 - Avance real confirmado:
-  - el portal cliente gana una vista integrada de detalle de proceso desde su dashboard principal
+  - el Client Portal gana una vista integrada de detalle de proceso desde su dashboard principal
   - el detalle del proceso reutiliza services existentes para timeline, comentarios, documentos, quotes e invoices relacionadas
   - el cliente puede crear comentarios reales del proceso sin introducir un sistema paralelo de mensajeria
   - invoices y pagos exponen descarga segura de `payment_receipt` mediante la capa documental comun

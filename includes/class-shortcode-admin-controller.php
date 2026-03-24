@@ -40,7 +40,7 @@ class Shortcode_Admin_Controller {
 
 		echo '<section class="sm-section">';
 		echo '<div class="sm-grid sm-grid-cards">';
-		echo $this->render_kpi_card( __( 'Cliente', 'super-mechanic' ), count( $groups['client'] ), __( 'Shortcodes activos para portal cliente y áreas autenticadas.', 'super-mechanic' ) );
+		echo $this->render_kpi_card( __( 'Cliente', 'super-mechanic' ), count( $groups['client'] ), __( 'Shortcodes activos para Client Portal y áreas autenticadas.', 'super-mechanic' ) );
 		echo $this->render_kpi_card( __( 'Mecánico', 'super-mechanic' ), count( $groups['mechanic'] ), __( 'Hoy no hay shortcodes mecánicos activos en el bootstrap real.', 'super-mechanic' ) );
 		echo $this->render_kpi_card( __( 'General', 'super-mechanic' ), count( $groups['general'] ), __( 'Espacio reservado para shortcodes públicos o neutros futuros.', 'super-mechanic' ) );
 		echo '</div>';
@@ -59,7 +59,7 @@ class Shortcode_Admin_Controller {
 		$this->render_group_section(
 			'client',
 			__( 'Shortcodes de cliente', 'super-mechanic' ),
-			__( 'Pensados para portal cliente, páginas privadas y vistas con ownership validado.', 'super-mechanic' ),
+			__( 'Pensados para Client Portal, páginas privadas y vistas con ownership validado.', 'super-mechanic' ),
 			$groups['client']
 		);
 		$this->render_group_section(
@@ -242,7 +242,7 @@ class Shortcode_Admin_Controller {
 				'parameters'          => array(),
 				'example'             => '[sm_client_dashboard]',
 				'recommended_context' => __( 'Cliente', 'super-mechanic' ),
-				'usage_scope'         => __( 'Página principal del portal cliente o área privada autenticada.', 'super-mechanic' ),
+				'usage_scope'         => __( 'Página principal del Client Portal o área privada autenticada.', 'super-mechanic' ),
 				'source'              => 'includes/dashboard/class-client-dashboard-shortcodes.php',
 			),
 			array(
@@ -252,7 +252,7 @@ class Shortcode_Admin_Controller {
 				'parameters'          => array(),
 				'example'             => '[sm_client_vehicles]',
 				'recommended_context' => __( 'Cliente', 'super-mechanic' ),
-				'usage_scope'         => __( 'Sección privada de vehículos dentro del portal cliente.', 'super-mechanic' ),
+				'usage_scope'         => __( 'Sección privada de vehículos dentro del Client Portal.', 'super-mechanic' ),
 				'source'              => 'includes/dashboard/class-client-dashboard-shortcodes.php',
 			),
 			array(
@@ -274,7 +274,7 @@ class Shortcode_Admin_Controller {
 				),
 				'example'             => '[sm_client_process_documents process_id="123"]',
 				'recommended_context' => __( 'Cliente', 'super-mechanic' ),
-				'usage_scope'         => __( 'Detalle privado de proceso o landing interna del portal cliente.', 'super-mechanic' ),
+				'usage_scope'         => __( 'Detalle privado de proceso o landing interna del Client Portal.', 'super-mechanic' ),
 				'source'              => 'includes/attachments/class-client-attachment-shortcodes.php',
 			),
 			array(
@@ -296,7 +296,7 @@ class Shortcode_Admin_Controller {
 				'parameters'          => array(),
 				'example'             => '[sm_client_quotes]',
 				'recommended_context' => __( 'Cliente', 'super-mechanic' ),
-				'usage_scope'         => __( 'Sección privada de cotizaciones del portal cliente.', 'super-mechanic' ),
+				'usage_scope'         => __( 'Sección privada de cotizaciones del Client Portal.', 'super-mechanic' ),
 				'source'              => 'includes/quotes/class-client-quote-shortcodes.php',
 			),
 			array(
@@ -328,7 +328,7 @@ class Shortcode_Admin_Controller {
 				'parameters'          => array(),
 				'example'             => '[sm_client_invoices]',
 				'recommended_context' => __( 'Cliente', 'super-mechanic' ),
-				'usage_scope'         => __( 'Sección privada de facturas dentro del portal cliente.', 'super-mechanic' ),
+				'usage_scope'         => __( 'Sección privada de facturas dentro del Client Portal.', 'super-mechanic' ),
 				'source'              => 'includes/invoices/class-client-invoice-shortcodes.php',
 			),
 			array(
@@ -352,7 +352,7 @@ class Shortcode_Admin_Controller {
 				),
 				'example'             => '[sm_client_process_comments process_id="123"]',
 				'recommended_context' => __( 'Cliente', 'super-mechanic' ),
-				'usage_scope'         => __( 'Detalle privado del proceso dentro del portal cliente.', 'super-mechanic' ),
+				'usage_scope'         => __( 'Detalle privado del proceso dentro del Client Portal.', 'super-mechanic' ),
 				'source'              => 'includes/communication/class-client-comment-shortcodes.php',
 			),
 			array(

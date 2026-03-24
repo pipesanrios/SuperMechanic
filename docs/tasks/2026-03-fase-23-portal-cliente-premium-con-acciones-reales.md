@@ -1,4 +1,4 @@
-# Fase 23. Portal cliente premium con acciones reales
+# Fase 23. Client Portal premium con acciones reales
 
 - Estado: completado en su base operativa
 - Fecha: 2026-03-23

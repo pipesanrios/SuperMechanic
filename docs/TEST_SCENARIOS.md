@@ -215,7 +215,7 @@ Estado Fase 14: OK
 Flujo:
 
 Cliente
-→ accede portal cliente
+→ accede Client Portal
 → descarga documento
 
 Resultado esperado:
@@ -225,7 +225,7 @@ Resultado esperado:
 - no exposición directa de file_url
 
 ==================================================
-ESCENARIO 13 — PORTAL CLIENTE
+ESCENARIO 13 — Client Portal
 ==================================================
 
 Estado Fase 14: PARCIAL
@@ -249,7 +249,7 @@ Sin acceso a datos de otros clientes.
 Observación Fase 14:
 
 - la visibilidad real se distribuye entre dashboard y shortcodes especializados
-- la actividad reciente del portal cliente debe respetar `customer_visible` en logs de proceso
+- la actividad reciente del Client Portal debe respetar `customer_visible` en logs de proceso
 
 ==================================================
 ESCENARIO 14 — TIMELINE DEL PROCESO
@@ -296,7 +296,7 @@ Observación Fase 16:
 - los eventos de creacion/cancelacion/finalizacion y de cobranza `paid` se despachan solo despues de persistencia exitosa
 
 ==================================================
-ESCENARIO 16 — PORTAL MECÁNICO OPERATIVO
+ESCENARIO 16 — Mechanic Panel OPERATIVO
 ==================================================
 
 Estado Fase 18: OK
@@ -387,7 +387,7 @@ y el comportamiento real del código:
 
 la fuente de verdad es el código real del plugin.
 ==================================================
-ESCENARIO 18 — PORTAL CLIENTE PREMIUM OPERATIVO
+ESCENARIO 18 — Client Portal PREMIUM OPERATIVO
 ==================================================
 
 Estado Fase 23: OK

@@ -130,5 +130,5 @@ No implementar todavia:
 - No hubo cambios de schema.
 - Se ajusto `includes/dashboard/class-client-dashboard-controller.php` para dejar de renderizar `file_url` directo en documentos del proceso.
 - Se ajusto `includes/attachments/class-client-attachment-shortcodes.php` para reutilizar la misma ruta segura de descarga y no renderizar enlaces cuando el adjunto no sea descargable para cliente.
-- `includes/attachments/class-attachment-service.php` incorpora helper reusable para decidir si un adjunto puede exponerse como descargable en portal cliente.
-- Desviacion positiva respecto al alcance original: la deuda de enlaces documentales inseguros en portal cliente queda cerrada sin crear una segunda arquitectura de descargas.
+- `includes/attachments/class-attachment-service.php` incorpora helper reusable para decidir si un adjunto puede exponerse como descargable en Client Portal.
+- Desviacion positiva respecto al alcance original: la deuda de enlaces documentales inseguros en Client Portal queda cerrada sin crear una segunda arquitectura de descargas.

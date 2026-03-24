@@ -16,7 +16,7 @@ Tipo:
 Plugin WordPress
 
 Propósito:
-sistema modular para gestión de talleres, concesionarios, procesos de vehículos, mantenimiento, trámites, cotizaciones, facturación y portal cliente.
+sistema modular para gestión de talleres, concesionarios, procesos de vehículos, mantenimiento, trámites, cotizaciones, facturación y Client Portal.
 
 ==================================================
 ARQUITECTURA ACTIVA
@@ -131,7 +131,7 @@ Actualmente solo existen shortcodes de cliente:
 
 No existen todavía shortcodes activos para:
 
-- portal mecánico
+- Mechanic Panel
 - contexto público/general
 
 Fuente de verdad:
@@ -190,7 +190,7 @@ Fases consolidadas:
 
 Resumen de hitos recientes:
 - reports consolidado y avanzado
-- portal cliente y mecánico operativos
+- Client Portal y mecánico operativos
 - ownership centralizado
 - workflow endurecido
 - documentos seguros y `payment_receipt`

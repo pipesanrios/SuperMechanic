@@ -171,7 +171,7 @@ verificar impacto en:
 - Dashboard
 - Shortcodes
 - REST API
-- Portal cliente
+- Client Portal
 
 ==================================================
 RELEASE WORKFLOW
