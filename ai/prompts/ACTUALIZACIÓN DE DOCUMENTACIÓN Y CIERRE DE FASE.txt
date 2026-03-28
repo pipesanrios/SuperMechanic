@@ -1,67 +1,139 @@
 CIERRE DE FASE — SUPER MECHANIC (ULTRA)
 
 Se ha completado una fase, subfase o bloque de trabajo.
-
 El código ya fue implementado.
 
 ==================================================
 OBJETIVO
 ==================================================
 
-- consolidar documentación mínima necesaria
-- mantener coherencia código ↔ docs ↔ contextos
+- consolidar la documentación mínima necesaria
+- mantener coherencia código ↔ docs ↔ contextos ↔ prompts
 - registrar deuda técnica
 - evitar duplicación o sobre-documentación
+- detectar y corregir desalineaciones acumuladas
+- mantener continuidad completa del roadmap desde Fase 0
+
+==================================================
+FUENTE DE VERDAD
+==================================================
+
+Usar en este orden:
+
+1. código real (`includes/*`, bootstrap, schema, settings, docs/tasks si aplican)
+2. documentación técnica activa
+3. contextos AI
+4. prompts
+
+Si hay conflicto:
+→ manda el código real
 
 ==================================================
 REGLAS
 ==================================================
 
 - no reimplementar nada
-- no ampliar alcance
+- no ampliar alcance funcional
 - no rehacer todo el proyecto
 - usar código real como fuente de verdad
 - actualizar SOLO lo afectado
+- pero AUDITAR también documentos relacionados que puedan haber quedado desalineados
 
 ==================================================
-VALIDACIÓN PREVIA
+VALIDACIÓN PREVIA OBLIGATORIA
 ==================================================
 
-Debes verificar:
+Debes verificar y reportar explícitamente:
 
 - archivos realmente modificados
 - archivos nuevos (si hay)
+- archivos que ya venían modificados y no se tocaron (si aplica)
 - que PHP no tiene errores de sintaxis
 - que bootstrap no se rompió (mínimo sintáctico)
 - qué validaciones se ejecutaron
 - qué validaciones no se ejecutaron
+- si hubo validación runtime WordPress real o no
 
-Si no probaste en WordPress runtime:
+Si no probaste en runtime real:
 → decirlo explícitamente
+
+==================================================
+AUDITORÍA DOCUMENTAL OBLIGATORIA
+==================================================
+
+Antes de actualizar, revisar si hay desalineaciones reales en:
+
+- ARCHITECTURE.md
+- docs/CURRENT_STATE.md
+- docs/SYSTEM_MAP.md
+- docs/MODULE_REGISTRY.md
+- docs/DATABASE_MAP.md
+- docs/TEST_SCENARIOS.md
+- docs/PLUGIN_ROADMAP.md
+- docs/tasks/<task>.md (si existe o si hace falta)
+- .vscode/AI_CONTEXT.md
+- ai/context/* (solo si aplica)
+- prompts base / prompt master (solo si aplica)
+
+Debes comprobar específicamente:
+
+- si la estructura real coincide con ARCHITECTURE.md
+- si el estado actual coincide con CURRENT_STATE.md
+- si los módulos activos coinciden con MODULE_REGISTRY.md
+- si las tablas/versiones reales coinciden con DATABASE_MAP.md
+- si el roadmap (docs/PLUGIN_ROADMAP.md) refleja correctamente la fase actual
+- si la numeración de fases es continua (sin saltos ni duplicados)
+- si las subfases (A/B/C) están correctamente ubicadas
+- si hay narrativa vieja o historia mezclada con estado actual
+- si hay fases mal marcadas (pasadas o futuras)
+- si hay schema/version/plugin version desactualizados en docs o prompts
+
+Si detectas desalineación:
+→ corregirla en esta fase de cierre SI pertenece al alcance documental afectado
+→ si no, dejarla registrada como deuda técnica
+
+==================================================
+ROADMAP Y FASES
+==================================================
+
+El archivo docs/PLUGIN_ROADMAP.md es la referencia oficial de continuidad del proyecto.
+
+Debes verificar:
+
+- que la fase recién completada está registrada correctamente
+- que no rompe la secuencia histórica
+- que no hay fases omitidas
+- que no hay duplicaciones
+- que las subfases están correctamente ubicadas
+- que el flujo desde Fase 0 sigue coherente
+
+Debe contemplar:
+
+- Fase 0 — planificación / arquitectura inicial
+- Fase 1 — implementación base
+- fases intermedias reales
+- subfases (A/B/C)
+- fase actual recién cerrada
+
+No limitar la trazabilidad a fases antiguas como 12A–26B.
 
 ==================================================
 ACTUALIZACIÓN DOCUMENTAL
 ==================================================
-Revisa si todos los cambios si han sido actualizados y de faltar
 
-Actualizar SOLO si aplica:
+Actualizar SOLO si aplica o si encontraste desalineación real:
 
-- ARCHITECTURE.md (cambios estructurales ) 
-- docs/CURRENT_STATE.md (estado o fase)
-- docs/SYSTEM_MAP.md (si cambian módulos)
-- docs/MODULE_REGISTRY.md (si cambian clases/módulos)
-- docs/DATABASE_MAP.md (solo si cambian tablas)
-- docs/TEST_SCENARIOS.md (si cambia comportamiento)
-- docs/tasks/<task>.md (si existe o es necesario)
-
-AI contextos (solo si aplica):
-
-- .vscode/AI_CONTEXT.md → mantener corto
+- ARCHITECTURE.md → estructura técnica real
+- docs/CURRENT_STATE.md → estado actual, no historia
+- docs/SYSTEM_MAP.md → mapa funcional/menús/módulos visibles
+- docs/MODULE_REGISTRY.md → clases/módulos/servicios reales
+- docs/DATABASE_MAP.md → tablas reales y versión schema
+- docs/TEST_SCENARIOS.md → comportamiento nuevo si aplica
+- docs/PLUGIN_ROADMAP.md → continuidad real del roadmap
+- docs/tasks/<task>.md → trazabilidad puntual de la fase
+- .vscode/AI_CONTEXT.md → resumen corto y vigente
 - ai/context/* → solo si cambia narrativa real
-
-PROMPTS:
-
-- actualizar solo si hay desalineación real
+- prompts base / prompt master → solo si hay desalineación real
 
 ==================================================
 CONTROL DE DUPLICACIÓN
@@ -69,21 +141,29 @@ CONTROL DE DUPLICACIÓN
 
 Asegurar:
 
-- CURRENT_STATE.md = estado actual (no historia)
-- ARCHITECTURE.md = estructura técnica
-- AI_CONTEXT.md = resumen corto
+- CURRENT_STATE.md = estado actual, no historia acumulada
+- ARCHITECTURE.md = estructura técnica real
+- SYSTEM_MAP.md = mapa funcional
+- MODULE_REGISTRY.md = inventario técnico
+- DATABASE_MAP.md = tablas y schema
+- AI_CONTEXT.md = resumen corto operativo
+- PLUGIN_ROADMAP.md = continuidad de fases
 
-Eliminar duplicaciones si aparecen.
+Eliminar o corregir duplicaciones si aparecen.
 
 ==================================================
-PROMPT MASTER
+PROMPT MASTER Y CONTEXTOS
 ==================================================
 
-Verificar:
+Verificar si siguen correctos:
 
-- fases actuales correctas
-- módulos correctos
+- fases actuales
+- schema actual (no hardcodeado)
+- plugin version real
+- módulos activos
 - reglas vigentes
+- referencias a fases históricas
+- referencias a fases futuras
 
 Actualizar solo si hay desalineación real.
 
@@ -92,32 +172,33 @@ CHECKLIST MÍNIMO
 ==================================================
 
 Código:
-
 - sintaxis PHP válida
 - bootstrap no roto
 - sin SQL fuera de repository
 - sin uso de `includes/modules/*`
 
 Arquitectura:
-
 - controllers sin lógica indebida
 - services no duplicados
+- wiring consistente
 
 Seguridad:
-
 - sin `file_url`
 - uso correcto de Document_Service / Download_Service
 - ownership respetado
+- nonces/capabilities consistentes
 
 UI (si aplica):
-
 - no romper formularios
 - no romper acciones
+- no romper query args
 
-==================================================
-IMPORTANTE TENER EN CUENTA
-==================================================
--Revisa si todos los cambios si han sido actualizados y de faltar debes actualizar lo faltante
+Documentación:
+- estado actual correcto
+- roadmap correcto
+- schema correcto
+- módulos correctos
+- fases correctas desde Fase 0
 
 ==================================================
 FORMATO DE RESPUESTA
@@ -128,6 +209,9 @@ FORMATO DE RESPUESTA
 3. cambios relevantes
 4. validaciones realizadas
 5. validaciones no ejecutadas
-6. docs actualizadas
-7. deuda técnica abierta
-8. estado final: COMPLETA / PARCIAL / NECESITA CORRECCIONES
+6. docs revisadas
+7. docs actualizadas
+8. desalineaciones detectadas
+9. desalineaciones corregidas
+10. deuda técnica abierta
+11. estado final: COMPLETA / PARCIAL / NECESITA CORRECCIONES

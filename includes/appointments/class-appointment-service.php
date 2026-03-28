@@ -8,6 +8,8 @@
 namespace Super_Mechanic\Appointments;
 
 use Super_Mechanic\Clients\Client_Service;
+use Super_Mechanic\Communication\Event_Dispatcher;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Vehicles\Vehicle_Service;
@@ -53,6 +55,13 @@ class Appointment_Service {
 	 * @var Google_Calendar_Sync_Service
 	 */
 	protected $google_calendar_sync_service;
+	/**
+	 * Event dispatcher.
+	 *
+	 * @var Event_Dispatcher
+	 */
+	protected $event_dispatcher;
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
@@ -62,13 +71,16 @@ class Appointment_Service {
 	 * @param Vehicle_Service|null        $vehicle_service Vehicles service.
 	 * @param Process_Service|null             $process_service Processes service.
 	 * @param Google_Calendar_Sync_Service|null $google_calendar_sync_service Google sync service.
+	 * @param Event_Dispatcher|null             $event_dispatcher Event dispatcher.
 	 */
-	public function __construct( Appointment_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Process_Service $process_service = null, Google_Calendar_Sync_Service $google_calendar_sync_service = null ) {
+	public function __construct( Appointment_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Process_Service $process_service = null, Google_Calendar_Sync_Service $google_calendar_sync_service = null, Event_Dispatcher $event_dispatcher = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository                   = $repository ? $repository : new Appointment_Repository();
 		$this->client_service               = $client_service ? $client_service : new Client_Service();
 		$this->vehicle_service              = $vehicle_service ? $vehicle_service : new Vehicle_Service();
 		$this->process_service              = $process_service ? $process_service : new Process_Service();
 		$this->google_calendar_sync_service = $google_calendar_sync_service ? $google_calendar_sync_service : new Google_Calendar_Sync_Service();
+		$this->event_dispatcher             = $event_dispatcher ? $event_dispatcher : Event_Dispatcher::get_instance();
+		$this->business_context_service     = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -92,6 +104,13 @@ class Appointment_Service {
 		}
 
 		$this->sync_appointment_after_write( $inserted );
+		$this->dispatch_event(
+			'appointment_created',
+			array(
+				'appointment_id' => $inserted,
+				'appointment'    => $this->repository->get_by_id( $inserted ),
+			)
+		);
 
 		return $inserted;
 	}
@@ -109,6 +128,8 @@ class Appointment_Service {
 			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ) );
 		}
 
+		$previous = $this->repository->get_by_id( $id );
+
 		$normalized = $this->normalize_appointment_data( $data );
 		$valid      = $this->validate_appointment_data( $normalized, true, $id );
 
@@ -123,6 +144,44 @@ class Appointment_Service {
 		}
 
 		$this->sync_appointment_after_write( $id );
+
+		$current = $this->repository->get_by_id( $id );
+		$this->dispatch_event(
+			'appointment_updated',
+			array(
+				'appointment_id' => $id,
+				'appointment'    => $current,
+				'source'         => 'runtime',
+			)
+		);
+
+		$old_status = is_array( $previous ) && ! empty( $previous['appointment_status'] ) ? sanitize_key( (string) $previous['appointment_status'] ) : '';
+		$new_status = is_array( $current ) && ! empty( $current['appointment_status'] ) ? sanitize_key( (string) $current['appointment_status'] ) : '';
+		if ( '' !== $new_status && $old_status !== $new_status ) {
+			$this->dispatch_event(
+				'appointment_status_changed',
+				array(
+					'appointment_id' => $id,
+					'appointment'    => $current,
+					'old_status'     => $old_status,
+					'new_status'     => $new_status,
+					'source'         => 'runtime',
+				)
+			);
+
+			if ( 'cancelled' === $new_status ) {
+				$this->dispatch_event(
+					'appointment_cancelled',
+					array(
+						'appointment_id' => $id,
+						'appointment'    => $current,
+						'old_status'     => $old_status,
+						'new_status'     => $new_status,
+						'source'         => 'runtime',
+					)
+				);
+			}
+		}
 
 		return true;
 	}
@@ -174,6 +233,8 @@ class Appointment_Service {
 			return true;
 		}
 
+		$old_status = isset( $current['appointment_status'] ) ? sanitize_key( (string) $current['appointment_status'] ) : '';
+
 		$updated = $this->repository->update( $id, $payload );
 		if ( ! $updated ) {
 			return new WP_Error( 'sm_appointment_update_failed', __( 'No fue posible actualizar la cita.', 'super-mechanic' ) );
@@ -181,6 +242,43 @@ class Appointment_Service {
 
 		if ( $trigger_outbound_sync ) {
 			$this->sync_appointment_after_write( $id );
+		}
+
+		$current_after = $this->repository->get_by_id( $id );
+		$this->dispatch_event(
+			'appointment_updated',
+			array(
+				'appointment_id' => $id,
+				'appointment'    => $current_after,
+				'source'         => 'google_inbound',
+			)
+		);
+
+		$new_status = is_array( $current_after ) && ! empty( $current_after['appointment_status'] ) ? sanitize_key( (string) $current_after['appointment_status'] ) : '';
+		if ( '' !== $new_status && $old_status !== $new_status ) {
+			$this->dispatch_event(
+				'appointment_status_changed',
+				array(
+					'appointment_id' => $id,
+					'appointment'    => $current_after,
+					'old_status'     => $old_status,
+					'new_status'     => $new_status,
+					'source'         => 'google_inbound',
+				)
+			);
+
+			if ( 'cancelled' === $new_status ) {
+				$this->dispatch_event(
+					'appointment_cancelled',
+					array(
+						'appointment_id' => $id,
+						'appointment'    => $current_after,
+						'old_status'     => $old_status,
+						'new_status'     => $new_status,
+						'source'         => 'google_inbound',
+					)
+				);
+			}
 		}
 
 		return true;
@@ -206,6 +304,16 @@ class Appointment_Service {
 	}
 
 	/**
+	 * Override event dispatcher after bootstrap wiring.
+	 *
+	 * @param Event_Dispatcher $event_dispatcher Event dispatcher.
+	 * @return void
+	 */
+	public function set_event_dispatcher( Event_Dispatcher $event_dispatcher ) {
+		$this->event_dispatcher = $event_dispatcher;
+	}
+
+	/**
 	 * Get one appointment.
 	 *
 	 * @param int $id Appointment ID.
@@ -222,6 +330,10 @@ class Appointment_Service {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function get_appointments( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
@@ -232,6 +344,10 @@ class Appointment_Service {
 	 * @return int
 	 */
 	public function count_appointments( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->count_all( $args );
 	}
 
@@ -359,8 +475,9 @@ class Appointment_Service {
 	 */
 	public function validate_appointment_data( array $data, $is_update = false, $id = 0 ) {
 		$errors = new WP_Error();
+		$client = ! empty( $data['client_id'] ) ? $this->client_service->get_client( $data['client_id'] ) : null;
 
-		if ( empty( $data['client_id'] ) || ! $this->client_service->get_client( $data['client_id'] ) ) {
+		if ( empty( $data['client_id'] ) || ! is_array( $client ) ) {
 			$errors->add( 'invalid_client', __( 'El cliente seleccionado no existe.', 'super-mechanic' ) );
 		}
 
@@ -373,6 +490,7 @@ class Appointment_Service {
 			$errors->add( 'vehicle_client_mismatch', __( 'El vehiculo no pertenece al cliente seleccionado.', 'super-mechanic' ) );
 		}
 
+		$process = null;
 		if ( ! empty( $data['process_id'] ) ) {
 			$process = $this->process_service->get_process( $data['process_id'] );
 			if ( ! is_array( $process ) ) {
@@ -386,6 +504,18 @@ class Appointment_Service {
 					$errors->add( 'process_vehicle_mismatch', __( 'El proceso no coincide con el vehiculo seleccionado.', 'super-mechanic' ) );
 				}
 			}
+		}
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) && absint( $client['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'La cita y el cliente deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+		}
+
+		if ( is_array( $vehicle ) && ! empty( $vehicle['business_id'] ) && absint( $vehicle['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'La cita y el vehículo deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+		}
+
+		if ( is_array( $process ) && ! empty( $process['business_id'] ) && absint( $process['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'La cita y el proceso deben pertenecer al mismo negocio.', 'super-mechanic' ) );
 		}
 
 		if ( empty( $data['assigned_to'] ) || ! $this->is_valid_mechanic_user( $data['assigned_to'] ) ) {
@@ -420,8 +550,14 @@ class Appointment_Service {
 	 */
 	protected function normalize_appointment_data( array $data ) {
 		$start_at = $this->normalize_datetime_to_mysql( isset( $data['start_at'] ) ? $data['start_at'] : '' );
+		$process  = ! empty( $data['process_id'] ) ? $this->process_service->get_process( absint( $data['process_id'] ) ) : null;
+		$client   = ! empty( $data['client_id'] ) ? $this->client_service->get_client( absint( $data['client_id'] ) ) : null;
+		$vehicle  = ! empty( $data['vehicle_id'] ) ? $this->vehicle_service->get_vehicle( absint( $data['vehicle_id'] ) ) : null;
 
 		return array(
+			'business_id'        => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_business_id_from_parents( $process, $client, $vehicle ),
 			'client_id'          => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
 			'vehicle_id'         => isset( $data['vehicle_id'] ) ? absint( $data['vehicle_id'] ) : 0,
 			'process_id'         => isset( $data['process_id'] ) ? absint( $data['process_id'] ) : 0,
@@ -544,5 +680,57 @@ class Appointment_Service {
 			// Non-destructive sync: never break local appointment flow because remote provider failed.
 			return;
 		}
+	}
+
+	/**
+	 * Dispatch internal event with safe payload.
+	 *
+	 * @param string               $event_name Event name.
+	 * @param array<string, mixed> $payload    Event payload.
+	 * @return void
+	 */
+	protected function dispatch_event( $event_name, array $payload ) {
+		if ( ! $this->event_dispatcher ) {
+			return;
+		}
+
+		if ( ! isset( $payload['triggered_by'] ) && function_exists( 'get_current_user_id' ) ) {
+			$payload['triggered_by'] = absint( get_current_user_id() );
+		}
+
+		$this->event_dispatcher->dispatch( sanitize_key( $event_name ), $payload );
+	}
+
+	/**
+	 * Resolve business ID from structural parents.
+	 *
+	 * @param array<string,mixed>|null $process Process row.
+	 * @param array<string,mixed>|null $client  Client row.
+	 * @param array<string,mixed>|null $vehicle Vehicle row.
+	 * @return int
+	 */
+	protected function resolve_business_id_from_parents( $process, $client, $vehicle ) {
+		if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+			return max( 1, absint( $process['business_id'] ) );
+		}
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) ) {
+			return max( 1, absint( $client['business_id'] ) );
+		}
+
+		if ( is_array( $vehicle ) && ! empty( $vehicle['business_id'] ) ) {
+			return max( 1, absint( $vehicle['business_id'] ) );
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 }

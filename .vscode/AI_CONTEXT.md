@@ -60,6 +60,7 @@ payments
 attachments
 communication
 appointments
+businesses
 helpers
 integrations
 
@@ -171,7 +172,7 @@ ESTADO ACTUAL RESUMIDO
 
 Versión real:
 - plugin: `0.1.0`
-- schema: `1.11.0`
+- schema: `1.14.0`
 
 Fases consolidadas:
 - 12A–12E
@@ -193,6 +194,26 @@ Fases consolidadas:
 - 25
 - 26
 - 26B
+- 27A
+- 27B
+- 27C-A
+- 27C-B
+- 28
+- 29
+- 30
+- 31A
+- 31B
+- 31C
+- 32A
+- 32B-1
+- 32B-2
+- 32B-3A
+- 32B-3B
+- 33
+- 34
+- 35A
+- 35B
+- 35C
 
 Resumen de hitos recientes:
 - reports consolidado y avanzado
@@ -219,6 +240,11 @@ Resumen de hitos recientes:
 - FASE 32B-2 activa en código: integración Google Calendar 1-way con OAuth básico admin (connect/callback/disconnect), creación/actualización de eventos desde citas y persistencia de estado en tabla separada `sm_appointment_calendar_sync`; los fallos remotos no bloquean el guardado local de citas
 - FASE 32B-3A activa en código: reconciliación inbound controlada (plugin como fuente de verdad), política explícita de conflicto/rechazo, aplicación solo de campos permitidos y acción manual admin de reconciliación
 - FASE 32B-3B activa en código: watch channels + webhook REST dedicado para Google Calendar con validación `X-Goog-*`, idempotencia por `message_number` + lock corto, encolado de procesamiento, renovación preventiva por cron y renovación manual de canal sin cambios de schema
+- FASE 33 activa en código: expansión del motor de notificaciones existente con catálogo central de eventos/plantillas, canal externo desacoplado de email por `wp_mail` (`Email_Notification_Channel`), integración de citas al `Event_Dispatcher` (`appointment_created/updated/status_changed/cancelled`) y toggle mínimo `notifications.enable_email_notifications` en `sm_settings` sin cambios de schema
+- FASE 34 activa en código: automatización operativa controlada con `Automation_Service` + `Automation_Rule_Engine`, scheduler `wp_cron` de recordatorios (`Appointment_Reminder_Scheduler`), trigger `appointment_reminder` integrado al dispatcher y deduplicación por lock/transient para evitar envíos repetidos, sin schema changes
+- FASE 35A activa en código: base multi-business real en núcleo transaccional (`clients`, `vehicles`, `client_vehicles`, `processes`, `quotes`, `invoices`, `payments`) con `business_id`, fallback legacy `1` y backfill idempotente separado
+- FASE 35B activa en código: enforcement tenant-aware transversal en entidades diferidas (`quote_items`, `invoice_items`, `process_step_logs`, `appointments`, `appointment_calendar_sync`, `attachments`, `comments`, `notifications`), hardening `ownership + business_id` en `Access_Control_Service` y filtros de reportes aislados por negocio
+- FASE 35C activa en código: entidad `sm_businesses` + módulo `includes/businesses/*`, negocio default legacy (`id=1`), selector operativo por usuario (`sm_active_business_id`) y resolución de contexto con prioridad `user meta -> sm_settings.business.business_id -> default`
 
 ==================================================
 DEUDA TÉCNICA VIVA

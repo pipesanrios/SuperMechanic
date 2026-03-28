@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Vehicles;
 
 use Super_Mechanic\Clients\Client_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -29,6 +30,12 @@ class Vehicle_Service {
 	 * @var Client_Service
 	 */
 	protected $client_service;
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
@@ -36,9 +43,10 @@ class Vehicle_Service {
 	 * @param Vehicle_Repository|null $repository     Vehicle repository.
 	 * @param Client_Service|null     $client_service Client service.
 	 */
-	public function __construct( Vehicle_Repository $repository = null, Client_Service $client_service = null ) {
-		$this->repository     = $repository ? $repository : new Vehicle_Repository();
-		$this->client_service = $client_service ? $client_service : new Client_Service();
+	public function __construct( Vehicle_Repository $repository = null, Client_Service $client_service = null, Business_Context_Service $business_context_service = null ) {
+		$this->repository               = $repository ? $repository : new Vehicle_Repository();
+		$this->client_service           = $client_service ? $client_service : new Client_Service();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -140,6 +148,10 @@ class Vehicle_Service {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_vehicles( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
@@ -150,6 +162,10 @@ class Vehicle_Service {
 	 * @return int
 	 */
 	public function count_vehicles( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->count_all( $args );
 	}
 
@@ -189,8 +205,17 @@ class Vehicle_Service {
 			}
 		}
 
-		if ( $data['client_id'] > 0 && ! $this->client_service->get_client( $data['client_id'] ) ) {
+		$client = null;
+		if ( $data['client_id'] > 0 ) {
+			$client = $this->client_service->get_client( $data['client_id'] );
+		}
+
+		if ( $data['client_id'] > 0 && ! $client ) {
 			$errors->add( 'invalid_client', __( 'El cliente seleccionado no existe.', 'super-mechanic' ) );
+		}
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) && absint( $client['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'El cliente y el vehículo deben pertenecer al mismo negocio.', 'super-mechanic' ) );
 		}
 
 		if ( ! empty( $data['vin'] ) && $this->is_duplicate_vin( $data['vin'], $vehicle_id ) ) {
@@ -233,6 +258,9 @@ class Vehicle_Service {
 		$year = isset( $data['year'] ) ? absint( $data['year'] ) : 0;
 
 		return array(
+			'business_id' => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_business_id_for_client( isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0 ),
 			'client_id' => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
 			'type'      => 'vehicle',
 			'make'      => isset( $data['brand'] ) ? sanitize_text_field( $data['brand'] ) : '',
@@ -244,6 +272,32 @@ class Vehicle_Service {
 			'notes'     => isset( $data['notes'] ) ? sanitize_textarea_field( $data['notes'] ) : '',
 			'status'    => 'active',
 		);
+	}
+
+	/**
+	 * Resolve business ID from client parent when available.
+	 *
+	 * @param int $client_id Client ID.
+	 * @return int
+	 */
+	protected function resolve_business_id_for_client( $client_id ) {
+		$client_id = absint( $client_id );
+		$client    = $client_id > 0 ? $this->client_service->get_client( $client_id ) : null;
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) ) {
+			return max( 1, absint( $client['business_id'] ) );
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 
 	/**

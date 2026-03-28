@@ -34,6 +34,9 @@ class Migrator {
 			$results[ md5( $sql ) ] = dbDelta( $sql );
 		}
 
+		$results['tenancy_backfill'] = Tenancy_Backfill_Migrator::run();
+		$results['tenancy_business_backfill'] = $results['tenancy_backfill'];
+
 		return $results;
 	}
 

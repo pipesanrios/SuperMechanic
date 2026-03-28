@@ -13,6 +13,7 @@ use Super_Mechanic\Flows\Flow_Service;
 use Super_Mechanic\Flows\Flow_Step_Repository;
 use Super_Mechanic\Flows\Flow_Step_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Repository;
 use Super_Mechanic\Vehicles\Vehicle_Service;
@@ -58,8 +59,9 @@ class Process_Service {
 	protected $flow_step_repository;
 	protected $access_control_service;
 	protected $settings_service;
+	protected $business_context_service;
 
-	public function __construct( Process_Repository $repository = null, Vehicle_Service $vehicle_service = null, Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Flow_Service $flow_service = null, Flow_Step_Service $flow_step_service = null, Flow_Step_Repository $flow_step_repository = null, Process_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null ) {
+	public function __construct( Process_Repository $repository = null, Vehicle_Service $vehicle_service = null, Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Flow_Service $flow_service = null, Flow_Step_Service $flow_step_service = null, Flow_Step_Repository $flow_step_repository = null, Process_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository                = $repository ? $repository : new Process_Repository();
 		$this->vehicle_service           = $vehicle_service ? $vehicle_service : new Vehicle_Service();
 		$this->client_service            = $client_service ? $client_service : new Client_Service();
@@ -71,6 +73,7 @@ class Process_Service {
 		$this->transaction_repository    = $transaction_repository ? $transaction_repository : new Process_Transaction_Repository();
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service( $this->client_service, $this->client_vehicle_repository, $this->repository );
 		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
+		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	public function create_process( array $data ) {
@@ -232,10 +235,18 @@ class Process_Service {
 	}
 
 	public function get_processes( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
 	public function count_processes( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->count_all( $args );
 	}
 
@@ -262,12 +273,24 @@ class Process_Service {
 	public function validate_process_data( array $data, $is_update = false ) {
 		$errors = new WP_Error();
 
-		if ( empty( $data['vehicle_id'] ) || ! $this->vehicle_service->get_vehicle( $data['vehicle_id'] ) ) {
+		$vehicle = ! empty( $data['vehicle_id'] ) ? $this->vehicle_service->get_vehicle( $data['vehicle_id'] ) : null;
+
+		if ( empty( $data['vehicle_id'] ) || ! $vehicle ) {
 			$errors->add( 'invalid_vehicle', __( 'Debes seleccionar un vehiculo valido.', 'super-mechanic' ) );
 		}
 
-		if ( ! empty( $data['client_id'] ) && ! $this->client_service->get_client( $data['client_id'] ) ) {
+		$client = ! empty( $data['client_id'] ) ? $this->client_service->get_client( $data['client_id'] ) : null;
+
+		if ( ! empty( $data['client_id'] ) && ! $client ) {
 			$errors->add( 'invalid_client', __( 'El cliente seleccionado no existe.', 'super-mechanic' ) );
+		}
+
+		if ( is_array( $vehicle ) && ! empty( $vehicle['business_id'] ) && absint( $vehicle['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'El proceso y el vehículo deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+		}
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) && absint( $client['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'El proceso y el cliente deben pertenecer al mismo negocio.', 'super-mechanic' ) );
 		}
 
 		if ( empty( $data['title'] ) ) {
@@ -583,6 +606,12 @@ class Process_Service {
 
 	protected function prepare_process_data( array $data, $is_update ) {
 		$prepared = array(
+			'business_id'   => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_business_id_from_roots(
+					isset( $data['vehicle_id'] ) ? absint( $data['vehicle_id'] ) : 0,
+					isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0
+				),
 			'vehicle_id'     => isset( $data['vehicle_id'] ) ? absint( $data['vehicle_id'] ) : 0,
 			'client_id'      => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
 			'flow_id'        => isset( $data['flow_id'] ) ? absint( $data['flow_id'] ) : 0,
@@ -710,6 +739,7 @@ class Process_Service {
 		$current_step = ! is_wp_error( $flow_context ) ? absint( $flow_context['current_step_id'] ) : 0;
 		$completed_at = $this->normalize_datetime_value( $data['completed_at'] );
 		$stored       = array(
+			'business_id'    => absint( $data['business_id'] ),
 			'vehicle_id'      => absint( $data['vehicle_id'] ),
 			'client_id'       => absint( $data['client_id'] ),
 			'flow_id'         => $flow_id,
@@ -973,5 +1003,44 @@ class Process_Service {
 		$timestamp = strtotime( $value );
 
 		return false === $timestamp ? null : gmdate( 'Y-m-d H:i:s', $timestamp );
+	}
+
+	/**
+	 * Resolve business ID from parent entities.
+	 *
+	 * @param int $vehicle_id Vehicle ID.
+	 * @param int $client_id  Client ID.
+	 * @return int
+	 */
+	protected function resolve_business_id_from_roots( $vehicle_id, $client_id ) {
+		$vehicle_id = absint( $vehicle_id );
+		$client_id  = absint( $client_id );
+
+		if ( $vehicle_id > 0 ) {
+			$vehicle = $this->vehicle_service->get_vehicle( $vehicle_id );
+
+			if ( is_array( $vehicle ) && ! empty( $vehicle['business_id'] ) ) {
+				return max( 1, absint( $vehicle['business_id'] ) );
+			}
+		}
+
+		if ( $client_id > 0 ) {
+			$client = $this->client_service->get_client( $client_id );
+
+			if ( is_array( $client ) && ! empty( $client['business_id'] ) ) {
+				return max( 1, absint( $client['business_id'] ) );
+			}
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 }

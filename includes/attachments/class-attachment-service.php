@@ -10,6 +10,7 @@ namespace Super_Mechanic\Attachments;
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Invoices\Invoice_Service;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Quotes\Quote_Service;
@@ -28,8 +29,9 @@ class Attachment_Service {
 	protected $invoice_service;
 	protected $event_dispatcher;
 	protected $access_control_service;
+	protected $business_context_service;
 
-	public function __construct( Attachment_Repository $repository = null, Process_Service $process_service = null, Dashboard_Service $dashboard_service = null, Quote_Service $quote_service = null, Invoice_Service $invoice_service = null, Event_Dispatcher $event_dispatcher = null, Access_Control_Service $access_control_service = null ) {
+	public function __construct( Attachment_Repository $repository = null, Process_Service $process_service = null, Dashboard_Service $dashboard_service = null, Quote_Service $quote_service = null, Invoice_Service $invoice_service = null, Event_Dispatcher $event_dispatcher = null, Access_Control_Service $access_control_service = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository        = $repository ? $repository : new Attachment_Repository();
 		$this->process_service   = $process_service ? $process_service : new Process_Service();
 		$this->dashboard_service = $dashboard_service ? $dashboard_service : new Dashboard_Service();
@@ -37,6 +39,7 @@ class Attachment_Service {
 		$this->invoice_service   = $invoice_service ? $invoice_service : new Invoice_Service();
 		$this->event_dispatcher  = $event_dispatcher ? $event_dispatcher : Event_Dispatcher::get_instance();
 		$this->access_control_service = $access_control_service ? $access_control_service : new Access_Control_Service( null, null, null, null, null, $this->repository );
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	public function create_attachment( array $data ) {
@@ -114,6 +117,10 @@ class Attachment_Service {
 	}
 
 	public function get_attachments( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
@@ -267,6 +274,11 @@ class Attachment_Service {
 			$errors->add( 'invalid_process', __( 'El proceso asociado no existe.', 'super-mechanic' ) );
 		}
 
+		$parent_business_id = $this->resolve_structural_business_id( $data );
+		if ( $parent_business_id > 0 && absint( $data['business_id'] ) !== $parent_business_id ) {
+			$errors->add( 'invalid_business_context', __( 'El adjunto debe pertenecer al mismo negocio que su entidad padre.', 'super-mechanic' ) );
+		}
+
 		if ( ! empty( $data['is_internal'] ) && ! empty( $data['is_client_visible'] ) ) {
 			$errors->add( 'invalid_visibility', __( 'Un documento interno no puede ser visible para el cliente.', 'super-mechanic' ) );
 		}
@@ -340,6 +352,9 @@ class Attachment_Service {
 		}
 
 		return array(
+			'business_id'        => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_structural_business_id( $data ),
 			'object_type'       => isset( $data['object_type'] ) ? sanitize_key( $data['object_type'] ) : 'process',
 			'object_id'         => isset( $data['object_id'] ) ? absint( $data['object_id'] ) : 0,
 			'process_id'        => isset( $data['process_id'] ) ? absint( $data['process_id'] ) : 0,
@@ -356,6 +371,64 @@ class Attachment_Service {
 			'is_client_visible' => ! empty( $data['is_client_visible'] ) ? 1 : 0,
 			'uploaded_by'       => isset( $data['uploaded_by'] ) ? absint( $data['uploaded_by'] ) : get_current_user_id(),
 		);
+	}
+
+	/**
+	 * Resolve business ID from structural parent, with context fallback.
+	 *
+	 * @param array<string,mixed> $data Attachment payload.
+	 * @return int
+	 */
+	protected function resolve_structural_business_id( array $data ) {
+		$process_id = ! empty( $data['process_id'] ) ? absint( $data['process_id'] ) : 0;
+		$object_id  = ! empty( $data['object_id'] ) ? absint( $data['object_id'] ) : 0;
+		$object_type = ! empty( $data['object_type'] ) ? sanitize_key( (string) $data['object_type'] ) : '';
+
+		if ( $process_id > 0 ) {
+			$process = $this->process_service->get_process( $process_id );
+			if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+				return max( 1, absint( $process['business_id'] ) );
+			}
+		}
+
+		if ( 'process' === $object_type && $object_id > 0 ) {
+			$process = $this->process_service->get_process( $object_id );
+			if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+				return max( 1, absint( $process['business_id'] ) );
+			}
+		}
+
+		if ( 'quote' === $object_type && $object_id > 0 ) {
+			$quote = $this->quote_service->get_quote( $object_id );
+			if ( is_array( $quote ) && ! empty( $quote['business_id'] ) ) {
+				return max( 1, absint( $quote['business_id'] ) );
+			}
+		}
+
+		if ( 'invoice' === $object_type && $object_id > 0 ) {
+			$invoice = $this->invoice_service->get_invoice( $object_id );
+			if ( is_array( $invoice ) && ! empty( $invoice['business_id'] ) ) {
+				return max( 1, absint( $invoice['business_id'] ) );
+			}
+		}
+
+		if ( 'payment' === $object_type && $object_id > 0 ) {
+			$payment = $this->invoice_service->get_payment( $object_id );
+			if ( is_array( $payment ) && ! empty( $payment['business_id'] ) ) {
+				return max( 1, absint( $payment['business_id'] ) );
+			}
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 
 	/**

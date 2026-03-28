@@ -8,11 +8,13 @@ Usa siempre el código real como fuente principal de verdad.
 LECTURA MÍNIMA OBLIGATORIA
 ==================================================
 
-Leer solo:
+Leer SIEMPRE:
 
 1. ARCHITECTURE.md
 2. docs/CURRENT_STATE.md
-3. .vscode/AI_CONTEXT.md
+3. docs/PLUGIN_ROADMAP.md
+4. .vscode/AI_CONTEXT.md
+
 
 Leer adicionalmente SOLO si el objetivo lo requiere:
 
@@ -21,6 +23,7 @@ Leer adicionalmente SOLO si el objetivo lo requiere:
 - docs/DATABASE_MAP.md
 - docs/SECURITY_MODEL.md
 - docs/TEST_SCENARIOS.md
+- docs/PLUGIN_ROADMAP.md
 - ai/context/*
 - ai/prompts/*
 
@@ -35,6 +38,7 @@ Arquitectura:
 - SQL solo en repositories
 - mantener Controller → Service → Repository
 - no duplicar lógica existente
+- no introducir lógica en controllers
 
 Seguridad:
 
@@ -42,6 +46,7 @@ Seguridad:
 - usar `Document_Service` + `Download_Service`
 - respetar ownership con `Access_Control_Service`
 - mantener nonces y permisos
+- no exponer secretos (tokens, client_secret, etc.)
 
 UI:
 
@@ -53,7 +58,7 @@ Generales:
 
 - no cambiar schema salvo instrucción explícita
 - no ampliar alcance sin justificación
-- no reintroducir lógica en controllers
+- no romper bootstrap
 - no omitir transacciones en operaciones críticas
 
 ==================================================
@@ -86,30 +91,92 @@ Después del análisis:
 - no romper bootstrap
 
 ==================================================
-ESTADO BASE
+ESTADO BASE (DINÁMICO)
 ==================================================
 
-plugin: 0.1.0
-schema: 1.9.0
-fases consolidadas: 12A–26B
+plugin: usar versión real del código
+schema: usar versión real en `class-schema.php`
+roadmap: desde Fase 0 hasta la fase actual
 
-Detalle:
-- docs/CURRENT_STATE.md
-- .vscode/AI_CONTEXT.md
+IMPORTANTE:
+
+- NO asumir versiones hardcodeadas (ej: 1.9.0)
+- NO asumir fases antiguas (ej: 12A–26B)
+- validar siempre contra:
+  - docs/CURRENT_STATE.md
+  - docs/PLUGIN_ROADMAP.md (si existe)
+  - .vscode/AI_CONTEXT.md
+
+==================================================
+CONTINUIDAD DE FASES
+==================================================
+
+El sistema NO comienza en 12A.
+
+Debe considerarse:
+
+- Fase 0 — planificación / arquitectura
+- Fase 1 — implementación base
+- fases intermedias reales
+- subfases (A/B/C)
+- fase actual en ejecución
+
+Si detectas referencias desactualizadas en docs o prompts:
+→ debes reportarlo en el análisis
+
+El archivo docs/PLUGIN_ROADMAP.md es la referencia oficial de continuidad del proyecto.
+
+Debes verificar:
+
+- que la fase actual existe en el roadmap
+- que la numeración es consistente
+- que no hay saltos o fases omitidas
+- que las subfases (A/B/C) están correctamente ubicadas
+- que lo implementado coincide con lo planificado
+
+Si detectas desalineación:
+→ reportarlo en el análisis previo
 
 ==================================================
 FUENTE DE VERDAD
 ==================================================
 
+Prioridad:
+
 1. código real (`includes/*`)
-2. docs técnicos
-3. contextos AI
+2. estructura de base de datos real
+3. docs técnicos actualizados
+4. contextos AI
+5. prompts
+
+Si hay conflicto:
+→ manda el código real
+
+==================================================
+CONTROL DE DESALINEACIÓN
+==================================================
+
+Debes detectar y reportar:
+
+- schema desactualizado en docs/prompts
+- fases incorrectas o incompletas
+- módulos no reflejados en docs
+- tablas no documentadas
+- lógica implementada pero no documentada
+- documentación obsoleta
+
+NO corregir automáticamente todo,
+pero sí reportarlo claramente en el análisis.
 
 ==================================================
 CIERRE
 ==================================================
 
-- validar código
-- actualizar docs afectadas
+Al finalizar:
+
+- validar sintaxis PHP
+- confirmar bootstrap estable
+- actualizar docs SOLO si aplica
 - sincronizar contextos si aplica
 - documentar deuda técnica
+- NO sobre-documentar

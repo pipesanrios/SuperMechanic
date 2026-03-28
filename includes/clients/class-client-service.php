@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Clients;
 
+use Super_Mechanic\Helpers\Business_Context_Service;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -21,14 +22,21 @@ class Client_Service {
 	 * @var Client_Repository
 	 */
 	protected $repository;
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param Client_Repository|null $repository Repository instance.
 	 */
-	public function __construct( Client_Repository $repository = null ) {
-		$this->repository = $repository ? $repository : new Client_Repository();
+	public function __construct( Client_Repository $repository = null, Business_Context_Service $business_context_service = null ) {
+		$this->repository               = $repository ? $repository : new Client_Repository();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -120,6 +128,10 @@ class Client_Service {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_clients( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
@@ -130,6 +142,10 @@ class Client_Service {
 	 * @return int
 	 */
 	public function count_clients( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->count_all( $args );
 	}
 
@@ -187,6 +203,7 @@ class Client_Service {
 	 */
 	protected function normalize_client_data( array $data ) {
 		return array(
+			'business_id' => isset( $data['business_id'] ) ? max( 1, absint( $data['business_id'] ) ) : $this->resolve_business_id(),
 			'first_name'  => isset( $data['first_name'] ) ? sanitize_text_field( $data['first_name'] ) : '',
 			'last_name'   => isset( $data['last_name'] ) ? sanitize_text_field( $data['last_name'] ) : '',
 			'email'       => isset( $data['email'] ) ? sanitize_email( $data['email'] ) : '',
@@ -195,6 +212,15 @@ class Client_Service {
 			'notes'       => isset( $data['notes'] ) ? sanitize_textarea_field( $data['notes'] ) : '',
 			'status'      => 'active',
 		);
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 
 	/**

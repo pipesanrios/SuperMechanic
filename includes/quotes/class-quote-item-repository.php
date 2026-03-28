@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Quotes;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -35,7 +36,11 @@ class Quote_Item_Repository {
 	public function get_by_id( $id ) {
 		global $wpdb;
 
-		$query = $wpdb->prepare( "SELECT * FROM {$this->get_table_name()} WHERE id = %d LIMIT 1", absint( $id ) );
+		$query = $wpdb->prepare(
+			"SELECT * FROM {$this->get_table_name()} WHERE id = %d AND business_id = %d LIMIT 1",
+			absint( $id ),
+			$this->resolve_business_id()
+		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
 		return is_array( $row ) ? $row : null;
@@ -51,8 +56,9 @@ class Quote_Item_Repository {
 		global $wpdb;
 
 		$query = $wpdb->prepare(
-			"SELECT * FROM {$this->get_table_name()} WHERE quote_id = %d ORDER BY sort_order ASC, id ASC",
-			absint( $quote_id )
+			"SELECT * FROM {$this->get_table_name()} WHERE quote_id = %d AND business_id = %d ORDER BY sort_order ASC, id ASC",
+			absint( $quote_id ),
+			$this->resolve_business_id()
 		);
 		$rows  = $wpdb->get_results( $query, ARRAY_A );
 
@@ -71,6 +77,7 @@ class Quote_Item_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
@@ -92,13 +99,17 @@ class Quote_Item_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
 			$data,
-			array( 'id' => absint( $id ) ),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			$this->get_formats_for_data( $data ),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -113,7 +124,14 @@ class Quote_Item_Repository {
 	public function delete( $id ) {
 		global $wpdb;
 
-		$result = $wpdb->delete( $this->get_table_name(), array( 'id' => absint( $id ) ), array( '%d' ) );
+		$result = $wpdb->delete(
+			$this->get_table_name(),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
+		);
 
 		return false !== $result;
 	}
@@ -127,7 +145,14 @@ class Quote_Item_Repository {
 	public function delete_by_quote_id( $quote_id ) {
 		global $wpdb;
 
-		$result = $wpdb->delete( $this->get_table_name(), array( 'quote_id' => absint( $quote_id ) ), array( '%d' ) );
+		$result = $wpdb->delete(
+			$this->get_table_name(),
+			array(
+				'quote_id'    => absint( $quote_id ),
+				'business_id' => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
+		);
 
 		return false !== $result;
 	}
@@ -140,6 +165,7 @@ class Quote_Item_Repository {
 	 */
 	protected function get_formats_for_data( $data ) {
 		$format_map = array(
+			'business_id' => '%d',
 			'quote_id'     => '%d',
 			'item_type'    => '%s',
 			'reference_id' => '%d',
@@ -161,5 +187,16 @@ class Quote_Item_Repository {
 		}
 
 		return $formats;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

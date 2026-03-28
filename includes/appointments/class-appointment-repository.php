@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Appointments;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -43,8 +44,10 @@ class Appointment_Repository {
 			LEFT JOIN {$this->get_processes_table_name()} p ON p.id = a.process_id
 			LEFT JOIN {$this->get_users_table_name()} u ON u.ID = a.assigned_to
 			WHERE a.id = %d
+			AND a.business_id = %d
 			LIMIT 1",
-			absint( $id )
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
@@ -64,6 +67,7 @@ class Appointment_Repository {
 			$args,
 			array(
 				'search'             => '',
+				'business_id'        => $this->resolve_business_id(),
 				'appointment_status' => '',
 				'assigned_to'        => 0,
 				'client_id'          => 0,
@@ -115,6 +119,7 @@ class Appointment_Repository {
 			$args,
 			array(
 				'search'             => '',
+				'business_id'        => $this->resolve_business_id(),
 				'appointment_status' => '',
 				'assigned_to'        => 0,
 				'client_id'          => 0,
@@ -149,6 +154,7 @@ class Appointment_Repository {
 		$args = wp_parse_args(
 			$args,
 			array(
+				'business_id'        => $this->resolve_business_id(),
 				'appointment_status' => '',
 				'assigned_to'        => 0,
 				'date_from'          => '',
@@ -160,6 +166,7 @@ class Appointment_Repository {
 		$where    = $this->build_where_clause(
 			array(
 				'search'             => '',
+				'business_id'        => $this->resolve_business_id(),
 				'appointment_status' => $args['appointment_status'],
 				'assigned_to'        => $args['assigned_to'],
 				'client_id'          => 0,
@@ -171,6 +178,7 @@ class Appointment_Repository {
 		$params   = $this->get_where_params(
 			array(
 				'search'             => '',
+				'business_id'        => $this->resolve_business_id(),
 				'appointment_status' => $args['appointment_status'],
 				'assigned_to'        => $args['assigned_to'],
 				'client_id'          => 0,
@@ -218,6 +226,7 @@ class Appointment_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
@@ -239,13 +248,17 @@ class Appointment_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
 			$data,
-			array( 'id' => absint( $id ) ),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			$this->get_formats_for_data( $data ),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -262,8 +275,11 @@ class Appointment_Repository {
 
 		$result = $wpdb->delete(
 			$this->get_table_name(),
-			array( 'id' => absint( $id ) ),
-			array( '%d' )
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -280,6 +296,10 @@ class Appointment_Repository {
 
 		if ( '' !== (string) $args['search'] ) {
 			$clauses[] = '(a.notes LIKE %s OR c.first_name LIKE %s OR c.last_name LIKE %s OR v.make LIKE %s OR v.model LIKE %s OR v.plate LIKE %s)';
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$clauses[] = 'a.business_id = %d';
 		}
 
 		if ( '' !== (string) $args['appointment_status'] ) {
@@ -330,6 +350,10 @@ class Appointment_Repository {
 			$params[]  = $search;
 			$params[]  = $search;
 			$params[]  = $search;
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$params[] = absint( $args['business_id'] );
 		}
 
 		if ( '' !== (string) $args['appointment_status'] ) {
@@ -401,6 +425,7 @@ class Appointment_Repository {
 	 */
 	protected function get_formats_for_data( array $data ) {
 		$map = array(
+			'business_id'         => '%d',
 			'client_id'          => '%d',
 			'vehicle_id'         => '%d',
 			'process_id'         => '%d',
@@ -421,6 +446,17 @@ class Appointment_Repository {
 		}
 
 		return $formats;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 
 	/**

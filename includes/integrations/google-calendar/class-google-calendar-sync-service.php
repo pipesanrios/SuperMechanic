@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Integrations\Google_Calendar;
 
 use Super_Mechanic\Appointments\Appointment_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -118,6 +119,7 @@ class Google_Calendar_Sync_Service {
 			$appointment_id,
 			self::PROVIDER,
 			array(
+				'business_id'          => ! empty( $appointment['business_id'] ) ? absint( $appointment['business_id'] ) : $this->resolve_business_id_for_appointment( $appointment_id ),
 				'external_calendar_id' => $calendar_id,
 				'external_event_id'    => $external_event_id,
 				'sync_status'          => 'synced',
@@ -316,6 +318,7 @@ class Google_Calendar_Sync_Service {
 			$appointment_id,
 			self::PROVIDER,
 			array(
+				'business_id'          => ! empty( $appointment['business_id'] ) ? absint( $appointment['business_id'] ) : $this->resolve_business_id_for_appointment( $appointment_id ),
 				'external_calendar_id' => '' !== $calendar_id ? $calendar_id : 'primary',
 				'external_event_id'    => $event_id,
 				'sync_status'          => 'synced',
@@ -353,6 +356,7 @@ class Google_Calendar_Sync_Service {
 			absint( $appointment_id ),
 			self::PROVIDER,
 			array(
+				'business_id'          => $this->resolve_business_id_for_appointment( $appointment_id ),
 				'external_calendar_id' => $calendar_id,
 				'sync_status'          => 'error',
 				'last_synced_at'       => '',
@@ -381,6 +385,7 @@ class Google_Calendar_Sync_Service {
 			$appointment_id,
 			self::PROVIDER,
 			array(
+				'business_id'          => $this->resolve_business_id_for_appointment( $appointment_id ),
 				'external_calendar_id' => $calendar_id,
 				'external_event_id'    => $event_id,
 				'sync_status'          => sanitize_key( (string) $status ),
@@ -507,5 +512,27 @@ class Google_Calendar_Sync_Service {
 		}
 
 		return new WP_Error( 'sm_google_calendar_appointment_service_missing', __( 'Appointment_Service no esta enlazado para reconciliacion inbound.', 'super-mechanic' ) );
+	}
+
+	/**
+	 * Resolve business ID for one appointment context.
+	 *
+	 * @param int $appointment_id Appointment ID.
+	 * @return int
+	 */
+	protected function resolve_business_id_for_appointment( $appointment_id ) {
+		$appointment_id = absint( $appointment_id );
+
+		if ( $appointment_id > 0 && $this->appointment_service instanceof Appointment_Service ) {
+			$appointment = $this->appointment_service->get_appointment( $appointment_id );
+
+			if ( is_array( $appointment ) && ! empty( $appointment['business_id'] ) ) {
+				return max( 1, absint( $appointment['business_id'] ) );
+			}
+		}
+
+		$context_service = new Business_Context_Service();
+
+		return max( 1, absint( $context_service->resolve_business_id() ) );
 	}
 }

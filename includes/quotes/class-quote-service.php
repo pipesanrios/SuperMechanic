@@ -9,6 +9,7 @@ namespace Super_Mechanic\Quotes;
 
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Processes\Process_Service;
@@ -30,8 +31,9 @@ class Quote_Service {
 	protected $transaction_repository;
 	protected $access_control_service;
 	protected $settings_service;
+	protected $business_context_service;
 
-	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null ) {
+	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository                = $repository ? $repository : new Quote_Repository();
 		$this->item_repository           = $item_repository ? $item_repository : new Quote_Item_Repository();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
@@ -41,6 +43,7 @@ class Quote_Service {
 		$this->transaction_repository    = $transaction_repository ? $transaction_repository : new Quote_Transaction_Repository();
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service( null, $this->client_vehicle_repository, null, $this->repository );
 		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
+		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	public function create_quote( array $data ) {
@@ -104,6 +107,10 @@ class Quote_Service {
 	}
 
 	public function get_quotes( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
@@ -175,6 +182,7 @@ class Quote_Service {
 		}
 
 		$data['quote_id'] = $quote_id;
+		$data['business_id'] = ! empty( $quote['business_id'] ) ? absint( $quote['business_id'] ) : $this->resolve_business_id();
 		$data             = $this->prepare_item_data( $data );
 		$valid            = $this->validate_quote_item_data( $data, false );
 
@@ -200,7 +208,15 @@ class Quote_Service {
 			return new WP_Error( 'sm_quote_item_not_found', __( 'El item de la cotizacion no existe.', 'super-mechanic' ) );
 		}
 
-		$data  = $this->prepare_item_data( array_merge( $item, $data ) );
+		$merged = array_merge( $item, $data );
+		if ( ! empty( $item['quote_id'] ) ) {
+			$parent_quote = $this->repository->get_by_id( absint( $item['quote_id'] ) );
+			if ( is_array( $parent_quote ) && ! empty( $parent_quote['business_id'] ) ) {
+				$merged['business_id'] = absint( $parent_quote['business_id'] );
+			}
+		}
+
+		$data  = $this->prepare_item_data( $merged );
 		$valid = $this->validate_quote_item_data( $data, true );
 
 		if ( is_wp_error( $valid ) ) {
@@ -602,6 +618,12 @@ class Quote_Service {
 		if ( empty( $data['process_id'] ) || ! $this->process_service->get_process( $data['process_id'] ) ) {
 			$errors->add( 'invalid_process', __( 'Debes seleccionar un proceso valido para la cotizacion.', 'super-mechanic' ) );
 		}
+
+		$process = ! empty( $data['process_id'] ) ? $this->process_service->get_process( $data['process_id'] ) : null;
+
+		if ( is_array( $process ) && ! empty( $process['business_id'] ) && absint( $process['business_id'] ) !== absint( $data['business_id'] ) ) {
+			$errors->add( 'invalid_business_context', __( 'La cotización y el proceso deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+		}
 		if ( empty( $data['quote_number'] ) ) {
 			$errors->add( 'missing_quote_number', __( 'La cotizacion requiere un numero valido.', 'super-mechanic' ) );
 		}
@@ -610,6 +632,15 @@ class Quote_Service {
 		}
 		if ( $data['client_id'] < 0 ) {
 			$errors->add( 'invalid_client', __( 'El cliente asociado no es valido.', 'super-mechanic' ) );
+		}
+
+		if ( $data['client_id'] > 0 ) {
+			$client_service = new \Super_Mechanic\Clients\Client_Service();
+			$client         = $client_service->get_client( $data['client_id'] );
+
+			if ( is_array( $client ) && ! empty( $client['business_id'] ) && absint( $client['business_id'] ) !== absint( $data['business_id'] ) ) {
+				$errors->add( 'invalid_business_context', __( 'La cotización y el cliente deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+			}
 		}
 		if ( $is_update && empty( $data['quote_number'] ) ) {
 			$errors->add( 'invalid_quote', __( 'La cotizacion no es valida.', 'super-mechanic' ) );
@@ -651,6 +682,9 @@ class Quote_Service {
 		}
 
 		return array(
+			'business_id'        => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_business_id_from_parents( $process, $client_id ),
 			'process_id'         => $process_id,
 			'client_id'          => $client_id,
 			'quote_number'       => ! empty( $data['quote_number'] ) ? sanitize_text_field( $data['quote_number'] ) : $this->generate_quote_number(),
@@ -674,6 +708,7 @@ class Quote_Service {
 		$unit_price = isset( $data['unit_price'] ) ? $this->normalize_decimal( $data['unit_price'] ) : 0;
 
 		return array(
+			'business_id' => isset( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id(),
 			'quote_id'     => isset( $data['quote_id'] ) ? absint( $data['quote_id'] ) : 0,
 			'item_type'    => isset( $data['item_type'] ) ? sanitize_key( $data['item_type'] ) : 'custom',
 			'reference_id' => isset( $data['reference_id'] ) ? absint( $data['reference_id'] ) : 0,
@@ -703,5 +738,39 @@ class Quote_Service {
 	 */
 	protected function format_money( $amount, $currency ) {
 		return sprintf( '%s %s', esc_html( $currency ), esc_html( number_format_i18n( (float) $amount, 2 ) ) );
+	}
+
+	/**
+	 * Resolve business ID from parent entities.
+	 *
+	 * @param array<string,mixed>|null $process   Process row.
+	 * @param int                       $client_id Client ID.
+	 * @return int
+	 */
+	protected function resolve_business_id_from_parents( $process, $client_id ) {
+		if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+			return max( 1, absint( $process['business_id'] ) );
+		}
+
+		$client_id = absint( $client_id );
+		if ( $client_id > 0 ) {
+			$client_service = new \Super_Mechanic\Clients\Client_Service();
+			$client         = $client_service->get_client( $client_id );
+
+			if ( is_array( $client ) && ! empty( $client['business_id'] ) ) {
+				return max( 1, absint( $client['business_id'] ) );
+			}
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 }

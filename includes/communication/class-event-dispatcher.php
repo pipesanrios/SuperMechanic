@@ -55,6 +55,11 @@ class Event_Dispatcher {
 		add_action( 'sm_event_invoice_paid', array( $this, 'handle_invoice_paid' ), 10, 1 );
 		add_action( 'sm_event_document_uploaded', array( $this, 'handle_document_uploaded' ), 10, 1 );
 		add_action( 'sm_event_comment_added', array( $this, 'handle_comment_added' ), 10, 1 );
+		add_action( 'sm_event_appointment_created', array( $this, 'handle_appointment_created' ), 10, 1 );
+		add_action( 'sm_event_appointment_updated', array( $this, 'handle_appointment_updated' ), 10, 1 );
+		add_action( 'sm_event_appointment_status_changed', array( $this, 'handle_appointment_status_changed' ), 10, 1 );
+		add_action( 'sm_event_appointment_cancelled', array( $this, 'handle_appointment_cancelled' ), 10, 1 );
+		add_action( 'sm_event_appointment_reminder', array( $this, 'handle_appointment_reminder' ), 10, 1 );
 	}
 
 	public function dispatch( $event_name, $payload = array() ) {
@@ -127,6 +132,26 @@ class Event_Dispatcher {
 
 	public function handle_comment_added( $payload ) {
 		$this->get_notification_service()->notify_comment_added( is_array( $payload ) ? $payload : array() );
+	}
+
+	public function handle_appointment_created( $payload ) {
+		$this->get_notification_service()->notify_appointment_created( is_array( $payload ) ? $payload : array() );
+	}
+
+	public function handle_appointment_updated( $payload ) {
+		$this->get_notification_service()->notify_appointment_updated( is_array( $payload ) ? $payload : array() );
+	}
+
+	public function handle_appointment_status_changed( $payload ) {
+		$this->get_notification_service()->notify_appointment_status_changed( is_array( $payload ) ? $payload : array() );
+	}
+
+	public function handle_appointment_cancelled( $payload ) {
+		$this->get_notification_service()->notify_appointment_cancelled( is_array( $payload ) ? $payload : array() );
+	}
+
+	public function handle_appointment_reminder( $payload ) {
+		$this->get_notification_service()->notify_appointment_reminder( is_array( $payload ) ? $payload : array() );
 	}
 
 	/**

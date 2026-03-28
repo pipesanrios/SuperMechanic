@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Relations;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -71,9 +72,11 @@ class Client_Vehicle_Repository {
 			"SELECT cv.*, c.first_name, c.last_name, c.email
 			FROM {$table} cv
 			LEFT JOIN {$clients_table} c ON c.id = cv.client_id
-			WHERE cv.vehicle_id = %d {$current_clause}
+			WHERE cv.vehicle_id = %d
+			AND cv.business_id = %d {$current_clause}
 			ORDER BY cv.is_primary DESC, cv.start_date DESC, cv.id DESC",
-			absint( $vehicle_id )
+			absint( $vehicle_id ),
+			$this->resolve_business_id()
 		);
 		$rows            = $wpdb->get_results( $query, ARRAY_A );
 
@@ -103,9 +106,11 @@ class Client_Vehicle_Repository {
 			"SELECT cv.*, v.make, v.model, v.plate, v.vin
 			FROM {$table} cv
 			LEFT JOIN {$vehicles_table} v ON v.id = cv.vehicle_id
-			WHERE cv.client_id = %d {$current_clause}
+			WHERE cv.client_id = %d
+			AND cv.business_id = %d {$current_clause}
 			ORDER BY cv.is_primary DESC, cv.start_date DESC, cv.id DESC",
-			absint( $client_id )
+			absint( $client_id ),
+			$this->resolve_business_id()
 		);
 		$rows             = $wpdb->get_results( $query, ARRAY_A );
 
@@ -122,11 +127,13 @@ class Client_Vehicle_Repository {
 		global $wpdb;
 
 		$data['created_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert(
 			$this->get_table_name(),
 			$data,
 			array(
+				'%d',
 				'%d',
 				'%d',
 				'%s',
@@ -184,11 +191,13 @@ class Client_Vehicle_Repository {
 			FROM {$table} cv
 			LEFT JOIN {$clients_table} c ON c.id = cv.client_id
 			WHERE cv.vehicle_id = %d
+			AND cv.business_id = %d
 			AND cv.end_date IS NULL
 			AND cv.is_primary = 1
 			ORDER BY cv.start_date DESC, cv.id DESC
 			LIMIT 1",
-			absint( $vehicle_id )
+			absint( $vehicle_id ),
+			$this->resolve_business_id()
 		);
 		$row           = $wpdb->get_row( $query, ARRAY_A );
 
@@ -229,5 +238,16 @@ class Client_Vehicle_Repository {
 		);
 
 		return false !== $result;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

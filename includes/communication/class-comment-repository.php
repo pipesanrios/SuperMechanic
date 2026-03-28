@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Communication;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -25,8 +26,9 @@ class Comment_Repository {
 		global $wpdb;
 
 		$query = $wpdb->prepare(
-			"SELECT * FROM {$this->get_table_name()} WHERE id = %d LIMIT 1",
-			absint( $id )
+			"SELECT * FROM {$this->get_table_name()} WHERE id = %d AND business_id = %d LIMIT 1",
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
@@ -39,6 +41,7 @@ class Comment_Repository {
 		$args = wp_parse_args(
 			$args,
 			array(
+				'business_id'       => $this->resolve_business_id(),
 				'object_type'       => '',
 				'object_id'         => 0,
 				'process_id'        => 0,
@@ -81,6 +84,7 @@ class Comment_Repository {
 		$args = wp_parse_args(
 			$args,
 			array(
+				'business_id'       => $this->resolve_business_id(),
 				'object_type'       => '',
 				'object_id'         => 0,
 				'process_id'        => 0,
@@ -138,6 +142,7 @@ class Comment_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
@@ -152,13 +157,17 @@ class Comment_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
 			$data,
-			array( 'id' => absint( $id ) ),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			$this->get_formats_for_data( $data ),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -175,6 +184,7 @@ class Comment_Repository {
 
 	protected function build_where_clause( $args ) {
 		$clauses = array();
+		$clauses[] = 'business_id = %d';
 
 		if ( '' !== $args['object_type'] ) {
 			$clauses[] = 'object_type = %s';
@@ -239,6 +249,7 @@ class Comment_Repository {
 		global $wpdb;
 
 		$params = array();
+		$params[] = ! empty( $args['business_id'] ) ? absint( $args['business_id'] ) : $this->resolve_business_id();
 
 		if ( '' !== $args['object_type'] ) {
 			$params[] = sanitize_key( $args['object_type'] );
@@ -311,6 +322,7 @@ class Comment_Repository {
 
 	protected function get_formats_for_data( $data ) {
 		$format_map = array(
+			'business_id'       => '%d',
 			'object_type'       => '%s',
 			'object_id'         => '%d',
 			'process_id'        => '%d',
@@ -336,5 +348,16 @@ class Comment_Repository {
 		}
 
 		return $formats;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

@@ -70,6 +70,8 @@ Database
 - `attachments`
 - `communication`
 - `appointments`
+- `businesses`
+- `automation`
 - `integrations`
 - `helpers`
 - `database`
@@ -209,7 +211,7 @@ Reglas:
 
 ### Versiones
 - plugin: `0.1.0`
-- schema: `1.11.0`
+- schema: `1.14.0`
 
 ### Fases consolidadas
 - 12A–12E
@@ -237,6 +239,7 @@ Reglas:
 - 27C-B
 - 28
 - 29
+- 30
 - 31A
 - 31B
 - 31C
@@ -245,6 +248,11 @@ Reglas:
 - 32B-2
 - 32B-3A
 - 32B-3B
+- 33
+- 34
+- 35A
+- 35B
+- 35C
 
 ### Hitos recientes
 - reports consolidado
@@ -252,8 +260,11 @@ Reglas:
 - Client Portal operativo
 - Mechanic Panel operativo
 - módulo de citas operativo
+- operación multi-store visible con `sm_businesses` y selector de contexto por usuario
 - integración Google Calendar 1-way + reconciliación inbound controlada
 - watch channels / webhook REST dedicado con idempotencia y renovación preventiva
+- notificaciones multicanal base (in-app + email desacoplado)
+- recordatorios automáticos de citas con `wp_cron` y deduplicación
 - `payment_receipt` lógico por `payment_id`
 - panel admin de shortcodes
 - scripts locales de validación técnica

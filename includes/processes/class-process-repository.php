@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Processes;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -54,8 +55,10 @@ class Process_Repository {
 			LEFT JOIN {$clients_table} c ON c.id = p.client_id
 			LEFT JOIN {$vehicles_table} v ON v.id = p.vehicle_id
 			WHERE p.id = %d
+			AND p.business_id = %d
 			LIMIT 1",
-			absint( $id )
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 		$result          = $wpdb->get_row( $query, ARRAY_A );
 
@@ -69,6 +72,7 @@ class Process_Repository {
 			$args,
 			array(
 				'search'       => '',
+				'business_id'  => $this->resolve_business_id(),
 				'vehicle_id'   => 0,
 				'client_id'    => 0,
 				'process_type' => '',
@@ -113,6 +117,7 @@ class Process_Repository {
 			$args,
 			array(
 				'search'       => '',
+				'business_id'  => $this->resolve_business_id(),
 				'vehicle_id'   => 0,
 				'client_id'    => 0,
 				'process_type' => '',
@@ -141,6 +146,7 @@ class Process_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
@@ -155,6 +161,7 @@ class Process_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
@@ -183,8 +190,9 @@ class Process_Repository {
 		global $wpdb;
 
 		$query = $wpdb->prepare(
-			"SELECT * FROM {$this->get_process_step_logs_table_name()} WHERE process_id = %d ORDER BY created_at DESC, id DESC LIMIT %d",
+			"SELECT * FROM {$this->get_process_step_logs_table_name()} WHERE process_id = %d AND business_id = %d ORDER BY created_at DESC, id DESC LIMIT %d",
 			absint( $process_id ),
+			$this->resolve_business_id(),
 			max( 1, absint( $limit ) )
 		);
 		$rows  = $wpdb->get_results( $query, ARRAY_A );
@@ -200,7 +208,10 @@ class Process_Repository {
 	public function count_open_processes() {
 		global $wpdb;
 
-		$sql = "SELECT COUNT(id) FROM {$this->get_table_name()} WHERE status NOT IN ('completed', 'delivered', 'cancelled')";
+		$sql = $wpdb->prepare(
+			"SELECT COUNT(id) FROM {$this->get_table_name()} WHERE business_id = %d AND status NOT IN ('completed', 'delivered', 'cancelled')",
+			$this->resolve_business_id()
+		);
 
 		return (int) $wpdb->get_var( $sql );
 	}
@@ -219,10 +230,14 @@ class Process_Repository {
 		}
 
 		$rows = $wpdb->get_results(
-			"SELECT {$field} AS label, COUNT(id) AS total
+			$wpdb->prepare(
+				"SELECT {$field} AS label, COUNT(id) AS total
 			FROM {$this->get_table_name()}
+			WHERE business_id = %d
 			GROUP BY {$field}
 			ORDER BY total DESC, {$field} ASC",
+				$this->resolve_business_id()
+			),
 			ARRAY_A
 		);
 
@@ -256,9 +271,12 @@ class Process_Repository {
 			"SELECT process_id, action_type, message, created_at
 			FROM {$this->get_process_step_logs_table_name()}
 			WHERE {$where_sql}
+			AND process_id IN (
+				SELECT id FROM {$this->get_table_name()} WHERE business_id = %d
+			)
 			ORDER BY created_at DESC
 			LIMIT %d",
-			array_merge( $process_ids, array( max( 1, absint( $limit ) ) ) )
+			array_merge( $process_ids, array( $this->resolve_business_id(), max( 1, absint( $limit ) ) ) )
 		);
 		$rows         = $wpdb->get_results( $sql, ARRAY_A );
 
@@ -294,6 +312,8 @@ class Process_Repository {
 		$conditions = array( '(m.mechanic_id = %d OR p.assigned_to = %d)' );
 		$params     = array( $user_id );
 		$params[]   = $user_id;
+		$conditions[] = 'p.business_id = %d';
+		$params[]     = $this->resolve_business_id();
 
 		if ( '' !== $args['status'] ) {
 			$conditions[] = 'p.status = %s';
@@ -343,6 +363,7 @@ class Process_Repository {
 		global $wpdb;
 
 		$data['created_at'] = ! empty( $data['created_at'] ) ? $data['created_at'] : current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert(
 			$this->get_process_step_logs_table_name(),
@@ -367,8 +388,9 @@ class Process_Repository {
 		global $wpdb;
 
 		$query  = $wpdb->prepare(
-			"SELECT * FROM {$this->get_process_step_logs_table_name()} WHERE process_id = %d ORDER BY created_at DESC, id DESC LIMIT 1",
-			absint( $process_id )
+			"SELECT * FROM {$this->get_process_step_logs_table_name()} WHERE process_id = %d AND business_id = %d ORDER BY created_at DESC, id DESC LIMIT 1",
+			absint( $process_id ),
+			$this->resolve_business_id()
 		);
 		$result = $wpdb->get_row( $query, ARRAY_A );
 
@@ -380,6 +402,10 @@ class Process_Repository {
 
 		if ( ! empty( $args['search'] ) ) {
 			$clauses[] = '(p.title LIKE %s OR p.process_type LIKE %s OR p.status LIKE %s)';
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$clauses[] = 'p.business_id = %d';
 		}
 
 		if ( ! empty( $args['vehicle_id'] ) ) {
@@ -421,6 +447,10 @@ class Process_Repository {
 			$params[] = $search;
 			$params[] = $search;
 			$params[] = $search;
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$params[] = absint( $args['business_id'] );
 		}
 
 		if ( ! empty( $args['vehicle_id'] ) ) {
@@ -477,6 +507,7 @@ class Process_Repository {
 
 	protected function get_formats_for_data( $data ) {
 		$format_map = array(
+			'business_id'    => '%d',
 			'vehicle_id'      => '%d',
 			'client_id'       => '%d',
 			'flow_id'         => '%d',
@@ -508,6 +539,17 @@ class Process_Repository {
 	}
 
 	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
+	}
+
+	/**
 	 * Get formats for step log persistence.
 	 *
 	 * @param array<string, mixed> $data Log data.
@@ -515,6 +557,7 @@ class Process_Repository {
 	 */
 	protected function get_step_log_formats_for_data( $data ) {
 		$format_map = array(
+			'business_id'      => '%d',
 			'process_id'        => '%d',
 			'flow_step_id'      => '%d',
 			'action_type'       => '%s',

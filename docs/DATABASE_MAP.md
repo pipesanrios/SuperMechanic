@@ -2,7 +2,7 @@
 
 ## Alcance real del schema actual
 
-Este documento refleja el schema real del plugin en la version `1.11.0` definida en `includes/database/class-schema.php`.
+Este documento refleja el schema real del plugin en la version `1.14.0` definida en `includes/database/class-schema.php`.
 
 Aclaraciones importantes:
 
@@ -22,6 +22,52 @@ Aclaraciones importantes:
 - la Fase 21 de configuracion avanzada por taller / negocio tampoco modifica schema; reutiliza `wp_options` con `sm_settings` y conserva `super_mechanic_settings` como option legacy de la UI clasica
 - la Fase 32A de citas agrega la tabla `sm_appointments` como cambio minimo indispensable para agenda operativa
 - la Fase 32B-2 agrega la tabla `sm_appointment_calendar_sync` para persistencia desacoplada de sincronizacion 1-way con Google Calendar (sin contaminar `sm_appointments`)
+- la Fase 35C agrega la tabla `sm_businesses` para operación multi-store visible con negocio legacy default
+
+--------------------------------------------------
+
+Tabla: sm_businesses
+
+Proposito:
+Almacenar entidades de negocio/taller para operación multi-store visible.
+
+Columnas principales:
+- `id`
+- `slug`
+- `name`
+- `status`
+- `is_default`
+- `timezone`
+- `currency`
+- `branding_logo_attachment_id`
+- `primary_color`
+- `created_at`
+- `updated_at`
+
+Clave primaria:
+- `id`
+
+Claves foraneas logicas:
+- `sm_clients.business_id`
+- `sm_vehicles.business_id`
+- `sm_client_vehicles.business_id`
+- `sm_processes.business_id`
+- `sm_quotes.business_id`
+- `sm_quote_items.business_id`
+- `sm_invoices.business_id`
+- `sm_invoice_items.business_id`
+- `sm_payments.business_id`
+- `sm_appointments.business_id`
+- `sm_appointment_calendar_sync.business_id`
+- `sm_process_step_logs.business_id`
+- `sm_attachments.business_id`
+- `sm_comments.business_id`
+- `sm_notifications.business_id`
+
+Indices importantes:
+- `slug` unico
+- `status`
+- `is_default`
 
 --------------------------------------------------
 
@@ -32,6 +78,7 @@ Almacenar clientes del sistema.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `first_name`
 - `last_name`
 - `email`
@@ -53,6 +100,7 @@ Claves foraneas logicas:
 - `sm_invoices.client_id`
 
 Indices importantes:
+- `business_id`
 - `email`
 - `phone`
 - `status`
@@ -66,6 +114,7 @@ Almacenar vehiculos del sistema.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `client_id`
 - `type`
 - `make`
@@ -89,6 +138,7 @@ Claves foraneas logicas:
 - `sm_processes.vehicle_id`
 
 Indices importantes:
+- `business_id`
 - `client_id`
 - `vin`
 - `plate`
@@ -103,6 +153,7 @@ Registrar la relacion cliente-vehiculo y ownership historico o actual.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `client_id`
 - `vehicle_id`
 - `ownership_type`
@@ -119,6 +170,7 @@ Claves foraneas logicas:
 - `vehicle_id` -> `sm_vehicles.id`
 
 Indices importantes:
+- `business_id`
 - `client_id`
 - `vehicle_id`
 - `ownership_type`
@@ -205,6 +257,7 @@ Almacenar procesos operativos del negocio por vehiculo y cliente.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `vehicle_id`
 - `client_id`
 - `flow_id`
@@ -245,6 +298,7 @@ Claves foraneas logicas:
 - `sm_notifications.process_id`
 
 Indices importantes:
+- `business_id`
 - `vehicle_id`
 - `client_id`
 - `flow_id`
@@ -598,6 +652,7 @@ Almacenar cotizaciones asociadas a procesos y clientes.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `process_id`
 - `client_id`
 - `quote_number`
@@ -620,6 +675,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `quote_number` unico
 - `process_id`
 - `client_id`
@@ -669,6 +725,7 @@ Almacenar facturas asociadas a procesos, quotes y clientes.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `process_id`
 - `quote_id`
 - `client_id`
@@ -693,6 +750,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `invoice_number` unico
 - `process_id`
 - `quote_id`
@@ -746,6 +804,7 @@ Registrar pagos asociados a facturas.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `invoice_id`
 - `payment_date`
 - `amount`
@@ -760,6 +819,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `invoice_id`
 - `payment_date`
 - `payment_method`
@@ -1227,6 +1287,68 @@ Si el schema cambia en futuras fases, actualizar tambien:
   - `sm_attachments`
   - `sm_comments`
   - `sm_notifications`
+
+## Nota Fase 35A. Activación multi-business base controlada
+
+- La Fase 35A sí modifica schema y actualiza versión a `1.12.0`.
+- Se agrega `business_id` (default legacy `1`) + índice en:
+  - `sm_clients`
+  - `sm_vehicles`
+  - `sm_client_vehicles`
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+- Se incorpora backfill idempotente en migración separada (`Tenancy_Backfill_Migrator`) con herencia por entidad padre cuando aplica.
+- No se agrega tabla `businesses` en 35A.
+- Queda diferido a 35B:
+  - `sm_attachments`
+  - `sm_comments`
+  - `sm_notifications`
+  - `sm_appointments`
+  - `sm_appointment_calendar_sync`
+  - `sm_process_step_logs`
+  - `sm_quote_items`
+  - `sm_invoice_items`
+
+## Nota Fase 35B. Enforcement multi-tenant transversal
+
+- La Fase 35B modifica schema y actualiza versión a `1.13.0`.
+- Se agrega `business_id` (default legacy `1`) + índice en:
+  - `sm_quote_items`
+  - `sm_invoice_items`
+  - `sm_process_step_logs`
+  - `sm_appointments`
+  - `sm_appointment_calendar_sync`
+  - `sm_attachments`
+  - `sm_comments`
+  - `sm_notifications`
+- El backfill se ejecuta en el mismo migrador de tenancy (`Tenancy_Backfill_Migrator`) de forma idempotente, por herencia de padre estructural y fallback explícito a `business_id = 1` cuando no hay padre inequívoco.
+- No se agrega tabla `businesses` en 35B.
+
+## Nota Fase 35C. Operación multi-store visible
+
+- La Fase 35C modifica schema y actualiza versión a `1.14.0`.
+- Se agrega tabla:
+  - `sm_businesses`
+- Shape mínimo de `sm_businesses`:
+  - `id`
+  - `slug` (unico)
+  - `name`
+  - `status` (`active` / `inactive`)
+  - `is_default`
+  - `timezone`
+  - `currency`
+  - `branding_logo_attachment_id`
+  - `primary_color`
+  - `created_at`
+  - `updated_at`
+- Estrategia legacy aplicada:
+  - negocio default idempotente `id=1`, `slug=default`, `is_default=1`
+  - `business_id=1` se mantiene como fallback de compatibilidad
+- Migración/backfill en `Tenancy_Backfill_Migrator`:
+  - upsert de negocio default
+  - reparación de huérfanos `business_id` a `1` cuando no existe negocio referenciado
 
 ## Nota Fase 31A. Base local de licencias
 

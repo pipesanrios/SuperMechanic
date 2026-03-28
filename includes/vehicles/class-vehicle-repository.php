@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Vehicles;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -56,8 +57,10 @@ class Vehicle_Repository {
 			FROM {$vehicles_table} v
 			LEFT JOIN {$clients_table} c ON c.id = v.client_id
 			WHERE v.id = %d
+			AND v.business_id = %d
 			LIMIT 1",
-			absint( $id )
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 		$result         = $wpdb->get_row( $query, ARRAY_A );
 
@@ -85,6 +88,7 @@ class Vehicle_Repository {
 				'per_page'    => 20,
 				'orderby'     => 'created_at',
 				'order'       => 'DESC',
+				'business_id' => $this->resolve_business_id(),
 				'exclude_id'  => 0,
 				'exact_vin'   => '',
 				'exact_plate' => '',
@@ -131,6 +135,7 @@ class Vehicle_Repository {
 				'type'        => '',
 				'date_from'   => '',
 				'date_to'     => '',
+				'business_id' => $this->resolve_business_id(),
 				'exclude_id'  => 0,
 				'exact_vin'   => '',
 				'exact_plate' => '',
@@ -163,6 +168,7 @@ class Vehicle_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats() );
 
@@ -184,6 +190,7 @@ class Vehicle_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
@@ -225,6 +232,10 @@ class Vehicle_Repository {
 
 		if ( ! empty( $args['search'] ) ) {
 			$clauses[] = '(v.vin LIKE %s OR v.plate LIKE %s OR v.make LIKE %s OR v.model LIKE %s)';
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$clauses[] = 'v.business_id = %d';
 		}
 
 		if ( ! empty( $args['exact_vin'] ) ) {
@@ -281,6 +292,10 @@ class Vehicle_Repository {
 			$params[] = $search;
 			$params[] = $search;
 			$params[] = $search;
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$params[] = absint( $args['business_id'] );
 		}
 
 		if ( ! empty( $args['exact_vin'] ) ) {
@@ -364,6 +379,7 @@ class Vehicle_Repository {
 	protected function get_formats() {
 		return array(
 			'%d',
+			'%d',
 			'%s',
 			'%s',
 			'%s',
@@ -386,6 +402,7 @@ class Vehicle_Repository {
 	protected function get_update_formats() {
 		return array(
 			'%d',
+			'%d',
 			'%s',
 			'%s',
 			'%s',
@@ -397,5 +414,16 @@ class Vehicle_Repository {
 			'%s',
 			'%s',
 		);
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

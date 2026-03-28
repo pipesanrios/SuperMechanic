@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Clients;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -36,8 +37,9 @@ class Client_Repository {
 		global $wpdb;
 
 		$query = $wpdb->prepare(
-			"SELECT * FROM {$this->get_table_name()} WHERE id = %d LIMIT 1",
-			absint( $id )
+			"SELECT * FROM {$this->get_table_name()} WHERE id = %d AND business_id = %d LIMIT 1",
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 
 		$result = $wpdb->get_row( $query, ARRAY_A );
@@ -65,6 +67,7 @@ class Client_Repository {
 				'per_page'          => 20,
 				'orderby'           => 'created_at',
 				'order'             => 'DESC',
+				'business_id'       => $this->resolve_business_id(),
 				'exclude_id'        => 0,
 				'exact_email'       => '',
 				'exact_document_id' => '',
@@ -103,6 +106,7 @@ class Client_Repository {
 				'status'            => '',
 				'date_from'         => '',
 				'date_to'           => '',
+				'business_id'       => $this->resolve_business_id(),
 				'exclude_id'        => 0,
 				'exact_email'       => '',
 				'exact_document_id' => '',
@@ -133,6 +137,7 @@ class Client_Repository {
 		$now               = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats() );
 
@@ -154,6 +159,7 @@ class Client_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
@@ -195,6 +201,10 @@ class Client_Repository {
 
 		if ( ! empty( $args['search'] ) ) {
 			$clauses[] = '(first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR document_id LIKE %s)';
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$clauses[] = 'business_id = %d';
 		}
 
 		if ( ! empty( $args['exact_email'] ) ) {
@@ -243,6 +253,10 @@ class Client_Repository {
 			$params[] = $search;
 			$params[] = $search;
 			$params[] = $search;
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$params[] = absint( $args['business_id'] );
 		}
 
 		if ( ! empty( $args['exact_email'] ) ) {
@@ -315,6 +329,7 @@ class Client_Repository {
 	 */
 	protected function get_formats() {
 		return array(
+			'%d',
 			'%s',
 			'%s',
 			'%s',
@@ -334,6 +349,7 @@ class Client_Repository {
 	 */
 	protected function get_update_formats() {
 		return array(
+			'%d',
 			'%s',
 			'%s',
 			'%s',
@@ -343,6 +359,17 @@ class Client_Repository {
 			'%s',
 			'%s',
 		);
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }
 

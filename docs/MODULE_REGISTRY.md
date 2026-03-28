@@ -247,12 +247,13 @@ Carpeta:
 - `includes/helpers/`
 
 Proposito:
-- centralizar una capa unica de contexto de negocio para evolucion futura a tenancy
-- mantener modo actual single-business sin activar multi-tenant real
+- centralizar la resolucion de contexto de negocio para tenancy real
+- soportar seleccion operativa de negocio por usuario con fallback legacy compatible
 
 Tablas:
-- sin tablas nuevas
-- reutiliza `wp_options` via `sm_settings` (`business.business_context_key`)
+- `sm_businesses`
+- `wp_options` via `sm_settings` (`business.business_context_key`, `business.business_id`)
+- `wp_usermeta` via `sm_active_business_id`
 
 Clases principales:
 - `Business_Context_Service`
@@ -262,7 +263,7 @@ Dependencias:
 - core
 
 Estado:
-- implementado como preparacion arquitectonica en Fase 30
+- implementado y operativo (35A + 35B + 35C)
 
 Riesgos o puntos sensibles:
 - no activar filtros tenant-aware antes de definir `business_id` persistente
@@ -270,12 +271,106 @@ Riesgos o puntos sensibles:
 - no alterar ownership actual mientras el runtime siga en single-business
 
 Cambios tecnicos recientes confirmados:
-- `Business_Context_Service` expone un contrato runtime explicito con:
-  - `mode = single_business`
-  - `business_context_key` desde `Settings_Service`
-  - `business_id = null` reservado para fases futuras
-  - `is_tenancy_active = false`
-- el wiring en `class-plugin.php` inicializa la capa sin cambiar comportamiento funcional existente
+- `Business_Context_Service` resuelve `business_id` real con prioridad:
+  - user meta `sm_active_business_id`
+  - `sm_settings.business.business_id`
+  - negocio default `id=1`
+- `class-plugin.php` cablea `Business_Service` + `Business_Admin_Controller` y activa selector operativo en admin
+
+Actualizacion FASE 35A:
+- estado:
+  - implementado (activación base multi-business controlada)
+- cambios confirmados:
+  - `Business_Context_Service` pasa a resolver `business_id` real con fallback legacy `1`
+  - `Settings_Service` normaliza `business.business_id` en `sm_settings`
+  - `class-migrator.php` ejecuta backfill idempotente separado por `Tenancy_Backfill_Migrator`
+- alcance schema 35A:
+  - `sm_clients`
+  - `sm_vehicles`
+  - `sm_client_vehicles`
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+- restricciones mantenidas:
+  - sin tabla `businesses`
+  - sin activar aislamiento completo de dashboard/reportes/API en esta subfase
+  - sin cambios de numeradores globales `quote_number`/`invoice_number`
+
+Actualizacion FASE 35B:
+- estado:
+  - implementado (enforcement multi-tenant transversal sobre entidades diferidas)
+- cambios confirmados:
+  - `Report_Repository` incorpora `Business_Context_Service` y fuerza filtros `business_id` en consultas de procesos/quotes/invoices/payments y actividad agregada
+  - `Access_Control_Service` endurece acceso en entidades núcleo con validación adicional de negocio (`ownership + business_id`)
+  - repositorios diferidos de 35B operan con `business_id` obligatorio y propagación desde services
+  - `Tenancy_Backfill_Migrator` se extiende para backfill idempotente por herencia estructural en tablas diferidas
+- alcance schema 35B:
+  - `sm_quote_items`
+  - `sm_invoice_items`
+  - `sm_process_step_logs`
+  - `sm_appointments`
+  - `sm_appointment_calendar_sync`
+  - `sm_attachments`
+  - `sm_comments`
+  - `sm_notifications`
+- restricciones mantenidas:
+  - sin tabla `businesses`
+  - sin branding/billing SaaS
+  - sin cambios de numeradores globales `quote_number`/`invoice_number`
+
+Actualizacion FASE 35C:
+- estado:
+  - implementado (operacion multi-store visible)
+- cambios confirmados:
+  - se incorpora modulo `includes/businesses/*`:
+    - `Business_Repository`
+    - `Business_Service`
+    - `Business_Admin_Controller`
+    - `Business_List_Table`
+  - `Tenancy_Backfill_Migrator` asegura upsert idempotente de negocio default `id=1`
+  - `Tenancy_Backfill_Migrator` repara huérfanos `business_id` a `1` cuando apunta a negocio inexistente
+  - `Settings_Service` y `class-settings.php` exponen fallback `business.business_id`
+- alcance schema 35C:
+  - nueva tabla `sm_businesses`
+- restricciones mantenidas:
+  - sin billing SaaS
+  - sin multi-login complejo
+  - sin permisos ultrafinos por tenant
+  - sin cambios de numeradores globales `quote_number`/`invoice_number`
+
+--------------------------------------------------
+
+## Businesses
+
+Carpeta:
+- `includes/businesses/`
+
+Proposito:
+- gestionar negocios/talleres en runtime multi-store visible
+- proveer CRUD admin basico y datos de configuracion por negocio
+
+Tablas:
+- `sm_businesses`
+
+Clases principales:
+- `Business_Repository`
+- `Business_Service`
+- `Business_Admin_Controller`
+- `Business_List_Table`
+
+Dependencias:
+- settings
+- helpers/business_context
+- core/admin
+
+Estado:
+- implementado en Fase 35C
+
+Riesgos o puntos sensibles:
+- no permitir eliminar/desactivar negocio default `id=1` sin estrategia de reemplazo
+- validar que branding use `attachment_id` y no exponga `file_url`
+- mantener coherencia entre contexto de usuario y fallback global
 
 --------------------------------------------------
 
@@ -884,6 +979,9 @@ Clases principales:
 - `Comment_Service`
 - `Notification_Repository`
 - `Notification_Service`
+- `Notification_Event_Catalog`
+- `Notification_Channel_Interface`
+- `Email_Notification_Channel`
 - `Event_Dispatcher`
 - `Client_Comment_Shortcodes`
 
@@ -916,6 +1014,10 @@ Riesgos o puntos sensibles:
 Cambios tecnicos recientes confirmados:
 - en Fase 17, `Comment_Service` y `Notification_Service` endurecen acceso apoyandose en `Access_Control_Service`
 - las notificaciones cliente validan ahora recipient + ownership del proceso u objeto cuando aplica
+- en FASE 33, `Notification_Service` consolida validación de tipos desde `Notification_Event_Catalog` y mantiene `sm_notifications` como canal in-app principal
+- en FASE 33, `Email_Notification_Channel` añade primer canal externo desacoplado por `wp_mail`, habilitable desde `sm_settings.notifications.enable_email_notifications`
+- en FASE 33, `Event_Dispatcher` incorpora triggers de citas (`appointment_created`, `appointment_updated`, `appointment_status_changed`, `appointment_cancelled`)
+- en FASE 34, `Event_Dispatcher` incorpora trigger `appointment_reminder` y lo enruta a `Notification_Service::notify_appointment_reminder()`
 
 --------------------------------------------------
 
@@ -1259,6 +1361,7 @@ Proposito:
 - base operativa de agenda/citas del taller
 - CRUD admin de citas con cliente, vehiculo y mecanico
 - vinculo opcional con proceso existente
+- emision de eventos internos para notificaciones operativas centralizadas
 
 Tablas:
 - `sm_appointments`
@@ -1266,6 +1369,7 @@ Tablas:
 Clases principales:
 - `Appointment_Repository`
 - `Appointment_Service`
+- `Appointment_Reminder_Scheduler`
 - `Appointment_Admin_Controller`
 - `Appointment_List_Table`
 
@@ -1273,6 +1377,8 @@ Dependencias:
 - clients
 - vehicles
 - processes
+- communication
+- automation
 - core
 
 Estado:
@@ -1288,6 +1394,43 @@ Cambios tecnicos recientes confirmados:
 - wiring runtime nuevo en `class-plugin.php`
 - filtros admin por fecha, mecanico y estado
 - estados basicos implementados: `scheduled`, `confirmed`, `in_progress`, `completed`, `cancelled`
+- en FASE 33, `Appointment_Service` integra `Event_Dispatcher` y emite `sm_event_appointment_*` en alta, edición, cambio de estado y cancelación (incluyendo flujo inbound controlado)
+- en FASE 34, `Appointment_Reminder_Scheduler` añade recordatorios automáticos por `wp_cron` y dispatch controlado de `appointment_reminder`
+
+--------------------------------------------------
+
+## Automation (FASE 34)
+
+Carpeta:
+- `includes/automation/`
+
+Proposito:
+- ejecutar automatizaciones operativas simples basadas en eventos internos
+- mantener reglas activables/desactivables sin builder complejo
+- coordinar refresco controlado de scheduler de recordatorios
+
+Clases principales:
+- `Automation_Service`
+- `Automation_Rule_Engine`
+
+Dependencias:
+- communication (dispatcher/eventos)
+- appointments (scheduler)
+- helpers/settings
+- core
+
+Estado:
+- implementado en FASE 34
+
+Riesgos o puntos sensibles:
+- evitar loops o ejecuciones duplicadas sobre el mismo evento
+- no escalar a motor complejo de reglas en esta fase
+- mantener alcance operativo (sin campañas ni marketing)
+
+Cambios tecnicos recientes confirmados:
+- `Automation_Service` escucha `sm_event_appointment_*` y ejecuta acciones simples por rule engine
+- `Automation_Rule_Engine` mantiene resolución mínima de acciones por evento
+- integración con `Appointment_Reminder_Scheduler::schedule_near_term_scan()` para refresco no destructivo del cron
 
 --------------------------------------------------
 

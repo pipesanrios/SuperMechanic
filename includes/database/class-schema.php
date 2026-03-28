@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.11.0';
+		return '1.14.0';
 	}
 
 	/**
@@ -31,6 +31,7 @@ class Schema {
 		global $wpdb;
 
 		return array(
+			'businesses'        => $wpdb->prefix . 'sm_businesses',
 			'clients'           => $wpdb->prefix . 'sm_clients',
 			'vehicles'          => $wpdb->prefix . 'sm_vehicles',
 			'client_vehicles'   => $wpdb->prefix . 'sm_client_vehicles',
@@ -69,6 +70,7 @@ class Schema {
 
 		$tables                = self::get_tables();
 		$charset_collate       = $wpdb->get_charset_collate();
+		$businesses_table      = $tables['businesses'];
 		$clients_table         = $tables['clients'];
 		$vehicles_table        = $tables['vehicles'];
 		$client_vehicles_table = $tables['client_vehicles'];
@@ -96,8 +98,26 @@ class Schema {
 		$notifications_table   = $tables['notifications'];
 
 		return array(
+			"CREATE TABLE {$businesses_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				slug varchar(80) NOT NULL,
+				name varchar(191) NOT NULL,
+				status varchar(20) NOT NULL default 'active',
+				is_default tinyint(1) NOT NULL default 0,
+				timezone varchar(64) NOT NULL default 'UTC',
+				currency varchar(10) NOT NULL default 'USD',
+				branding_logo_attachment_id bigint(20) unsigned DEFAULT NULL,
+				primary_color varchar(20) DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY slug (slug),
+				KEY status (status),
+				KEY is_default (is_default)
+			) {$charset_collate};",
 			"CREATE TABLE {$clients_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				first_name varchar(100) NOT NULL,
 				last_name varchar(100) DEFAULT NULL,
 				email varchar(190) DEFAULT NULL,
@@ -108,12 +128,14 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY email (email),
 				KEY phone (phone),
 				KEY status (status)
 			) {$charset_collate};",
 			"CREATE TABLE {$vehicles_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				client_id bigint(20) unsigned NOT NULL,
 				type varchar(50) NOT NULL,
 				make varchar(100) NOT NULL,
@@ -128,6 +150,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY client_id (client_id),
 				KEY vin (vin),
 				KEY plate (plate),
@@ -135,6 +158,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$client_vehicles_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				client_id bigint(20) unsigned NOT NULL,
 				vehicle_id bigint(20) unsigned NOT NULL,
 				ownership_type varchar(50) NOT NULL default 'owner',
@@ -143,6 +167,7 @@ class Schema {
 				is_primary tinyint(1) NOT NULL default 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY client_id (client_id),
 				KEY vehicle_id (vehicle_id),
 				KEY ownership_type (ownership_type),
@@ -191,6 +216,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$processes_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				vehicle_id bigint(20) unsigned NOT NULL,
 				client_id bigint(20) unsigned DEFAULT 0,
 				flow_id bigint(20) unsigned DEFAULT 0,
@@ -210,6 +236,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY vehicle_id (vehicle_id),
 				KEY client_id (client_id),
 				KEY flow_id (flow_id),
@@ -221,6 +248,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$appointments_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				client_id bigint(20) unsigned NOT NULL,
 				vehicle_id bigint(20) unsigned NOT NULL,
 				process_id bigint(20) unsigned DEFAULT NULL,
@@ -232,6 +260,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY client_id (client_id),
 				KEY vehicle_id (vehicle_id),
 				KEY process_id (process_id),
@@ -242,6 +271,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$appointment_sync_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				appointment_id bigint(20) unsigned NOT NULL,
 				provider varchar(50) NOT NULL default 'google_calendar',
 				external_calendar_id varchar(191) DEFAULT NULL,
@@ -253,6 +283,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY appointment_id (appointment_id),
 				KEY provider (provider),
 				KEY sync_status (sync_status),
@@ -261,6 +292,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$step_logs_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				process_id bigint(20) unsigned NOT NULL,
 				flow_step_id bigint(20) unsigned DEFAULT NULL,
 				action_type varchar(50) NOT NULL,
@@ -270,6 +302,7 @@ class Schema {
 				created_by bigint(20) unsigned DEFAULT NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY process_id (process_id),
 				KEY flow_step_id (flow_step_id),
 				KEY action_type (action_type),
@@ -401,6 +434,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$quotes_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				process_id bigint(20) unsigned NOT NULL,
 				client_id bigint(20) unsigned DEFAULT NULL,
 				quote_number varchar(100) NOT NULL,
@@ -419,6 +453,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				UNIQUE KEY quote_number (quote_number),
 				KEY process_id (process_id),
 				KEY client_id (client_id),
@@ -427,6 +462,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$quote_items_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				quote_id bigint(20) unsigned NOT NULL,
 				item_type varchar(20) NOT NULL,
 				reference_id bigint(20) unsigned DEFAULT NULL,
@@ -439,12 +475,14 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY quote_id (quote_id),
 				KEY item_type (item_type),
 				KEY sort_order (sort_order)
 			) {$charset_collate};",
 			"CREATE TABLE {$invoices_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				process_id bigint(20) unsigned DEFAULT NULL,
 				quote_id bigint(20) unsigned DEFAULT NULL,
 				client_id bigint(20) unsigned DEFAULT NULL,
@@ -465,6 +503,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				UNIQUE KEY invoice_number (invoice_number),
 				KEY process_id (process_id),
 				KEY quote_id (quote_id),
@@ -474,6 +513,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$invoice_items_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				invoice_id bigint(20) unsigned NOT NULL,
 				item_type varchar(20) NOT NULL,
 				reference_id bigint(20) unsigned DEFAULT NULL,
@@ -486,6 +526,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY invoice_id (invoice_id),
 				KEY item_type (item_type),
 				KEY sort_order (sort_order),
@@ -493,6 +534,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$payments_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				invoice_id bigint(20) unsigned NOT NULL,
 				payment_date datetime NOT NULL,
 				amount decimal(12,2) NOT NULL default 0.00,
@@ -503,6 +545,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY invoice_id (invoice_id),
 				KEY payment_date (payment_date),
 				KEY payment_method (payment_method),
@@ -510,6 +553,7 @@ class Schema {
 			) {$charset_collate};",
 			"CREATE TABLE {$attachments_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
 				object_type varchar(50) NOT NULL default 'process',
 				object_id bigint(20) unsigned NOT NULL default 0,
 				process_id bigint(20) unsigned DEFAULT NULL,
@@ -528,6 +572,7 @@ class Schema {
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (id),
+				KEY business_id (business_id),
 				KEY object_type (object_type),
 				KEY object_id (object_id),
 				KEY process_id (process_id),
@@ -539,6 +584,7 @@ class Schema {
 			) {$charset_collate};",
             "CREATE TABLE {$comments_table} (
                 id bigint(20) unsigned NOT NULL auto_increment,
+                business_id bigint(20) unsigned NOT NULL default 1,
                 object_type varchar(50) NOT NULL,
                 object_id bigint(20) unsigned NOT NULL default 0,
                 process_id bigint(20) unsigned DEFAULT NULL,
@@ -555,6 +601,7 @@ class Schema {
                 created_at datetime NOT NULL,
                 updated_at datetime NOT NULL,
                 PRIMARY KEY  (id),
+                KEY business_id (business_id),
                 KEY object_type (object_type),
                 KEY object_id (object_id),
                 KEY process_id (process_id),
@@ -570,6 +617,7 @@ class Schema {
             ) {$charset_collate};",
             "CREATE TABLE {$notifications_table} (
                 id bigint(20) unsigned NOT NULL auto_increment,
+                business_id bigint(20) unsigned NOT NULL default 1,
                 recipient_type varchar(20) NOT NULL,
                 recipient_id bigint(20) unsigned NOT NULL,
                 object_type varchar(50) DEFAULT NULL,
@@ -585,6 +633,7 @@ class Schema {
                 updated_at datetime NOT NULL,
                 is_system tinyint(1) NOT NULL default 1,
                 PRIMARY KEY  (id),
+                KEY business_id (business_id),
                 KEY recipient_type (recipient_type),
                 KEY recipient_id (recipient_id),
                 KEY object_type (object_type),

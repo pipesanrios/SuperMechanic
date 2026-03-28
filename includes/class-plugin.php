@@ -7,14 +7,19 @@
 
 namespace Super_Mechanic;
 
+use Super_Mechanic\Automation\Automation_Rule_Engine;
+use Super_Mechanic\Automation\Automation_Service;
 use Super_Mechanic\Appointments\Appointment_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Service;
+use Super_Mechanic\Appointments\Appointment_Reminder_Scheduler;
 use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Attachments\Attachment_Admin_Controller;
 use Super_Mechanic\Attachments\Attachment_Service;
 use Super_Mechanic\Attachments\Client_Attachment_Shortcodes;
 use Super_Mechanic\Attachments\Process_Timeline_Service;
+use Super_Mechanic\Businesses\Business_Admin_Controller;
+use Super_Mechanic\Businesses\Business_Service;
 use Super_Mechanic\Clients\Client_Admin_Controller;
 use Super_Mechanic\Communication\Client_Comment_Shortcodes;
 use Super_Mechanic\Communication\Comment_Service;
@@ -76,6 +81,8 @@ class Plugin {
 	protected $settings;
 	protected $settings_service;
 	protected $business_context_service;
+	protected $business_service;
+	protected $business_admin_controller;
 	protected $admin_menu;
 	protected $client_admin_controller;
 	protected $vehicle_admin_controller;
@@ -132,13 +139,18 @@ class Plugin {
 	protected $google_calendar_sync_service;
 	protected $google_calendar_auth_controller;
 	protected $google_calendar_webhook_controller;
+	protected $appointment_reminder_scheduler;
+	protected $automation_rule_engine;
+	protected $automation_service;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
 		$this->settings                      = new Settings();
 		$this->settings_service              = new Settings_Service();
 		$this->update_service                = new Update_Service( $this->settings_service );
-		$this->business_context_service      = new Business_Context_Service( $this->settings_service );
+		$this->business_service              = new Business_Service();
+		$this->business_context_service      = new Business_Context_Service( $this->settings_service, $this->business_service );
+		$this->business_admin_controller     = new Business_Admin_Controller( $this->business_service, $this->business_context_service, $this->settings_service );
 		$this->appointment_ical_feed_service = new Appointment_Ical_Feed_Service();
 		$this->feed_token_service            = new Feed_Token_Service();
 		$this->google_calendar_client        = new Google_Calendar_Client();
@@ -169,6 +181,10 @@ class Plugin {
 		$this->download_service              = new Download_Service( $this->document_service );
 		$this->notification_service          = new Notification_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service );
 		$this->event_dispatcher              = Event_Dispatcher::get_instance( $this->notification_service, $this->document_service );
+		$this->appointment_service->set_event_dispatcher( $this->event_dispatcher );
+		$this->appointment_reminder_scheduler = new Appointment_Reminder_Scheduler( $this->appointment_service, $this->notification_service, $this->event_dispatcher, $this->settings_service );
+		$this->automation_rule_engine       = new Automation_Rule_Engine( $this->settings_service );
+		$this->automation_service           = new Automation_Service( $this->automation_rule_engine, $this->appointment_reminder_scheduler, $this->settings_service );
 		$this->comment_service               = new Comment_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->event_dispatcher );
 		$this->client_process_view_service   = new Client_Process_View_Service( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->comment_service );
 		$this->client_rest_controller        = new Client_REST_Controller( $this->dashboard_service, $this->client_process_view_service, null, $this->quote_service, $this->process_service, $this->invoice_service );
@@ -232,6 +248,8 @@ class Plugin {
 		$this->download_service->register_hooks();
 		$this->update_service->register_hooks();
 		$this->google_calendar_service->register_hooks();
+		$this->appointment_reminder_scheduler->register_hooks();
+		$this->automation_service->register_hooks();
 
 		if ( is_admin() ) {
 			add_action( 'admin_menu', array( $this->admin_menu, 'register_menu' ) );
@@ -253,6 +271,7 @@ class Plugin {
 			$this->appointment_admin_controller->register_hooks();
 			$this->google_calendar_auth_controller->register_hooks();
 			$this->mechanic_dashboard_controller->register_hooks();
+			$this->business_admin_controller->register_hooks();
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();

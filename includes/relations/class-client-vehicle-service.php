@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Relations;
 
 use Super_Mechanic\Clients\Client_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Vehicles\Vehicle_Service;
 use WP_Error;
 
@@ -44,6 +45,12 @@ class Client_Vehicle_Service {
 	 * @var Client_Vehicle_Transaction_Repository
 	 */
 	protected $transaction_repository;
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
@@ -52,11 +59,12 @@ class Client_Vehicle_Service {
 	 * @param Client_Service|null            $client_service  Client service.
 	 * @param Vehicle_Service|null           $vehicle_service Vehicle service.
 	 */
-	public function __construct( Client_Vehicle_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Client_Vehicle_Transaction_Repository $transaction_repository = null ) {
-		$this->repository             = $repository ? $repository : new Client_Vehicle_Repository();
-		$this->client_service         = $client_service ? $client_service : new Client_Service();
-		$this->vehicle_service        = $vehicle_service ? $vehicle_service : new Vehicle_Service();
-		$this->transaction_repository = $transaction_repository ? $transaction_repository : new Client_Vehicle_Transaction_Repository();
+	public function __construct( Client_Vehicle_Repository $repository = null, Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Client_Vehicle_Transaction_Repository $transaction_repository = null, Business_Context_Service $business_context_service = null ) {
+		$this->repository               = $repository ? $repository : new Client_Vehicle_Repository();
+		$this->client_service           = $client_service ? $client_service : new Client_Service();
+		$this->vehicle_service          = $vehicle_service ? $vehicle_service : new Vehicle_Service();
+		$this->transaction_repository   = $transaction_repository ? $transaction_repository : new Client_Vehicle_Transaction_Repository();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -90,8 +98,27 @@ class Client_Vehicle_Service {
 			$this->end_active_primary_relations( $vehicle_id, $args['start_date'] );
 		}
 
+		$client      = $this->client_service->get_client( $client_id );
+		$vehicle     = $this->vehicle_service->get_vehicle( $vehicle_id );
+		$business_id = $this->resolve_business_id();
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) ) {
+			$business_id = absint( $client['business_id'] );
+		}
+
+		if ( is_array( $vehicle ) && ! empty( $vehicle['business_id'] ) ) {
+			$vehicle_business_id = absint( $vehicle['business_id'] );
+
+			if ( $vehicle_business_id > 0 && $vehicle_business_id !== $business_id ) {
+				return new WP_Error( 'sm_relation_business_mismatch', __( 'Cliente y vehículo deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+			}
+
+			$business_id = $vehicle_business_id > 0 ? $vehicle_business_id : $business_id;
+		}
+
 		$relation_id = $this->repository->create_relation(
 			array(
+				'business_id'    => max( 1, absint( $business_id ) ),
 				'client_id'      => $client_id,
 				'vehicle_id'     => $vehicle_id,
 				'ownership_type' => sanitize_text_field( $args['ownership_type'] ),
@@ -213,6 +240,13 @@ class Client_Vehicle_Service {
 			$errors->add( 'sm_relation_invalid_vehicle', __( 'El vehículo indicado no existe.', 'super-mechanic' ) );
 		}
 
+		$client  = $this->client_service->get_client( $client_id );
+		$vehicle = $this->vehicle_service->get_vehicle( $vehicle_id );
+
+		if ( is_array( $client ) && is_array( $vehicle ) && ! empty( $client['business_id'] ) && ! empty( $vehicle['business_id'] ) && absint( $client['business_id'] ) !== absint( $vehicle['business_id'] ) ) {
+			$errors->add( 'sm_relation_business_mismatch', __( 'Cliente y vehículo deben pertenecer al mismo negocio.', 'super-mechanic' ) );
+		}
+
 		if ( '' === trim( (string) $ownership_type ) ) {
 			$errors->add( 'sm_relation_invalid_type', __( 'El tipo de relación es obligatorio.', 'super-mechanic' ) );
 		}
@@ -235,5 +269,14 @@ class Client_Vehicle_Service {
 				$this->repository->end_relation( absint( $relation['id'] ), $end_date );
 			}
 		}
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 }

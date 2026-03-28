@@ -9,6 +9,7 @@ namespace Super_Mechanic\Invoices;
 
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Quotes\Quote_Service;
 use WP_Error;
@@ -68,6 +69,7 @@ class Invoice_Service {
 	 */
 	protected $access_control_service;
 	protected $settings_service;
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
@@ -79,7 +81,7 @@ class Invoice_Service {
 	 * @param Event_Dispatcher|null               $event_dispatcher       Event dispatcher.
 	 * @param Invoice_Transaction_Repository|null $transaction_repository Transaction repository.
 	 */
-	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null ) {
+	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository             = $repository ? $repository : new Invoice_Repository();
 		$this->item_repository        = $item_repository ? $item_repository : new Invoice_Item_Repository();
 		$this->payment_repository     = $payment_repository ? $payment_repository : new Payment_Repository();
@@ -88,6 +90,7 @@ class Invoice_Service {
 		$this->transaction_repository = $transaction_repository ? $transaction_repository : new Invoice_Transaction_Repository();
 		$this->access_control_service = $access_control_service ? $access_control_service : new Access_Control_Service( null, null, null, null, $this->repository );
 		$this->settings_service       = $settings_service ? $settings_service : new Settings_Service();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -189,6 +192,10 @@ class Invoice_Service {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_invoices( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
@@ -276,6 +283,7 @@ class Invoice_Service {
 		}
 
 		$data['invoice_id'] = $invoice_id;
+		$data['business_id'] = ! empty( $invoice['business_id'] ) ? absint( $invoice['business_id'] ) : $this->resolve_business_id();
 		$data               = $this->prepare_invoice_item_data( $data );
 		$valid              = $this->validate_invoice_item_data( $data, false );
 
@@ -310,7 +318,15 @@ class Invoice_Service {
 			return new WP_Error( 'sm_invoice_item_not_found', __( 'El item de la factura no existe.', 'super-mechanic' ) );
 		}
 
-		$data  = $this->prepare_invoice_item_data( array_merge( $item, $data ) );
+		$merged = array_merge( $item, $data );
+		if ( ! empty( $item['invoice_id'] ) ) {
+			$parent_invoice = $this->repository->get_by_id( absint( $item['invoice_id'] ) );
+			if ( is_array( $parent_invoice ) && ! empty( $parent_invoice['business_id'] ) ) {
+				$merged['business_id'] = absint( $parent_invoice['business_id'] );
+			}
+		}
+
+		$data  = $this->prepare_invoice_item_data( $merged );
 		$valid = $this->validate_invoice_item_data( $data, true );
 
 		if ( is_wp_error( $valid ) ) {
@@ -1219,8 +1235,23 @@ class Invoice_Service {
 	protected function prepare_invoice_data( array $data ) {
 		$quote_id = isset( $data['quote_id'] ) ? absint( $data['quote_id'] ) : 0;
 		$quote    = $quote_id ? $this->quote_service->get_quote( $quote_id ) : null;
+		$process  = null;
+
+		if ( ! empty( $data['process_id'] ) ) {
+			$process_service = new \Super_Mechanic\Processes\Process_Service();
+			$process         = $process_service->get_process( absint( $data['process_id'] ) );
+		}
+
+		$client = null;
+		if ( ! empty( $data['client_id'] ) ) {
+			$client_service = new \Super_Mechanic\Clients\Client_Service();
+			$client         = $client_service->get_client( absint( $data['client_id'] ) );
+		}
 
 		return array(
+			'business_id'    => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_business_id_from_parents( $quote, $process, $client ),
 			'process_id'     => isset( $data['process_id'] ) ? absint( $data['process_id'] ) : ( $quote ? absint( $quote['process_id'] ) : 0 ),
 			'quote_id'       => $quote_id,
 			'client_id'      => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : ( $quote ? absint( $quote['client_id'] ) : 0 ),
@@ -1252,6 +1283,7 @@ class Invoice_Service {
 		$unit_price = isset( $data['unit_price'] ) ? $this->normalize_decimal( $data['unit_price'] ) : 0;
 
 		return array(
+			'business_id' => isset( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id(),
 			'invoice_id'   => isset( $data['invoice_id'] ) ? absint( $data['invoice_id'] ) : 0,
 			'item_type'    => isset( $data['item_type'] ) ? sanitize_key( $data['item_type'] ) : 'custom',
 			'reference_id' => isset( $data['reference_id'] ) ? absint( $data['reference_id'] ) : 0,
@@ -1271,7 +1303,13 @@ class Invoice_Service {
 	 * @return array<string, mixed>
 	 */
 	protected function prepare_payment_data( array $data ) {
+		$invoice_id = isset( $data['invoice_id'] ) ? absint( $data['invoice_id'] ) : 0;
+		$invoice    = $invoice_id > 0 ? $this->repository->get_by_id( $invoice_id ) : null;
+
 		return array(
+			'business_id'    => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: ( is_array( $invoice ) && ! empty( $invoice['business_id'] ) ? absint( $invoice['business_id'] ) : $this->resolve_business_id() ),
 			'invoice_id'     => isset( $data['invoice_id'] ) ? absint( $data['invoice_id'] ) : 0,
 			'payment_date'   => isset( $data['payment_date'] ) ? $this->normalize_datetime_value( $data['payment_date'] ) : current_time( 'mysql' ),
 			'amount'         => isset( $data['amount'] ) ? $this->normalize_decimal( $data['amount'] ) : 0,
@@ -1450,6 +1488,39 @@ class Invoice_Service {
 	 */
 	protected function humanize_key( $value ) {
 		return ucwords( str_replace( '_', ' ', (string) $value ) );
+	}
+
+	/**
+	 * Resolve business ID from parent entities.
+	 *
+	 * @param array<string,mixed>|null $quote   Quote row.
+	 * @param array<string,mixed>|null $process Process row.
+	 * @param array<string,mixed>|null $client  Client row.
+	 * @return int
+	 */
+	protected function resolve_business_id_from_parents( $quote, $process, $client ) {
+		if ( is_array( $quote ) && ! empty( $quote['business_id'] ) ) {
+			return max( 1, absint( $quote['business_id'] ) );
+		}
+
+		if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+			return max( 1, absint( $process['business_id'] ) );
+		}
+
+		if ( is_array( $client ) && ! empty( $client['business_id'] ) ) {
+			return max( 1, absint( $client['business_id'] ) );
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 
 	/**

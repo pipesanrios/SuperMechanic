@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Reports;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -24,6 +25,22 @@ class Report_Repository {
 	 * Maximum limit for recent report lists and exports.
 	 */
 	const MAX_RECENT_LIMIT = 50;
+
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Business_Context_Service|null $business_context_service Business context service.
+	 */
+	public function __construct( Business_Context_Service $business_context_service = null ) {
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
+	}
 
 	/**
 	 * Get process counts grouped by status.
@@ -337,13 +354,20 @@ class Report_Repository {
 
 		$filters  = $this->normalize_filters( $filters );
 		$params   = array();
+		$clauses  = array( 'c.business_id = %d' );
+		$params[] = absint( $filters['business_id'] );
 		$date_sql = $this->build_date_range_where( 'c.created_at', $filters, $params );
-		$where    = '' !== $date_sql ? 'WHERE ' . $date_sql : '';
+
+		if ( '' !== $date_sql ) {
+			$clauses[] = $date_sql;
+		}
+
+		$where    = 'WHERE ' . implode( ' AND ', $clauses );
 		$params[] = $filters['limit'];
 		$sql      = "SELECT c.id, c.first_name, c.last_name, c.email, c.phone, c.status, c.created_at
-			FROM {$this->get_clients_table_name()} c
-			{$where}
-			ORDER BY c.created_at DESC, c.id DESC
+                        FROM {$this->get_clients_table_name()} c
+                        {$where}
+                        ORDER BY c.created_at DESC, c.id DESC
 			LIMIT %d";
 		$query    = $wpdb->prepare( $sql, $params );
 		$rows     = $wpdb->get_results( $query, ARRAY_A );
@@ -362,12 +386,19 @@ class Report_Repository {
 
 		$filters  = $this->normalize_filters( $filters );
 		$params   = array();
+		$clauses  = array( 'v.business_id = %d' );
+		$params[] = absint( $filters['business_id'] );
 		$date_sql = $this->build_date_range_where( 'v.created_at', $filters, $params );
-		$where    = '' !== $date_sql ? 'WHERE ' . $date_sql : '';
+
+		if ( '' !== $date_sql ) {
+			$clauses[] = $date_sql;
+		}
+
+		$where    = 'WHERE ' . implode( ' AND ', $clauses );
 		$params[] = $filters['limit'];
 		$sql      = "SELECT v.id, v.make, v.model, v.year, v.plate, v.vin, v.created_at,
-				CONCAT_WS(' ', c.first_name, c.last_name) AS client_name
-			FROM {$this->get_vehicles_table_name()} v
+                                CONCAT_WS(' ', c.first_name, c.last_name) AS client_name
+                        FROM {$this->get_vehicles_table_name()} v
 			LEFT JOIN {$this->get_clients_table_name()} c ON c.id = v.client_id
 			{$where}
 			ORDER BY v.created_at DESC, v.id DESC
@@ -532,7 +563,7 @@ class Report_Repository {
 		$params   = array();
 		$where    = $this->build_invoice_where_clause( $filters, $params, 'i' );
 		$params[] = $filters['limit'];
-		$payment_totals_sql = $this->get_payment_totals_subquery();
+		$payment_totals_sql = $this->get_payment_totals_subquery( $filters['business_id'] );
 		$sql      = "SELECT i.id, i.process_id, i.quote_id, i.client_id, i.invoice_number, i.status, i.currency,
 				i.grand_total,
 				COALESCE(payment_totals.total_paid, 0) AS amount_paid,
@@ -593,7 +624,7 @@ class Report_Repository {
 		$filters = $this->normalize_filters( $filters );
 		$params  = array();
 		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
-		$payment_totals_sql = $this->get_payment_totals_subquery();
+		$payment_totals_sql = $this->get_payment_totals_subquery( $filters['business_id'] );
 		$sql     = "SELECT collection_status AS label, COUNT(*) AS total
 			FROM (
 				SELECT CASE
@@ -777,7 +808,7 @@ class Report_Repository {
 		$filters = $this->normalize_filters( $filters );
 		$params  = array();
 		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
-		$payment_totals_sql = $this->get_payment_totals_subquery();
+		$payment_totals_sql = $this->get_payment_totals_subquery( $filters['business_id'] );
 		$sql     = "SELECT i.currency, COALESCE(SUM(GREATEST(i.grand_total - COALESCE(payment_totals.total_paid, 0), 0)), 0) AS total
 			FROM {$this->get_invoices_table_name()} i
 			LEFT JOIN ({$payment_totals_sql}) payment_totals ON payment_totals.invoice_id = i.id
@@ -812,6 +843,7 @@ class Report_Repository {
 				'mechanic_id'    => 0,
 				'client_id'      => 0,
 				'vehicle_id'     => 0,
+				'business_id'    => 0,
 				'limit'          => self::DEFAULT_RECENT_LIMIT,
 			)
 		);
@@ -820,6 +852,11 @@ class Report_Repository {
 		$filters['mechanic_id'] = absint( $filters['mechanic_id'] );
 		$filters['client_id']   = absint( $filters['client_id'] );
 		$filters['vehicle_id']  = absint( $filters['vehicle_id'] );
+		$filters['business_id'] = absint( $filters['business_id'] );
+
+		if ( $filters['business_id'] <= 0 ) {
+			$filters['business_id'] = max( 1, absint( $this->business_context_service->resolve_business_id() ) );
+		}
 
 		return $filters;
 	}
@@ -857,6 +894,8 @@ class Report_Repository {
 	 */
 	protected function build_process_filter_fragments( array $filters, array &$params, $alias = 'p' ) {
 		$clauses = array();
+		$clauses[] = $alias . '.business_id = %d';
+		$params[]  = absint( $filters['business_id'] );
 
 		if ( '' !== $filters['process_status'] ) {
 			$clauses[] = $alias . '.status = %s';
@@ -939,6 +978,8 @@ class Report_Repository {
 	 */
 	protected function build_quote_where_clause( array $filters, array &$params, $alias = 'q' ) {
 		$clauses = array();
+		$clauses[] = $alias . '.business_id = %d';
+		$params[]  = absint( $filters['business_id'] );
 
 		if ( '' !== $filters['quote_status'] ) {
 			$clauses[] = $alias . '.status = %s';
@@ -968,6 +1009,8 @@ class Report_Repository {
 	 */
 	protected function build_invoice_where_clause( array $filters, array &$params, $alias = 'i' ) {
 		$clauses = array();
+		$clauses[] = $alias . '.business_id = %d';
+		$params[]  = absint( $filters['business_id'] );
 
 		if ( '' !== $filters['invoice_status'] ) {
 			$clauses[] = $alias . '.status = %s';
@@ -1003,6 +1046,10 @@ class Report_Repository {
 	 */
 	protected function build_payment_where_clause( array $filters, array &$params, $payment_alias = 'pay', $invoice_alias = 'i' ) {
 		$clauses = array();
+		$clauses[] = $payment_alias . '.business_id = %d';
+		$params[]  = absint( $filters['business_id'] );
+		$clauses[] = $invoice_alias . '.business_id = %d';
+		$params[]  = absint( $filters['business_id'] );
 
 		if ( '' !== $filters['invoice_status'] ) {
 			$clauses[] = $invoice_alias . '.status = %s';
@@ -1055,10 +1102,13 @@ class Report_Repository {
 	 *
 	 * @return string
 	 */
-	protected function get_payment_totals_subquery() {
+	protected function get_payment_totals_subquery( $business_id ) {
+		$business_id = max( 1, absint( $business_id ) );
+
 		return "SELECT pay.invoice_id, COALESCE(SUM(pay.amount), 0) AS total_paid
-			FROM {$this->get_payments_table_name()} pay
-			GROUP BY pay.invoice_id";
+                        FROM {$this->get_payments_table_name()} pay
+                        WHERE pay.business_id = {$business_id}
+                        GROUP BY pay.invoice_id";
 	}
 
 	/**
@@ -1071,10 +1121,11 @@ class Report_Repository {
 		global $wpdb;
 
 		$filters           = $this->normalize_filters( $filters );
+		$business_id       = absint( $filters['business_id'] );
 		$params            = array();
 		$process_clauses   = $this->build_process_filter_fragments( $filters, $params, 'p' );
 		$date_sql          = $this->build_date_range_where( 'p.created_at', $filters, $params );
-		$payment_totals_sql = $this->get_payment_totals_subquery();
+		$payment_totals_sql = $this->get_payment_totals_subquery( $filters['business_id'] );
 
 		if ( '' !== $date_sql ) {
 			$process_clauses[] = $date_sql;
@@ -1099,27 +1150,29 @@ class Report_Repository {
 					END AS derived_status
 				FROM {$this->get_processes_table_name()} p
 				LEFT JOIN {$this->get_pre_delivery_table_name()} pre ON pre.process_id = p.id
-				LEFT JOIN (
-					SELECT q.process_id,
-						SUM(CASE WHEN q.status = 'sent' THEN 1 ELSE 0 END) AS quote_waiting_approval_count
-					FROM {$this->get_quotes_table_name()} q
-					GROUP BY q.process_id
-				) quote_metrics ON quote_metrics.process_id = p.id
-				LEFT JOIN (
-					SELECT i.process_id,
+								LEFT JOIN (
+										SELECT q.process_id,
+                                                SUM(CASE WHEN q.status = 'sent' THEN 1 ELSE 0 END) AS quote_waiting_approval_count
+                                        FROM {$this->get_quotes_table_name()} q
+										WHERE q.business_id = {$business_id}
+                                        GROUP BY q.process_id
+                                ) quote_metrics ON quote_metrics.process_id = p.id
+                                LEFT JOIN (
+                                        SELECT i.process_id,
 						SUM(
 							CASE
 								WHEN i.status IN ('cancelled', 'refunded') THEN 0
 								WHEN COALESCE(payment_totals.total_paid, 0) >= i.grand_total AND i.grand_total > 0 THEN 0
 								ELSE 1
 							END
-						) AS invoice_pending_count
-					FROM {$this->get_invoices_table_name()} i
-					LEFT JOIN ({$payment_totals_sql}) payment_totals ON payment_totals.invoice_id = i.id
-					GROUP BY i.process_id
-				) invoice_metrics ON invoice_metrics.process_id = p.id
-				{$where}
-			) process_derived
+                                                ) AS invoice_pending_count
+                                        FROM {$this->get_invoices_table_name()} i
+                                        LEFT JOIN ({$payment_totals_sql}) payment_totals ON payment_totals.invoice_id = i.id
+										WHERE i.business_id = {$business_id}
+                                        GROUP BY i.process_id
+                                ) invoice_metrics ON invoice_metrics.process_id = p.id
+                                {$where}
+                        ) process_derived
 			GROUP BY derived_status
 			ORDER BY total DESC, derived_status ASC";
 		$query = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
@@ -1218,6 +1271,7 @@ class Report_Repository {
 		global $wpdb;
 
 		$filters = $this->normalize_filters( $filters );
+		$business_id = absint( $filters['business_id'] );
 		$params  = array();
 		$clauses = $this->build_process_filter_fragments( $filters, $params, 'p' );
 		$clauses[] = "l.action_type = 'step_transition'";
@@ -1234,13 +1288,13 @@ class Report_Repository {
 				ROUND(AVG(step_events.elapsed_hours), 2) AS avg_elapsed_hours
 			FROM {$this->get_processes_table_name()} p
 			INNER JOIN (
-				SELECT l.process_id,
-					COUNT(l.id) AS transition_count,
-					(TIMESTAMPDIFF(SECOND, MIN(l.created_at), MAX(l.created_at)) / 3600) AS elapsed_hours
-				FROM {$this->get_process_step_logs_table_name()} l
-				WHERE l.action_type = 'step_transition'
-				GROUP BY l.process_id
-			) step_events ON step_events.process_id = p.id
+                                SELECT l.process_id,
+                                        COUNT(l.id) AS transition_count,
+                                        (TIMESTAMPDIFF(SECOND, MIN(l.created_at), MAX(l.created_at)) / 3600) AS elapsed_hours
+                                FROM {$this->get_process_step_logs_table_name()} l
+                                WHERE l.action_type = 'step_transition' AND l.business_id = {$business_id}
+                                GROUP BY l.process_id
+                        ) step_events ON step_events.process_id = p.id
 			INNER JOIN {$this->get_process_step_logs_table_name()} l ON l.process_id = p.id
 			{$where}
 			GROUP BY p.process_type
@@ -1261,27 +1315,31 @@ class Report_Repository {
 		global $wpdb;
 
 		$filters  = $this->normalize_filters( $filters );
-		$params   = array();
+		$business_id = absint( $filters['business_id'] );
+		$params   = array( $business_id, $business_id, $business_id, $business_id );
 		$date_sql = $this->build_date_range_where( 'activity_created_at', $filters, $params );
 		$where    = '' !== $date_sql ? 'WHERE ' . $date_sql : '';
 		$params[] = $filters['limit'];
 		$sql      = "SELECT activity_type AS label, COUNT(*) AS total, MAX(activity_created_at) AS latest_created_at
-			FROM (
-				SELECT l.action_type AS activity_type, l.created_at AS activity_created_at
-				FROM {$this->get_process_step_logs_table_name()} l
-				WHERE l.customer_visible = 1
-				UNION ALL
-				SELECT CONCAT('quote_', q.status) AS activity_type, q.created_at AS activity_created_at
-				FROM {$this->get_quotes_table_name()} q
-				UNION ALL
-				SELECT CONCAT('invoice_', i.status) AS activity_type, i.created_at AS activity_created_at
-				FROM {$this->get_invoices_table_name()} i
-				UNION ALL
-				SELECT CONCAT('payment_', pay.payment_method) AS activity_type, pay.payment_date AS activity_created_at
-				FROM {$this->get_payments_table_name()} pay
-			) activity_feed
-			{$where}
-			GROUP BY activity_type
+                        FROM (
+                                SELECT l.action_type AS activity_type, l.created_at AS activity_created_at
+                                FROM {$this->get_process_step_logs_table_name()} l
+                                WHERE l.customer_visible = 1 AND l.business_id = %d
+                                UNION ALL
+                                SELECT CONCAT('quote_', q.status) AS activity_type, q.created_at AS activity_created_at
+                                FROM {$this->get_quotes_table_name()} q
+                                WHERE q.business_id = %d
+                                UNION ALL
+                                SELECT CONCAT('invoice_', i.status) AS activity_type, i.created_at AS activity_created_at
+                                FROM {$this->get_invoices_table_name()} i
+                                WHERE i.business_id = %d
+                                UNION ALL
+                                SELECT CONCAT('payment_', pay.payment_method) AS activity_type, pay.payment_date AS activity_created_at
+                                FROM {$this->get_payments_table_name()} pay
+                                WHERE pay.business_id = %d
+                        ) activity_feed
+                        {$where}
+                        GROUP BY activity_type
 			ORDER BY latest_created_at DESC, total DESC
 			LIMIT %d";
 		$query    = $wpdb->prepare( $sql, $params );
@@ -1302,7 +1360,7 @@ class Report_Repository {
 		$filters = $this->normalize_filters( $filters );
 		$params  = array();
 		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
-		$payment_totals_sql = $this->get_payment_totals_subquery();
+		$payment_totals_sql = $this->get_payment_totals_subquery( $filters['business_id'] );
 		$sql     = "SELECT aging_label AS label, COUNT(*) AS total
 			FROM (
 				SELECT CASE

@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Invoices;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -45,8 +46,10 @@ class Invoice_Repository {
 			LEFT JOIN {$tables['clients']} c ON c.id = i.client_id
 			LEFT JOIN {$tables['vehicles']} v ON v.id = p.vehicle_id
 			WHERE i.id = %d
+			AND i.business_id = %d
 			LIMIT 1",
-			absint( $id )
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 		$row    = $wpdb->get_row( $query, ARRAY_A );
 
@@ -63,8 +66,9 @@ class Invoice_Repository {
 		global $wpdb;
 
 		$query = $wpdb->prepare(
-			"SELECT * FROM {$this->get_table_name()} WHERE invoice_number = %s LIMIT 1",
-			$invoice_number
+			"SELECT * FROM {$this->get_table_name()} WHERE invoice_number = %s AND business_id = %d LIMIT 1",
+			$invoice_number,
+			$this->resolve_business_id()
 		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
@@ -119,6 +123,7 @@ class Invoice_Repository {
 			$args,
 			array(
 				'process_id' => 0,
+				'business_id' => $this->resolve_business_id(),
 				'quote_id'   => 0,
 				'client_id'  => 0,
 				'process_type' => '',
@@ -171,6 +176,7 @@ class Invoice_Repository {
 			$args,
 			array(
 				'process_id' => 0,
+				'business_id' => $this->resolve_business_id(),
 				'quote_id'   => 0,
 				'client_id'  => 0,
 				'process_type' => '',
@@ -204,6 +210,7 @@ class Invoice_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
@@ -225,6 +232,7 @@ class Invoice_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
@@ -262,6 +270,10 @@ class Invoice_Repository {
 
 		if ( ! empty( $args['process_id'] ) ) {
 			$clauses[] = 'i.process_id = %d';
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$clauses[] = 'i.business_id = %d';
 		}
 
 		if ( ! empty( $args['quote_id'] ) ) {
@@ -313,6 +325,10 @@ class Invoice_Repository {
 
 		if ( ! empty( $args['process_id'] ) ) {
 			$params[] = absint( $args['process_id'] );
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$params[] = absint( $args['business_id'] );
 		}
 
 		if ( ! empty( $args['quote_id'] ) ) {
@@ -381,6 +397,7 @@ class Invoice_Repository {
 	 */
 	protected function get_formats_for_data( $data ) {
 		$format_map = array(
+			'business_id'    => '%d',
 			'process_id'      => '%d',
 			'quote_id'        => '%d',
 			'client_id'       => '%d',
@@ -410,5 +427,16 @@ class Invoice_Repository {
 		}
 
 		return $formats;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

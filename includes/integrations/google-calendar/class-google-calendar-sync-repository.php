@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Integrations\Google_Calendar;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -39,10 +40,11 @@ class Google_Calendar_Sync_Repository {
 		$query = $wpdb->prepare(
 			"SELECT *
 			FROM {$this->get_table_name()}
-			WHERE appointment_id = %d AND provider = %s
+			WHERE appointment_id = %d AND provider = %s AND business_id = %d
 			LIMIT 1",
 			absint( $appointment_id ),
-			sanitize_key( (string) $provider )
+			sanitize_key( (string) $provider ),
+			$this->resolve_business_id()
 		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
@@ -69,10 +71,11 @@ class Google_Calendar_Sync_Repository {
 		$query = $wpdb->prepare(
 			"SELECT *
 			FROM {$this->get_table_name()}
-			WHERE provider = %s AND external_event_id = %s
+			WHERE provider = %s AND external_event_id = %s AND business_id = %d
 			LIMIT 1",
 			$provider,
-			$external_event_id
+			$external_event_id,
+			$this->resolve_business_id()
 		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
@@ -94,10 +97,11 @@ class Google_Calendar_Sync_Repository {
 		$query    = $wpdb->prepare(
 			"SELECT *
 			FROM {$this->get_table_name()}
-			WHERE provider = %s AND external_event_id <> ''
+			WHERE provider = %s AND external_event_id <> '' AND business_id = %d
 			ORDER BY updated_at DESC
 			LIMIT %d",
 			$provider,
+			$this->resolve_business_id(),
 			$limit
 		);
 		$rows     = $wpdb->get_results( $query, ARRAY_A );
@@ -120,6 +124,7 @@ class Google_Calendar_Sync_Repository {
 		$provider       = sanitize_key( (string) $provider );
 		$existing       = $this->get_by_appointment( $appointment_id, $provider );
 		$payload        = array(
+			'business_id'          => ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id(),
 			'external_calendar_id' => isset( $data['external_calendar_id'] ) ? sanitize_text_field( (string) $data['external_calendar_id'] ) : '',
 			'external_event_id'    => isset( $data['external_event_id'] ) ? sanitize_text_field( (string) $data['external_event_id'] ) : '',
 			'sync_status'          => isset( $data['sync_status'] ) ? sanitize_key( (string) $data['sync_status'] ) : 'pending',
@@ -133,9 +138,12 @@ class Google_Calendar_Sync_Repository {
 			$result = $wpdb->update(
 				$this->get_table_name(),
 				$payload,
-				array( 'id' => absint( $existing['id'] ) ),
-				array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
-				array( '%d' )
+				array(
+					'id'          => absint( $existing['id'] ),
+					'business_id' => $this->resolve_business_id(),
+				),
+				array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ),
+				array( '%d', '%d' )
 			);
 
 			return false !== $result;
@@ -148,9 +156,20 @@ class Google_Calendar_Sync_Repository {
 		$result = $wpdb->insert(
 			$this->get_table_name(),
 			$payload,
-			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		return false !== $result;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

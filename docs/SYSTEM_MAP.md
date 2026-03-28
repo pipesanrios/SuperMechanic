@@ -47,6 +47,8 @@
 - Reports
 - Attachments / Timeline
 - Communication / Notifications
+- Automation
+- Businesses
 - Documents / PDF / Secure Downloads
 - Client Portal por shortcodes
 - Scripts locales de validacion tecnica en `scripts/`
@@ -72,6 +74,7 @@
 - Attachments -> alimenta timeline y visibilidad documental.
 - Documents / Secure Downloads -> `Document_Service` resuelve tipo, acceso y payload; `PDF_Service` genera PDFs; `Download_Service` sirve la respuesta protegida.
 - Communication -> alimenta timeline, notificaciones y feed cliente/admin.
+- Automation -> escucha eventos operativos y coordina automatizaciones controladas (recordatorios de citas).
 - Dashboards -> consumen Clients, Vehicles, Processes, Quotes, Invoices, Payments, Attachments y Communication.
 - Dashboards -> consultan agregados de procesos via `Process_Service` y `Process_Repository`, sin SQL directo en `Dashboard_Service`.
 - Access Control -> centraliza ownership y visibilidad para dashboard, Client Portal, communication y capa documental.
@@ -117,6 +120,8 @@
 - Communication:
   - `sm_comments`
   - `sm_notifications`
+- Businesses:
+  - `sm_businesses`
 - Documents / Secure Downloads:
   - reutiliza `sm_quotes`
   - `sm_quote_items`
@@ -220,6 +225,14 @@
   - `Notification_Repository`
   - `Notification_Service`
   - `Event_Dispatcher`
+- Automation:
+  - `Automation_Service`
+  - `Automation_Rule_Engine`
+- Businesses:
+  - `Business_Repository`
+  - `Business_Service`
+  - `Business_Admin_Controller`
+  - `Business_List_Table`
 - `Client_Comment_Shortcodes`
 - integracion admin en `Process_Admin_Controller`
 - Documents / Secure Downloads:
@@ -310,6 +323,11 @@
   - `sm_event_invoice_paid`
   - `sm_event_document_uploaded`
   - `sm_event_comment_added`
+  - `sm_event_appointment_created`
+  - `sm_event_appointment_updated`
+  - `sm_event_appointment_status_changed`
+  - `sm_event_appointment_cancelled`
+  - `sm_event_appointment_reminder`
 - Consumidor principal de eventos:
   - `Notification_Service`
 - Entry points activos del modulo:
@@ -730,4 +748,3 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
   - el flujo principal de pagos sigue en `Invoice_Service`; no se debe duplicar lógica en controllers
   - `Process_Admin_Controller` conserva compatibilidad total del tab `invoice` y sigue siendo el entry point operativo original
   - no se habilita API financiera pública ni reporting nuevo en esta fase
-

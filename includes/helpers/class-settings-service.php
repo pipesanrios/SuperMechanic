@@ -18,6 +18,25 @@ class Settings_Service {
 	const OPTION_NAME = 'sm_settings';
 
 	/**
+	 * Get normalized fallback business id from settings.
+	 *
+	 * @return int
+	 */
+	public function get_fallback_business_id() {
+		return max( 1, absint( $this->get_setting( 'business', 'business_id', 1 ) ) );
+	}
+
+	/**
+	 * Persist fallback business id in settings.
+	 *
+	 * @param int $business_id Business ID.
+	 * @return bool
+	 */
+	public function set_fallback_business_id( $business_id ) {
+		return $this->set_setting( 'business', 'business_id', max( 1, absint( $business_id ) ) );
+	}
+
+	/**
 	 * Cached normalized settings.
 	 *
 	 * @var array<string, array<string, mixed>>|null
@@ -119,6 +138,7 @@ class Settings_Service {
 
 		$settings['business']['business_name']                = sanitize_text_field( $settings['business']['business_name'] );
 		$settings['business']['business_context_key']         = sanitize_key( $settings['business']['business_context_key'] );
+		$settings['business']['business_id']                  = max( 1, absint( $settings['business']['business_id'] ) );
 		$settings['business']['currency']                     = sanitize_text_field( $settings['business']['currency'] );
 		$settings['business']['timezone']                     = sanitize_text_field( $settings['business']['timezone'] );
 		$settings['business']['locale']                       = sanitize_text_field( $settings['business']['locale'] );
@@ -134,6 +154,11 @@ class Settings_Service {
 		$settings['financial']['default_tax_rate']            = round( (float) str_replace( ',', '.', (string) $settings['financial']['default_tax_rate'] ), 2 );
 		$settings['financial']['allow_partial_payments']      = ! empty( $settings['financial']['allow_partial_payments'] );
 		$settings['notifications']['enable_client_notifications'] = ! empty( $settings['notifications']['enable_client_notifications'] );
+		$settings['notifications']['enable_email_notifications']  = ! empty( $settings['notifications']['enable_email_notifications'] );
+		$settings['automation']['enable_automation_runtime']      = ! empty( $settings['automation']['enable_automation_runtime'] );
+		$settings['automation']['enable_appointment_reminders']   = ! empty( $settings['automation']['enable_appointment_reminders'] );
+		$settings['automation']['appointment_reminder_minutes_before'] = max( 5, min( 1440, absint( $settings['automation']['appointment_reminder_minutes_before'] ) ) );
+		$settings['automation']['appointment_reminder_window_minutes'] = max( 5, min( 120, absint( $settings['automation']['appointment_reminder_window_minutes'] ) ) );
 		$settings['portal']['client_panel_enabled']           = ! empty( $settings['portal']['client_panel_enabled'] );
 		$settings['license']['license_key']                   = isset( $settings['license']['license_key'] ) ? trim( sanitize_text_field( (string) $settings['license']['license_key'] ) ) : '';
 		$settings['license']['status']                        = isset( $settings['license']['status'] ) ? sanitize_key( (string) $settings['license']['status'] ) : 'unknown';
@@ -204,6 +229,7 @@ class Settings_Service {
 			'business'      => array(
 				'business_name'        => ! empty( $legacy['company_name'] ) ? sanitize_text_field( $legacy['company_name'] ) : 'Super Mechanic',
 				'business_context_key' => 'default',
+				'business_id'          => 1,
 				'currency'             => ! empty( $legacy['default_currency'] ) ? sanitize_text_field( $legacy['default_currency'] ) : 'USD',
 				'timezone'             => $timezone,
 				'locale'               => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
@@ -220,6 +246,13 @@ class Settings_Service {
 			),
 			'notifications' => array(
 				'enable_client_notifications' => true,
+				'enable_email_notifications'  => false,
+			),
+			'automation'   => array(
+				'enable_automation_runtime'         => true,
+				'enable_appointment_reminders'      => true,
+				'appointment_reminder_minutes_before' => 120,
+				'appointment_reminder_window_minutes' => 15,
 			),
 			'portal'        => array(
 				'client_panel_enabled' => isset( $legacy['client_panel_enabled'] ) ? ! empty( $legacy['client_panel_enabled'] ) : true,

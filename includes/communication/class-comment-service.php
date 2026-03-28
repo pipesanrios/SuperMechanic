@@ -10,6 +10,7 @@ namespace Super_Mechanic\Communication;
 use Super_Mechanic\Attachments\Attachment_Service;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Invoices\Invoice_Service;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Quotes\Quote_Service;
@@ -29,8 +30,9 @@ class Comment_Service {
 	protected $attachment_service;
 	protected $event_dispatcher;
 	protected $access_control_service;
+	protected $business_context_service;
 
-	public function __construct( Comment_Repository $repository = null, Dashboard_Service $dashboard_service = null, Process_Service $process_service = null, Quote_Service $quote_service = null, Invoice_Service $invoice_service = null, Attachment_Service $attachment_service = null, Event_Dispatcher $event_dispatcher = null, Access_Control_Service $access_control_service = null ) {
+	public function __construct( Comment_Repository $repository = null, Dashboard_Service $dashboard_service = null, Process_Service $process_service = null, Quote_Service $quote_service = null, Invoice_Service $invoice_service = null, Attachment_Service $attachment_service = null, Event_Dispatcher $event_dispatcher = null, Access_Control_Service $access_control_service = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository         = $repository ? $repository : new Comment_Repository();
 		$this->dashboard_service  = $dashboard_service ? $dashboard_service : new Dashboard_Service();
 		$this->process_service    = $process_service ? $process_service : new Process_Service();
@@ -39,6 +41,7 @@ class Comment_Service {
 		$this->attachment_service = $attachment_service ? $attachment_service : new Attachment_Service();
 		$this->event_dispatcher   = $event_dispatcher ? $event_dispatcher : Event_Dispatcher::get_instance();
 		$this->access_control_service = $access_control_service ? $access_control_service : new Access_Control_Service();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	public function create_comment( array $data ) {
@@ -116,10 +119,18 @@ class Comment_Service {
 	}
 
 	public function get_comments( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->get_all( $args );
 	}
 
 	public function count_comments( array $args = array() ) {
+		if ( empty( $args['business_id'] ) ) {
+			$args['business_id'] = $this->resolve_business_id();
+		}
+
 		return $this->repository->count_all( $args );
 	}
 
@@ -222,6 +233,11 @@ class Comment_Service {
 			$errors->add( 'invalid_target', __( 'El objeto asociado al comentario no existe.', 'super-mechanic' ) );
 		}
 
+		$parent_business_id = $this->resolve_structural_business_id( $data );
+		if ( $parent_business_id > 0 && absint( $data['business_id'] ) !== $parent_business_id ) {
+			$errors->add( 'invalid_business_context', __( 'El comentario debe pertenecer al mismo negocio que su entidad padre.', 'super-mechanic' ) );
+		}
+
 		if ( 'client_message' === $data['comment_type'] && empty( $data['author_client_id'] ) ) {
 			$errors->add( 'invalid_client_author', __( 'Los mensajes del cliente requieren un cliente autor valido.', 'super-mechanic' ) );
 		}
@@ -246,6 +262,15 @@ class Comment_Service {
 		$is_internal  = isset( $data['is_internal'] ) ? (int) ! empty( $data['is_internal'] ) : ( 'internal_note' === $comment_type ? 1 : 0 );
 
 		return array(
+			'business_id'       => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
+				? absint( $data['business_id'] )
+				: $this->resolve_structural_business_id(
+					array(
+						'object_type' => isset( $data['object_type'] ) ? sanitize_key( $data['object_type'] ) : 'process',
+						'object_id'   => isset( $data['object_id'] ) ? absint( $data['object_id'] ) : $process_id,
+						'process_id'  => $process_id,
+					)
+				),
 			'object_type'       => isset( $data['object_type'] ) ? sanitize_key( $data['object_type'] ) : 'process',
 			'object_id'         => isset( $data['object_id'] ) ? absint( $data['object_id'] ) : $process_id,
 			'process_id'        => $process_id,
@@ -283,5 +308,63 @@ class Comment_Service {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Resolve business ID from structural parent, with context fallback.
+	 *
+	 * @param array<string,mixed> $data Comment payload.
+	 * @return int
+	 */
+	protected function resolve_structural_business_id( array $data ) {
+		$process_id = ! empty( $data['process_id'] ) ? absint( $data['process_id'] ) : 0;
+		$object_id  = ! empty( $data['object_id'] ) ? absint( $data['object_id'] ) : 0;
+		$object_type = ! empty( $data['object_type'] ) ? sanitize_key( (string) $data['object_type'] ) : '';
+
+		if ( $process_id > 0 ) {
+			$process = $this->process_service->get_process( $process_id );
+			if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+				return max( 1, absint( $process['business_id'] ) );
+			}
+		}
+
+		if ( 'process' === $object_type && $object_id > 0 ) {
+			$process = $this->process_service->get_process( $object_id );
+			if ( is_array( $process ) && ! empty( $process['business_id'] ) ) {
+				return max( 1, absint( $process['business_id'] ) );
+			}
+		}
+
+		if ( 'quote' === $object_type && $object_id > 0 ) {
+			$quote = $this->quote_service->get_quote( $object_id );
+			if ( is_array( $quote ) && ! empty( $quote['business_id'] ) ) {
+				return max( 1, absint( $quote['business_id'] ) );
+			}
+		}
+
+		if ( 'invoice' === $object_type && $object_id > 0 ) {
+			$invoice = $this->invoice_service->get_invoice( $object_id );
+			if ( is_array( $invoice ) && ! empty( $invoice['business_id'] ) ) {
+				return max( 1, absint( $invoice['business_id'] ) );
+			}
+		}
+
+		if ( 'attachment' === $object_type && $object_id > 0 ) {
+			$attachment = $this->attachment_service->get_attachment( $object_id );
+			if ( is_array( $attachment ) && ! empty( $attachment['business_id'] ) ) {
+				return max( 1, absint( $attachment['business_id'] ) );
+			}
+		}
+
+		return $this->resolve_business_id();
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 }

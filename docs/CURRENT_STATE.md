@@ -1,7 +1,7 @@
 # CURRENT STATE — SUPER MECHANIC
 
 Version: 0.1.0
-Schema: 1.11.0
+Schema: 1.14.0
 
 Estado:
 Arquitectura estable con riesgos controlados
@@ -590,3 +590,209 @@ Actualización FASE 32B-3B (Watch channels / webhooks Google Calendar):
 
 Siguiente fase:
 - Se puede pasar a FASE 33 manteniendo la política de plugin como fuente de verdad y la reconciliación inbound controlada.
+
+Actualización FASE 33 (Notificaciones avanzadas base centralizada):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 33: COMPLETO
+- Se consolida la expansión del motor existente de notificaciones en arquitectura activa `includes/*` sin rehacer sistema ni cambiar schema:
+  - `includes/communication/class-notification-service.php`
+  - `includes/communication/class-event-dispatcher.php`
+  - `includes/communication/class-notification-event-catalog.php`
+  - `includes/communication/class-notification-channel-interface.php`
+  - `includes/communication/class-email-notification-channel.php`
+- Catálogo centralizado de eventos/triggers y plantillas base:
+  - eventos operativos existentes de procesos/quotes/invoices/payments/documentos/comentarios consolidados en catálogo
+  - nuevos eventos de citas incorporados al catálogo:
+    - `appointment_created`
+    - `appointment_updated`
+    - `appointment_status_changed`
+    - `appointment_cancelled`
+    - `appointment_reminder` (preparado para uso futuro)
+- Canal externo desacoplado implementado:
+  - canal `email` por adaptador `Email_Notification_Channel` usando `wp_mail`
+  - envío externo no bloqueante y controlado por metadata de catálogo (`email_enabled`)
+  - sin acoplar proveedor SMS ni SDK externo
+- Integración de citas con dispatcher central:
+  - `Appointment_Service` ahora emite eventos internos `sm_event_appointment_*` en create/update/cambio de estado/cancelación
+  - `Event_Dispatcher` registra y enruta handlers de citas al `Notification_Service`
+  - se mantiene la política no destructiva de sync Google 1-way + inbound controlado
+- Configuración mínima de toggles consolidada:
+  - se mantiene `notifications.enable_client_notifications`
+  - se agrega `notifications.enable_email_notifications` en settings legacy + `sm_settings`
+- Seguridad y restricciones mantenidas:
+  - canal in-app en `sm_notifications` permanece activo
+  - ownership y visibilidad siguen en `Access_Control_Service`
+  - sin cambios de schema
+  - sin campañas/marketing masivo
+  - sin proveedor SMS real
+  - sin automatizaciones destructivas
+
+Siguiente fase:
+- Se puede pasar a FASE 34, manteniendo FASE 33 como base de notificaciones multicanal desacoplada y preparando SMS real para una fase posterior controlada.
+
+Actualización FASE 34 (Automatización operativa avanzada controlada):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 34: COMPLETO
+- Se incorpora base de automatización operativa controlada en arquitectura activa `includes/*`:
+  - `includes/automation/class-automation-service.php`
+  - `includes/automation/class-automation-rule-engine.php`
+  - `includes/appointments/class-appointment-reminder-scheduler.php`
+- Scheduler base implementado con `wp_cron`:
+  - cron recurrente `sm_appointment_reminder_cron` (cada 15 minutos)
+  - ejecución on-demand `sm_appointment_reminder_run_once` para refresco rápido por eventos
+  - lock corto por transient para prevenir doble ejecución concurrente
+- Recordatorios automáticos de citas:
+  - trigger operativo `appointment_reminder` integrado al dispatcher central
+  - `Notification_Service` agrega `notify_appointment_reminder()` para flujo in-app + canal externo existente
+  - ventana configurable y lead-time configurable desde settings
+- Automation_Service escuchando dispatcher:
+  - listeners sobre `appointment_created`, `appointment_updated`, `appointment_status_changed`, `appointment_cancelled`
+  - ejecución de reglas simples activables/desactivables sin builder complejo
+  - acción actual: refresco controlado del scheduler de recordatorios
+- Configuración mínima agregada (sin UI compleja):
+  - `automation.enable_automation_runtime`
+  - `automation.enable_appointment_reminders`
+  - `automation.appointment_reminder_minutes_before`
+  - `automation.appointment_reminder_window_minutes` (base fija segura)
+- Seguridad y alcance mantenidos:
+  - sin cambios de schema
+  - sin campañas
+  - sin integraciones externas nuevas
+  - sin motor complejo de reglas
+  - sin SQL fuera de repository
+- Control de duplicación de envíos:
+  - deduplicación por transient por cita+ventana objetivo (`sm_appointment_reminder_sent_*`)
+  - lock runtime (`sm_appointment_reminder_lock`)
+
+Siguiente fase:
+- Se puede pasar a FASE 35 manteniendo FASE 34 como capa de automatización operativa simple y controlada.
+
+Actualización FASE 35A (Activación multi-business base controlada):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 35A: COMPLETO
+- Activación real de `business_id` en núcleo transaccional mínimo (sin tabla `businesses`):
+  - `sm_clients`
+  - `sm_vehicles`
+  - `sm_client_vehicles`
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+- Schema actualizado a `1.12.0` con `business_id` + índice por tabla en alcance 35A.
+- Backfill explícito e idempotente incorporado vía:
+  - `includes/database/class-tenancy-backfill-migrator.php`
+  - ejecución desde `class-migrator.php` tras migración de schema
+- Estrategia legacy aplicada:
+  - `business_id` por defecto `1` para instalaciones existentes
+  - herencia estructural desde entidad padre cuando existe (sin cálculo ambiguo por contexto)
+- Runtime tenancy:
+  - `Business_Context_Service` pasa a resolver `business_id` real con fallback legacy
+  - `Settings_Service` normaliza `business.business_id` con default `1`
+- Restricciones mantenidas de alcance:
+  - sin tabla `businesses`
+  - sin aislamiento completo tenant-aware de dashboard/reportes/API
+  - sin cambios a numeradores globales `quote_number`/`invoice_number`
+  - sin activar 35B dentro de 35A
+
+Exclusiones deliberadas 35A (diferidas a 35B):
+- `sm_attachments`
+- `sm_comments`
+- `sm_notifications`
+- `sm_appointments`
+- `sm_appointment_calendar_sync`
+- `sm_process_step_logs`
+- `sm_quote_items`
+- `sm_invoice_items`
+
+Deuda técnica abierta para 35B:
+- tenant-awareness completo en capas no núcleo (adjuntos/comunicación/citas/logs/items)
+- revisión de aislamiento transversal de lecturas agregadas (dashboard/reportes/API)
+- estrategia futura de numeradores por negocio (fuera de 35A)
+
+Siguiente fase:
+- Se puede pasar a FASE 35B con base multi-business mínima activa y backfill legacy estable.
+
+Actualización FASE 35B (Enforcement multi-tenant transversal):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 35B: COMPLETO
+- Schema actualizado a `1.13.0`.
+- Tablas activadas en 35B con `business_id` + índice:
+  - `sm_quote_items`
+  - `sm_invoice_items`
+  - `sm_process_step_logs`
+  - `sm_appointments`
+  - `sm_appointment_calendar_sync`
+  - `sm_attachments`
+  - `sm_comments`
+  - `sm_notifications`
+- Backfill idempotente extendido en `Tenancy_Backfill_Migrator`:
+  - herencia estructural desde padre principal por bloque
+  - fallback legacy explícito a `business_id = 1` cuando no existe padre inequívoco
+  - validación de consistencia en entidades polimórficas para evitar desalineación silenciosa
+- Enforcement aplicado:
+  - filtros base tenant-aware en repositorios diferidos de 35B
+  - endurecimiento de acceso en `Access_Control_Service` con regla `ownership + business_id`
+  - aislamiento tenant-aware en reportes mediante filtros obligatorios por `business_id` en procesos/quotes/invoices/payments y actividad agregada
+  - propagación de `business_id` en servicios de citas, adjuntos, comentarios, notificaciones y sync Google Calendar
+- Compatibilidad mantenida:
+  - sin tabla `businesses`
+  - sin branding tenant
+  - sin billing SaaS
+  - sin selector complejo multi-negocio
+  - sin cambio de numeradores globales `quote_number`/`invoice_number`
+
+Exclusiones deliberadas de 35B:
+- no se implementa tabla `businesses`
+- no se implementa branding/billing SaaS por tenant
+- no se implementa selector multi-login/multi-business complejo
+- no se cambia la estrategia de numeradores globales
+
+Deuda técnica abierta para 35C:
+- introducir entidad `businesses` y modelo de membresía/selección de negocio
+- migrar numeradores a ámbito por negocio cuando se apruebe impacto funcional
+- completar aislamiento tenant-aware en superficies legacy no críticas y utilidades históricas
+- ampliar observabilidad/auditoría de consistencia cross-tenant
+
+Siguiente fase:
+- Se puede pasar a FASE 35C con 35A+35B cerradas y enforcement transversal tenant-aware operativo.
+
+Actualización FASE 35C (Operación multi-store visible):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 35C: COMPLETO
+- Schema actualizado a `1.14.0`.
+- Entidad visible de negocio implementada:
+  - nueva tabla `sm_businesses`
+  - CRUD admin básico en `includes/businesses/*`
+- Shape de `sm_businesses`:
+  - `id`, `slug`, `name`, `status`, `is_default`
+  - `timezone`, `currency`
+  - `branding_logo_attachment_id`, `primary_color`
+  - `created_at`, `updated_at`
+- Estrategia legacy/default aplicada:
+  - negocio default idempotente `id=1`, `slug=default`, `is_default=1`
+  - nombre desde settings (`business.business_name`) con fallback `Super Mechanic`
+  - `business_id=1` se mantiene como base de compatibilidad legacy
+- Selección de contexto operativo implementada:
+  - prioridad 1: selector admin por usuario (`user meta`)
+  - prioridad 2: fallback `sm_settings.business.business_id`
+  - prioridad 3: fallback final a negocio default (`id=1`)
+- Integración runtime:
+  - `Business_Context_Service` resuelve y valida contexto contra entidad real `sm_businesses`
+  - `Settings` conserva y expone fallback de `business_id` sin romper formularios legacy
+  - reparación idempotente de huérfanos `business_id` a `1` en tablas tenant-aware
+
+Exclusiones deliberadas 35C:
+- sin billing SaaS
+- sin multi-login complejo
+- sin permisos ultrafinos por tenant
+- sin cambio de numeradores globales por negocio
+- sin branding avanzado (solo base simple por `attachment_id`)
+
+Deuda técnica abierta para FASE 36:
+- modelo avanzado de membresía/planes por negocio
+- numeradores por negocio (`quote_number`/`invoice_number`) con migración controlada
+- políticas avanzadas de administración multi-negocio (roles/capabilities por tenant)
+- expansión de branding y preferencias por negocio en superficies cliente/mecánico
+
+Siguiente fase:
+- Se puede pasar a FASE 36 con 35A+35B+35C cerradas y operación multi-store visible estable.

@@ -8,6 +8,8 @@
 namespace Super_Mechanic;
 
 use Super_Mechanic\Appointments\Appointment_Service;
+use Super_Mechanic\Businesses\Business_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Helpers\License_Service;
 use Super_Mechanic\Helpers\Update_Service;
@@ -73,6 +75,18 @@ class Settings {
 	 * @var Google_Calendar_Sync_Service
 	 */
 	protected $google_calendar_sync_service;
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
+	/**
+	 * Business service.
+	 *
+	 * @var Business_Service
+	 */
+	protected $business_service;
 
 	/**
 	 * Constructor.
@@ -84,6 +98,8 @@ class Settings {
 		$this->plan_access_service = new Plan_Access_Service( $this->settings_service, $this->license_service );
 		$this->google_calendar_service = new Google_Calendar_Service( $this->settings_service );
 		$this->google_calendar_sync_service = new Google_Calendar_Sync_Service( $this->google_calendar_service );
+		$this->business_service = new Business_Service();
+		$this->business_context_service = new Business_Context_Service( $this->settings_service, $this->business_service );
 		$this->google_calendar_service->set_sync_service( $this->google_calendar_sync_service );
 		$appointment_service = new Appointment_Service( null, null, null, null, $this->google_calendar_sync_service );
 		$this->google_calendar_sync_service->set_appointment_service( $appointment_service );
@@ -137,6 +153,14 @@ class Settings {
 			'business_context_key',
 			__( 'Business context key', 'super-mechanic' ),
 			array( $this, 'render_field_business_context_key' ),
+			self::PAGE_SLUG,
+			'sm_general_settings'
+		);
+
+		add_settings_field(
+			'business_fallback_id',
+			__( 'Fallback business ID', 'super-mechanic' ),
+			array( $this, 'render_field_business_fallback_id' ),
 			self::PAGE_SLUG,
 			'sm_general_settings'
 		);
@@ -241,6 +265,34 @@ class Settings {
 			self::PAGE_SLUG,
 			'sm_portal_settings'
 		);
+		add_settings_field(
+			'enable_email_notifications',
+			__( 'Email notifications', 'super-mechanic' ),
+			array( $this, 'render_field_enable_email_notifications' ),
+			self::PAGE_SLUG,
+			'sm_portal_settings'
+		);
+		add_settings_field(
+			'enable_automation_runtime',
+			__( 'Automation runtime', 'super-mechanic' ),
+			array( $this, 'render_field_enable_automation_runtime' ),
+			self::PAGE_SLUG,
+			'sm_portal_settings'
+		);
+		add_settings_field(
+			'enable_appointment_reminders',
+			__( 'Appointment reminders', 'super-mechanic' ),
+			array( $this, 'render_field_enable_appointment_reminders' ),
+			self::PAGE_SLUG,
+			'sm_portal_settings'
+		);
+		add_settings_field(
+			'appointment_reminder_minutes_before',
+			__( 'Reminder lead time (minutes)', 'super-mechanic' ),
+			array( $this, 'render_field_appointment_reminder_minutes_before' ),
+			self::PAGE_SLUG,
+			'sm_portal_settings'
+		);
 
 		add_settings_field(
 			'client_panel_enabled',
@@ -261,6 +313,7 @@ class Settings {
 		return array(
 			'company_name'          => '',
 			'business_context_key'  => 'default',
+			'business_id'           => 1,
 			'language_locale'       => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
 			'default_currency'      => 'USD',
 			'timezone'              => function_exists( 'wp_timezone_string' ) && wp_timezone_string() ? wp_timezone_string() : 'UTC',
@@ -271,6 +324,10 @@ class Settings {
 			'default_tax_rate'      => 0,
 			'allow_partial_payments' => 1,
 			'enable_client_notifications' => 1,
+			'enable_email_notifications' => 0,
+			'enable_automation_runtime' => 1,
+			'enable_appointment_reminders' => 1,
+			'appointment_reminder_minutes_before' => 120,
 			'client_panel_enabled'  => 1,
 		);
 	}
@@ -292,6 +349,7 @@ class Settings {
 		$mapped           = array(
 			'company_name'               => isset( $service_settings['business']['business_name'] ) ? $service_settings['business']['business_name'] : $defaults['company_name'],
 			'business_context_key'       => isset( $service_settings['business']['business_context_key'] ) ? $service_settings['business']['business_context_key'] : $defaults['business_context_key'],
+			'business_id'                => isset( $service_settings['business']['business_id'] ) ? absint( $service_settings['business']['business_id'] ) : $defaults['business_id'],
 			'language_locale'            => isset( $service_settings['business']['locale'] ) ? $service_settings['business']['locale'] : $defaults['language_locale'],
 			'default_currency'           => isset( $service_settings['business']['currency'] ) ? $service_settings['business']['currency'] : $defaults['default_currency'],
 			'timezone'                   => isset( $service_settings['business']['timezone'] ) ? $service_settings['business']['timezone'] : $defaults['timezone'],
@@ -302,6 +360,10 @@ class Settings {
 			'default_tax_rate'           => isset( $service_settings['financial']['default_tax_rate'] ) ? $service_settings['financial']['default_tax_rate'] : $defaults['default_tax_rate'],
 			'allow_partial_payments'     => ! empty( $service_settings['financial']['allow_partial_payments'] ) ? 1 : 0,
 			'enable_client_notifications' => ! empty( $service_settings['notifications']['enable_client_notifications'] ) ? 1 : 0,
+			'enable_email_notifications' => ! empty( $service_settings['notifications']['enable_email_notifications'] ) ? 1 : 0,
+			'enable_automation_runtime'  => ! empty( $service_settings['automation']['enable_automation_runtime'] ) ? 1 : 0,
+			'enable_appointment_reminders' => ! empty( $service_settings['automation']['enable_appointment_reminders'] ) ? 1 : 0,
+			'appointment_reminder_minutes_before' => isset( $service_settings['automation']['appointment_reminder_minutes_before'] ) ? absint( $service_settings['automation']['appointment_reminder_minutes_before'] ) : $defaults['appointment_reminder_minutes_before'],
 			'client_panel_enabled'       => ! empty( $service_settings['portal']['client_panel_enabled'] ) ? 1 : 0,
 		);
 
@@ -327,6 +389,7 @@ class Settings {
 		$sanitized = array(
 			'company_name'          => isset( $input['company_name'] ) ? sanitize_text_field( $input['company_name'] ) : $defaults['company_name'],
 			'business_context_key'  => isset( $input['business_context_key'] ) ? sanitize_key( $input['business_context_key'] ) : $defaults['business_context_key'],
+			'business_id'           => isset( $input['business_id'] ) ? max( 1, absint( $input['business_id'] ) ) : $defaults['business_id'],
 			'language_locale'       => isset( $input['language_locale'] ) && in_array( $input['language_locale'], $locales, true ) ? $input['language_locale'] : $defaults['language_locale'],
 			'default_currency'      => isset( $input['default_currency'] ) && in_array( $input['default_currency'], $currencies, true ) ? $input['default_currency'] : $defaults['default_currency'],
 			'timezone'              => isset( $input['timezone'] ) && in_array( $input['timezone'], $timezones, true ) ? $input['timezone'] : $defaults['timezone'],
@@ -337,6 +400,10 @@ class Settings {
 			'default_tax_rate'      => isset( $input['default_tax_rate'] ) ? round( (float) str_replace( ',', '.', (string) $input['default_tax_rate'] ), 2 ) : $defaults['default_tax_rate'],
 			'allow_partial_payments' => ! empty( $input['allow_partial_payments'] ) ? 1 : 0,
 			'enable_client_notifications' => ! empty( $input['enable_client_notifications'] ) ? 1 : 0,
+			'enable_email_notifications' => ! empty( $input['enable_email_notifications'] ) ? 1 : 0,
+			'enable_automation_runtime' => ! empty( $input['enable_automation_runtime'] ) ? 1 : 0,
+			'enable_appointment_reminders' => ! empty( $input['enable_appointment_reminders'] ) ? 1 : 0,
+			'appointment_reminder_minutes_before' => isset( $input['appointment_reminder_minutes_before'] ) ? max( 5, min( 1440, absint( $input['appointment_reminder_minutes_before'] ) ) ) : $defaults['appointment_reminder_minutes_before'],
 			'client_panel_enabled'  => ! empty( $input['client_panel_enabled'] ) ? 1 : 0,
 		);
 
@@ -453,7 +520,7 @@ class Settings {
 	 * @return void
 	 */
 	public function render_general_section() {
-		echo '<p>' . esc_html__( 'These values define the active workshop profile and the minimum i18n baseline used by runtime services.', 'super-mechanic' ) . '</p>';
+		echo '<p>' . esc_html__( 'These values define the fallback business profile and compatibility baseline. The active runtime context now resolves by user selection first.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -532,6 +599,21 @@ class Settings {
 	}
 
 	/**
+	 * Render fallback business ID field.
+	 *
+	 * @return void
+	 */
+	public function render_field_business_fallback_id() {
+		$settings = $this->get_settings();
+		$runtime  = $this->business_context_service->get_runtime_context();
+		$current  = isset( $runtime['business_id'] ) ? absint( $runtime['business_id'] ) : 1;
+		$source   = isset( $runtime['data_source'] ) ? (string) $runtime['data_source'] : '';
+
+		echo '<input type="number" min="1" step="1" class="small-text" name="' . esc_attr( self::OPTION_NAME ) . '[business_id]" value="' . esc_attr( (string) max( 1, absint( $settings['business_id'] ) ) ) . '" />';
+		echo '<p class="description">' . esc_html__( 'Fallback used when the current user has no explicit selector. Runtime now resolves by user -> setting -> default.', 'super-mechanic' ) . '<br />' . esc_html( '#' . $current . ' (' . $source . ')' ) . '</p>';
+	}
+
+	/**
 	 * Render business context key field.
 	 *
 	 * @return void
@@ -540,7 +622,7 @@ class Settings {
 		$settings = $this->get_settings();
 
 		echo '<input type="text" class="regular-text" name="' . esc_attr( self::OPTION_NAME ) . '[business_context_key]" value="' . esc_attr( $settings['business_context_key'] ) . '" />';
-		echo '<p class="description">' . esc_html__( 'Stable internal key reserved for future `business_id` evolution. It does not enable multi-business runtime today.', 'super-mechanic' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Stable key for compatibility and integrations. Active business context is handled by user selector with safe fallback.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -718,6 +800,60 @@ class Settings {
 		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_NAME ) . '[enable_client_notifications]" value="1" ' . checked( ! empty( $settings['enable_client_notifications'] ), true, false ) . ' /> ';
 		echo esc_html__( 'Keep client notification delivery enabled for the active product baseline.', 'super-mechanic' );
 		echo '</label>';
+	}
+
+	/**
+	 * Render email notifications field.
+	 *
+	 * @return void
+	 */
+	public function render_field_enable_email_notifications() {
+		$settings = $this->get_settings();
+
+		echo '<label>';
+		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_NAME ) . '[enable_email_notifications]" value="1" ' . checked( ! empty( $settings['enable_email_notifications'] ), true, false ) . ' /> ';
+		echo esc_html__( 'Enable external email delivery via WordPress wp_mail using the centralized notification catalog.', 'super-mechanic' );
+		echo '</label>';
+	}
+
+	/**
+	 * Render automation runtime field.
+	 *
+	 * @return void
+	 */
+	public function render_field_enable_automation_runtime() {
+		$settings = $this->get_settings();
+
+		echo '<label>';
+		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_NAME ) . '[enable_automation_runtime]" value="1" ' . checked( ! empty( $settings['enable_automation_runtime'] ), true, false ) . ' /> ';
+		echo esc_html__( 'Enable controlled event-based automation runtime.', 'super-mechanic' );
+		echo '</label>';
+	}
+
+	/**
+	 * Render appointment reminders field.
+	 *
+	 * @return void
+	 */
+	public function render_field_enable_appointment_reminders() {
+		$settings = $this->get_settings();
+
+		echo '<label>';
+		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_NAME ) . '[enable_appointment_reminders]" value="1" ' . checked( ! empty( $settings['enable_appointment_reminders'] ), true, false ) . ' /> ';
+		echo esc_html__( 'Send automated appointment reminders through the centralized notification pipeline.', 'super-mechanic' );
+		echo '</label>';
+	}
+
+	/**
+	 * Render appointment reminder lead time field.
+	 *
+	 * @return void
+	 */
+	public function render_field_appointment_reminder_minutes_before() {
+		$settings = $this->get_settings();
+
+		echo '<input type="number" min="5" max="1440" class="small-text" name="' . esc_attr( self::OPTION_NAME ) . '[appointment_reminder_minutes_before]" value="' . esc_attr( (string) absint( $settings['appointment_reminder_minutes_before'] ) ) . '" />';
+		echo '<p class="description">' . esc_html__( 'Minutes before appointment start when automatic reminders are dispatched.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -1194,6 +1330,7 @@ class Settings {
 				'business'      => array(
 					'business_name'        => $settings['company_name'],
 					'business_context_key' => $settings['business_context_key'],
+					'business_id'          => max( 1, absint( $settings['business_id'] ) ),
 					'currency'             => $settings['default_currency'],
 					'timezone'             => $settings['timezone'],
 					'locale'               => $settings['language_locale'],
@@ -1210,6 +1347,13 @@ class Settings {
 				),
 				'notifications' => array(
 					'enable_client_notifications' => ! empty( $settings['enable_client_notifications'] ),
+					'enable_email_notifications'  => ! empty( $settings['enable_email_notifications'] ),
+				),
+				'automation'   => array(
+					'enable_automation_runtime'         => ! empty( $settings['enable_automation_runtime'] ),
+					'enable_appointment_reminders'      => ! empty( $settings['enable_appointment_reminders'] ),
+					'appointment_reminder_minutes_before' => absint( $settings['appointment_reminder_minutes_before'] ),
+					'appointment_reminder_window_minutes' => 15,
 				),
 				'portal'        => array(
 					'client_panel_enabled' => ! empty( $settings['client_panel_enabled'] ),

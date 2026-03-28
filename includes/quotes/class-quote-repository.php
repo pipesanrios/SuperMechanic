@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Quotes;
 
 use Super_Mechanic\Database\Schema;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -45,8 +46,10 @@ class Quote_Repository {
 			LEFT JOIN {$tables['clients']} c ON c.id = q.client_id
 			LEFT JOIN {$tables['vehicles']} v ON v.id = p.vehicle_id
 			WHERE q.id = %d
+			AND q.business_id = %d
 			LIMIT 1",
-			absint( $id )
+			absint( $id ),
+			$this->resolve_business_id()
 		);
 		$row    = $wpdb->get_row( $query, ARRAY_A );
 
@@ -79,7 +82,11 @@ class Quote_Repository {
 	public function get_by_quote_number( $quote_number ) {
 		global $wpdb;
 
-		$query = $wpdb->prepare( "SELECT * FROM {$this->get_table_name()} WHERE quote_number = %s LIMIT 1", $quote_number );
+		$query = $wpdb->prepare(
+			"SELECT * FROM {$this->get_table_name()} WHERE quote_number = %s AND business_id = %d LIMIT 1",
+			$quote_number,
+			$this->resolve_business_id()
+		);
 		$row   = $wpdb->get_row( $query, ARRAY_A );
 
 		return is_array( $row ) ? $row : null;
@@ -98,6 +105,7 @@ class Quote_Repository {
 			$args,
 			array(
 				'process_id' => 0,
+				'business_id' => $this->resolve_business_id(),
 				'client_id'  => 0,
 				'process_type' => '',
 				'status'     => '',
@@ -151,6 +159,7 @@ class Quote_Repository {
 			$args,
 			array(
 				'process_id' => 0,
+				'business_id' => $this->resolve_business_id(),
 				'client_id'  => 0,
 				'process_type' => '',
 				'status'     => '',
@@ -184,6 +193,7 @@ class Quote_Repository {
 		$now                = current_time( 'mysql' );
 		$data['created_at'] = $now;
 		$data['updated_at'] = $now;
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
@@ -205,6 +215,7 @@ class Quote_Repository {
 		global $wpdb;
 
 		$data['updated_at'] = current_time( 'mysql' );
+		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
 		$result = $wpdb->update(
 			$this->get_table_name(),
@@ -242,6 +253,10 @@ class Quote_Repository {
 
 		if ( ! empty( $args['process_id'] ) ) {
 			$clauses[] = 'q.process_id = %d';
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$clauses[] = 'q.business_id = %d';
 		}
 
 		if ( ! empty( $args['client_id'] ) ) {
@@ -289,6 +304,10 @@ class Quote_Repository {
 
 		if ( ! empty( $args['process_id'] ) ) {
 			$params[] = absint( $args['process_id'] );
+		}
+
+		if ( ! empty( $args['business_id'] ) ) {
+			$params[] = absint( $args['business_id'] );
 		}
 
 		if ( ! empty( $args['client_id'] ) ) {
@@ -351,6 +370,7 @@ class Quote_Repository {
 	 */
 	protected function get_formats_for_data( $data ) {
 		$format_map = array(
+			'business_id'        => '%d',
 			'process_id'         => '%d',
 			'client_id'          => '%d',
 			'quote_number'       => '%s',
@@ -378,5 +398,16 @@ class Quote_Repository {
 		}
 
 		return $formats;
+	}
+
+	/**
+	 * Resolve active business ID.
+	 *
+	 * @return int
+	 */
+	protected function resolve_business_id() {
+		$context_service = new Business_Context_Service();
+
+		return absint( $context_service->resolve_business_id() );
 	}
 }

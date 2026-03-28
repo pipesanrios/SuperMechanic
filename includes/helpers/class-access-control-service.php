@@ -61,6 +61,7 @@ class Access_Control_Service {
 	 * @var Attachment_Repository
 	 */
 	protected $attachment_repository;
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
@@ -72,13 +73,14 @@ class Access_Control_Service {
 	 * @param Invoice_Repository|null        $invoice_repository        Invoice repository.
 	 * @param Attachment_Repository|null     $attachment_repository     Attachment repository.
 	 */
-	public function __construct( Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Process_Repository $process_repository = null, Quote_Repository $quote_repository = null, Invoice_Repository $invoice_repository = null, Attachment_Repository $attachment_repository = null ) {
+	public function __construct( Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Process_Repository $process_repository = null, Quote_Repository $quote_repository = null, Invoice_Repository $invoice_repository = null, Attachment_Repository $attachment_repository = null, Business_Context_Service $business_context_service = null ) {
 		$this->client_service            = $client_service ? $client_service : new Client_Service();
 		$this->client_vehicle_repository = $client_vehicle_repository ? $client_vehicle_repository : new Client_Vehicle_Repository();
 		$this->process_repository        = $process_repository ? $process_repository : new Process_Repository();
 		$this->quote_repository          = $quote_repository ? $quote_repository : new Quote_Repository();
 		$this->invoice_repository        = $invoice_repository ? $invoice_repository : new Invoice_Repository();
 		$this->attachment_repository     = $attachment_repository ? $attachment_repository : new Attachment_Repository();
+		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -183,6 +185,10 @@ class Access_Control_Service {
 			return false;
 		}
 
+		if ( ! $this->row_matches_current_business( $process ) ) {
+			return false;
+		}
+
 		if ( $this->user_has_full_access( $user_id ) ) {
 			return true;
 		}
@@ -217,6 +223,10 @@ class Access_Control_Service {
 		$quote    = $this->quote_repository->get_by_id( $quote_id );
 
 		if ( ! $user_id || ! $quote ) {
+			return false;
+		}
+
+		if ( ! $this->row_matches_current_business( $quote ) ) {
 			return false;
 		}
 
@@ -258,6 +268,10 @@ class Access_Control_Service {
 		$invoice    = $this->invoice_repository->get_by_id( $invoice_id );
 
 		if ( ! $user_id || ! $invoice ) {
+			return false;
+		}
+
+		if ( ! $this->row_matches_current_business( $invoice ) ) {
 			return false;
 		}
 
@@ -304,6 +318,10 @@ class Access_Control_Service {
 		$attachment    = $this->attachment_repository->get_by_id( $attachment_id );
 
 		if ( ! $user_id || ! $attachment ) {
+			return false;
+		}
+
+		if ( ! $this->row_matches_current_business( $attachment ) ) {
 			return false;
 		}
 
@@ -367,5 +385,21 @@ class Access_Control_Service {
 		}
 
 		return $allowed;
+	}
+
+	/**
+	 * Ensure row belongs to the active business context when available.
+	 *
+	 * @param array<string,mixed> $row Data row.
+	 * @return bool
+	 */
+	protected function row_matches_current_business( array $row ) {
+		if ( empty( $row['business_id'] ) ) {
+			return true;
+		}
+
+		$current_business_id = absint( $this->business_context_service->resolve_business_id() );
+
+		return $current_business_id === absint( $row['business_id'] );
 	}
 }
