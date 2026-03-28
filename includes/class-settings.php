@@ -7,11 +7,14 @@
 
 namespace Super_Mechanic;
 
+use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Helpers\License_Service;
 use Super_Mechanic\Helpers\Update_Service;
 use Super_Mechanic\Helpers\Plan_Access_Service;
 use Super_Mechanic\Helpers\Feature_Flags;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Service;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -58,6 +61,18 @@ class Settings {
 	 * @var Plan_Access_Service
 	 */
 	protected $plan_access_service;
+	/**
+	 * Google Calendar service.
+	 *
+	 * @var Google_Calendar_Service
+	 */
+	protected $google_calendar_service;
+	/**
+	 * Google Calendar sync service.
+	 *
+	 * @var Google_Calendar_Sync_Service
+	 */
+	protected $google_calendar_sync_service;
 
 	/**
 	 * Constructor.
@@ -67,6 +82,11 @@ class Settings {
 		$this->license_service  = new License_Service( $this->settings_service );
 		$this->update_service   = new Update_Service( $this->settings_service, null, $this->license_service );
 		$this->plan_access_service = new Plan_Access_Service( $this->settings_service, $this->license_service );
+		$this->google_calendar_service = new Google_Calendar_Service( $this->settings_service );
+		$this->google_calendar_sync_service = new Google_Calendar_Sync_Service( $this->google_calendar_service );
+		$this->google_calendar_service->set_sync_service( $this->google_calendar_sync_service );
+		$appointment_service = new Appointment_Service( null, null, null, null, $this->google_calendar_sync_service );
+		$this->google_calendar_sync_service->set_appointment_service( $appointment_service );
 	}
 
 	/**
@@ -78,6 +98,9 @@ class Settings {
 		add_action( 'admin_post_sm_license_activate', array( $this, 'handle_license_activate' ) );
 		add_action( 'admin_post_sm_license_validate', array( $this, 'handle_license_validate' ) );
 		add_action( 'admin_post_sm_license_deactivate', array( $this, 'handle_license_deactivate' ) );
+		add_action( 'admin_post_sm_google_calendar_save_config', array( $this, 'handle_google_calendar_save_config' ) );
+		add_action( 'admin_post_sm_google_calendar_reconcile_now', array( $this, 'handle_google_calendar_reconcile_now' ) );
+		add_action( 'admin_post_sm_google_calendar_renew_watch', array( $this, 'handle_google_calendar_renew_watch' ) );
 	}
 
 	/**
@@ -342,6 +365,7 @@ class Settings {
 
 		echo '<div class="wrap sm-admin-shell">';
 		$this->render_license_notice();
+		$this->render_google_calendar_notice();
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Super Mechanic Settings', 'super-mechanic' ) . '</h1>';
@@ -378,6 +402,11 @@ class Settings {
 		echo '<h2>' . esc_html__( 'Plan and feature access', 'super-mechanic' ) . '</h2>';
 		$this->render_plan_access_section();
 		$this->render_field_plan_access_status();
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card sm-settings-card">';
+		echo '<h2>' . esc_html__( 'Google Calendar (1-way sync)', 'super-mechanic' ) . '</h2>';
+		$this->render_google_calendar_section();
+		$this->render_field_google_calendar_status();
 		echo '</div>';
 		echo '</div>';
 	}
@@ -479,6 +508,15 @@ class Settings {
 	 */
 	public function render_plan_access_section() {
 		echo '<p>' . esc_html__( 'Centralized effective plan and feature flags baseline. This phase does not implement billing or real subscriptions.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render Google Calendar section intro.
+	 *
+	 * @return void
+	 */
+	public function render_google_calendar_section() {
+		echo '<p>' . esc_html__( 'Outbound sync remains one-way by default. Manual inbound reconciliation is controlled and local appointments remain source of truth.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -809,6 +847,87 @@ class Settings {
 	}
 
 	/**
+	 * Render Google Calendar status and config form.
+	 *
+	 * @return void
+	 */
+	public function render_field_google_calendar_status() {
+		$settings      = $this->google_calendar_service->get_settings();
+		$is_configured = $this->google_calendar_service->is_configured();
+		$is_connected  = $this->google_calendar_service->is_connected();
+		$is_enabled    = ! empty( $settings['sync_enabled'] );
+		$client_id     = isset( $settings['client_id'] ) ? (string) $settings['client_id'] : '';
+		$calendar_id   = isset( $settings['calendar_id'] ) ? (string) $settings['calendar_id'] : 'primary';
+		$has_secret    = ! empty( $settings['client_secret'] );
+		$token_expires = isset( $settings['token_expires_at'] ) ? (string) $settings['token_expires_at'] : '';
+		$last_result   = isset( $settings['last_sync_result'] ) ? (string) $settings['last_sync_result'] : '';
+		$last_message  = isset( $settings['last_sync_message'] ) ? (string) $settings['last_sync_message'] : '';
+		$watch_channel = isset( $settings['watch_channel_id'] ) ? (string) $settings['watch_channel_id'] : '';
+		$watch_exp_raw = isset( $settings['watch_expiration'] ) ? absint( $settings['watch_expiration'] ) : 0;
+		$watch_exp     = $watch_exp_raw > 0 ? gmdate( 'Y-m-d H:i:s', $watch_exp_raw ) . ' UTC' : '-';
+		$watch_last    = isset( $settings['watch_last_webhook_at'] ) ? (string) $settings['watch_last_webhook_at'] : '';
+
+		echo '<div class="sm-license-panel">';
+		echo '<p><strong>' . esc_html__( 'Configured:', 'super-mechanic' ) . '</strong> ' . esc_html( $is_configured ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Connected:', 'super-mechanic' ) . '</strong> ' . esc_html( $is_connected ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Sync enabled:', 'super-mechanic' ) . '</strong> ' . esc_html( $is_enabled ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'OAuth callback:', 'super-mechanic' ) . '</strong> <code>' . esc_html( $this->google_calendar_service->get_callback_url() ) . '</code></p>';
+		if ( '' !== $token_expires ) {
+			echo '<p><strong>' . esc_html__( 'Token expires at:', 'super-mechanic' ) . '</strong> ' . esc_html( $token_expires ) . '</p>';
+		}
+		if ( '' !== $last_result ) {
+			echo '<p><strong>' . esc_html__( 'Last result:', 'super-mechanic' ) . '</strong> ' . esc_html( $last_result ) . '</p>';
+		}
+		if ( '' !== $last_message ) {
+			echo '<p class="description">' . esc_html( $last_message ) . '</p>';
+		}
+		echo '<p><strong>' . esc_html__( 'Watch channel active:', 'super-mechanic' ) . '</strong> ' . esc_html( '' !== $watch_channel ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Watch expiration:', 'super-mechanic' ) . '</strong> ' . esc_html( $watch_exp ) . '</p>';
+		if ( '' !== $watch_last ) {
+			echo '<p><strong>' . esc_html__( 'Last webhook at:', 'super-mechanic' ) . '</strong> ' . esc_html( $watch_last ) . '</p>';
+		}
+		echo '<p><strong>' . esc_html__( 'Webhook URL:', 'super-mechanic' ) . '</strong> <code>' . esc_html( $this->google_calendar_service->get_webhook_url() ) . '</code></p>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:12px;">';
+		echo '<input type="hidden" name="action" value="sm_google_calendar_save_config" />';
+		wp_nonce_field( 'sm_google_calendar_save_config', 'sm_google_calendar_nonce' );
+		echo '<p><label><strong>' . esc_html__( 'Client ID', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="text" class="regular-text" name="sm_google_client_id" value="' . esc_attr( $client_id ) . '" /></label></p>';
+		echo '<p><label><strong>' . esc_html__( 'Client Secret', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="password" class="regular-text" name="sm_google_client_secret" value="" placeholder="' . esc_attr( $has_secret ? __( 'Stored (leave blank to keep)', 'super-mechanic' ) : '' ) . '" /></label></p>';
+		echo '<p><label><strong>' . esc_html__( 'Calendar ID', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="text" class="regular-text" name="sm_google_calendar_id" value="' . esc_attr( $calendar_id ) . '" /></label></p>';
+		echo '<p><label><input type="checkbox" name="sm_google_sync_enabled" value="1" ' . checked( $is_enabled, true, false ) . ' /> ' . esc_html__( 'Enable one-way appointment sync to Google Calendar', 'super-mechanic' ) . '</label></p>';
+		submit_button( __( 'Save Google Calendar settings', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:10px;">';
+		echo '<input type="hidden" name="action" value="sm_google_calendar_oauth_connect" />';
+		wp_nonce_field( 'sm_google_calendar_oauth_connect', 'sm_google_calendar_oauth_nonce' );
+		submit_button( __( 'Connect Google account', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+		echo '<input type="hidden" name="action" value="sm_google_calendar_oauth_disconnect" />';
+		wp_nonce_field( 'sm_google_calendar_oauth_disconnect', 'sm_google_calendar_oauth_nonce' );
+		submit_button( __( 'Disconnect Google account', 'super-mechanic' ), 'delete', 'submit', false );
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+		echo '<input type="hidden" name="action" value="sm_google_calendar_reconcile_now" />';
+		wp_nonce_field( 'sm_google_calendar_reconcile_now', 'sm_google_calendar_reconcile_nonce' );
+		submit_button( __( 'Reconcile inbound now', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+		echo '<input type="hidden" name="action" value="sm_google_calendar_renew_watch" />';
+		wp_nonce_field( 'sm_google_calendar_renew_watch', 'sm_google_calendar_renew_watch_nonce' );
+		submit_button( __( 'Renew watch channel now', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+		echo '</div>';
+	}
+
+	/**
 	 * Handle local license activation request.
 	 *
 	 * @return void
@@ -899,6 +1018,23 @@ class Settings {
 	}
 
 	/**
+	 * Render one-time Google Calendar notice.
+	 *
+	 * @return void
+	 */
+	protected function render_google_calendar_notice() {
+		$type_raw    = isset( $_GET['sm_google_gc_notice'] ) ? sanitize_key( wp_unslash( $_GET['sm_google_gc_notice'] ) ) : '';
+		$message_raw = isset( $_GET['sm_google_gc_msg'] ) ? sanitize_text_field( wp_unslash( $_GET['sm_google_gc_msg'] ) ) : '';
+
+		if ( '' === $type_raw || '' === $message_raw ) {
+			return;
+		}
+
+		$type_class = ( 'success' === $type_raw ) ? 'notice-success' : 'notice-error';
+		echo '<div class="notice ' . esc_attr( $type_class ) . ' is-dismissible"><p>' . esc_html( $message_raw ) . '</p></div>';
+	}
+
+	/**
 	 * Get translatable status label.
 	 *
 	 * @param string $status Status key.
@@ -916,6 +1052,130 @@ class Settings {
 	}
 
 	/**
+	 * Handle Google Calendar config save.
+	 *
+	 * @return void
+	 */
+	public function handle_google_calendar_save_config() {
+		if ( ! current_user_can( 'sm_manage_settings' ) ) {
+			wp_die( esc_html__( 'No tienes permisos para gestionar Google Calendar.', 'super-mechanic' ) );
+		}
+
+		check_admin_referer( 'sm_google_calendar_save_config', 'sm_google_calendar_nonce' );
+
+		$this->google_calendar_service->save_config(
+			array(
+				'client_id'     => isset( $_POST['sm_google_client_id'] ) ? wp_unslash( $_POST['sm_google_client_id'] ) : '',
+				'client_secret' => isset( $_POST['sm_google_client_secret'] ) ? wp_unslash( $_POST['sm_google_client_secret'] ) : '',
+				'calendar_id'   => isset( $_POST['sm_google_calendar_id'] ) ? wp_unslash( $_POST['sm_google_calendar_id'] ) : 'primary',
+				'sync_enabled'  => ! empty( $_POST['sm_google_sync_enabled'] ),
+			)
+		);
+
+		$target = add_query_arg(
+			array(
+				'page'                => self::PAGE_SLUG,
+				'sm_google_gc_notice' => 'success',
+				'sm_google_gc_msg'    => __( 'Configuracion de Google Calendar actualizada.', 'super-mechanic' ),
+			),
+			admin_url( 'admin.php' )
+		);
+
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	/**
+	 * Handle manual inbound reconcile action.
+	 *
+	 * @return void
+	 */
+	public function handle_google_calendar_reconcile_now() {
+		if ( ! current_user_can( 'sm_manage_settings' ) ) {
+			wp_die( esc_html__( 'No tienes permisos para gestionar Google Calendar.', 'super-mechanic' ) );
+		}
+
+		check_admin_referer( 'sm_google_calendar_reconcile_now', 'sm_google_calendar_reconcile_nonce' );
+
+		$result = $this->google_calendar_sync_service->reconcile_inbound_for_linked_appointments( 100 );
+		if ( is_wp_error( $result ) ) {
+			$target = add_query_arg(
+				array(
+					'page'                => self::PAGE_SLUG,
+					'sm_google_gc_notice' => 'error',
+					'sm_google_gc_msg'    => $result->get_error_message(),
+				),
+				admin_url( 'admin.php' )
+			);
+
+			wp_safe_redirect( $target );
+			exit;
+		}
+
+		$message = sprintf(
+			/* translators: 1: processed, 2: synced, 3: conflict, 4: rejected, 5: error */
+			__( 'Reconciliacion inbound completada. Procesadas: %1$d, synced: %2$d, conflict: %3$d, rejected: %4$d, error: %5$d.', 'super-mechanic' ),
+			isset( $result['processed'] ) ? absint( $result['processed'] ) : 0,
+			isset( $result['synced'] ) ? absint( $result['synced'] ) : 0,
+			isset( $result['conflict'] ) ? absint( $result['conflict'] ) : 0,
+			isset( $result['rejected'] ) ? absint( $result['rejected'] ) : 0,
+			isset( $result['error'] ) ? absint( $result['error'] ) : 0
+		);
+
+		$target = add_query_arg(
+			array(
+				'page'                => self::PAGE_SLUG,
+				'sm_google_gc_notice' => 'success',
+				'sm_google_gc_msg'    => $message,
+			),
+			admin_url( 'admin.php' )
+		);
+
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	/**
+	 * Handle manual watch channel renewal.
+	 *
+	 * @return void
+	 */
+	public function handle_google_calendar_renew_watch() {
+		if ( ! current_user_can( 'sm_manage_settings' ) ) {
+			wp_die( esc_html__( 'No tienes permisos para gestionar Google Calendar.', 'super-mechanic' ) );
+		}
+
+		check_admin_referer( 'sm_google_calendar_renew_watch', 'sm_google_calendar_renew_watch_nonce' );
+
+		$result = $this->google_calendar_service->renew_watch_channel();
+		if ( is_wp_error( $result ) ) {
+			$target = add_query_arg(
+				array(
+					'page'                => self::PAGE_SLUG,
+					'sm_google_gc_notice' => 'error',
+					'sm_google_gc_msg'    => $result->get_error_message(),
+				),
+				admin_url( 'admin.php' )
+			);
+
+			wp_safe_redirect( $target );
+			exit;
+		}
+
+		$target = add_query_arg(
+			array(
+				'page'                => self::PAGE_SLUG,
+				'sm_google_gc_notice' => 'success',
+				'sm_google_gc_msg'    => __( 'Watch channel renovado correctamente.', 'super-mechanic' ),
+			),
+			admin_url( 'admin.php' )
+		);
+
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	/**
 	 * Sync the active grouped settings option consumed by services.
 	 *
 	 * @param array<string, mixed> $settings Sanitized legacy-shaped settings.
@@ -926,6 +1186,7 @@ class Settings {
 		$updates_settings = $this->settings_service->get_group( 'updates' );
 		$plan_settings    = $this->settings_service->get_group( 'plan' );
 		$feature_settings = $this->settings_service->get_group( 'features' );
+		$google_calendar_settings = $this->settings_service->get_group( 'google_calendar' );
 
 		update_option(
 			Settings_Service::OPTION_NAME,
@@ -957,6 +1218,7 @@ class Settings {
 				'updates'       => is_array( $updates_settings ) ? $updates_settings : array(),
 				'plan'          => is_array( $plan_settings ) ? $plan_settings : array(),
 				'features'      => is_array( $feature_settings ) ? $feature_settings : array(),
+				'google_calendar' => is_array( $google_calendar_settings ) ? $google_calendar_settings : array(),
 			)
 		);
 	}

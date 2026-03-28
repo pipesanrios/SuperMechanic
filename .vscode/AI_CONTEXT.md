@@ -59,6 +59,7 @@ invoices
 payments
 attachments
 communication
+appointments
 helpers
 integrations
 
@@ -170,7 +171,7 @@ ESTADO ACTUAL RESUMIDO
 
 Versión real:
 - plugin: `0.1.0`
-- schema: `1.9.0`
+- schema: `1.11.0`
 
 Fases consolidadas:
 - 12A–12E
@@ -213,6 +214,11 @@ Resumen de hitos recientes:
 - FASE 31A activa en código: base local de licencias en `sm_settings.license` con `License_Service` + provider local, acciones admin `activate/validate/deactivate`, estado visible en Ajustes y key enmascarada (sin updates privadas, sin feature flags, sin bloqueo de funcionalidades)
 - FASE 31B activa en código: base local de updates privadas con `Update_Service` + contrato provider desacoplado (`Update_Provider_Interface`), metadata de versión/compatibilidad, integración a hooks nativos de updates de WordPress, URL de paquete firmada y temporal, estado visible en Ajustes y persistencia en `sm_settings.updates` (sin 31C, sin schema changes)
 - FASE 31C activa en código: base centralizada de plan efectivo + feature flags con `Plan_Access_Service` y catálogo `Feature_Flags`, persistencia local en `sm_settings.plan` y `sm_settings.features.feature_flags`, estado visible en Ajustes y gating mínimo no destructivo en superficies admin no críticas (reportes, export CSV y catálogo de shortcodes) sin tocar módulos core ni schema
+- FASE 32A activa en código: módulo de citas operativo con `sm_appointments`, CRUD admin, asignación de mecánico por `assigned_to`, estados base y filtros por fecha/mecánico/estado
+- FASE 32B-1 activa en código: feed ICS/iCal read-only de citas con endpoint firmado, token HMAC con expiración y firma de filtros permitidos (`assigned_to`, `status`, `date_from`, `date_to`), `UID` estable por cita, headers `text/calendar` y rango por defecto acotado (hoy + 30 días) sin cambios de schema
+- FASE 32B-2 activa en código: integración Google Calendar 1-way con OAuth básico admin (connect/callback/disconnect), creación/actualización de eventos desde citas y persistencia de estado en tabla separada `sm_appointment_calendar_sync`; los fallos remotos no bloquean el guardado local de citas
+- FASE 32B-3A activa en código: reconciliación inbound controlada (plugin como fuente de verdad), política explícita de conflicto/rechazo, aplicación solo de campos permitidos y acción manual admin de reconciliación
+- FASE 32B-3B activa en código: watch channels + webhook REST dedicado para Google Calendar con validación `X-Goog-*`, idempotencia por `message_number` + lock corto, encolado de procesamiento, renovación preventiva por cron y renovación manual de canal sin cambios de schema
 
 ==================================================
 DEUDA TÉCNICA VIVA

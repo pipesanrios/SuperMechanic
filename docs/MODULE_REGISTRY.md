@@ -1247,3 +1247,98 @@ Riesgos o puntos sensibles:
   - `Client_Invoice_Shortcodes` expone descarga segura de `payment_receipt`
   - `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` refuerzan accesos a detalle y documentos seguros
   - en Fase 24, `Client_Dashboard_Controller`, `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` modernizan la capa visual sin tocar ownership, nonces ni descargas
+
+--------------------------------------------------
+
+## Appointments (FASE 32A)
+
+Carpeta:
+- `includes/appointments/`
+
+Proposito:
+- base operativa de agenda/citas del taller
+- CRUD admin de citas con cliente, vehiculo y mecanico
+- vinculo opcional con proceso existente
+
+Tablas:
+- `sm_appointments`
+
+Clases principales:
+- `Appointment_Repository`
+- `Appointment_Service`
+- `Appointment_Admin_Controller`
+- `Appointment_List_Table`
+
+Dependencias:
+- clients
+- vehicles
+- processes
+- core
+
+Estado:
+- implementado en Fase 32A
+
+Riesgos o puntos sensibles:
+- mantener `assigned_to` como fuente unica de asignacion de mecanico en citas
+- validar coherencia cliente/vehiculo/proceso para evitar vinculos cruzados invalidos
+- no ampliar alcance a automatizaciones o calendario JS complejo en esta fase
+
+Cambios tecnicos recientes confirmados:
+- submenu admin nuevo `Citas` en `class-admin-menu.php`
+- wiring runtime nuevo en `class-plugin.php`
+- filtros admin por fecha, mecanico y estado
+- estados basicos implementados: `scheduled`, `confirmed`, `in_progress`, `completed`, `cancelled`
+
+--------------------------------------------------
+
+## Integrations / Google Calendar (FASE 32B-1, 32B-2, 32B-3A)
+
+Carpeta:
+- `includes/integrations/google-calendar/`
+
+Proposito:
+- mantener sync de citas con Google Calendar sin perder la cita local como fuente de verdad
+- exponer reconciliación inbound controlada y manual, con política de conflicto explícita
+
+Tablas:
+- `sm_appointment_calendar_sync` (sin cambios de schema en 32B-3A)
+
+Clases principales:
+- `Google_Calendar_Auth_Controller`
+- `Google_Calendar_Client`
+- `Google_Calendar_Service`
+- `Google_Calendar_Sync_Repository`
+- `Google_Calendar_Sync_Service`
+- `Google_Calendar_Inbound_Reconcile_Service`
+
+Dependencias:
+- appointments
+- helpers/settings
+- core
+
+Estado:
+- implementado para 32B-1 (feed firmado), 32B-2 (outbound 1-way) y 32B-3A (inbound controlada)
+
+Politica inbound 32B-3A:
+- campos permitidos: `start_at`, `appointment_date` derivada, `notes` sanitizada/acotada, `appointment_status` solo para `cancelled`
+- campos prohibidos: `client_id`, `vehicle_id`, `process_id`, `assigned_to`, IDs estructurales, relaciones, `created_at` y datos financieros/documentales
+- conflicto: `conflict` cuando cambió local y remoto desde base previa
+- rechazo: `rejected` cuando Google altera campos no permitidos
+
+Cambios tecnicos recientes confirmados:
+- lectura remota puntual por `external_event_id`
+- remapeo por `external_event_id` en repository de sync
+- estado sync operativo consolidado para reconciliación (`synced`, `error`, `conflict`, `rejected`)
+- accion manual admin `Reconcile inbound now` en `Settings`
+- hash de estado evolucionado a formato local/remoto sin migración de tabla
+- endpoint REST dedicado de webhook en `super-mechanic/v1/google-calendar/webhook`
+- ciclo de vida de watch channel (create/renew/stop best effort) desde `Google_Calendar_Service`
+- reconciliación disparada por webhook en cola interna usando lógica 32B-3A (sin update directo en webhook)
+- renovación preventiva por cron (`sm_google_calendar_watch_renew`) + acción manual `Renew watch channel now`
+- idempotencia base por `watch_last_message_number` + lock corto por fingerprint de notificación
+
+Riesgos o puntos sensibles:
+- no relajar la regla de plugin como fuente maestra
+- mantener validación estricta de headers `X-Goog-*` en webhook
+- no introducir updates inbound sobre campos estructurales
+- vigilar drift de timezone en `start_at` durante reconciliación

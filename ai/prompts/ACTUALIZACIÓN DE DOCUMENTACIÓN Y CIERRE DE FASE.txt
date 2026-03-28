@@ -42,10 +42,11 @@ Si no probaste en WordPress runtime:
 ==================================================
 ACTUALIZACIÓN DOCUMENTAL
 ==================================================
+Revisa si todos los cambios si han sido actualizados y de faltar
 
 Actualizar SOLO si aplica:
 
-- ARCHITECTURE.md (cambios estructurales)
+- ARCHITECTURE.md (cambios estructurales ) 
 - docs/CURRENT_STATE.md (estado o fase)
 - docs/SYSTEM_MAP.md (si cambian módulos)
 - docs/MODULE_REGISTRY.md (si cambian clases/módulos)
@@ -112,6 +113,11 @@ UI (si aplica):
 
 - no romper formularios
 - no romper acciones
+
+==================================================
+IMPORTANTE TENER EN CUENTA
+==================================================
+-Revisa si todos los cambios si han sido actualizados y de faltar debes actualizar lo faltante
 
 ==================================================
 FORMATO DE RESPUESTA

@@ -158,6 +158,27 @@ class Settings_Service {
 		$settings['features']['feature_flags']                = isset( $settings['features']['feature_flags'] ) && is_array( $settings['features']['feature_flags'] )
 			? Feature_Flags::normalize_feature_flags( $settings['features']['feature_flags'] )
 			: array();
+		$settings['google_calendar']['sync_enabled']          = ! empty( $settings['google_calendar']['sync_enabled'] );
+		$settings['google_calendar']['client_id']             = isset( $settings['google_calendar']['client_id'] ) ? sanitize_text_field( (string) $settings['google_calendar']['client_id'] ) : '';
+		$settings['google_calendar']['client_secret']         = isset( $settings['google_calendar']['client_secret'] ) ? sanitize_text_field( (string) $settings['google_calendar']['client_secret'] ) : '';
+		$settings['google_calendar']['redirect_uri']          = isset( $settings['google_calendar']['redirect_uri'] ) ? esc_url_raw( (string) $settings['google_calendar']['redirect_uri'] ) : '';
+		$settings['google_calendar']['calendar_id']           = isset( $settings['google_calendar']['calendar_id'] ) ? sanitize_text_field( (string) $settings['google_calendar']['calendar_id'] ) : 'primary';
+		$settings['google_calendar']['access_token']          = isset( $settings['google_calendar']['access_token'] ) ? sanitize_text_field( (string) $settings['google_calendar']['access_token'] ) : '';
+		$settings['google_calendar']['refresh_token']         = isset( $settings['google_calendar']['refresh_token'] ) ? sanitize_text_field( (string) $settings['google_calendar']['refresh_token'] ) : '';
+		$settings['google_calendar']['token_expires_at']      = isset( $settings['google_calendar']['token_expires_at'] ) ? sanitize_text_field( (string) $settings['google_calendar']['token_expires_at'] ) : '';
+		$settings['google_calendar']['oauth_state']           = isset( $settings['google_calendar']['oauth_state'] ) ? sanitize_text_field( (string) $settings['google_calendar']['oauth_state'] ) : '';
+		$settings['google_calendar']['oauth_state_expires_at'] = isset( $settings['google_calendar']['oauth_state_expires_at'] ) ? sanitize_text_field( (string) $settings['google_calendar']['oauth_state_expires_at'] ) : '';
+		$settings['google_calendar']['oauth_state_user_id']   = isset( $settings['google_calendar']['oauth_state_user_id'] ) ? absint( $settings['google_calendar']['oauth_state_user_id'] ) : 0;
+		$settings['google_calendar']['last_sync_result']      = isset( $settings['google_calendar']['last_sync_result'] ) ? sanitize_key( (string) $settings['google_calendar']['last_sync_result'] ) : '';
+		$settings['google_calendar']['last_sync_message']     = isset( $settings['google_calendar']['last_sync_message'] ) ? sanitize_text_field( (string) $settings['google_calendar']['last_sync_message'] ) : '';
+		$settings['google_calendar']['watch_channel_id']      = isset( $settings['google_calendar']['watch_channel_id'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_channel_id'] ) : '';
+		$settings['google_calendar']['watch_resource_id']     = isset( $settings['google_calendar']['watch_resource_id'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_resource_id'] ) : '';
+		$settings['google_calendar']['watch_resource_uri']    = isset( $settings['google_calendar']['watch_resource_uri'] ) ? esc_url_raw( (string) $settings['google_calendar']['watch_resource_uri'] ) : '';
+		$settings['google_calendar']['watch_expiration']      = isset( $settings['google_calendar']['watch_expiration'] ) ? absint( $settings['google_calendar']['watch_expiration'] ) : 0;
+		$settings['google_calendar']['watch_token_hash']      = isset( $settings['google_calendar']['watch_token_hash'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_token_hash'] ) : '';
+		$settings['google_calendar']['watch_last_message_number'] = isset( $settings['google_calendar']['watch_last_message_number'] ) ? absint( $settings['google_calendar']['watch_last_message_number'] ) : 0;
+		$settings['google_calendar']['watch_last_webhook_at'] = isset( $settings['google_calendar']['watch_last_webhook_at'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_last_webhook_at'] ) : '';
+		$settings['google_calendar']['watch_next_sync_token'] = isset( $settings['google_calendar']['watch_next_sync_token'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_next_sync_token'] ) : '';
 
 		if ( empty( $settings['process']['enabled_process_types'] ) ) {
 			$settings['process']['enabled_process_types'] = $defaults['process']['enabled_process_types'];
@@ -231,6 +252,29 @@ class Settings_Service {
 			),
 			'features'      => array(
 				'feature_flags' => array(),
+			),
+			'google_calendar' => array(
+				'sync_enabled'           => false,
+				'client_id'              => '',
+				'client_secret'          => '',
+				'redirect_uri'           => '',
+				'calendar_id'            => 'primary',
+				'access_token'           => '',
+				'refresh_token'          => '',
+				'token_expires_at'       => '',
+				'oauth_state'            => '',
+				'oauth_state_expires_at' => '',
+				'oauth_state_user_id'    => 0,
+				'last_sync_result'       => '',
+				'last_sync_message'      => '',
+				'watch_channel_id'       => '',
+				'watch_resource_id'      => '',
+				'watch_resource_uri'     => '',
+				'watch_expiration'       => 0,
+				'watch_token_hash'       => '',
+				'watch_last_message_number' => 0,
+				'watch_last_webhook_at'  => '',
+				'watch_next_sync_token'  => '',
 			),
 		);
 	}

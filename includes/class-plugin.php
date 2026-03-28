@@ -7,6 +7,10 @@
 
 namespace Super_Mechanic;
 
+use Super_Mechanic\Appointments\Appointment_Admin_Controller;
+use Super_Mechanic\Appointments\Appointment_Ical_Feed_Controller;
+use Super_Mechanic\Appointments\Appointment_Ical_Feed_Service;
+use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Attachments\Attachment_Admin_Controller;
 use Super_Mechanic\Attachments\Attachment_Service;
 use Super_Mechanic\Attachments\Client_Attachment_Shortcodes;
@@ -31,6 +35,7 @@ use Super_Mechanic\Helpers\Document_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Flows\Flow_Admin_Controller;
 use Super_Mechanic\Helpers\Download_Service;
+use Super_Mechanic\Helpers\Feed_Token_Service;
 use Super_Mechanic\Helpers\PDF_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Helpers\Update_Service;
@@ -39,6 +44,12 @@ use Super_Mechanic\Invoices\Invoice_Admin_Controller;
 use Super_Mechanic\Invoices\Invoice_Finance_Admin_Controller;
 use Super_Mechanic\Invoices\Payment_Finance_Admin_Controller;
 use Super_Mechanic\Invoices\Invoice_Service;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Auth_Controller;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Client;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Service;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Repository;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Webhook_Controller;
 use Super_Mechanic\Maintenance\Maintenance_Admin_Controller;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Paperwork\Paperwork_Admin_Controller;
@@ -110,6 +121,17 @@ class Plugin {
 	protected $client_rest_controller;
 	protected $admin_rest_controller;
 	protected $update_service;
+	protected $appointment_service;
+	protected $appointment_admin_controller;
+	protected $appointment_ical_feed_service;
+	protected $feed_token_service;
+	protected $appointment_ical_feed_controller;
+	protected $google_calendar_client;
+	protected $google_calendar_service;
+	protected $google_calendar_sync_repository;
+	protected $google_calendar_sync_service;
+	protected $google_calendar_auth_controller;
+	protected $google_calendar_webhook_controller;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -117,6 +139,19 @@ class Plugin {
 		$this->settings_service              = new Settings_Service();
 		$this->update_service                = new Update_Service( $this->settings_service );
 		$this->business_context_service      = new Business_Context_Service( $this->settings_service );
+		$this->appointment_ical_feed_service = new Appointment_Ical_Feed_Service();
+		$this->feed_token_service            = new Feed_Token_Service();
+		$this->google_calendar_client        = new Google_Calendar_Client();
+		$this->google_calendar_service       = new Google_Calendar_Service( $this->settings_service, $this->google_calendar_client );
+		$this->google_calendar_sync_repository = new Google_Calendar_Sync_Repository();
+		$this->google_calendar_sync_service  = new Google_Calendar_Sync_Service( $this->google_calendar_service, $this->google_calendar_sync_repository );
+		$this->google_calendar_service->set_sync_service( $this->google_calendar_sync_service );
+		$this->google_calendar_auth_controller = new Google_Calendar_Auth_Controller( $this->google_calendar_service );
+		$this->google_calendar_webhook_controller = new Google_Calendar_Webhook_Controller( $this->google_calendar_service );
+		$this->appointment_service           = new Appointment_Service( null, null, null, null, $this->google_calendar_sync_service );
+		$this->google_calendar_sync_service->set_appointment_service( $this->appointment_service );
+		$this->appointment_admin_controller  = new Appointment_Admin_Controller( $this->appointment_service );
+		$this->appointment_ical_feed_controller = new Appointment_Ical_Feed_Controller( $this->appointment_service, $this->appointment_ical_feed_service, $this->feed_token_service );
 		$this->client_admin_controller       = new Client_Admin_Controller();
 		$this->vehicle_admin_controller      = new Vehicle_Admin_Controller();
 		$this->process_service               = new Process_Service( null, null, null, null, null, null, null, null, null, null, $this->settings_service );
@@ -181,7 +216,8 @@ class Plugin {
 			$this->report_admin_controller,
 			$this->shortcode_admin_controller,
 			$this->invoice_finance_admin_controller,
-			$this->payment_finance_admin_controller
+			$this->payment_finance_admin_controller,
+			$this->appointment_admin_controller
 		);
 	}
 
@@ -195,6 +231,7 @@ class Plugin {
 		$this->event_dispatcher->register_hooks();
 		$this->download_service->register_hooks();
 		$this->update_service->register_hooks();
+		$this->google_calendar_service->register_hooks();
 
 		if ( is_admin() ) {
 			add_action( 'admin_menu', array( $this->admin_menu, 'register_menu' ) );
@@ -213,6 +250,8 @@ class Plugin {
 			$this->report_admin_controller->register_hooks();
 			$this->invoice_finance_admin_controller->register_hooks();
 			$this->payment_finance_admin_controller->register_hooks();
+			$this->appointment_admin_controller->register_hooks();
+			$this->google_calendar_auth_controller->register_hooks();
 			$this->mechanic_dashboard_controller->register_hooks();
 		}
 
@@ -224,6 +263,8 @@ class Plugin {
 		$this->client_comment_shortcodes->register_hooks();
 		$this->client_rest_controller->register_hooks();
 		$this->admin_rest_controller->register_hooks();
+		$this->appointment_ical_feed_controller->register_hooks();
+		$this->google_calendar_webhook_controller->register_hooks();
 	}
 
 	protected function maybe_upgrade_schema() {

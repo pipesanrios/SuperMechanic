@@ -1,7 +1,7 @@
 # CURRENT STATE — SUPER MECHANIC
 
 Version: 0.1.0
-Schema: 1.9.0
+Schema: 1.11.0
 
 Estado:
 Arquitectura estable con riesgos controlados
@@ -18,6 +18,7 @@ invoices
 attachments
 communication
 dashboard
+appointments
 
 Sistema:
 Funcional (pre-SaaS)
@@ -399,3 +400,193 @@ Actualización FASE 31C (Restricción de features, base centralizada):
 
 Siguiente fase:
 - Se puede pasar a FASE 32, manteniendo la base 31C como capa de acceso central preparada para integración externa futura.
+
+Actualización FASE 32A (Calendario/Citas base operativa):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 32A: COMPLETO
+- Se incorpora módulo activo en arquitectura real `includes/*`:
+  - `includes/appointments/class-appointment-repository.php`
+  - `includes/appointments/class-appointment-service.php`
+  - `includes/appointments/class-appointment-admin-controller.php`
+  - `includes/appointments/class-appointment-list-table.php`
+- Alcance implementado:
+  - CRUD admin de citas
+  - relación cita -> cliente
+  - relación cita -> vehículo
+  - `process_id` opcional
+  - asignación de mecánico con criterio único `assigned_to`
+  - estados básicos (`scheduled`, `confirmed`, `in_progress`, `completed`, `cancelled`)
+  - filtros por fecha / mecánico / estado
+  - listado admin usable
+- Schema:
+  - nueva tabla `sm_appointments`
+  - versión schema actualizada a `1.10.0`
+- Seguridad y restricciones mantenidas:
+  - Controller -> Service -> Repository
+  - SQL solo en repository
+  - sin automatizaciones
+  - sin notificaciones avanzadas
+  - sin integraciones externas
+  - sin calendario JS complejo
+  - sin API de citas
+
+Siguiente fase:
+- Se puede pasar a FASE 33, manteniendo 32A como base operativa y sin abrir todavía automatizaciones complejas.
+
+Actualización FASE 32B-1 (Feed ICS/iCal seguro de citas):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 32B-1: COMPLETO
+- Se incorporó feed ICS read-only de citas en arquitectura activa `includes/*`:
+  - `includes/appointments/class-appointment-ical-feed-controller.php`
+  - `includes/appointments/class-appointment-ical-feed-service.php`
+  - `includes/helpers/class-feed-token-service.php`
+- Endpoint de consumo:
+  - `/?sm_appointments_ical=1&assigned_to={id}&status={status}&date_from={Y-m-d}&date_to={Y-m-d}&expires={unix}&sig={hmac}`
+- Seguridad aplicada:
+  - token firmado HMAC-SHA256
+  - expiración obligatoria (`expires`)
+  - firma incluye filtros permitidos (`assigned_to`, `status`, `date_from`, `date_to`)
+  - bloqueo de acceso con token inválido/expirado
+  - sin token global abierto
+- Alcance funcional implementado:
+  - exporta fecha/hora, estado, cliente, vehículo, mecánico asignado y notas básicas
+  - `UID` estable por cita (`sm-appointment-{id}@{host}`)
+  - `VCALENDAR/VEVENT` válido con `text/calendar; charset=utf-8`
+  - escape ICS aplicado y líneas plegadas RFC 5545
+- Rendimiento y alcance:
+  - rango por defecto aplicado si no llegan fechas (`hoy` -> `+30 días`)
+  - límite de resultados acotado en feed (máximo 250 por request)
+- Restricciones mantenidas:
+  - sin OAuth
+  - sin Google API
+  - sin sync bidireccional
+  - sin webhooks
+  - sin cambios de schema
+  - sin refactor amplio
+
+Siguiente fase:
+- Se puede pasar a 32B-2 para capa de generación/admin UX de URLs firmadas y política operativa de rotación/revocación de feeds, sin abrir integraciones externas activas.
+
+Actualización FASE 32B-2 (Google Calendar 1-way sync):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 32B-2: COMPLETO
+- Se incorporó integración Google Calendar en arquitectura activa `includes/*`:
+  - `includes/integrations/google-calendar/class-google-calendar-auth-controller.php`
+  - `includes/integrations/google-calendar/class-google-calendar-client.php`
+  - `includes/integrations/google-calendar/class-google-calendar-service.php`
+  - `includes/integrations/google-calendar/class-google-calendar-sync-service.php`
+  - `includes/integrations/google-calendar/class-google-calendar-sync-repository.php`
+- Persistencia de sync consolidada en tabla separada:
+  - `sm_appointment_calendar_sync`
+  - sin agregar campos de Google en `sm_appointments`
+- Alcance implementado:
+  - configuración admin de integración Google Calendar
+  - OAuth básico connect/callback/disconnect
+  - persistencia segura de configuración/tokens en `sm_settings.google_calendar`
+  - creación de evento Google en alta de cita
+  - actualización de evento Google al editar cita
+  - referencia externa y estado de sync por cita en tabla dedicada
+- Seguridad aplicada:
+  - no exposición de `client_secret`/`refresh_token` en UI
+  - validación de capability + nonce en acciones admin
+  - estado OAuth temporal con expiración y usuario asociado
+  - sin logging de secretos completos
+- Comportamiento no destructivo:
+  - si Google falla, la cita local se guarda igual
+  - error remoto queda persistido en `sm_appointment_calendar_sync.last_error`
+  - estado de sync persistido (`pending`/`synced`/`error`)
+- Restricciones mantenidas:
+  - sin 2-way sync
+  - sin webhooks
+  - sin watch channels
+  - sin Outlook
+  - sin booking público
+  - sin SDK externo (HTTP con `wp_remote_*`)
+
+Siguiente fase:
+- Se puede pasar a 32B-3 para endurecimiento operativo (reintentos/control de colas/telemetría y reconciliación), manteniendo 1-way sync sin abrir sincronización bidireccional.
+
+Actualización FASE 32B-3A (Reconciliación inbound controlada):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 32B-3A: COMPLETO
+- Se incorporó base inbound controlada sobre integración Google Calendar en arquitectura activa `includes/*`:
+  - `includes/integrations/google-calendar/class-google-calendar-inbound-reconcile-service.php`
+  - `includes/integrations/google-calendar/class-google-calendar-sync-service.php`
+  - `includes/integrations/google-calendar/class-google-calendar-sync-repository.php`
+  - `includes/integrations/google-calendar/class-google-calendar-client.php`
+  - `includes/integrations/google-calendar/class-google-calendar-service.php`
+- Alcance implementado:
+  - lectura remota puntual de evento por `external_event_id`
+  - remapeo por `external_event_id` en repositorio de sync
+  - reconciliación inbound con política explícita de conflictos
+  - acción manual admin `Reconcile inbound now` en Ajustes (sin webhooks)
+  - resumen de ejecución inbound por estado (`processed`, `synced`, `conflict`, `rejected`, `error`)
+- Política de campos inbound aplicada:
+  - permitidos: `start_at`, `appointment_date` derivada, `notes` sanitizada/acotada, `appointment_status` solo para `cancelled`
+  - prohibidos: `client_id`, `vehicle_id`, `process_id`, `assigned_to`, IDs estructurales, relaciones, `created_at` y datos financieros/documentales
+- Política de conflicto aplicada:
+  - solo remoto en campos permitidos: aplica inbound
+  - local + remoto desde base previa: `conflict`
+  - remoto toca campos no permitidos: `rejected`
+  - solo local: conserva local y no fuerza merge remoto
+- Persistencia y estado:
+  - `sm_appointment_calendar_sync.sync_status` ahora contempla flujo operativo de `synced`, `error`, `conflict`, `rejected`
+  - sin cambios de schema en 32B-3A
+- Restricciones mantenidas:
+  - plugin sigue como fuente de verdad
+  - sin webhooks
+  - sin watch channels
+  - sin Outlook
+  - sin sync 2-way libre
+  - sin cambios de schema
+  - sin refactor amplio
+
+Siguiente fase:
+- Se puede pasar a 32B-3B para endurecimiento operativo adicional (reintentos/cola/telemetría), manteniendo la reconciliación inbound como capa controlada y sin abrir sincronización 2-way libre.
+
+Actualización FASE 32B-3B (Watch channels / webhooks Google Calendar):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 32B-3B: COMPLETO
+- Se incorporó endurecimiento operativo en arquitectura activa `includes/*`:
+  - `includes/integrations/google-calendar/class-google-calendar-webhook-controller.php`
+  - `includes/integrations/google-calendar/class-google-calendar-service.php`
+  - `includes/integrations/google-calendar/class-google-calendar-client.php`
+  - `includes/integrations/google-calendar/class-google-calendar-sync-service.php`
+- Endpoint REST dedicado de webhook:
+  - `POST /wp-json/super-mechanic/v1/google-calendar/webhook`
+- Validaciones aplicadas sobre notificación:
+  - `X-Goog-Channel-ID`
+  - `X-Goog-Resource-ID`
+  - `X-Goog-Channel-Token`
+  - `X-Goog-Resource-State` permitido (`sync`, `exists`, `not_exists`)
+- Política de seguridad y ejecución:
+  - webhook no actualiza `sm_appointments` directamente
+  - webhook valida, registra y encola procesamiento
+  - reconciliación se dispara usando la lógica controlada de 32B-3A
+  - respuesta rápida `2xx` cuando la notificación es válida
+- Estado persistido en `sm_settings.google_calendar` (sin schema changes):
+  - `watch_channel_id`
+  - `watch_resource_id`
+  - `watch_resource_uri`
+  - `watch_expiration`
+  - `watch_token_hash`
+  - `watch_last_message_number`
+  - `watch_last_webhook_at`
+- Idempotencia aplicada:
+  - descarte si `message_number <= watch_last_message_number`
+  - lock corto por fingerprint `channel_id + message_number`
+  - prevención básica de doble ejecución concurrente
+- Renovación aplicada:
+  - cron preventivo horario (`sm_google_calendar_watch_renew`)
+  - renovación automática si expira en < 24h
+  - acción manual admin “Renew watch channel now”
+  - renovación segura: crear nuevo channel -> persistir estado -> intentar stop del anterior (best effort)
+- Restricciones mantenidas:
+  - sin Outlook
+  - sin sync 2-way libre
+  - sin booking público
+  - sin cambios de schema
+  - sin refactor amplio
+
+Siguiente fase:
+- Se puede pasar a FASE 33 manteniendo la política de plugin como fuente de verdad y la reconciliación inbound controlada.

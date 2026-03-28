@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.9.0';
+		return '1.11.0';
 	}
 
 	/**
@@ -37,6 +37,8 @@ class Schema {
 			'flows'             => $wpdb->prefix . 'sm_flows',
 			'flow_steps'        => $wpdb->prefix . 'sm_flow_steps',
 			'processes'         => $wpdb->prefix . 'sm_processes',
+			'appointments'      => $wpdb->prefix . 'sm_appointments',
+			'appointment_calendar_sync' => $wpdb->prefix . 'sm_appointment_calendar_sync',
 			'process_step_logs' => $wpdb->prefix . 'sm_process_step_logs',
 			'process_parts'     => $wpdb->prefix . 'sm_process_parts',
 			'process_meta'      => $wpdb->prefix . 'sm_process_meta',
@@ -73,6 +75,8 @@ class Schema {
 		$flows_table           = $tables['flows'];
 		$flow_steps_table      = $tables['flow_steps'];
 		$processes_table       = $tables['processes'];
+		$appointments_table    = $tables['appointments'];
+		$appointment_sync_table = $tables['appointment_calendar_sync'];
 		$step_logs_table       = $tables['process_step_logs'];
 		$parts_table           = $tables['process_parts'];
 		$process_meta_table    = $tables['process_meta'];
@@ -214,6 +218,46 @@ class Schema {
 				KEY process_type (process_type),
 				KEY opened_at (opened_at),
 				KEY due_date (due_date)
+			) {$charset_collate};",
+			"CREATE TABLE {$appointments_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				client_id bigint(20) unsigned NOT NULL,
+				vehicle_id bigint(20) unsigned NOT NULL,
+				process_id bigint(20) unsigned DEFAULT NULL,
+				assigned_to bigint(20) unsigned NOT NULL,
+				appointment_status varchar(50) NOT NULL default 'scheduled',
+				appointment_date date NOT NULL,
+				start_at datetime NOT NULL,
+				notes text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY client_id (client_id),
+				KEY vehicle_id (vehicle_id),
+				KEY process_id (process_id),
+				KEY assigned_to (assigned_to),
+				KEY appointment_status (appointment_status),
+				KEY appointment_date (appointment_date),
+				KEY start_at (start_at)
+			) {$charset_collate};",
+			"CREATE TABLE {$appointment_sync_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				appointment_id bigint(20) unsigned NOT NULL,
+				provider varchar(50) NOT NULL default 'google_calendar',
+				external_calendar_id varchar(191) DEFAULT NULL,
+				external_event_id varchar(191) DEFAULT NULL,
+				sync_status varchar(50) NOT NULL default 'pending',
+				last_synced_at datetime DEFAULT NULL,
+				last_sync_hash varchar(191) DEFAULT NULL,
+				last_error text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY appointment_id (appointment_id),
+				KEY provider (provider),
+				KEY sync_status (sync_status),
+				UNIQUE KEY provider_appointment (provider,appointment_id),
+				UNIQUE KEY provider_external_event (provider,external_event_id)
 			) {$charset_collate};",
 			"CREATE TABLE {$step_logs_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,

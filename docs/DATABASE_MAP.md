@@ -2,7 +2,7 @@
 
 ## Alcance real del schema actual
 
-Este documento refleja el schema real del plugin en la version `1.9.0` definida en `includes/database/class-schema.php`.
+Este documento refleja el schema real del plugin en la version `1.11.0` definida en `includes/database/class-schema.php`.
 
 Aclaraciones importantes:
 
@@ -20,6 +20,8 @@ Aclaraciones importantes:
 - la Fase 20 de automatizacion documental y estados derivados tampoco modifica schema; reutiliza `sm_processes`, `sm_quotes`, `sm_invoices`, `sm_payments` y `sm_pre_delivery`
 - la Fase 20B de comprobante de pago documental tampoco modifica schema; reutiliza `sm_payments`, `sm_invoices`, `sm_processes` y `sm_clients`
 - la Fase 21 de configuracion avanzada por taller / negocio tampoco modifica schema; reutiliza `wp_options` con `sm_settings` y conserva `super_mechanic_settings` como option legacy de la UI clasica
+- la Fase 32A de citas agrega la tabla `sm_appointments` como cambio minimo indispensable para agenda operativa
+- la Fase 32B-2 agrega la tabla `sm_appointment_calendar_sync` para persistencia desacoplada de sincronizacion 1-way con Google Calendar (sin contaminar `sm_appointments`)
 
 --------------------------------------------------
 
@@ -256,6 +258,87 @@ Notas operativas actuales:
 - `Process_Service` resuelve `flow_id` y `current_step_id` antes de persistir cuando aplica flujo
 - la auditoria pre-Fase 12 no detecta persistencia nueva con `flow_id = 0` y `current_step_id = 0` por defecto en el flujo normal validado
 - la Fase 20 agrega estados derivados de proceso a nivel de service y UI, pero no introduce columnas nuevas ni persistencia adicional
+
+--------------------------------------------------
+
+Tabla: sm_appointments
+
+Proposito:
+Registrar citas operativas del taller con relacion a cliente, vehiculo y mecanico asignado.
+
+Columnas principales:
+- `id`
+- `client_id`
+- `vehicle_id`
+- `process_id`
+- `assigned_to`
+- `appointment_status`
+- `appointment_date`
+- `start_at`
+- `notes`
+- `created_at`
+- `updated_at`
+
+Clave primaria:
+- `id`
+
+Claves foraneas logicas:
+- `client_id` -> `sm_clients.id`
+- `vehicle_id` -> `sm_vehicles.id`
+- `process_id` -> `sm_processes.id` (opcional)
+- `assigned_to` -> `wp_users.ID`
+
+Indices importantes:
+- `client_id`
+- `vehicle_id`
+- `process_id`
+- `assigned_to`
+- `appointment_status`
+- `appointment_date`
+- `start_at`
+
+Notas operativas actuales:
+- la fase 32A mantiene alcance admin interno (sin API publica ni automatizaciones)
+- el criterio de mecanico en citas usa unicamente `assigned_to`
+- la validacion cliente/vehiculo/proceso se resuelve en service, sin SQL fuera de repository
+
+--------------------------------------------------
+
+Tabla: sm_appointment_calendar_sync
+
+Proposito:
+Persistir estado de sincronizacion externa de citas con proveedores de calendario, manteniendo `sm_appointments` como fuente local de verdad.
+
+Columnas principales:
+- `id`
+- `appointment_id`
+- `provider`
+- `external_calendar_id`
+- `external_event_id`
+- `sync_status`
+- `last_synced_at`
+- `last_sync_hash`
+- `last_error`
+- `created_at`
+- `updated_at`
+
+Clave primaria:
+- `id`
+
+Claves foraneas logicas:
+- `appointment_id` -> `sm_appointments.id`
+
+Indices importantes:
+- `appointment_id`
+- `provider`
+- `sync_status`
+- `provider_appointment (provider,appointment_id)` unico
+- `provider_external_event (provider,external_event_id)` unico
+
+Notas operativas actuales:
+- la Fase 32B-2 usa `provider = google_calendar`
+- el guardado local de cita no depende del exito remoto; los errores se registran en `last_error`
+- no hay sync bidireccional, webhooks ni watch channels en esta fase
 
 --------------------------------------------------
 
@@ -827,11 +910,15 @@ Relaciones principales del schema real:
 - `sm_clients` -> `sm_processes` por `sm_processes.client_id`
 - `sm_clients` -> `sm_quotes` por `sm_quotes.client_id`
 - `sm_clients` -> `sm_invoices` por `sm_invoices.client_id`
+- `sm_clients` -> `sm_appointments` por `sm_appointments.client_id`
+- `sm_appointments` -> `sm_appointment_calendar_sync` por `sm_appointment_calendar_sync.appointment_id`
 - `sm_vehicles` -> `sm_processes` por `sm_processes.vehicle_id`
+- `sm_vehicles` -> `sm_appointments` por `sm_appointments.vehicle_id`
 - `sm_flows` -> `sm_flow_steps` por `sm_flow_steps.flow_id`
 - `sm_flows` -> `sm_processes` por `sm_processes.flow_id`
 - `sm_flow_steps` -> `sm_processes` por `sm_processes.current_step_id`
 - `sm_processes` -> `sm_process_step_logs` por `sm_process_step_logs.process_id`
+- `sm_processes` -> `sm_appointments` por `sm_appointments.process_id`
 - `sm_processes` -> `sm_process_parts` por `sm_process_parts.process_id`
 - `sm_processes` -> `sm_process_meta` por `sm_process_meta.process_id`
 - `sm_processes` -> `sm_maintenance` por `sm_maintenance.process_id`
@@ -1178,3 +1265,25 @@ Si el schema cambia en futuras fases, actualizar tambien:
   - `tested`
   - `changelog`
   - `package_source_url`
+
+## Nota Fase 32A. Calendario / Citas base operativa
+
+- La Fase 32A agrega la tabla `sm_appointments`.
+- El modulo `appointments` reutiliza:
+  - `sm_clients`
+  - `sm_vehicles`
+  - `sm_processes` (vinculo opcional)
+  - `wp_users` para `assigned_to`
+- El criterio de mecanico queda unificado en `assigned_to`.
+- La fase mantiene alcance interno admin sin automatizaciones, sin notificaciones avanzadas y sin integraciones externas.
+
+## Nota Fase 32B-2. Google Calendar 1-way sync
+
+- La Fase 32B-2 agrega la tabla `sm_appointment_calendar_sync`.
+- La integracion Google Calendar reutiliza:
+  - `sm_appointments` (fuente local de verdad)
+  - `sm_clients`
+  - `sm_vehicles`
+  - `wp_options` con grupo `sm_settings.google_calendar` para credenciales y tokens OAuth
+- La persistencia de referencia externa y estado de sync se desacopla de `sm_appointments` para permitir evolucion de proveedores sin alterar la entidad core de citas.
+- La fase mantiene alcance 1-way (sin sync bidireccional, webhooks ni watch channels).

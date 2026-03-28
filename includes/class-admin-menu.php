@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic;
 
+use Super_Mechanic\Appointments\Appointment_Admin_Controller;
 use Super_Mechanic\Clients\Client_Admin_Controller;
 use Super_Mechanic\Dashboard\Admin_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Mechanic_Dashboard_Controller;
@@ -34,6 +35,7 @@ class Admin_Menu {
 	protected $shortcode_admin_controller;
 	protected $invoice_finance_admin_controller;
 	protected $payment_finance_admin_controller;
+	protected $appointment_admin_controller;
 
 	/**
 	 * Constructor.
@@ -49,8 +51,9 @@ class Admin_Menu {
 	 * @param Shortcode_Admin_Controller   $shortcode_admin_controller   Shortcodes controller.
 	 * @param Invoice_Finance_Admin_Controller $invoice_finance_admin_controller Invoices finance controller.
 	 * @param Payment_Finance_Admin_Controller $payment_finance_admin_controller Payments finance controller.
+	 * @param Appointment_Admin_Controller $appointment_admin_controller Appointments controller.
 	 */
-	public function __construct( Settings $settings, Client_Admin_Controller $client_admin_controller, Vehicle_Admin_Controller $vehicle_admin_controller, Process_Admin_Controller $process_admin_controller, Flow_Admin_Controller $flow_admin_controller, Admin_Dashboard_Controller $admin_dashboard_controller, Mechanic_Dashboard_Controller $mechanic_dashboard_controller, Report_Admin_Controller $report_admin_controller, Shortcode_Admin_Controller $shortcode_admin_controller, Invoice_Finance_Admin_Controller $invoice_finance_admin_controller, Payment_Finance_Admin_Controller $payment_finance_admin_controller ) {
+	public function __construct( Settings $settings, Client_Admin_Controller $client_admin_controller, Vehicle_Admin_Controller $vehicle_admin_controller, Process_Admin_Controller $process_admin_controller, Flow_Admin_Controller $flow_admin_controller, Admin_Dashboard_Controller $admin_dashboard_controller, Mechanic_Dashboard_Controller $mechanic_dashboard_controller, Report_Admin_Controller $report_admin_controller, Shortcode_Admin_Controller $shortcode_admin_controller, Invoice_Finance_Admin_Controller $invoice_finance_admin_controller, Payment_Finance_Admin_Controller $payment_finance_admin_controller, Appointment_Admin_Controller $appointment_admin_controller ) {
 		$this->settings                    = $settings;
 		$this->client_admin_controller     = $client_admin_controller;
 		$this->vehicle_admin_controller    = $vehicle_admin_controller;
@@ -62,6 +65,7 @@ class Admin_Menu {
 		$this->shortcode_admin_controller  = $shortcode_admin_controller;
 		$this->invoice_finance_admin_controller = $invoice_finance_admin_controller;
 		$this->payment_finance_admin_controller = $payment_finance_admin_controller;
+		$this->appointment_admin_controller = $appointment_admin_controller;
 	}
 
 	/**
@@ -125,6 +129,15 @@ class Admin_Menu {
 			'sm_manage_processes',
 			'super-mechanic-processes',
 			array( $this->process_admin_controller, 'render_page' )
+		);
+
+		add_submenu_page(
+			'super-mechanic',
+			__( 'Citas', 'super-mechanic' ),
+			__( 'Citas', 'super-mechanic' ),
+			'sm_manage_processes',
+			'super-mechanic-appointments',
+			array( $this->appointment_admin_controller, 'render_page' )
 		);
 
 		add_submenu_page(
