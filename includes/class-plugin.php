@@ -34,6 +34,8 @@ use Super_Mechanic\Helpers\PDF_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Invoices\Client_Invoice_Shortcodes;
 use Super_Mechanic\Invoices\Invoice_Admin_Controller;
+use Super_Mechanic\Invoices\Invoice_Finance_Admin_Controller;
+use Super_Mechanic\Invoices\Payment_Finance_Admin_Controller;
 use Super_Mechanic\Invoices\Invoice_Service;
 use Super_Mechanic\Maintenance\Maintenance_Admin_Controller;
 use Super_Mechanic\Maintenance\Maintenance_Service;
@@ -99,6 +101,8 @@ class Plugin {
 	protected $report_service;
 	protected $report_admin_controller;
 	protected $shortcode_admin_controller;
+	protected $invoice_finance_admin_controller;
+	protected $payment_finance_admin_controller;
 	protected $client_process_view_service;
 	protected $client_rest_controller;
 	protected $admin_rest_controller;
@@ -150,6 +154,8 @@ class Plugin {
 		$this->client_vehicle_service        = new Client_Vehicle_Service();
 		$this->admin_dashboard_controller    = new Admin_Dashboard_Controller( $this->dashboard_service );
 		$this->report_admin_controller       = new Report_Admin_Controller( $this->report_service );
+		$this->invoice_finance_admin_controller = new Invoice_Finance_Admin_Controller( $this->invoice_service, $this->pdf_service, $this->download_service );
+		$this->payment_finance_admin_controller = new Payment_Finance_Admin_Controller( $this->invoice_service, null, $this->download_service );
 		$this->mechanic_dashboard_controller = new Mechanic_Dashboard_Controller( $this->dashboard_service, $this->process_service, $this->process_timeline_service, $this->comment_service, $this->attachment_service, $this->maintenance_service, null, $this->download_service );
 		$this->mechanic_dashboard_shortcodes = new Mechanic_Dashboard_Shortcodes( $this->mechanic_dashboard_controller );
 		$this->client_dashboard_controller   = new Client_Dashboard_Controller( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->process_timeline_service, $this->comment_service, $this->notification_service, $this->download_service, $this->client_process_view_service );
@@ -167,7 +173,9 @@ class Plugin {
 			$this->admin_dashboard_controller,
 			$this->mechanic_dashboard_controller,
 			$this->report_admin_controller,
-			$this->shortcode_admin_controller
+			$this->shortcode_admin_controller,
+			$this->invoice_finance_admin_controller,
+			$this->payment_finance_admin_controller
 		);
 	}
 
@@ -195,6 +203,8 @@ class Plugin {
 			$this->process_admin_controller->register_hooks();
 			$this->flow_admin_controller->register_hooks();
 			$this->report_admin_controller->register_hooks();
+			$this->invoice_finance_admin_controller->register_hooks();
+			$this->payment_finance_admin_controller->register_hooks();
 			$this->mechanic_dashboard_controller->register_hooks();
 		}
 

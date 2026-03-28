@@ -199,3 +199,70 @@ Actualización FASE 27C-B (acciones internas mínimas y seguras):
 
 Siguiente fase:
 - Base lista para pasar a FASE 28, manteniendo las restricciones de seguridad y alcance ya consolidadas.
+
+Actualización FASE 28 (Centro financiero admin):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 28: COMPLETO
+- Se consolidó un centro financiero admin dedicado en arquitectura activa `includes/*` con dos paneles:
+  - `Super Mechanic -> Finanzas: Invoices`
+  - `Super Mechanic -> Finanzas: Payments`
+- Implementación activa:
+  - `includes/invoices/class-invoice-finance-admin-controller.php`
+  - `includes/invoices/class-payment-finance-admin-controller.php`
+  - `includes/invoices/class-invoice-finance-list-table.php`
+  - `includes/invoices/class-payment-finance-list-table.php`
+- Relación financiera consolidada:
+  - invoice ↔ payments visible en ambos paneles
+  - estado de cobro visible por invoice desde `Invoice_Service`:
+    - `pending`
+    - `partial`
+    - `paid`
+- UI financiera consolidada por invoice:
+  - `subtotal`
+  - `tax_total`
+  - `discount_total`
+  - `grand_total`
+- Acciones admin disponibles en centro financiero:
+  - abrir invoice (contexto proceso/tab invoice existente)
+  - registrar pago (sobre flujo actual existente)
+  - descargar invoice PDF cuando hay motor disponible
+  - ver `payment_receipt` por flujo seguro
+- Seguridad y alcance mantenidos:
+  - sin exposición de `file_url`
+  - descargas por `Download_Service` + `Document_Service`
+  - sin API pública financiera
+  - sin reportes avanzados nuevos
+  - sin cambios de schema
+  - sin romper `Process_Admin_Controller`/tab `invoice`
+- Arquitectura respetada:
+  - Controller -> Service -> Repository
+  - SQL solo en repositories (`Payment_Repository` extendido para listados paginados/filtrados)
+
+Siguiente fase:
+- Se puede pasar a FASE 29 con base financiera admin operativa y estable.
+
+Actualización FASE 29 (Reportes expansión):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 29: COMPLETO
+- Se amplió el módulo `includes/reports/*` en dos bloques controlados:
+  - FASE 29-A (operativa): procesos por estado, tipo, rango de fecha, mecánico asignado, cliente y vehículo
+  - FASE 29-B (financiera): invoices por estado de cobro, payments por rango de fecha, total cobrado, total pendiente y agregados de `subtotal`, `tax_total`, `discount_total`, `grand_total`
+- Criterio operativo de mecánico definido y fijo:
+  - se usa únicamente `sm_processes.assigned_to`
+  - no se mezcla con `sm_maintenance.mechanic_id` en esta fase
+- Separación financiera explícita mantenida:
+  - `invoice_status` (estado documental de invoice) separado de `invoice_collection_status` (estado de cobranza derivado de pagos)
+- Seguridad y alcance mantenidos:
+  - sin API pública de reportes
+  - sin exposición de `file_url` ni rutas documentales
+  - capacidad admin estricta `sm_manage_plugin` en pantalla de reportes
+- Arquitectura respetada:
+  - Controller -> Service -> Repository
+  - SQL solo en `Report_Repository`
+  - sin cambios de schema
+- Validación técnica:
+  - lint PHP completo ejecutado con `scripts/php-lint.php --all` (0 errores)
+  - sin validación runtime WordPress browser-admin en este cierre
+
+Siguiente fase:
+- Se puede pasar a FASE 30 con la expansión base de reportes ya operativa y sin cambios de schema.

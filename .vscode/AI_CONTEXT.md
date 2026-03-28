@@ -208,6 +208,8 @@ Resumen de hitos recientes:
 - SUBFASES 10-13 validadas en runtime real: `Permission_Service` reutilizable, portal cliente consolidado, shortcodes mecánicos frontend activos y enforcement coherente por rol + ownership
 - FASE 27A + 27B + 27C-A activas en runtime real: API interna read-only para cliente y admin en `includes/dashboard/class-client-rest-controller.php` y `includes/dashboard/class-admin-rest-controller.php`, con filtros/paginación consistentes y payloads normalizados para procesos, vehículos, clientes, quotes e invoices
 - FASE 27C-B activa en runtime real con write mínimo interno admin: cambio de estado de proceso y comentario interno de proceso, protegidos por `sm_manage_plugin` + `sm_manage_processes`, payload acotado y sin apertura de writes adicionales
+- FASE 28 activa en runtime real: centro financiero admin con paneles dedicados `Finanzas: Invoices` y `Finanzas: Payments`, relación invoice ↔ payments visible, estado de cobro (`pending` / `partial` / `paid`) y acciones seguras de PDF/comprobante por `Download_Service`
+- FASE 29 activa en código: expansión de reportes admin operativos/financieros con filtros por `mechanic_id`/`client_id`/`vehicle_id`, criterio único de mecánico sobre `sm_processes.assigned_to`, separación explícita `invoice_status` vs estado de cobro y agregados de invoices (`subtotal`, `tax_total`, `discount_total`, `grand_total`) sin cambios de schema
 
 ==================================================
 DEUDA TÉCNICA VIVA

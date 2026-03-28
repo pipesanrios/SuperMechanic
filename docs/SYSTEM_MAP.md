@@ -203,6 +203,10 @@
   - `Payment_Repository`
   - `Invoice_Service`
   - `Invoice_Admin_Controller`
+  - `Invoice_Finance_Admin_Controller`
+  - `Payment_Finance_Admin_Controller`
+  - `Invoice_Finance_List_Table`
+  - `Payment_Finance_List_Table`
   - `Client_Invoice_Shortcodes`
 - Attachments:
   - `Attachment_Repository`
@@ -256,6 +260,9 @@
 - `Vehiculos`
 - `Procesos`
 - `Flujos`
+- `Finanzas: Invoices`
+- `Finanzas: Payments`
+- `Reportes`
 - `Shortcodes`
 - `Ajustes`
 
@@ -698,4 +705,29 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
   - 27A no incluye write endpoints ni tracking público
   - comentarios API quedan fuera de 27A por control de alcance y payload estable
 
+## Actualizacion Fase 28. Centro financiero admin
+
+- Integracion real consolidada:
+  - se agregan dos paneles admin dedicados en `class-admin-menu.php`:
+    - `Finanzas: Invoices`
+    - `Finanzas: Payments`
+  - `Plugin` cablea los nuevos controllers:
+    - `Invoice_Finance_Admin_Controller`
+    - `Payment_Finance_Admin_Controller`
+  - `Invoice_Finance_List_Table` muestra por invoice:
+    - `subtotal`
+    - `tax_total`
+    - `discount_total`
+    - `grand_total`
+    - estado de cobro derivado (`pending` / `partial` / `paid`)
+  - `Payment_Finance_List_Table` consolida la trazabilidad invoice ↔ payment y acciones de comprobante seguro
+  - acciones financieras admin del centro:
+    - abrir invoice
+    - registrar pago
+    - descargar invoice PDF (si hay motor)
+    - ver `payment_receipt` por `Download_Service`
+- Riesgos arquitectonicos actualizados:
+  - el flujo principal de pagos sigue en `Invoice_Service`; no se debe duplicar lógica en controllers
+  - `Process_Admin_Controller` conserva compatibilidad total del tab `invoice` y sigue siendo el entry point operativo original
+  - no se habilita API financiera pública ni reporting nuevo en esta fase
 

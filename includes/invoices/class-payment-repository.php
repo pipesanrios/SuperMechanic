@@ -45,6 +45,92 @@ class Payment_Repository {
 		return is_array( $rows ) ? $rows : array();
 	}
 
+	/**
+	 * Get payments with optional filters.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_all( $args = array() ) {
+		global $wpdb;
+
+		$tables = Schema::get_tables();
+		$args   = wp_parse_args(
+			$args,
+			array(
+				'invoice_id'      => 0,
+				'payment_method'  => '',
+				'search'          => '',
+				'date_from'       => '',
+				'date_to'         => '',
+				'page'            => 1,
+				'per_page'        => 20,
+				'orderby'         => 'payment_date',
+				'order'           => 'DESC',
+			)
+		);
+
+		$where  = $this->build_where_clause( $args );
+		$order  = $this->build_order_clause( $args['orderby'], $args['order'] );
+		$page   = max( 1, absint( $args['page'] ) );
+		$limit  = max( 1, absint( $args['per_page'] ) );
+		$offset = ( $page - 1 ) * $limit;
+		$sql    = "SELECT pay.*, i.invoice_number, i.process_id, i.client_id, i.currency, i.subtotal, i.tax_total, i.discount_total, i.grand_total, i.status AS invoice_status,
+				p.title AS process_title,
+				CONCAT_WS(' ', c.first_name, c.last_name) AS client_name
+			FROM {$tables['payments']} pay
+			LEFT JOIN {$tables['invoices']} i ON i.id = pay.invoice_id
+			LEFT JOIN {$tables['processes']} p ON p.id = i.process_id
+			LEFT JOIN {$tables['clients']} c ON c.id = i.client_id
+			{$where}
+			{$order}
+			LIMIT %d OFFSET %d";
+		$params = $this->get_where_params( $args );
+		$params[] = $limit;
+		$params[] = $offset;
+
+		$query = $wpdb->prepare( $sql, $params );
+		$rows  = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Count payments with optional filters.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return int
+	 */
+	public function count_all( $args = array() ) {
+		global $wpdb;
+
+		$tables = Schema::get_tables();
+		$args   = wp_parse_args(
+			$args,
+			array(
+				'invoice_id'      => 0,
+				'payment_method'  => '',
+				'search'          => '',
+				'date_from'       => '',
+				'date_to'         => '',
+			)
+		);
+		$where  = $this->build_where_clause( $args );
+		$sql    = "SELECT COUNT(pay.id)
+			FROM {$tables['payments']} pay
+			LEFT JOIN {$tables['invoices']} i ON i.id = pay.invoice_id
+			LEFT JOIN {$tables['clients']} c ON c.id = i.client_id
+			{$where}";
+
+		if ( '' === $where ) {
+			return (int) $wpdb->get_var( $sql );
+		}
+
+		$query = $wpdb->prepare( $sql, $this->get_where_params( $args ) );
+
+		return (int) $wpdb->get_var( $query );
+	}
+
 	public function insert( $data ) {
 		global $wpdb;
 
@@ -103,6 +189,104 @@ class Payment_Repository {
 		$total = $wpdb->get_var( $query );
 
 		return round( (float) $total, 2 );
+	}
+
+	/**
+	 * Build WHERE clause for listing and counting.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return string
+	 */
+	protected function build_where_clause( $args ) {
+		$clauses = array();
+
+		if ( ! empty( $args['invoice_id'] ) ) {
+			$clauses[] = 'pay.invoice_id = %d';
+		}
+
+		if ( '' !== $args['payment_method'] ) {
+			$clauses[] = 'pay.payment_method = %s';
+		}
+
+		if ( '' !== $args['search'] ) {
+			$clauses[] = '(pay.reference LIKE %s OR pay.notes LIKE %s OR i.invoice_number LIKE %s OR CONCAT_WS(\' \', c.first_name, c.last_name) LIKE %s)';
+		}
+
+		if ( '' !== $args['date_from'] ) {
+			$clauses[] = 'pay.payment_date >= %s';
+		}
+
+		if ( '' !== $args['date_to'] ) {
+			$clauses[] = 'pay.payment_date <= %s';
+		}
+
+		if ( empty( $clauses ) ) {
+			return '';
+		}
+
+		return 'WHERE ' . implode( ' AND ', $clauses );
+	}
+
+	/**
+	 * Build WHERE params for listing and counting.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return array<int, mixed>
+	 */
+	protected function get_where_params( $args ) {
+		global $wpdb;
+
+		$params = array();
+
+		if ( ! empty( $args['invoice_id'] ) ) {
+			$params[] = absint( $args['invoice_id'] );
+		}
+
+		if ( '' !== $args['payment_method'] ) {
+			$params[] = sanitize_key( (string) $args['payment_method'] );
+		}
+
+		if ( '' !== $args['search'] ) {
+			$search   = '%' . $wpdb->esc_like( (string) $args['search'] ) . '%';
+			$params[] = $search;
+			$params[] = $search;
+			$params[] = $search;
+			$params[] = $search;
+		}
+
+		if ( '' !== $args['date_from'] ) {
+			$params[] = sanitize_text_field( (string) $args['date_from'] ) . ' 00:00:00';
+		}
+
+		if ( '' !== $args['date_to'] ) {
+			$params[] = sanitize_text_field( (string) $args['date_to'] ) . ' 23:59:59';
+		}
+
+		return $params;
+	}
+
+	/**
+	 * Build ORDER BY clause.
+	 *
+	 * @param string $orderby Order by.
+	 * @param string $order   Direction.
+	 * @return string
+	 */
+	protected function build_order_clause( $orderby, $order ) {
+		$allowed = array(
+			'id'             => 'pay.id',
+			'payment_date'   => 'pay.payment_date',
+			'amount'         => 'pay.amount',
+			'payment_method' => 'pay.payment_method',
+			'invoice_number' => 'i.invoice_number',
+			'created_at'     => 'pay.created_at',
+			'updated_at'     => 'pay.updated_at',
+		);
+
+		$orderby = isset( $allowed[ $orderby ] ) ? $allowed[ $orderby ] : 'pay.payment_date';
+		$order   = 'ASC' === strtoupper( $order ) ? 'ASC' : 'DESC';
+
+		return "ORDER BY {$orderby} {$order}";
 	}
 
 	protected function get_formats_for_data( $data ) {

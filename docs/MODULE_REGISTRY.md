@@ -536,6 +536,8 @@ Clases principales:
 - `Invoice_Transaction_Repository`
 - `Invoice_Service`
 - `Invoice_Admin_Controller`
+- `Invoice_Finance_Admin_Controller`
+- `Invoice_Finance_List_Table`
 - `Client_Invoice_Shortcodes`
 
 Dependencias:
@@ -565,6 +567,8 @@ Cambios tecnicos recientes confirmados:
 - `Invoice_Admin_Controller` mantiene la UI del proceso, pero separa con labels explicitos `Estado de factura` y `Estado de pago`
 - en Fase 20B, `Invoice_Service` expone acceso reusable a `payment_id`, contexto consolidado del comprobante y render HTML del payment receipt
 - en Fase 21, `Invoice_Service` reutiliza `Settings_Service` para moneda, nombre del negocio y `allow_partial_payments`
+- en Fase 28, el módulo incorpora un panel admin dedicado de invoices (`Finanzas: Invoices`) sin romper el tab invoice del proceso
+- en Fase 28, la UI dedicada de invoices expone explícitamente `subtotal`, `tax_total`, `discount_total` y `grand_total`
 
 --------------------------------------------------
 
@@ -585,6 +589,8 @@ Tablas:
 Clases principales:
 - `Payment_Repository`
 - soporte funcional en `Invoice_Service`
+- `Payment_Finance_Admin_Controller`
+- `Payment_Finance_List_Table`
 
 Dependencias:
 - invoices
@@ -605,6 +611,8 @@ Cambios tecnicos recientes confirmados:
 - `Invoice_Admin_Controller` muestra estado de cobro por invoice y restringe la captura admin a metodos de pago soportados
 - `Reports` ahora reutiliza `sm_payments` y `sm_invoices` para exponer estado de cobro agregado e ingresos basicos por periodo
 - en Fase 20B, cada pago puede resolverse documentalmente como `payment_receipt` unico por `payment_id`, sin persistencia de archivos ni attachments nuevos
+- en Fase 28, `Payment_Repository` agrega listados paginados/filtrados para panel admin dedicado manteniendo SQL solo en repository
+- en Fase 28, el panel admin `Finanzas: Payments` consolida relación invoice ↔ payments y acción segura de `payment_receipt`
 
 --------------------------------------------------
 
@@ -1005,6 +1013,14 @@ Actualizacion Fase 22:
 - `Report_Repository` agrega agregados avanzados para estados derivados, readiness operativa, aging, pagos por metodo y top clientes
 - `Report_Service` amplía filtros con `derived_status`, `currency` y `payment_method` manteniendo el patron por bloques
 - `Report_Admin_Controller` expone tablas avanzadas nuevas sin romper exportacion CSV previa
+
+Actualizacion Fase 29:
+- `Report_Service::validate_filters()` amplía filtros operativos con `mechanic_id`, `client_id` y `vehicle_id`
+- `Report_Repository` agrega breakdowns operativos por mecánico, cliente y vehículo sobre `sm_processes`
+- criterio de mecánico en reportes operativos definido de forma única en `sm_processes.assigned_to` (sin mezclar `sm_maintenance.mechanic_id`)
+- `Report_Repository` agrega agregados financieros por moneda para `subtotal`, `tax_total`, `discount_total` y `grand_total` de invoices
+- `Report_Admin_Controller` expone nuevos filtros y tablas de FASE 29 manteniendo separación explícita entre `invoice_status` y estado de cobranza
+- la fase mantiene alcance interno admin, sin API pública de reportes y sin cambios de schema
 
 --------------------------------------------------
 

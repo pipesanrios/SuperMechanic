@@ -136,6 +136,9 @@ class Report_Admin_Controller {
 		echo '<h3>' . esc_html__( 'Estado de cobro de invoices', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['invoice_collection_status'], __( 'Cobranza', 'super-mechanic' ) );
 
+		echo '<h3>' . esc_html__( 'Agregados monetarios de invoices', 'super-mechanic' ) . '</h3>';
+		$this->render_invoice_component_totals_table( $data['invoice_amount_components'] );
+
 		echo '<h3>' . esc_html__( 'Aging simple de invoices', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['invoice_aging'], __( 'Aging', 'super-mechanic' ) );
 
@@ -143,7 +146,7 @@ class Report_Admin_Controller {
 		$this->render_csv_export_form( 'recent_invoices', $filters );
 		$this->render_recent_invoices_table( $data['recent_invoices'] );
 
-		echo '<h3>' . esc_html__( 'Payments recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Payments por rango de fecha (recientes)', 'super-mechanic' ) . '</h3>';
 		$this->render_csv_export_form( 'recent_payments', $filters );
 		$this->render_recent_payments_table( $data['recent_payments'] );
 
@@ -179,6 +182,16 @@ class Report_Admin_Controller {
 
 		echo '<h3>' . esc_html__( 'Procesos por tipo', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['process_types'], __( 'Tipo', 'super-mechanic' ) );
+
+		echo '<h3>' . esc_html__( 'Procesos por mecánico asignado', 'super-mechanic' ) . '</h3>';
+		echo '<p>' . esc_html__( 'Criterio único de FASE 29: se usa `sm_processes.assigned_to` para evitar mezclar fuentes de asignación.', 'super-mechanic' ) . '</p>';
+		$this->render_summary_table( $data['process_mechanics'], __( 'Mecánico', 'super-mechanic' ) );
+
+		echo '<h3>' . esc_html__( 'Procesos por cliente', 'super-mechanic' ) . '</h3>';
+		$this->render_summary_table( $data['process_clients'], __( 'Cliente', 'super-mechanic' ) );
+
+		echo '<h3>' . esc_html__( 'Procesos por vehículo', 'super-mechanic' ) . '</h3>';
+		$this->render_summary_table( $data['process_vehicles'], __( 'Vehículo', 'super-mechanic' ) );
 
 		echo '<h3>' . esc_html__( 'Procesos por estado derivado', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['derived_status'], __( 'Estado derivado', 'super-mechanic' ) );
@@ -387,6 +400,21 @@ class Report_Admin_Controller {
 		}
 		echo '</select>';
 		echo '</div>';
+
+		echo '<div class="sm-filter-field">';
+		echo '<label for="sm-report-mechanic-id"><strong>' . esc_html__( 'Mecánico (ID proceso)', 'super-mechanic' ) . '</strong></label><br />';
+		echo '<input id="sm-report-mechanic-id" type="number" min="1" name="mechanic_id" value="' . esc_attr( ! empty( $filters['mechanic_id'] ) ? absint( $filters['mechanic_id'] ) : '' ) . '" />';
+		echo '</div>';
+
+		echo '<div class="sm-filter-field">';
+		echo '<label for="sm-report-client-id"><strong>' . esc_html__( 'Cliente (ID)', 'super-mechanic' ) . '</strong></label><br />';
+		echo '<input id="sm-report-client-id" type="number" min="1" name="client_id" value="' . esc_attr( ! empty( $filters['client_id'] ) ? absint( $filters['client_id'] ) : '' ) . '" />';
+		echo '</div>';
+
+		echo '<div class="sm-filter-field">';
+		echo '<label for="sm-report-vehicle-id"><strong>' . esc_html__( 'Vehículo (ID)', 'super-mechanic' ) . '</strong></label><br />';
+		echo '<input id="sm-report-vehicle-id" type="number" min="1" name="vehicle_id" value="' . esc_attr( ! empty( $filters['vehicle_id'] ) ? absint( $filters['vehicle_id'] ) : '' ) . '" />';
+		echo '</div>';
 		echo '</div>';
 		echo '</div>';
 
@@ -440,6 +468,9 @@ class Report_Admin_Controller {
 			'invoice_status',
 			'currency',
 			'payment_method',
+			'mechanic_id',
+			'client_id',
+			'vehicle_id',
 			'limit',
 		);
 
@@ -459,7 +490,7 @@ class Report_Admin_Controller {
 	 */
 	protected function render_financial_totals( $total_invoiced, $total_paid, $total_outstanding ) {
 		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:16px;margin:16px 0;">';
-		echo '<p style="margin-top:0;">' . esc_html__( 'Totales financieros agrupados por moneda. En 12B, "total facturado" usa la fecha de creación de la invoice como criterio operativo.', 'super-mechanic' ) . '</p>';
+		echo '<p style="margin-top:0;">' . esc_html__( 'Totales financieros agrupados por moneda. En 12B, "total facturado" usa la fecha de creación de la invoice como criterio operativo. "Estado de invoice" y "estado de cobro" se muestran por separado.', 'super-mechanic' ) . '</p>';
 		echo '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
 		$this->render_total_card( __( 'Total facturado', 'super-mechanic' ), $total_invoiced );
 		$this->render_total_card( __( 'Total cobrado', 'super-mechanic' ), $total_paid );
@@ -801,6 +832,38 @@ class Report_Admin_Controller {
 				echo '<td>' . esc_html( $this->humanize_key( $row['payment_method'] ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $row['reference'] ) ? $row['reference'] : __( 'N/D', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_datetime( $row['payment_date'] ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Render invoice aggregate component totals.
+	 *
+	 * @param array<string, array<string, float>> $rows Rows keyed by currency.
+	 * @return void
+	 */
+	protected function render_invoice_component_totals_table( array $rows ) {
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Moneda', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Subtotal', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Descuentos', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Grand total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+
+		if ( empty( $rows ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No hay agregados de invoices para los filtros seleccionados.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $rows as $currency => $totals ) {
+				$currency = strtoupper( (string) $currency );
+				$subtotal = isset( $totals['subtotal'] ) ? (float) $totals['subtotal'] : 0.0;
+				$tax      = isset( $totals['tax_total'] ) ? (float) $totals['tax_total'] : 0.0;
+				$discount = isset( $totals['discount_total'] ) ? (float) $totals['discount_total'] : 0.0;
+				$grand    = isset( $totals['grand_total'] ) ? (float) $totals['grand_total'] : 0.0;
+
+				echo '<tr>';
+				echo '<td>' . esc_html( $currency ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( $subtotal, $currency ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( $tax, $currency ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( $discount, $currency ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( $grand, $currency ) ) . '</td>';
 				echo '</tr>';
 			}
 		}

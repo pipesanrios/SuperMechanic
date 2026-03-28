@@ -11,6 +11,8 @@ use Super_Mechanic\Clients\Client_Admin_Controller;
 use Super_Mechanic\Dashboard\Admin_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Mechanic_Dashboard_Controller;
 use Super_Mechanic\Flows\Flow_Admin_Controller;
+use Super_Mechanic\Invoices\Invoice_Finance_Admin_Controller;
+use Super_Mechanic\Invoices\Payment_Finance_Admin_Controller;
 use Super_Mechanic\Processes\Process_Admin_Controller;
 use Super_Mechanic\Reports\Report_Admin_Controller;
 use Super_Mechanic\Vehicles\Vehicle_Admin_Controller;
@@ -30,6 +32,8 @@ class Admin_Menu {
 	protected $mechanic_dashboard_controller;
 	protected $report_admin_controller;
 	protected $shortcode_admin_controller;
+	protected $invoice_finance_admin_controller;
+	protected $payment_finance_admin_controller;
 
 	/**
 	 * Constructor.
@@ -43,8 +47,10 @@ class Admin_Menu {
 	 * @param Mechanic_Dashboard_Controller $mechanic_dashboard_controller Mechanic Panel controller.
 	 * @param Report_Admin_Controller      $report_admin_controller      Reports controller.
 	 * @param Shortcode_Admin_Controller   $shortcode_admin_controller   Shortcodes controller.
+	 * @param Invoice_Finance_Admin_Controller $invoice_finance_admin_controller Invoices finance controller.
+	 * @param Payment_Finance_Admin_Controller $payment_finance_admin_controller Payments finance controller.
 	 */
-	public function __construct( Settings $settings, Client_Admin_Controller $client_admin_controller, Vehicle_Admin_Controller $vehicle_admin_controller, Process_Admin_Controller $process_admin_controller, Flow_Admin_Controller $flow_admin_controller, Admin_Dashboard_Controller $admin_dashboard_controller, Mechanic_Dashboard_Controller $mechanic_dashboard_controller, Report_Admin_Controller $report_admin_controller, Shortcode_Admin_Controller $shortcode_admin_controller ) {
+	public function __construct( Settings $settings, Client_Admin_Controller $client_admin_controller, Vehicle_Admin_Controller $vehicle_admin_controller, Process_Admin_Controller $process_admin_controller, Flow_Admin_Controller $flow_admin_controller, Admin_Dashboard_Controller $admin_dashboard_controller, Mechanic_Dashboard_Controller $mechanic_dashboard_controller, Report_Admin_Controller $report_admin_controller, Shortcode_Admin_Controller $shortcode_admin_controller, Invoice_Finance_Admin_Controller $invoice_finance_admin_controller, Payment_Finance_Admin_Controller $payment_finance_admin_controller ) {
 		$this->settings                    = $settings;
 		$this->client_admin_controller     = $client_admin_controller;
 		$this->vehicle_admin_controller    = $vehicle_admin_controller;
@@ -54,6 +60,8 @@ class Admin_Menu {
 		$this->mechanic_dashboard_controller = $mechanic_dashboard_controller;
 		$this->report_admin_controller     = $report_admin_controller;
 		$this->shortcode_admin_controller  = $shortcode_admin_controller;
+		$this->invoice_finance_admin_controller = $invoice_finance_admin_controller;
+		$this->payment_finance_admin_controller = $payment_finance_admin_controller;
 	}
 
 	/**
@@ -126,6 +134,24 @@ class Admin_Menu {
 			'sm_manage_flows',
 			'super-mechanic-flows',
 			array( $this->flow_admin_controller, 'render_page' )
+		);
+
+		add_submenu_page(
+			'super-mechanic',
+			__( 'Centro financiero - Invoices', 'super-mechanic' ),
+			__( 'Finanzas: Invoices', 'super-mechanic' ),
+			'sm_manage_processes',
+			'super-mechanic-financial-invoices',
+			array( $this->invoice_finance_admin_controller, 'render_page' )
+		);
+
+		add_submenu_page(
+			'super-mechanic',
+			__( 'Centro financiero - Payments', 'super-mechanic' ),
+			__( 'Finanzas: Payments', 'super-mechanic' ),
+			'sm_manage_processes',
+			'super-mechanic-financial-payments',
+			array( $this->payment_finance_admin_controller, 'render_page' )
 		);
 
 		add_submenu_page(

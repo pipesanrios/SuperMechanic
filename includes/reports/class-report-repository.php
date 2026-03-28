@@ -92,6 +92,142 @@ class Report_Repository {
 	}
 
 	/**
+	 * Get process counts grouped by assigned mechanic.
+	 *
+	 * Criteria is explicitly based on `sm_processes.assigned_to`.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_process_counts_by_mechanic( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_process_where_clause( $filters, $params, 'p' );
+		$sql     = "SELECT COALESCE(NULLIF(p.assigned_to, 0), 0) AS mechanic_id,
+				COALESCE(u.display_name, '') AS mechanic_name,
+				COUNT(p.id) AS total
+			FROM {$this->get_processes_table_name()} p
+			LEFT JOIN {$wpdb->users} u ON u.ID = p.assigned_to
+			{$where}
+			GROUP BY COALESCE(NULLIF(p.assigned_to, 0), 0), u.display_name
+			ORDER BY total DESC, mechanic_name ASC, mechanic_id ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+		$rows    = is_array( $rows ) ? $rows : array();
+		$result  = array();
+
+		foreach ( $rows as $row ) {
+			$mechanic_id = absint( $row['mechanic_id'] );
+			$name        = isset( $row['mechanic_name'] ) ? trim( (string) $row['mechanic_name'] ) : '';
+			$label       = __( 'Sin asignar', 'super-mechanic' );
+
+			if ( $mechanic_id > 0 ) {
+				$label = '' !== $name ? $name . ' (#' . $mechanic_id . ')' : '#' . $mechanic_id;
+			}
+
+			$result[] = array(
+				'mechanic_id' => $mechanic_id,
+				'label'       => $label,
+				'total'       => absint( $row['total'] ),
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Get process counts grouped by client.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_process_counts_by_client( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_process_where_clause( $filters, $params, 'p' );
+		$sql     = "SELECT COALESCE(NULLIF(p.client_id, 0), 0) AS client_id,
+				CONCAT_WS(' ', c.first_name, c.last_name) AS client_name,
+				COUNT(p.id) AS total
+			FROM {$this->get_processes_table_name()} p
+			LEFT JOIN {$this->get_clients_table_name()} c ON c.id = p.client_id
+			{$where}
+			GROUP BY COALESCE(NULLIF(p.client_id, 0), 0), client_name
+			ORDER BY total DESC, client_name ASC, client_id ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+		$rows    = is_array( $rows ) ? $rows : array();
+		$result  = array();
+
+		foreach ( $rows as $row ) {
+			$client_id = absint( $row['client_id'] );
+			$name      = isset( $row['client_name'] ) ? trim( (string) $row['client_name'] ) : '';
+			$label     = __( 'Sin asignar', 'super-mechanic' );
+
+			if ( $client_id > 0 ) {
+				$label = '' !== $name ? $name . ' (#' . $client_id . ')' : '#' . $client_id;
+			}
+
+			$result[] = array(
+				'client_id' => $client_id,
+				'label'     => $label,
+				'total'     => absint( $row['total'] ),
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Get process counts grouped by vehicle.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_process_counts_by_vehicle( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_process_where_clause( $filters, $params, 'p' );
+		$sql     = "SELECT COALESCE(NULLIF(p.vehicle_id, 0), 0) AS vehicle_id,
+				v.make AS vehicle_make,
+				v.model AS vehicle_model,
+				v.plate AS vehicle_plate,
+				COUNT(p.id) AS total
+			FROM {$this->get_processes_table_name()} p
+			LEFT JOIN {$this->get_vehicles_table_name()} v ON v.id = p.vehicle_id
+			{$where}
+			GROUP BY COALESCE(NULLIF(p.vehicle_id, 0), 0), v.make, v.model, v.plate
+			ORDER BY total DESC, vehicle_make ASC, vehicle_model ASC, vehicle_id ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+		$rows    = is_array( $rows ) ? $rows : array();
+		$result  = array();
+
+		foreach ( $rows as $row ) {
+			$vehicle_id = absint( $row['vehicle_id'] );
+			$label      = __( 'Sin asignar', 'super-mechanic' );
+
+			if ( $vehicle_id > 0 ) {
+				$vehicle_label = $this->build_vehicle_group_label( $row );
+				$label         = '' !== $vehicle_label ? $vehicle_label . ' (#' . $vehicle_id . ')' : '#' . $vehicle_id;
+			}
+
+			$result[] = array(
+				'vehicle_id' => $vehicle_id,
+				'label'      => $label,
+				'total'      => absint( $row['total'] ),
+			);
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Get aggregate process counts for a selected range.
 	 *
 	 * @param array<string, mixed> $filters Report filters.
@@ -567,6 +703,45 @@ class Report_Repository {
 	}
 
 	/**
+	 * Get invoice component totals grouped by currency.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<string, array<string, float>>
+	 */
+	public function get_invoice_amount_components_by_currency( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$sql     = "SELECT i.currency,
+				COALESCE(SUM(i.subtotal), 0) AS subtotal_total,
+				COALESCE(SUM(i.tax_total), 0) AS tax_total,
+				COALESCE(SUM(i.discount_total), 0) AS discount_total,
+				COALESCE(SUM(i.grand_total), 0) AS grand_total
+			FROM {$this->get_invoices_table_name()} i
+			{$where}
+			GROUP BY i.currency
+			ORDER BY i.currency ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+		$rows    = is_array( $rows ) ? $rows : array();
+		$totals  = array();
+
+		foreach ( $rows as $row ) {
+			$currency             = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$totals[ $currency ] = array(
+				'subtotal'      => round( (float) $row['subtotal_total'], 2 ),
+				'tax_total'     => round( (float) $row['tax_total'], 2 ),
+				'discount_total' => round( (float) $row['discount_total'], 2 ),
+				'grand_total'   => round( (float) $row['grand_total'], 2 ),
+			);
+		}
+
+		return $totals;
+	}
+
+	/**
 	 * Get paid amounts grouped by currency for the selected range.
 	 *
 	 * @param array<string, mixed> $filters Report filters.
@@ -634,11 +809,17 @@ class Report_Repository {
 				'invoice_status' => '',
 				'currency'       => '',
 				'payment_method' => '',
+				'mechanic_id'    => 0,
+				'client_id'      => 0,
+				'vehicle_id'     => 0,
 				'limit'          => self::DEFAULT_RECENT_LIMIT,
 			)
 		);
 
-		$filters['limit'] = min( self::MAX_RECENT_LIMIT, max( 1, absint( $filters['limit'] ) ) );
+		$filters['limit']       = min( self::MAX_RECENT_LIMIT, max( 1, absint( $filters['limit'] ) ) );
+		$filters['mechanic_id'] = absint( $filters['mechanic_id'] );
+		$filters['client_id']   = absint( $filters['client_id'] );
+		$filters['vehicle_id']  = absint( $filters['vehicle_id'] );
 
 		return $filters;
 	}
@@ -687,7 +868,41 @@ class Report_Repository {
 			$params[]  = $filters['process_type'];
 		}
 
+		if ( ! empty( $filters['mechanic_id'] ) ) {
+			$clauses[] = $alias . '.assigned_to = %d';
+			$params[]  = absint( $filters['mechanic_id'] );
+		}
+
+		if ( ! empty( $filters['client_id'] ) ) {
+			$clauses[] = $alias . '.client_id = %d';
+			$params[]  = absint( $filters['client_id'] );
+		}
+
+		if ( ! empty( $filters['vehicle_id'] ) ) {
+			$clauses[] = $alias . '.vehicle_id = %d';
+			$params[]  = absint( $filters['vehicle_id'] );
+		}
+
 		return $clauses;
+	}
+
+	/**
+	 * Build a compact vehicle label for grouped rows.
+	 *
+	 * @param array<string, mixed> $row Group row.
+	 * @return string
+	 */
+	protected function build_vehicle_group_label( array $row ) {
+		$make  = ! empty( $row['vehicle_make'] ) ? (string) $row['vehicle_make'] : '';
+		$model = ! empty( $row['vehicle_model'] ) ? (string) $row['vehicle_model'] : '';
+		$plate = ! empty( $row['vehicle_plate'] ) ? (string) $row['vehicle_plate'] : '';
+		$label = trim( $make . ' ' . $model );
+
+		if ( '' !== $plate ) {
+			$label = '' !== $label ? $label . ' - ' . $plate : $plate;
+		}
+
+		return $label;
 	}
 
 	/**

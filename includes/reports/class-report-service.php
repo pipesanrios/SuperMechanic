@@ -71,6 +71,9 @@ class Report_Service {
 				'invoice_status' => '',
 				'currency'       => '',
 				'payment_method' => '',
+				'mechanic_id'    => 0,
+				'client_id'      => 0,
+				'vehicle_id'     => 0,
 				'limit'          => Report_Repository::DEFAULT_RECENT_LIMIT,
 			)
 		);
@@ -98,6 +101,9 @@ class Report_Service {
 		$invoice_status = sanitize_key( $filters['invoice_status'] );
 		$currency       = strtoupper( sanitize_text_field( (string) $filters['currency'] ) );
 		$payment_method = sanitize_key( $filters['payment_method'] );
+		$mechanic_id    = absint( $filters['mechanic_id'] );
+		$client_id      = absint( $filters['client_id'] );
+		$vehicle_id     = absint( $filters['vehicle_id'] );
 
 		if ( ! in_array( $process_status, $status_options, true ) ) {
 			$process_status = '';
@@ -137,6 +143,9 @@ class Report_Service {
 			'invoice_status' => $invoice_status,
 			'currency'       => $currency,
 			'payment_method' => $payment_method,
+			'mechanic_id'    => $mechanic_id,
+			'client_id'      => $client_id,
+			'vehicle_id'     => $vehicle_id,
 			'limit'          => min( Report_Repository::MAX_RECENT_LIMIT, max( 1, absint( $filters['limit'] ) ) ),
 		);
 	}
@@ -182,6 +191,9 @@ class Report_Service {
 		$filters['process_status'] = '';
 		$filters['process_type']   = '';
 		$filters['derived_status'] = '';
+		$filters['mechanic_id']    = 0;
+		$filters['client_id']      = 0;
+		$filters['vehicle_id']     = 0;
 
 		return $filters;
 	}
@@ -367,6 +379,9 @@ class Report_Service {
 			'filters'              => $filters,
 			'process_status'       => $this->repository->get_process_counts_by_status( $filters ),
 			'process_types'        => $this->repository->get_process_counts_by_type( $filters ),
+			'process_mechanics'    => $this->repository->get_process_counts_by_mechanic( $filters ),
+			'process_clients'      => $this->repository->get_process_counts_by_client( $filters ),
+			'process_vehicles'     => $this->repository->get_process_counts_by_vehicle( $filters ),
 			'derived_status'       => $this->repository->get_process_counts_by_derived_status( $filters ),
 			'process_type_status'  => $this->build_process_type_status_matrix_rows( $this->repository->get_process_type_status_matrix( $filters ) ),
 			'completed_processes'  => $this->repository->get_completed_process_count( $filters ),
@@ -405,6 +420,7 @@ class Report_Service {
 			'total_invoiced'           => $this->repository->get_invoiced_amounts_by_currency( $filters ),
 			'total_paid'               => $this->repository->get_paid_amounts_by_currency( $filters ),
 			'total_outstanding'        => $this->repository->get_outstanding_balances_by_currency( $filters ),
+			'invoice_amount_components' => $this->repository->get_invoice_amount_components_by_currency( $filters ),
 		);
 	}
 

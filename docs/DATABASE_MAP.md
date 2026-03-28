@@ -1097,5 +1097,27 @@ Si el schema cambia en futuras fases, actualizar tambien:
 - La fase agrega fronteras transaccionales para escrituras ya existentes en `relations` y `flows`, pero no introduce columnas nuevas.
 - La correccion documental de 26B consolida el modelo real de settings (`sm_settings` + fallback legacy `super_mechanic_settings`), `plate` y `flow_step_id` sin alterar el schema.
 
+## Nota Fase 28. Centro financiero admin
 
+- La Fase 28 no modifica schema ni agrega tablas.
+- El cierre funcional reutiliza:
+  - `sm_invoices`
+  - `sm_invoice_items`
+  - `sm_payments`
+  - `sm_processes`
+  - `sm_clients`
+- `Payment_Repository` amplía consultas de lectura para panel admin dedicado de payments, manteniendo SQL en repository.
+- El estado de cobro visible de invoices en el centro financiero sigue derivándose desde `sm_payments` vía `Invoice_Service` (`pending` / `partial` / `paid`), sin columnas nuevas.
+
+## Nota Fase 29. Reportes expansión
+
+- La Fase 29 no modifica schema ni agrega tablas.
+- La expansión del módulo `Reports` reutiliza:
+  - `sm_processes`
+  - `sm_clients`
+  - `sm_vehicles`
+  - `sm_invoices`
+  - `sm_payments`
+- El criterio de mecánico de reportes operativos se fija sobre `sm_processes.assigned_to` para evitar mezclar fuentes de asignación.
+- La separación `invoice_status` (documental) vs estado de cobro (derivado de pagos) se mantiene en lectura, sin persistencia adicional.
 
