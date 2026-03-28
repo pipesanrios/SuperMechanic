@@ -1121,3 +1121,60 @@ Si el schema cambia en futuras fases, actualizar tambien:
 - El criterio de mecánico de reportes operativos se fija sobre `sm_processes.assigned_to` para evitar mezclar fuentes de asignación.
 - La separación `invoice_status` (documental) vs estado de cobro (derivado de pagos) se mantiene en lectura, sin persistencia adicional.
 
+## Nota Fase 30. Tenancy base preparada (no activada)
+
+- La Fase 30 no modifica schema ni agrega tablas.
+- La fase introduce únicamente una capa de contexto de negocio en services:
+  - `includes/helpers/class-business-context-service.php`
+- El runtime permanece en modo `single_business`:
+  - sin `business_id` persistente
+  - sin filtros tenant-aware en repositories
+  - sin cambios de ownership/enforcement existentes
+- Tablas candidatas para futura evolucion a `business_id` (fase posterior, fuera de Fase 30):
+  - `sm_clients`
+  - `sm_vehicles`
+  - `sm_processes`
+  - `sm_quotes`
+  - `sm_invoices`
+  - `sm_payments`
+  - `sm_attachments`
+  - `sm_comments`
+  - `sm_notifications`
+
+## Nota Fase 31A. Base local de licencias
+
+- La Fase 31A no modifica schema ni agrega tablas.
+- La persistencia de licencia reutiliza:
+  - `wp_options` option `sm_settings`
+  - grupo `license`
+- Shape local de `sm_settings.license`:
+  - `license_key`
+  - `status`
+  - `activated_at`
+  - `last_validated_at`
+  - `provider`
+  - `message`
+- Estados locales soportados en 31A:
+  - `inactive`
+  - `active`
+  - `invalid`
+  - `unknown`
+
+## Nota Fase 31B. Base de updates privadas
+
+- La Fase 31B no modifica schema ni agrega tablas.
+- La persistencia de updates privadas reutiliza:
+  - `wp_options` option `sm_settings`
+  - grupo `updates`
+- Shape operativo base de `sm_settings.updates`:
+  - `provider`
+  - `last_check_at`
+  - `latest_version`
+  - `package_available`
+  - `message`
+  - `last_result`
+- Metadata técnica adicional (sin impacto de schema):
+  - `requires`
+  - `tested`
+  - `changelog`
+  - `package_source_url`

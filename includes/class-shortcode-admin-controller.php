@@ -7,12 +7,31 @@
 
 namespace Super_Mechanic;
 
+use Super_Mechanic\Helpers\Feature_Flags;
+use Super_Mechanic\Helpers\Plan_Access_Service;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Renders the admin shortcode catalog page.
  */
 class Shortcode_Admin_Controller {
+	/**
+	 * Plan access service.
+	 *
+	 * @var Plan_Access_Service
+	 */
+	protected $plan_access_service;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Plan_Access_Service|null $plan_access_service Plan access service.
+	 */
+	public function __construct( Plan_Access_Service $plan_access_service = null ) {
+		$this->plan_access_service = $plan_access_service ? $plan_access_service : new Plan_Access_Service();
+	}
+
 	/**
 	 * Render the shortcode catalog page.
 	 *
@@ -21,6 +40,13 @@ class Shortcode_Admin_Controller {
 	public function render_page() {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->plan_access_service->is_feature_enabled( Feature_Flags::FEATURE_ADMIN_SHORTCODE_CATALOG ) ) {
+			echo '<div class="wrap sm-admin-shell">';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'The shortcode catalog is currently disabled by feature flags.', 'super-mechanic' ) . '</p></div>';
+			echo '</div>';
+			return;
 		}
 
 		$groups         = $this->get_grouped_shortcodes();

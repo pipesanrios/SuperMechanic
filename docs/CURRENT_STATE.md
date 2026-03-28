@@ -266,3 +266,136 @@ Actualización FASE 29 (Reportes expansión):
 
 Siguiente fase:
 - Se puede pasar a FASE 30 con la expansión base de reportes ya operativa y sin cambios de schema.
+
+Actualización FASE 30 (Tenancy base preparada, no activada):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 30: COMPLETO
+- Se incorporó una capa central única de contexto de negocio en arquitectura activa `includes/*`:
+  - `includes/helpers/class-business-context-service.php`
+- Contrato expuesto por la capa:
+  - modo fijo `single_business`
+  - lectura de `business_context_key` desde `Settings_Service` (`sm_settings`)
+  - `business_id` reservado para evolución futura y no operativo en runtime actual
+  - `is_tenancy_active = false` de forma explícita
+- Wiring mínimo aplicado:
+  - `includes/class-plugin.php` inicializa `Business_Context_Service` sin alterar flujos de negocio existentes
+- Restricciones mantenidas (sin activación real):
+  - sin multi-tenant real
+  - sin `business_id` en tablas
+  - sin filtros por negocio en repositories
+  - sin cambios de enforcement en `Access_Control_Service`
+  - sin cambios de schema
+- Impacto documental consolidado:
+  - se documenta esta fase como preparación arquitectónica pre-SaaS, no como activación tenant-aware
+
+Siguiente fase:
+- Se puede pasar a FASE 31 manteniendo `single_business` como modo activo hasta definición explícita de activación tenancy.
+
+Actualización FASE 31A (Base local de licencias):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 31A: COMPLETO
+- Se incorporó la base local de licencias en arquitectura activa `includes/*`:
+  - `includes/helpers/class-license-provider-interface.php`
+  - `includes/helpers/class-local-license-provider.php`
+  - `includes/helpers/class-license-service.php`
+- Persistencia consolidada:
+  - `wp_options` option `sm_settings`
+  - grupo `license` con estado local
+- Flujo local implementado:
+  - activate
+  - validate
+  - deactivate
+- UI admin implementada en Settings existente:
+  - estado visible
+  - key enmascarada
+  - acciones protegidas por capability + nonce
+- Restricciones mantenidas:
+  - sin updates privadas
+  - sin premium flags
+  - sin bloqueo de features
+  - sin llamadas remotas reales
+  - sin cambios de schema
+
+Siguiente fase:
+- Se puede pasar a FASE 31B con contrato local ya preparado para provider externo futuro.
+
+Actualización FASE 31B (Base de updates privadas):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 31B: COMPLETO
+- Se incorporó la base local de updates privadas en arquitectura activa `includes/*`:
+  - `includes/helpers/class-update-provider-interface.php`
+  - `includes/helpers/class-local-update-provider.php`
+  - `includes/helpers/class-update-service.php`
+- Integración WordPress nativa aplicada:
+  - `pre_set_site_transient_update_plugins`
+  - `plugins_api`
+  - endpoint seguro para paquete privado:
+    - `admin_post_sm_private_update_package`
+    - `admin_post_nopriv_sm_private_update_package`
+- Persistencia local consolidada:
+  - `wp_options` option `sm_settings`
+  - grupo `updates` con estado:
+    - `provider`
+    - `last_check_at`
+    - `latest_version`
+    - `package_available`
+    - `message`
+    - `last_result`
+  - metadata técnica adicional (interna de runtime):
+    - `requires`
+    - `tested`
+    - `changelog`
+    - `package_source_url`
+- Seguridad aplicada:
+  - `package_url` final de WordPress se emite como URL firmada y temporal
+  - validación de firma + expiración + licencia activa en descarga
+  - bloqueo de source URL no válida/no permitida
+  - sin exposición de `file_url` ni rutas documentales del dominio funcional
+- UI admin mínima aplicada en Settings:
+  - estado visible de updates privadas (solo lectura)
+  - sin acciones premium ni feature gating
+- Restricciones mantenidas:
+  - sin cambios de schema
+  - sin apertura de 31C
+  - sin planes/flags premium
+  - sin refactor amplio
+
+Siguiente fase:
+- Se puede pasar a FASE 31C solo si se define explícitamente el alcance de flags/planes sin romper el baseline seguro de updates privadas.
+
+Actualización FASE 31C (Restricción de features, base centralizada):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 31C: COMPLETO
+- Se incorporó la base centralizada de plan efectivo y feature flags en arquitectura activa `includes/*`:
+  - `includes/helpers/class-feature-flags.php`
+  - `includes/helpers/class-plan-access-service.php`
+- Persistencia local consolidada en `sm_settings` sin cambios de schema:
+  - `plan.plan_key`
+  - `plan.status`
+  - `plan.source`
+  - `plan.message`
+  - `features.feature_flags`
+- Resolución de plan efectivo:
+  - centralizada en `Plan_Access_Service::get_effective_plan()`
+  - señal local derivada de licencia por `License_Service::get_plan_signal()`
+  - preparada para provider futuro vía filtros (`sm_plan_access_effective_plan` y `sm_plan_access_feature_overrides`)
+- Resolución de features:
+  - centralizada en `Plan_Access_Service::is_feature_enabled()`
+  - catálogo único en `Feature_Flags`
+  - defaults seguros y retrocompatibles (sin bloqueo de funciones core por defecto)
+- Visibilidad admin básica en Settings:
+  - nuevo bloque read-only de estado de plan + flags efectivas
+- Gating mínimo y no destructivo aplicado en superficies admin no críticas:
+  - Reportes admin (`admin_reports`)
+  - Export CSV de reportes (`reports_csv_export`)
+  - Catálogo admin de shortcodes (`admin_shortcode_catalog`)
+- Restricciones mantenidas:
+  - sin billing
+  - sin suscripciones reales
+  - sin cambios de schema
+  - sin refactor amplio
+  - sin tocar procesos/clientes/vehículos/invoices/payments base
+  - sin checks dispersos (check central en `Plan_Access_Service`)
+
+Siguiente fase:
+- Se puede pasar a FASE 32, manteniendo la base 31C como capa de acceso central preparada para integración externa futura.

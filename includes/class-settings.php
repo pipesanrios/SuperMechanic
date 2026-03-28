@@ -8,6 +8,10 @@
 namespace Super_Mechanic;
 
 use Super_Mechanic\Helpers\Settings_Service;
+use Super_Mechanic\Helpers\License_Service;
+use Super_Mechanic\Helpers\Update_Service;
+use Super_Mechanic\Helpers\Plan_Access_Service;
+use Super_Mechanic\Helpers\Feature_Flags;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -36,12 +40,44 @@ class Settings {
 	 * @var Settings_Service
 	 */
 	protected $settings_service;
+	/**
+	 * License service.
+	 *
+	 * @var License_Service
+	 */
+	protected $license_service;
+	/**
+	 * Update service.
+	 *
+	 * @var Update_Service
+	 */
+	protected $update_service;
+	/**
+	 * Plan access service.
+	 *
+	 * @var Plan_Access_Service
+	 */
+	protected $plan_access_service;
 
 	/**
 	 * Constructor.
 	 */
 	public function __construct() {
 		$this->settings_service = new Settings_Service();
+		$this->license_service  = new License_Service( $this->settings_service );
+		$this->update_service   = new Update_Service( $this->settings_service, null, $this->license_service );
+		$this->plan_access_service = new Plan_Access_Service( $this->settings_service, $this->license_service );
+	}
+
+	/**
+	 * Register admin hooks for license actions.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'admin_post_sm_license_activate', array( $this, 'handle_license_activate' ) );
+		add_action( 'admin_post_sm_license_validate', array( $this, 'handle_license_validate' ) );
+		add_action( 'admin_post_sm_license_deactivate', array( $this, 'handle_license_deactivate' ) );
 	}
 
 	/**
@@ -190,6 +226,7 @@ class Settings {
 			self::PAGE_SLUG,
 			'sm_portal_settings'
 		);
+
 	}
 
 	/**
@@ -304,6 +341,7 @@ class Settings {
 		}
 
 		echo '<div class="wrap sm-admin-shell">';
+		$this->render_license_notice();
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Super Mechanic Settings', 'super-mechanic' ) . '</h1>';
@@ -313,13 +351,71 @@ class Settings {
 		echo '<div class="sm-card sm-form-card sm-settings-card">';
 		echo '<form method="post" action="options.php">';
 		settings_fields( self::OPTION_GROUP );
-		do_settings_sections( self::PAGE_SLUG );
+		$this->render_settings_sections(
+			array(
+				'sm_general_settings',
+				'sm_process_settings',
+				'sm_financial_settings',
+				'sm_portal_settings',
+			)
+		);
 		echo '<div class="sm-form-actions">';
 		submit_button( __( 'Guardar ajustes', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
+		echo '<div class="sm-card sm-form-card sm-settings-card">';
+		echo '<h2>' . esc_html__( 'License', 'super-mechanic' ) . '</h2>';
+		$this->render_license_section();
+		$this->render_field_license_status();
 		echo '</div>';
+		echo '<div class="sm-card sm-form-card sm-settings-card">';
+		echo '<h2>' . esc_html__( 'Private updates', 'super-mechanic' ) . '</h2>';
+		$this->render_updates_section();
+		$this->render_field_updates_status();
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card sm-settings-card">';
+		echo '<h2>' . esc_html__( 'Plan and feature access', 'super-mechanic' ) . '</h2>';
+		$this->render_plan_access_section();
+		$this->render_field_plan_access_status();
+		echo '</div>';
+		echo '</div>';
+	}
+
+	/**
+	 * Render selected sections and fields from Settings API registry.
+	 *
+	 * @param array<int, string> $section_ids Section ids.
+	 * @return void
+	 */
+	protected function render_settings_sections( array $section_ids ) {
+		global $wp_settings_sections, $wp_settings_fields;
+
+		if ( empty( $wp_settings_sections[ self::PAGE_SLUG ] ) || ! is_array( $wp_settings_sections[ self::PAGE_SLUG ] ) ) {
+			return;
+		}
+
+		foreach ( $section_ids as $section_id ) {
+			if ( empty( $wp_settings_sections[ self::PAGE_SLUG ][ $section_id ] ) ) {
+				continue;
+			}
+
+			$section = $wp_settings_sections[ self::PAGE_SLUG ][ $section_id ];
+
+			if ( ! empty( $section['title'] ) ) {
+				echo '<h2>' . esc_html( $section['title'] ) . '</h2>';
+			}
+
+			if ( ! empty( $section['callback'] ) && is_callable( $section['callback'] ) ) {
+				call_user_func( $section['callback'] );
+			}
+
+			if ( ! empty( $wp_settings_fields[ self::PAGE_SLUG ][ $section_id ] ) ) {
+				echo '<table class="form-table" role="presentation">';
+				do_settings_fields( self::PAGE_SLUG, $section_id );
+				echo '</table>';
+			}
+		}
 	}
 
 	/**
@@ -356,6 +452,33 @@ class Settings {
 	 */
 	public function render_portal_section() {
 		echo '<p>' . esc_html__( 'Portal and notification toggles stay as product-readiness controls for the current business context only.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render license section introduction.
+	 *
+	 * @return void
+	 */
+	public function render_license_section() {
+		echo '<p>' . esc_html__( 'Local licensing baseline for activation, validation and deactivation. Remote provider integration is intentionally deferred.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render updates section introduction.
+	 *
+	 * @return void
+	 */
+	public function render_updates_section() {
+		echo '<p>' . esc_html__( 'Private update checks run through a provider contract and WordPress native update hooks, ready for a future external provider.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render plan access section introduction.
+	 *
+	 * @return void
+	 */
+	public function render_plan_access_section() {
+		echo '<p>' . esc_html__( 'Centralized effective plan and feature flags baseline. This phase does not implement billing or real subscriptions.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -574,12 +697,236 @@ class Settings {
 	}
 
 	/**
+	 * Render local license status and actions.
+	 *
+	 * @return void
+	 */
+	public function render_field_license_status() {
+		$state = $this->license_service->get_license_state();
+		$label = $this->get_license_status_label( $state['status'] );
+
+		echo '<div class="sm-license-panel">';
+		echo '<p><strong>' . esc_html__( 'Current status:', 'super-mechanic' ) . '</strong> ' . esc_html( $label ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'License key:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->license_service->mask_license_key( $state['license_key'] ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Provider:', 'super-mechanic' ) . '</strong> ' . esc_html( $state['provider'] ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Activated at:', 'super-mechanic' ) . '</strong> ' . esc_html( $state['activated_at'] ? $state['activated_at'] : '-' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Last validated at:', 'super-mechanic' ) . '</strong> ' . esc_html( $state['last_validated_at'] ? $state['last_validated_at'] : '-' ) . '</p>';
+
+		if ( '' !== $state['message'] ) {
+			echo '<p class="description">' . esc_html( $state['message'] ) . '</p>';
+		}
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+		echo '<input type="hidden" name="action" value="sm_license_activate" />';
+		wp_nonce_field( 'sm_license_action', 'sm_license_nonce' );
+		echo '<input type="password" class="regular-text" name="sm_license_key" value="" autocomplete="off" placeholder="' . esc_attr__( 'Enter license key', 'super-mechanic' ) . '" />';
+		echo '&nbsp;';
+		submit_button( __( 'Activate', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+		echo '<input type="hidden" name="action" value="sm_license_validate" />';
+		wp_nonce_field( 'sm_license_action', 'sm_license_nonce' );
+		submit_button( __( 'Validate', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
+		echo '<input type="hidden" name="action" value="sm_license_deactivate" />';
+		wp_nonce_field( 'sm_license_action', 'sm_license_nonce' );
+		submit_button( __( 'Deactivate', 'super-mechanic' ), 'delete', 'submit', false );
+		echo '</form>';
+		echo '</div>';
+	}
+
+	/**
+	 * Render private updates status.
+	 *
+	 * @return void
+	 */
+	public function render_field_updates_status() {
+		$state            = $this->update_service->check_for_updates();
+		$current_version  = sanitize_text_field( (string) SM_PLUGIN_VERSION );
+		$latest_version   = isset( $state['latest_version'] ) ? (string) $state['latest_version'] : $current_version;
+		$has_update       = version_compare( $latest_version, $current_version, '>' );
+		$status_label     = $has_update ? __( 'Update available', 'super-mechanic' ) : __( 'Up to date', 'super-mechanic' );
+		$package_label    = ! empty( $state['package_available'] ) ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' );
+		$provider_label   = isset( $state['provider'] ) ? (string) $state['provider'] : 'local';
+		$last_result      = isset( $state['last_result'] ) ? (string) $state['last_result'] : 'no_update';
+		$last_check_at    = isset( $state['last_check_at'] ) && '' !== (string) $state['last_check_at'] ? (string) $state['last_check_at'] : '-';
+		$requires         = isset( $state['requires'] ) && '' !== (string) $state['requires'] ? (string) $state['requires'] : '-';
+		$tested           = isset( $state['tested'] ) && '' !== (string) $state['tested'] ? (string) $state['tested'] : '-';
+		$message          = isset( $state['message'] ) ? (string) $state['message'] : '';
+
+		echo '<div class="sm-license-panel">';
+		echo '<p><strong>' . esc_html__( 'Current plugin version:', 'super-mechanic' ) . '</strong> ' . esc_html( $current_version ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Latest version:', 'super-mechanic' ) . '</strong> ' . esc_html( $latest_version ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Status:', 'super-mechanic' ) . '</strong> ' . esc_html( $status_label ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Provider:', 'super-mechanic' ) . '</strong> ' . esc_html( $provider_label ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Package available:', 'super-mechanic' ) . '</strong> ' . esc_html( $package_label ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Last check:', 'super-mechanic' ) . '</strong> ' . esc_html( $last_check_at ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Last result:', 'super-mechanic' ) . '</strong> ' . esc_html( $last_result ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Requires WordPress:', 'super-mechanic' ) . '</strong> ' . esc_html( $requires ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Tested up to:', 'super-mechanic' ) . '</strong> ' . esc_html( $tested ) . '</p>';
+
+		if ( '' !== $message ) {
+			echo '<p class="description">' . esc_html( $message ) . '</p>';
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * Render effective plan and feature flags status.
+	 *
+	 * @return void
+	 */
+	public function render_field_plan_access_status() {
+		$plan_state    = $this->plan_access_service->get_effective_plan();
+		$feature_state = $this->plan_access_service->get_feature_flags_state();
+		$features      = Feature_Flags::get_supported_features();
+
+		echo '<div class="sm-license-panel">';
+		echo '<p><strong>' . esc_html__( 'Effective plan:', 'super-mechanic' ) . '</strong> ' . esc_html( strtoupper( (string) $plan_state['plan_key'] ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Plan status:', 'super-mechanic' ) . '</strong> ' . esc_html( (string) $plan_state['status'] ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Source:', 'super-mechanic' ) . '</strong> ' . esc_html( (string) $plan_state['source'] ) . '</p>';
+
+		if ( ! empty( $plan_state['message'] ) ) {
+			echo '<p class="description">' . esc_html( (string) $plan_state['message'] ) . '</p>';
+		}
+
+		echo '<h3 style="margin-top:16px;">' . esc_html__( 'Feature flags', 'super-mechanic' ) . '</h3>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Feature', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Enabled', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		foreach ( $features as $feature_key => $feature_label ) {
+			$is_enabled = ! empty( $feature_state['resolved'][ $feature_key ] );
+			echo '<tr>';
+			echo '<td>' . esc_html( $feature_label ) . ' <code>(' . esc_html( $feature_key ) . ')</code></td>';
+			echo '<td>' . esc_html( $is_enabled ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+		echo '<p class="description">' . esc_html__( 'Defaults preserve backward compatibility. Local overrides can be prepared in sm_settings.features.feature_flags for future provider integration.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+	}
+
+	/**
+	 * Handle local license activation request.
+	 *
+	 * @return void
+	 */
+	public function handle_license_activate() {
+		$this->assert_license_action_permissions();
+
+		$license_key = isset( $_POST['sm_license_key'] ) ? wp_unslash( $_POST['sm_license_key'] ) : '';
+		$result      = $this->license_service->activate_license( (string) $license_key );
+
+		$this->redirect_after_license_action( $result );
+	}
+
+	/**
+	 * Handle local license validation request.
+	 *
+	 * @return void
+	 */
+	public function handle_license_validate() {
+		$this->assert_license_action_permissions();
+
+		$result = $this->license_service->validate_license();
+		$this->redirect_after_license_action( $result );
+	}
+
+	/**
+	 * Handle local license deactivation request.
+	 *
+	 * @return void
+	 */
+	public function handle_license_deactivate() {
+		$this->assert_license_action_permissions();
+
+		$result = $this->license_service->deactivate_license();
+		$this->redirect_after_license_action( $result );
+	}
+
+	/**
+	 * Assert permissions and nonce for sensitive license actions.
+	 *
+	 * @return void
+	 */
+	protected function assert_license_action_permissions() {
+		if ( ! current_user_can( 'sm_manage_settings' ) ) {
+			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar la licencia.', 'super-mechanic' ) );
+		}
+
+		check_admin_referer( 'sm_license_action', 'sm_license_nonce' );
+	}
+
+	/**
+	 * Redirect after license action with safe message.
+	 *
+	 * @param array<string, mixed> $result License action result.
+	 * @return void
+	 */
+	protected function redirect_after_license_action( array $result ) {
+		$type    = ! empty( $result['success'] ) ? 'success' : 'error';
+		$message = ! empty( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : __( 'License action completed.', 'super-mechanic' );
+		$target  = add_query_arg(
+			array(
+				'page'               => self::PAGE_SLUG,
+				'sm_license_notice'  => $type,
+				'sm_license_message' => $message,
+			),
+			admin_url( 'admin.php' )
+		);
+
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	/**
+	 * Render a one-time notice for license actions.
+	 *
+	 * @return void
+	 */
+	protected function render_license_notice() {
+		$type_raw    = isset( $_GET['sm_license_notice'] ) ? sanitize_key( wp_unslash( $_GET['sm_license_notice'] ) ) : '';
+		$message_raw = isset( $_GET['sm_license_message'] ) ? sanitize_text_field( wp_unslash( $_GET['sm_license_message'] ) ) : '';
+
+		if ( '' === $type_raw || '' === $message_raw ) {
+			return;
+		}
+
+		$type_class = ( 'success' === $type_raw ) ? 'notice-success' : 'notice-error';
+		echo '<div class="notice ' . esc_attr( $type_class ) . ' is-dismissible"><p>' . esc_html( $message_raw ) . '</p></div>';
+	}
+
+	/**
+	 * Get translatable status label.
+	 *
+	 * @param string $status Status key.
+	 * @return string
+	 */
+	protected function get_license_status_label( $status ) {
+		$labels = array(
+			'inactive' => __( 'Inactive', 'super-mechanic' ),
+			'active'   => __( 'Active', 'super-mechanic' ),
+			'invalid'  => __( 'Invalid', 'super-mechanic' ),
+			'unknown'  => __( 'Unknown', 'super-mechanic' ),
+		);
+
+		return isset( $labels[ $status ] ) ? $labels[ $status ] : $labels['unknown'];
+	}
+
+	/**
 	 * Sync the active grouped settings option consumed by services.
 	 *
 	 * @param array<string, mixed> $settings Sanitized legacy-shaped settings.
 	 * @return void
 	 */
 	protected function sync_modern_settings( array $settings ) {
+		$license_settings = $this->settings_service->get_group( 'license' );
+		$updates_settings = $this->settings_service->get_group( 'updates' );
+		$plan_settings    = $this->settings_service->get_group( 'plan' );
+		$feature_settings = $this->settings_service->get_group( 'features' );
+
 		update_option(
 			Settings_Service::OPTION_NAME,
 			array(
@@ -606,6 +953,10 @@ class Settings {
 				'portal'        => array(
 					'client_panel_enabled' => ! empty( $settings['client_panel_enabled'] ),
 				),
+				'license'       => is_array( $license_settings ) ? $license_settings : array(),
+				'updates'       => is_array( $updates_settings ) ? $updates_settings : array(),
+				'plan'          => is_array( $plan_settings ) ? $plan_settings : array(),
+				'features'      => is_array( $feature_settings ) ? $feature_settings : array(),
 			)
 		);
 	}

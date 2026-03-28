@@ -117,6 +117,165 @@ Cambios tecnicos recientes confirmados:
 - la configuracion avanzada queda agrupada en `business`, `process`, `financial` y `notifications`
 - los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
 - en Fase 24B, `class-settings.php` reutiliza la shell visual admin sobre la Settings API existente sin alterar guardado ni estructura de options
+- en Fase 31A, `Settings_Service` incorpora el grupo `license` en `sm_settings` y `class-settings.php` agrega estado visible + acciones locales de licencia (activate/validate/deactivate) dentro de Ajustes
+
+--------------------------------------------------
+
+## Licensing Base (FASE 31A)
+
+Carpeta:
+- `includes/helpers/`
+- `includes/`
+
+Proposito:
+- proveer base local de licencia comercial sin acoplar aún a backend externo real
+- persistir estado de licencia en `sm_settings.license`
+- exponer acciones admin seguras: activar, validar y desactivar
+
+Tablas:
+- sin tablas nuevas
+- `wp_options` option `sm_settings` (grupo `license`)
+
+Clases principales:
+- `License_Provider_Interface`
+- `Local_License_Provider`
+- `License_Service`
+- integración UI/acciones en `class-settings.php`
+
+Dependencias:
+- settings
+- core
+
+Estado:
+- implementado en Fase 31A (modo local)
+
+Riesgos o puntos sensibles:
+- no exponer ni loguear key completa
+- no mover lógica al controller/UI
+- mantener nonce + capability en acciones sensibles
+- no abrir en esta fase updates privadas ni feature gating
+
+--------------------------------------------------
+
+## Private Updates Base (FASE 31B)
+
+Carpeta:
+- `includes/helpers/`
+- `includes/`
+
+Proposito:
+- proveer base local de updates privadas desacoplada por contrato
+- integrar metadata de update al flujo nativo de WordPress
+- mantener descarga de paquete por URL firmada y temporal
+
+Tablas:
+- sin tablas nuevas
+- `wp_options` option `sm_settings` (grupo `updates`)
+
+Clases principales:
+- `Update_Provider_Interface`
+- `Local_Update_Provider`
+- `Update_Service`
+- integración UI de estado en `class-settings.php`
+
+Dependencias:
+- settings
+- licensing base (31A)
+- core
+
+Estado:
+- implementado en Fase 31B (modo local/stub)
+
+Riesgos o puntos sensibles:
+- validar firma y expiración de URL de paquete
+- no exponer source URL no permitidas
+- no abrir billing ni feature gating en esta fase
+
+--------------------------------------------------
+
+## Plan Access & Feature Flags Base (FASE 31C)
+
+Carpeta:
+- `includes/helpers/`
+- `includes/`
+- `includes/reports/`
+
+Proposito:
+- centralizar resolución de plan efectivo y feature flags
+- exponer checks reutilizables (`get_effective_plan`, `is_feature_enabled`)
+- aplicar gating mínimo no destructivo en superficies admin no críticas
+
+Tablas:
+- sin tablas nuevas
+- `wp_options` option `sm_settings`:
+  - `plan.plan_key`
+  - `plan.status`
+  - `plan.source`
+  - `plan.message`
+  - `features.feature_flags`
+
+Clases principales:
+- `Feature_Flags`
+- `Plan_Access_Service`
+- `License_Service` (señal local para plan efectivo)
+- integración UI de estado en `class-settings.php`
+
+Dependencias:
+- settings
+- licensing base (31A)
+- updates base (31B)
+- core
+
+Estado:
+- implementado en Fase 31C
+
+Riesgos o puntos sensibles:
+- evitar bloqueo por default de funciones core consolidadas
+- evitar checks dispersos fuera de `Plan_Access_Service`
+- mantener alcance sin billing ni suscripciones reales
+
+Cambios tecnicos recientes confirmados:
+- gating mínimo aplicado en Reportes admin, CSV de reportes y catálogo admin de shortcodes
+- defaults de flags preservan compatibilidad hacia atrás
+- capa preparada para provider externo futuro vía filtros, sin integración remota real en esta fase
+
+--------------------------------------------------
+
+## Business Context / Tenancy Base
+
+Carpeta:
+- `includes/helpers/`
+
+Proposito:
+- centralizar una capa unica de contexto de negocio para evolucion futura a tenancy
+- mantener modo actual single-business sin activar multi-tenant real
+
+Tablas:
+- sin tablas nuevas
+- reutiliza `wp_options` via `sm_settings` (`business.business_context_key`)
+
+Clases principales:
+- `Business_Context_Service`
+
+Dependencias:
+- settings
+- core
+
+Estado:
+- implementado como preparacion arquitectonica en Fase 30
+
+Riesgos o puntos sensibles:
+- no activar filtros tenant-aware antes de definir `business_id` persistente
+- no duplicar resolucion de contexto en services de dominio
+- no alterar ownership actual mientras el runtime siga en single-business
+
+Cambios tecnicos recientes confirmados:
+- `Business_Context_Service` expone un contrato runtime explicito con:
+  - `mode = single_business`
+  - `business_context_key` desde `Settings_Service`
+  - `business_id = null` reservado para fases futuras
+  - `is_tenancy_active = false`
+- el wiring en `class-plugin.php` inicializa la capa sin cambiar comportamiento funcional existente
 
 --------------------------------------------------
 

@@ -135,6 +135,29 @@ class Settings_Service {
 		$settings['financial']['allow_partial_payments']      = ! empty( $settings['financial']['allow_partial_payments'] );
 		$settings['notifications']['enable_client_notifications'] = ! empty( $settings['notifications']['enable_client_notifications'] );
 		$settings['portal']['client_panel_enabled']           = ! empty( $settings['portal']['client_panel_enabled'] );
+		$settings['license']['license_key']                   = isset( $settings['license']['license_key'] ) ? trim( sanitize_text_field( (string) $settings['license']['license_key'] ) ) : '';
+		$settings['license']['status']                        = isset( $settings['license']['status'] ) ? sanitize_key( (string) $settings['license']['status'] ) : 'unknown';
+		$settings['license']['activated_at']                  = isset( $settings['license']['activated_at'] ) ? sanitize_text_field( (string) $settings['license']['activated_at'] ) : '';
+		$settings['license']['last_validated_at']             = isset( $settings['license']['last_validated_at'] ) ? sanitize_text_field( (string) $settings['license']['last_validated_at'] ) : '';
+		$settings['license']['provider']                      = isset( $settings['license']['provider'] ) ? sanitize_text_field( (string) $settings['license']['provider'] ) : 'local';
+		$settings['license']['message']                       = isset( $settings['license']['message'] ) ? sanitize_text_field( (string) $settings['license']['message'] ) : '';
+		$settings['updates']['provider']                      = isset( $settings['updates']['provider'] ) ? sanitize_text_field( (string) $settings['updates']['provider'] ) : 'local';
+		$settings['updates']['last_check_at']                 = isset( $settings['updates']['last_check_at'] ) ? sanitize_text_field( (string) $settings['updates']['last_check_at'] ) : '';
+		$settings['updates']['latest_version']                = isset( $settings['updates']['latest_version'] ) ? sanitize_text_field( (string) $settings['updates']['latest_version'] ) : '';
+		$settings['updates']['package_available']             = ! empty( $settings['updates']['package_available'] );
+		$settings['updates']['message']                       = isset( $settings['updates']['message'] ) ? sanitize_text_field( (string) $settings['updates']['message'] ) : '';
+		$settings['updates']['last_result']                   = isset( $settings['updates']['last_result'] ) ? sanitize_key( (string) $settings['updates']['last_result'] ) : 'no_update';
+		$settings['updates']['requires']                      = isset( $settings['updates']['requires'] ) ? sanitize_text_field( (string) $settings['updates']['requires'] ) : '';
+		$settings['updates']['tested']                        = isset( $settings['updates']['tested'] ) ? sanitize_text_field( (string) $settings['updates']['tested'] ) : '';
+		$settings['updates']['changelog']                     = isset( $settings['updates']['changelog'] ) ? sanitize_textarea_field( (string) $settings['updates']['changelog'] ) : '';
+		$settings['updates']['package_source_url']            = isset( $settings['updates']['package_source_url'] ) ? esc_url_raw( (string) $settings['updates']['package_source_url'] ) : '';
+		$settings['plan']['plan_key']                         = isset( $settings['plan']['plan_key'] ) ? Feature_Flags::sanitize_plan_key( $settings['plan']['plan_key'] ) : Feature_Flags::PLAN_CORE;
+		$settings['plan']['status']                           = isset( $settings['plan']['status'] ) ? sanitize_key( (string) $settings['plan']['status'] ) : 'inactive';
+		$settings['plan']['source']                           = isset( $settings['plan']['source'] ) ? sanitize_text_field( (string) $settings['plan']['source'] ) : 'local';
+		$settings['plan']['message']                          = isset( $settings['plan']['message'] ) ? sanitize_text_field( (string) $settings['plan']['message'] ) : '';
+		$settings['features']['feature_flags']                = isset( $settings['features']['feature_flags'] ) && is_array( $settings['features']['feature_flags'] )
+			? Feature_Flags::normalize_feature_flags( $settings['features']['feature_flags'] )
+			: array();
 
 		if ( empty( $settings['process']['enabled_process_types'] ) ) {
 			$settings['process']['enabled_process_types'] = $defaults['process']['enabled_process_types'];
@@ -179,6 +202,35 @@ class Settings_Service {
 			),
 			'portal'        => array(
 				'client_panel_enabled' => isset( $legacy['client_panel_enabled'] ) ? ! empty( $legacy['client_panel_enabled'] ) : true,
+			),
+			'license'       => array(
+				'license_key'       => '',
+				'status'            => 'inactive',
+				'activated_at'      => '',
+				'last_validated_at' => '',
+				'provider'          => 'local',
+				'message'           => '',
+			),
+			'updates'       => array(
+				'provider'           => 'local',
+				'last_check_at'      => '',
+				'latest_version'     => defined( 'SM_PLUGIN_VERSION' ) ? sanitize_text_field( (string) SM_PLUGIN_VERSION ) : '0.1.0',
+				'package_available'  => false,
+				'message'            => '',
+				'last_result'        => 'no_update',
+				'requires'           => '',
+				'tested'             => '',
+				'changelog'          => '',
+				'package_source_url' => '',
+			),
+			'plan'          => array(
+				'plan_key' => Feature_Flags::PLAN_CORE,
+				'status'   => 'inactive',
+				'source'   => 'local',
+				'message'  => '',
+			),
+			'features'      => array(
+				'feature_flags' => array(),
 			),
 		);
 	}

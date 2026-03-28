@@ -7,6 +7,9 @@
 
 namespace Super_Mechanic\Reports;
 
+use Super_Mechanic\Helpers\Feature_Flags;
+use Super_Mechanic\Helpers\Plan_Access_Service;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -19,14 +22,22 @@ class Report_Admin_Controller {
 	 * @var Report_Service
 	 */
 	protected $service;
+	/**
+	 * Plan access service.
+	 *
+	 * @var Plan_Access_Service
+	 */
+	protected $plan_access_service;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Report_Service|null $service Report service.
+	 * @param Report_Service|null      $service Report service.
+	 * @param Plan_Access_Service|null $plan_access_service Plan access service.
 	 */
-	public function __construct( Report_Service $service = null ) {
-		$this->service = $service ? $service : new Report_Service();
+	public function __construct( Report_Service $service = null, Plan_Access_Service $plan_access_service = null ) {
+		$this->service             = $service ? $service : new Report_Service();
+		$this->plan_access_service = $plan_access_service ? $plan_access_service : new Plan_Access_Service();
 	}
 
 	/**
@@ -46,6 +57,13 @@ class Report_Admin_Controller {
 	public function render_page() {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->plan_access_service->is_feature_enabled( Feature_Flags::FEATURE_ADMIN_REPORTS ) ) {
+			echo '<div class="wrap sm-admin-shell">';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'The reports screen is currently disabled by feature flags.', 'super-mechanic' ) . '</p></div>';
+			echo '</div>';
+			return;
 		}
 
 		$filters          = $this->service->validate_filters( wp_unslash( $_GET ) );
@@ -77,6 +95,10 @@ class Report_Admin_Controller {
 	public function handle_csv_export() {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'No tienes permisos suficientes para exportar reportes.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->plan_access_service->is_feature_enabled( Feature_Flags::FEATURE_REPORTS_CSV_EXPORT ) ) {
+			wp_die( esc_html__( 'CSV export is disabled by feature flags.', 'super-mechanic' ) );
 		}
 
 		check_admin_referer( 'sm_export_report_csv', 'sm_report_export_nonce' );
