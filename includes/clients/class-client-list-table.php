@@ -119,6 +119,15 @@ class Client_List_Table extends \WP_List_Table {
 	 * @return string
 	 */
 	protected function column_first_name( $item ) {
+		$view_url = add_query_arg(
+			array(
+				'page'   => 'super-mechanic-clients',
+				'action' => 'view',
+				'id'     => absint( $item['id'] ),
+			),
+			admin_url( 'admin.php' )
+		);
+
 		$edit_url = add_query_arg(
 			array(
 				'page'   => 'super-mechanic-clients',
@@ -141,6 +150,7 @@ class Client_List_Table extends \WP_List_Table {
 		);
 
 		$actions = array(
+			'view'   => '<a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Ver', 'super-mechanic' ) . '</a>',
 			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a>',
 			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
 		);

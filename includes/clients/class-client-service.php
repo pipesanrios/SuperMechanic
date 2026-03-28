@@ -148,6 +148,10 @@ class Client_Service {
 			$errors->add( 'first_name_required', __( 'El nombre es obligatorio.', 'super-mechanic' ) );
 		}
 
+		if ( empty( $data['email'] ) ) {
+			$errors->add( 'email_required', __( 'El correo electrónico es obligatorio.', 'super-mechanic' ) );
+		}
+
 		if ( ! empty( $data['email'] ) && ! is_email( $data['email'] ) ) {
 			$errors->add( 'invalid_email', __( 'El correo electrónico no es válido.', 'super-mechanic' ) );
 		}
@@ -158,6 +162,14 @@ class Client_Service {
 
 		if ( ! empty( $data['document_id'] ) && $this->is_duplicate_document_id( $data['document_id'], $client_id ) ) {
 			$errors->add( 'duplicate_document_id', __( 'Ya existe un cliente con este documento.', 'super-mechanic' ) );
+		}
+
+		if ( empty( $data['phone'] ) ) {
+			$errors->add( 'phone_required', __( 'El teléfono es obligatorio.', 'super-mechanic' ) );
+		}
+
+		if ( empty( $data['document_id'] ) ) {
+			$errors->add( 'document_id_required', __( 'El documento es obligatorio.', 'super-mechanic' ) );
 		}
 
 		if ( $is_update && $client_id <= 0 ) {

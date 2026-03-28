@@ -73,6 +73,8 @@ class Process_Repository {
 				'client_id'    => 0,
 				'process_type' => '',
 				'status'       => '',
+				'date_from'    => '',
+				'date_to'      => '',
 				'page'         => 1,
 				'per_page'     => 20,
 				'orderby'      => 'created_at',
@@ -115,6 +117,8 @@ class Process_Repository {
 				'client_id'    => 0,
 				'process_type' => '',
 				'status'       => '',
+				'date_from'    => '',
+				'date_to'      => '',
 			)
 		);
 
@@ -287,8 +291,9 @@ class Process_Repository {
 				'exclude_statuses' => array(),
 			)
 		);
-		$conditions = array( 'm.mechanic_id = %d' );
+		$conditions = array( '(m.mechanic_id = %d OR p.assigned_to = %d)' );
 		$params     = array( $user_id );
+		$params[]   = $user_id;
 
 		if ( '' !== $args['status'] ) {
 			$conditions[] = 'p.status = %s';
@@ -315,7 +320,7 @@ class Process_Repository {
 		$sql      = $wpdb->prepare(
 			"SELECT p.*, CONCAT_WS(' ', c.first_name, c.last_name) AS client_name, v.make AS vehicle_make, v.model AS vehicle_model, v.plate AS vehicle_plate, v.vin AS vehicle_vin
 			FROM {$this->get_table_name()} p
-			INNER JOIN {$tables['maintenance']} m ON m.process_id = p.id
+			LEFT JOIN {$tables['maintenance']} m ON m.process_id = p.id
 			LEFT JOIN {$tables['clients']} c ON c.id = p.client_id
 			LEFT JOIN {$tables['vehicles']} v ON v.id = p.vehicle_id
 			WHERE {$where}
@@ -393,6 +398,14 @@ class Process_Repository {
 			$clauses[] = 'p.status = %s';
 		}
 
+		if ( ! empty( $args['date_from'] ) ) {
+			$clauses[] = 'p.created_at >= %s';
+		}
+
+		if ( ! empty( $args['date_to'] ) ) {
+			$clauses[] = 'p.created_at <= %s';
+		}
+
 		if ( empty( $clauses ) ) {
 			return '';
 		}
@@ -424,6 +437,14 @@ class Process_Repository {
 
 		if ( ! empty( $args['status'] ) ) {
 			$params[] = (string) $args['status'];
+		}
+
+		if ( ! empty( $args['date_from'] ) ) {
+			$params[] = sanitize_text_field( (string) $args['date_from'] ) . ' 00:00:00';
+		}
+
+		if ( ! empty( $args['date_to'] ) ) {
+			$params[] = sanitize_text_field( (string) $args['date_to'] ) . ' 23:59:59';
 		}
 
 		return $params;

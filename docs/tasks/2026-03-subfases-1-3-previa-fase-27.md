@@ -148,22 +148,63 @@ Este bloque existe para estabilizar el producto antes de abrir la capa API de Fa
 ## Estado
 
 - Estado inicial: pendiente
-- Estado final: completar al cierre
+- Estado final: completado parcial y validado a nivel técnico local
 
 ---
 
 ## Notas técnicas finales
 
-Pendiente de completar al finalizar implementación.
+- Se corrigió la navegación útil del dashboard admin:
+  - KPIs clicables para clientes, vehículos y procesos
+  - accesos clicables desde tablas recientes
+  - resumen por estado y tipo enlazado a filtros reales del listado de procesos
+- Se agregó acción `Ver` y vista detalle para clientes:
+  - datos completos del cliente
+  - vehículos vinculados mediante `Client_Vehicle_Service`
+  - procesos relacionados mediante `Process_Service`
+  - validación obligatoria de `email`, `phone` y `document_id`
+- Se agregó acción `Ver` y vista detalle para vehículos:
+  - cliente principal
+  - procesos relacionados
+  - historial de relaciones cliente-vehículo reutilizando `relations`
+  - validación obligatoria de `client_id`
+  - validación VIN obligatorio cuando no hay placa
+- En procesos:
+  - comentarios editables y eliminables reutilizando `Comment_Service`
+  - adjuntos con acción útil `Abrir`
+- En invoices:
+  - se mantuvo la apertura del detalle por proceso
+  - el listado ahora expone descarga PDF cuando el motor PDF está disponible
+- En panel mecánico:
+  - naming visible unificado a español
+  - etiquetas KPI ajustadas para evitar ambigüedad semántica
+  - adjuntos con acción `Abrir`
+- En panel de shortcodes:
+  - endurecido el botón copiar con fallback más fiable en `assets/js/admin.js`
 
 ---
 
 ## Deuda técnica abierta
 
-Pendiente de completar al finalizar implementación.
+- smoke test real ejecutado con resultado `PARCIAL`; ver `docs/QA_REPORT.md`
+- no se implementó flujo admin para vincular o crear usuario WordPress cliente; el runtime actual sigue dependiendo de `user_meta` `sm_client_id`
+- no se agregaron campos `insurance_expiry_date`, `plate_expiry_date` ni `inspection_expiry_date` porque no existen en la arquitectura activa y el bloque prohíbe ampliar schema sin justificación crítica
+- la descarga admin de PDF de invoices sigue dependiendo de disponibilidad real del motor PDF configurado
+- `payment_receipt` no se amplió en UI admin porque no apareció un bug estructural en la ruta documental activa dentro de este bloque
+- upload de adjuntos sigue pendiente de confirmación browser-admin real; la validación por CLI devolvió `Specified file failed upload test.`
 
 ---
 
 ## Resultado esperado
 
 Producto más usable y estable antes de Fase 27, sin ampliar alcance ni introducir deuda innecesaria.
+
+## Validaciones ejecutadas
+
+- `php -l` OK en todos los PHP modificados
+- `php scripts/php-lint.php --all` OK
+- `php scripts/structure-check.php` OK
+- `php scripts/technical-checklist.php --task=docs/tasks/2026-03-subfases-1-3-previa-fase-27.md` OK
+- smoke test real ejecutado en WordPress runtime local el 2026-03-27
+- resultado runtime: `PARCIAL`
+- detalle de evidencias y límites en `docs/QA_REPORT.md`

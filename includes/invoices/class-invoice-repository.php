@@ -121,8 +121,11 @@ class Invoice_Repository {
 				'process_id' => 0,
 				'quote_id'   => 0,
 				'client_id'  => 0,
+				'process_type' => '',
 				'status'     => '',
 				'search'     => '',
+				'date_from'  => '',
+				'date_to'    => '',
 				'page'       => 1,
 				'per_page'   => 20,
 				'orderby'    => 'created_at',
@@ -170,8 +173,11 @@ class Invoice_Repository {
 				'process_id' => 0,
 				'quote_id'   => 0,
 				'client_id'  => 0,
+				'process_type' => '',
 				'status'     => '',
 				'search'     => '',
+				'date_from'  => '',
+				'date_to'    => '',
 			)
 		);
 		$where = $this->build_where_clause( $args );
@@ -270,8 +276,21 @@ class Invoice_Repository {
 			$clauses[] = 'i.status = %s';
 		}
 
+		if ( '' !== $args['process_type'] ) {
+			$tables    = Schema::get_tables();
+			$clauses[] = "i.process_id IN (SELECT id FROM {$tables['processes']} WHERE process_type = %s)";
+		}
+
 		if ( '' !== $args['search'] ) {
 			$clauses[] = '(i.invoice_number LIKE %s OR i.notes LIKE %s)';
+		}
+
+		if ( '' !== $args['date_from'] ) {
+			$clauses[] = 'i.created_at >= %s';
+		}
+
+		if ( '' !== $args['date_to'] ) {
+			$clauses[] = 'i.created_at <= %s';
 		}
 
 		if ( empty( $clauses ) ) {
@@ -308,10 +327,22 @@ class Invoice_Repository {
 			$params[] = (string) $args['status'];
 		}
 
+		if ( '' !== $args['process_type'] ) {
+			$params[] = sanitize_key( (string) $args['process_type'] );
+		}
+
 		if ( '' !== $args['search'] ) {
 			$search   = '%' . $wpdb->esc_like( (string) $args['search'] ) . '%';
 			$params[] = $search;
 			$params[] = $search;
+		}
+
+		if ( '' !== $args['date_from'] ) {
+			$params[] = sanitize_text_field( (string) $args['date_from'] ) . ' 00:00:00';
+		}
+
+		if ( '' !== $args['date_to'] ) {
+			$params[] = sanitize_text_field( (string) $args['date_to'] ) . ' 23:59:59';
 		}
 
 		return $params;

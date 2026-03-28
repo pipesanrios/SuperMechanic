@@ -10,6 +10,7 @@ namespace Super_Mechanic\Attachments;
 use Super_Mechanic\Dashboard\Client_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Download_Service;
+use Super_Mechanic\Helpers\Permission_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -21,12 +22,14 @@ class Client_Attachment_Shortcodes {
 	protected $dashboard_service;
 	protected $attachment_service;
 	protected $download_service;
+	protected $permission_service;
 
-	public function __construct( Client_Dashboard_Controller $client_dashboard_controller = null, Dashboard_Service $dashboard_service = null, Attachment_Service $attachment_service = null, Download_Service $download_service = null ) {
+	public function __construct( Client_Dashboard_Controller $client_dashboard_controller = null, Dashboard_Service $dashboard_service = null, Attachment_Service $attachment_service = null, Download_Service $download_service = null, Permission_Service $permission_service = null ) {
 		$this->client_dashboard_controller = $client_dashboard_controller ? $client_dashboard_controller : new Client_Dashboard_Controller();
 		$this->dashboard_service           = $dashboard_service ? $dashboard_service : new Dashboard_Service();
 		$this->attachment_service          = $attachment_service ? $attachment_service : new Attachment_Service();
 		$this->download_service            = $download_service ? $download_service : new Download_Service();
+		$this->permission_service          = $permission_service ? $permission_service : new Permission_Service();
 	}
 
 	public function register_hooks() {
@@ -42,6 +45,9 @@ class Client_Attachment_Shortcodes {
 		}
 
 		$process_id = absint( $atts['process_id'] );
+		if ( ! $process_id && isset( $_GET['process_id'] ) ) {
+			$process_id = absint( wp_unslash( $_GET['process_id'] ) );
+		}
 
 		if ( ! $process_id || ! $this->dashboard_service->user_can_access_client_process( get_current_user_id(), $process_id ) ) {
 			return '<p>' . esc_html__( 'No tienes acceso a los documentos de este proceso.', 'super-mechanic' ) . '</p>';
@@ -82,6 +88,9 @@ class Client_Attachment_Shortcodes {
 		}
 
 		$process_id = absint( $atts['process_id'] );
+		if ( ! $process_id && isset( $_GET['process_id'] ) ) {
+			$process_id = absint( wp_unslash( $_GET['process_id'] ) );
+		}
 
 		if ( ! $process_id || ! $this->dashboard_service->user_can_access_client_process( get_current_user_id(), $process_id ) ) {
 			return '<p>' . esc_html__( 'No tienes acceso a la timeline de este proceso.', 'super-mechanic' ) . '</p>';
@@ -91,23 +100,11 @@ class Client_Attachment_Shortcodes {
 	}
 
 	protected function can_render_process_content() {
-		if ( ! is_user_logged_in() ) {
-			return false;
-		}
-
-		if ( ! current_user_can( 'sm_view_own_processes' ) ) {
-			return false;
-		}
-
-		return (bool) $this->dashboard_service->get_client_id_by_user_id( get_current_user_id() );
+		return ! is_wp_error( $this->permission_service->user_can_access_client_portal( get_current_user_id() ) );
 	}
 
 	protected function get_access_denied_message() {
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesión para ver esta información.', 'super-mechanic' ) . '</p>';
-		}
-
-		return '<p>' . esc_html__( 'No tiene permisos para ver esta información.', 'super-mechanic' ) . '</p>';
+		return $this->permission_service->get_error_message( $this->permission_service->user_can_access_client_portal( get_current_user_id() ) );
 	}
 
 	/**

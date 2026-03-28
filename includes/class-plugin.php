@@ -17,10 +17,13 @@ use Super_Mechanic\Communication\Comment_Service;
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Communication\Notification_Service;
 use Super_Mechanic\Dashboard\Admin_Dashboard_Controller;
+use Super_Mechanic\Dashboard\Admin_REST_Controller;
 use Super_Mechanic\Dashboard\Client_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Client_Dashboard_Shortcodes;
+use Super_Mechanic\Dashboard\Client_REST_Controller;
 use Super_Mechanic\Dashboard\Client_Process_View_Service;
 use Super_Mechanic\Dashboard\Dashboard_Service;
+use Super_Mechanic\Dashboard\Mechanic_Dashboard_Shortcodes;
 use Super_Mechanic\Dashboard\Mechanic_Dashboard_Controller;
 use Super_Mechanic\Database\Migrator;
 use Super_Mechanic\Database\Schema;
@@ -72,6 +75,7 @@ class Plugin {
 	protected $dashboard_service;
 	protected $admin_dashboard_controller;
 	protected $mechanic_dashboard_controller;
+	protected $mechanic_dashboard_shortcodes;
 	protected $client_dashboard_controller;
 	protected $client_dashboard_shortcodes;
 	protected $quote_service;
@@ -96,6 +100,8 @@ class Plugin {
 	protected $report_admin_controller;
 	protected $shortcode_admin_controller;
 	protected $client_process_view_service;
+	protected $client_rest_controller;
+	protected $admin_rest_controller;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -120,6 +126,8 @@ class Plugin {
 		$this->event_dispatcher              = Event_Dispatcher::get_instance( $this->notification_service, $this->document_service );
 		$this->comment_service               = new Comment_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->event_dispatcher );
 		$this->client_process_view_service   = new Client_Process_View_Service( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->comment_service );
+		$this->client_rest_controller        = new Client_REST_Controller( $this->dashboard_service, $this->client_process_view_service, null, $this->quote_service, $this->process_service, $this->invoice_service );
+		$this->admin_rest_controller         = new Admin_REST_Controller( $this->process_service, null, null, $this->quote_service, $this->invoice_service, $this->comment_service );
 		$this->process_timeline_service      = new Process_Timeline_Service( $this->process_service, $this->attachment_service, $this->quote_service, $this->invoice_service, $this->comment_service, $this->notification_service );
 		$this->maintenance_admin_controller  = new Maintenance_Admin_Controller( $this->maintenance_service );
 		$this->pre_delivery_admin_controller = new Pre_Delivery_Admin_Controller( $this->pre_delivery_service );
@@ -143,6 +151,7 @@ class Plugin {
 		$this->admin_dashboard_controller    = new Admin_Dashboard_Controller( $this->dashboard_service );
 		$this->report_admin_controller       = new Report_Admin_Controller( $this->report_service );
 		$this->mechanic_dashboard_controller = new Mechanic_Dashboard_Controller( $this->dashboard_service, $this->process_service, $this->process_timeline_service, $this->comment_service, $this->attachment_service, $this->maintenance_service, null, $this->download_service );
+		$this->mechanic_dashboard_shortcodes = new Mechanic_Dashboard_Shortcodes( $this->mechanic_dashboard_controller );
 		$this->client_dashboard_controller   = new Client_Dashboard_Controller( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->process_timeline_service, $this->comment_service, $this->notification_service, $this->download_service, $this->client_process_view_service );
 		$this->client_dashboard_shortcodes   = new Client_Dashboard_Shortcodes( $this->client_dashboard_controller, $this->dashboard_service );
 		$this->client_attachment_shortcodes  = new Client_Attachment_Shortcodes( $this->client_dashboard_controller, $this->dashboard_service, $this->attachment_service, $this->download_service );
@@ -190,10 +199,13 @@ class Plugin {
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();
+		$this->mechanic_dashboard_shortcodes->register_hooks();
 		$this->client_attachment_shortcodes->register_hooks();
 		$this->client_quote_shortcodes->register_hooks();
 		$this->client_invoice_shortcodes->register_hooks();
 		$this->client_comment_shortcodes->register_hooks();
+		$this->client_rest_controller->register_hooks();
+		$this->admin_rest_controller->register_hooks();
 	}
 
 	protected function maybe_upgrade_schema() {

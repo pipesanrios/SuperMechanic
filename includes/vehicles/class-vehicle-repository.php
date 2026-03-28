@@ -77,6 +77,10 @@ class Vehicle_Repository {
 			$args,
 			array(
 				'search'      => '',
+				'status'      => '',
+				'type'        => '',
+				'date_from'   => '',
+				'date_to'     => '',
 				'page'        => 1,
 				'per_page'    => 20,
 				'orderby'     => 'created_at',
@@ -123,6 +127,10 @@ class Vehicle_Repository {
 			$args,
 			array(
 				'search'      => '',
+				'status'      => '',
+				'type'        => '',
+				'date_from'   => '',
+				'date_to'     => '',
 				'exclude_id'  => 0,
 				'exact_vin'   => '',
 				'exact_plate' => '',
@@ -227,6 +235,22 @@ class Vehicle_Repository {
 			$clauses[] = 'v.plate = %s';
 		}
 
+		if ( ! empty( $args['status'] ) ) {
+			$clauses[] = 'v.status = %s';
+		}
+
+		if ( ! empty( $args['type'] ) ) {
+			$clauses[] = 'v.type = %s';
+		}
+
+		if ( ! empty( $args['date_from'] ) ) {
+			$clauses[] = 'v.created_at >= %s';
+		}
+
+		if ( ! empty( $args['date_to'] ) ) {
+			$clauses[] = 'v.created_at <= %s';
+		}
+
 		if ( null !== $args['client_id'] ) {
 			$clauses[] = 'v.client_id = %d';
 		}
@@ -265,6 +289,22 @@ class Vehicle_Repository {
 
 		if ( ! empty( $args['exact_plate'] ) ) {
 			$params[] = (string) $args['exact_plate'];
+		}
+
+		if ( ! empty( $args['status'] ) ) {
+			$params[] = sanitize_key( (string) $args['status'] );
+		}
+
+		if ( ! empty( $args['type'] ) ) {
+			$params[] = sanitize_key( (string) $args['type'] );
+		}
+
+		if ( ! empty( $args['date_from'] ) ) {
+			$params[] = sanitize_text_field( (string) $args['date_from'] ) . ' 00:00:00';
+		}
+
+		if ( ! empty( $args['date_to'] ) ) {
+			$params[] = sanitize_text_field( (string) $args['date_to'] ) . ' 23:59:59';
 		}
 
 		if ( null !== $args['client_id'] ) {

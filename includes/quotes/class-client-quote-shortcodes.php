@@ -10,6 +10,7 @@ namespace Super_Mechanic\Quotes;
 use Super_Mechanic\Assets;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Download_Service;
+use Super_Mechanic\Helpers\Permission_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,11 +21,13 @@ class Client_Quote_Shortcodes {
 	protected $service;
 	protected $dashboard_service;
 	protected $download_service;
+	protected $permission_service;
 
-	public function __construct( Quote_Service $service = null, Dashboard_Service $dashboard_service = null, Download_Service $download_service = null ) {
+	public function __construct( Quote_Service $service = null, Dashboard_Service $dashboard_service = null, Download_Service $download_service = null, Permission_Service $permission_service = null ) {
 		$this->service           = $service ? $service : new Quote_Service();
 		$this->dashboard_service = $dashboard_service ? $dashboard_service : new Dashboard_Service();
 		$this->download_service  = $download_service ? $download_service : new Download_Service();
+		$this->permission_service = $permission_service ? $permission_service : new Permission_Service();
 	}
 
 	public function register_hooks() {
@@ -162,7 +165,9 @@ class Client_Quote_Shortcodes {
 		if ( ! is_user_logged_in() ) {
 			return '<p>' . esc_html__( 'Debe iniciar sesión para gestionar sus cotizaciones.', 'super-mechanic' ) . '</p>';
 		}
-		if ( 'POST' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) || empty( $_POST['sm_client_quote_action'] ) ) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
+
+		if ( 'POST' !== $request_method || empty( $_POST['sm_client_quote_action'] ) ) {
 			return '';
 		}
 
@@ -192,14 +197,10 @@ class Client_Quote_Shortcodes {
 	}
 
 	protected function guard_access() {
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesión para continuar.', 'super-mechanic' ) . '</p>';
-		}
-		if ( ! current_user_can( 'sm_view_own_processes' ) && ! current_user_can( 'sm_view_own_vehicles' ) ) {
-			return '<p>' . esc_html__( 'No tiene permisos para ver cotizaciones.', 'super-mechanic' ) . '</p>';
-		}
-		if ( ! $this->dashboard_service->get_client_id_by_user_id( get_current_user_id() ) ) {
-			return '<p>' . esc_html__( 'No hay un cliente vinculado a su usuario.', 'super-mechanic' ) . '</p>';
+		$permission = $this->permission_service->user_can_access_client_portal( get_current_user_id() );
+
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
 		}
 
 		return '';

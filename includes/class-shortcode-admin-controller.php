@@ -41,7 +41,7 @@ class Shortcode_Admin_Controller {
 		echo '<section class="sm-section">';
 		echo '<div class="sm-grid sm-grid-cards">';
 		echo $this->render_kpi_card( __( 'Cliente', 'super-mechanic' ), count( $groups['client'] ), __( 'Shortcodes activos para Client Portal y áreas autenticadas.', 'super-mechanic' ) );
-		echo $this->render_kpi_card( __( 'Mecánico', 'super-mechanic' ), count( $groups['mechanic'] ), __( 'Hoy no hay shortcodes mecánicos activos en el bootstrap real.', 'super-mechanic' ) );
+		echo $this->render_kpi_card( __( 'Mecánico', 'super-mechanic' ), count( $groups['mechanic'] ), __( 'Shortcodes activos para portal mecánico frontend con permisos y ownership reutilizables.', 'super-mechanic' ) );
 		echo $this->render_kpi_card( __( 'General', 'super-mechanic' ), count( $groups['general'] ), __( 'Espacio reservado para shortcodes públicos o neutros futuros.', 'super-mechanic' ) );
 		echo '</div>';
 		echo '</section>';
@@ -65,7 +65,7 @@ class Shortcode_Admin_Controller {
 		$this->render_group_section(
 			'mechanic',
 			__( 'Shortcodes de mecánico', 'super-mechanic' ),
-			__( 'Reservado para shortcodes operativos de mecánico si en una fase futura se cablean al runtime real.', 'super-mechanic' ),
+			__( 'Pensados para portal mecánico frontend con acceso restringido por rol.', 'super-mechanic' ),
 			$groups['mechanic']
 		);
 		$this->render_group_section(
@@ -235,6 +235,26 @@ class Shortcode_Admin_Controller {
 	 */
 	protected function get_shortcode_catalog() {
 		return array(
+			array(
+				'tag'                 => 'sm_mechanic_dashboard',
+				'group'               => 'mechanic',
+				'description'         => __( 'Renderiza el portal mecánico frontend con KPIs, filtros, detalle de proceso y acciones seguras sobre procesos permitidos.', 'super-mechanic' ),
+				'parameters'          => array(),
+				'example'             => '[sm_mechanic_dashboard]',
+				'recommended_context' => __( 'Mecánico', 'super-mechanic' ),
+				'usage_scope'         => __( 'Página privada autenticada para el rol mecánico.', 'super-mechanic' ),
+				'source'              => 'includes/dashboard/class-mechanic-dashboard-shortcodes.php',
+			),
+			array(
+				'tag'                 => 'sm_mechanic_processes',
+				'group'               => 'mechanic',
+				'description'         => __( 'Lista los procesos visibles para el mecánico autenticado con acceso a detalle y filtros básicos.', 'super-mechanic' ),
+				'parameters'          => array(),
+				'example'             => '[sm_mechanic_processes]',
+				'recommended_context' => __( 'Mecánico', 'super-mechanic' ),
+				'usage_scope'         => __( 'Página privada o bloque específico dentro del portal mecánico.', 'super-mechanic' ),
+				'source'              => 'includes/dashboard/class-mechanic-dashboard-shortcodes.php',
+			),
 			array(
 				'tag'                 => 'sm_client_dashboard',
 				'group'               => 'client',

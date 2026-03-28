@@ -96,8 +96,10 @@ class Attachment_Service {
 			return new WP_Error( 'sm_attachment_not_found', __( 'El documento adjunto no existe.', 'super-mechanic' ) );
 		}
 
-		if ( ! empty( $attachment['file_path'] ) && file_exists( $attachment['file_path'] ) ) {
-			wp_delete_file( $attachment['file_path'] );
+		$file_path = $this->resolve_attachment_file_path( $attachment );
+
+		if ( ! is_wp_error( $file_path ) && file_exists( $file_path ) ) {
+			wp_delete_file( $file_path );
 		}
 
 		if ( ! $this->repository->delete( $attachment_id ) ) {
@@ -148,7 +150,7 @@ class Attachment_Service {
 		if ( ! empty( $attachment['file_path'] ) ) {
 			$path = wp_normalize_path( (string) $attachment['file_path'] );
 
-			if ( file_exists( $path ) && is_readable( $path ) ) {
+			if ( $this->is_safe_upload_path( $path ) && file_exists( $path ) && is_readable( $path ) ) {
 				return $path;
 			}
 		}
@@ -160,7 +162,7 @@ class Attachment_Service {
 				$relative = ltrim( substr( (string) $attachment['file_url'], strlen( (string) $uploads['baseurl'] ) ), '/\\' );
 				$path     = wp_normalize_path( trailingslashit( $uploads['basedir'] ) . str_replace( array( '/', '\\' ), DIRECTORY_SEPARATOR, $relative ) );
 
-				if ( file_exists( $path ) && is_readable( $path ) ) {
+				if ( $this->is_safe_upload_path( $path ) && file_exists( $path ) && is_readable( $path ) ) {
 					return $path;
 				}
 			}
@@ -354,5 +356,23 @@ class Attachment_Service {
 			'is_client_visible' => ! empty( $data['is_client_visible'] ) ? 1 : 0,
 			'uploaded_by'       => isset( $data['uploaded_by'] ) ? absint( $data['uploaded_by'] ) : get_current_user_id(),
 		);
+	}
+
+	/**
+	 * Check whether a file path stays inside the WordPress uploads directory.
+	 *
+	 * @param string $path Candidate local path.
+	 * @return bool
+	 */
+	protected function is_safe_upload_path( $path ) {
+		$path    = wp_normalize_path( (string) $path );
+		$uploads = wp_get_upload_dir();
+		$base    = ! empty( $uploads['basedir'] ) ? wp_normalize_path( trailingslashit( $uploads['basedir'] ) ) : '';
+
+		if ( '' === $path || '' === $base ) {
+			return false;
+		}
+
+		return 0 === strpos( $path, $base );
 	}
 }

@@ -118,13 +118,27 @@ class Settings_Service {
 		}
 
 		$settings['business']['business_name']                = sanitize_text_field( $settings['business']['business_name'] );
+		$settings['business']['business_context_key']         = sanitize_key( $settings['business']['business_context_key'] );
 		$settings['business']['currency']                     = sanitize_text_field( $settings['business']['currency'] );
 		$settings['business']['timezone']                     = sanitize_text_field( $settings['business']['timezone'] );
+		$settings['business']['locale']                       = sanitize_text_field( $settings['business']['locale'] );
+		$settings['business']['date_format']                  = sanitize_text_field( $settings['business']['date_format'] );
+		$settings['process']['enabled_process_types']         = array_values(
+			array_intersect(
+				array( 'maintenance', 'pre_delivery', 'paperwork' ),
+				is_array( $settings['process']['enabled_process_types'] ) ? array_map( 'sanitize_key', $settings['process']['enabled_process_types'] ) : array()
+			)
+		);
 		$settings['process']['allow_step_back']               = ! empty( $settings['process']['allow_step_back'] );
 		$settings['process']['auto_complete_on_final_step']   = ! empty( $settings['process']['auto_complete_on_final_step'] );
 		$settings['financial']['default_tax_rate']            = round( (float) str_replace( ',', '.', (string) $settings['financial']['default_tax_rate'] ), 2 );
 		$settings['financial']['allow_partial_payments']      = ! empty( $settings['financial']['allow_partial_payments'] );
 		$settings['notifications']['enable_client_notifications'] = ! empty( $settings['notifications']['enable_client_notifications'] );
+		$settings['portal']['client_panel_enabled']           = ! empty( $settings['portal']['client_panel_enabled'] );
+
+		if ( empty( $settings['process']['enabled_process_types'] ) ) {
+			$settings['process']['enabled_process_types'] = $defaults['process']['enabled_process_types'];
+		}
 
 		return $settings;
 	}
@@ -144,11 +158,15 @@ class Settings_Service {
 
 		return array(
 			'business'      => array(
-				'business_name' => ! empty( $legacy['company_name'] ) ? sanitize_text_field( $legacy['company_name'] ) : 'Super Mechanic',
-				'currency'      => ! empty( $legacy['default_currency'] ) ? sanitize_text_field( $legacy['default_currency'] ) : 'USD',
-				'timezone'      => $timezone,
+				'business_name'        => ! empty( $legacy['company_name'] ) ? sanitize_text_field( $legacy['company_name'] ) : 'Super Mechanic',
+				'business_context_key' => 'default',
+				'currency'             => ! empty( $legacy['default_currency'] ) ? sanitize_text_field( $legacy['default_currency'] ) : 'USD',
+				'timezone'             => $timezone,
+				'locale'               => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
+				'date_format'          => ! empty( $legacy['date_format'] ) ? sanitize_text_field( $legacy['date_format'] ) : 'Y-m-d',
 			),
 			'process'       => array(
+				'enabled_process_types'      => ! empty( $legacy['enabled_process_types'] ) && is_array( $legacy['enabled_process_types'] ) ? array_values( array_map( 'sanitize_key', $legacy['enabled_process_types'] ) ) : array( 'maintenance', 'pre_delivery', 'paperwork' ),
 				'allow_step_back'             => true,
 				'auto_complete_on_final_step' => true,
 			),
@@ -158,6 +176,9 @@ class Settings_Service {
 			),
 			'notifications' => array(
 				'enable_client_notifications' => true,
+			),
+			'portal'        => array(
+				'client_panel_enabled' => isset( $legacy['client_panel_enabled'] ) ? ! empty( $legacy['client_panel_enabled'] ) : true,
 			),
 		);
 	}

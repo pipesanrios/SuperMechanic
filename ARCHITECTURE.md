@@ -244,7 +244,7 @@ Reglas:
 
 ## Deuda técnica activa
 
-- REST API todavía no conectada al runtime real
+- REST API interna autenticada conectada al runtime real (`includes/dashboard/class-client-rest-controller.php` y `includes/dashboard/class-admin-rest-controller.php`)
 - rutas admin de PDF de quotes/invoices siguen como excepción controlada
 - `Process_Admin_Controller` y `Report_Service` siguen siendo puntos a vigilar
 - no existe CI/CD real todavía

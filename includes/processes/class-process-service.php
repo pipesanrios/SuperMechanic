@@ -358,6 +358,43 @@ class Process_Service {
 		return is_array( $relation ) && ! empty( $relation['client_id'] ) ? absint( $relation['client_id'] ) : 0;
 	}
 
+	public function is_active_status( $status ) {
+		return ! in_array( sanitize_key( $status ), $this->final_statuses, true );
+	}
+
+	public function get_vehicle_process_history( $vehicle_id, $limit = 100 ) {
+		$vehicle_id = absint( $vehicle_id );
+
+		if ( $vehicle_id <= 0 ) {
+			return array();
+		}
+
+		return $this->get_processes(
+			array(
+				'vehicle_id' => $vehicle_id,
+				'per_page'   => absint( $limit ),
+				'orderby'    => 'created_at',
+				'order'      => 'DESC',
+			)
+		);
+	}
+
+	public function get_active_vehicle_process( $vehicle_id, $exclude_process_id = 0 ) {
+		$exclude_process_id = absint( $exclude_process_id );
+
+		foreach ( $this->get_vehicle_process_history( $vehicle_id, 100 ) as $process ) {
+			if ( $exclude_process_id > 0 && absint( $process['id'] ) === $exclude_process_id ) {
+				continue;
+			}
+
+			if ( $this->is_active_status( isset( $process['status'] ) ? $process['status'] : '' ) ) {
+				return $process;
+			}
+		}
+
+		return null;
+	}
+
 	/**
 	 * Resolve the applicable flow ID for a process payload.
 	 *

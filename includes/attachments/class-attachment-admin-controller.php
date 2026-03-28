@@ -164,10 +164,10 @@ class Attachment_Admin_Controller {
 				echo '<tr>';
 				echo '<td>' . esc_html( $attachment['title'] ) . '<br /><small>' . esc_html( $attachment['description'] ) . '</small></td>';
 				echo '<td>' . esc_html( $attachment['attachment_type'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $this->download_service->get_download_url( 'attachment', absint( $attachment['id'] ) ) ) . '">' . esc_html__( 'Descargar archivo', 'super-mechanic' ) . '</a><br /><small>' . esc_html( $attachment['mime_type'] ) . '</small></td>';
+				echo '<td><a href="' . esc_url( $this->download_service->get_download_url( 'attachment', absint( $attachment['id'] ) ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Abrir documento', 'super-mechanic' ) . '</a><br /><small>' . esc_html( $attachment['mime_type'] ) . '</small></td>';
 				echo '<td>' . esc_html( ! empty( $attachment['is_internal'] ) ? __( 'Interno', 'super-mechanic' ) : __( 'Operativo', 'super-mechanic' ) ) . ' / ' . esc_html( ! empty( $attachment['is_client_visible'] ) ? __( 'Visible cliente', 'super-mechanic' ) : __( 'Oculto cliente', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( $attachment['created_at'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $toggle_url ) . '">' . esc_html__( 'Cambiar visibilidad', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Eliminar este documento?', 'super-mechanic' ) ) . '\');">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $this->download_service->get_download_url( 'attachment', absint( $attachment['id'] ) ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Abrir', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $toggle_url ) . '">' . esc_html__( 'Cambiar visibilidad', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Eliminar este documento?', 'super-mechanic' ) ) . '\');">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}

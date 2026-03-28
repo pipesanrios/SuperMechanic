@@ -842,8 +842,33 @@ Estado:
 - no integrado al flujo principal del plugin
 
 Riesgos o puntos sensibles:
-- el bootstrap real no usa esta capa hoy
-- no asumir API REST funcional mientras no se integre en `class-plugin.php`
+- mantener el scope de 27A read-only para no abrir regresiones de seguridad
+- no asumir write/API pública funcional mientras no se abra 27B/27C con hardening específico
+
+Actualización Fase 27A:
+- estado:
+  - implementado (base segura cliente, alcance read-only)
+- integración real:
+  - `includes/dashboard/class-client-rest-controller.php`
+  - wiring en `includes/class-plugin.php`
+- endpoints activos:
+  - `GET /wp-json/super-mechanic/v1/client/processes`
+  - `GET /wp-json/super-mechanic/v1/client/processes/{id}`
+  - `GET /wp-json/super-mechanic/v1/client/vehicles`
+  - `GET /wp-json/super-mechanic/v1/client/vehicles/{id}`
+  - `GET /wp-json/super-mechanic/v1/client/quotes`
+  - `GET /wp-json/super-mechanic/v1/client/quotes/{id}`
+  - `GET /wp-json/super-mechanic/v1/client/invoices`
+  - `GET /wp-json/super-mechanic/v1/client/invoices/{id}`
+- seguridad aplicada:
+  - autenticación WordPress obligatoria
+  - `Permission_Service` para acceso de portal cliente
+  - `Access_Control_Service` para ownership por recurso
+  - no expone `file_url` ni rutas de descarga
+- exclusiones deliberadas de 27A:
+  - sin endpoints write
+  - sin `sm_public_tracking`
+  - sin endpoint de comentarios cliente en API
 
 --------------------------------------------------
 
@@ -1047,5 +1072,3 @@ Riesgos o puntos sensibles:
   - `Client_Invoice_Shortcodes` expone descarga segura de `payment_receipt`
   - `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` refuerzan accesos a detalle y documentos seguros
   - en Fase 24, `Client_Dashboard_Controller`, `Client_Quote_Shortcodes` y `Client_Invoice_Shortcodes` modernizan la capa visual sin tocar ownership, nonces ni descargas
-
-

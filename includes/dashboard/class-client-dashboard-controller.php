@@ -73,6 +73,10 @@ class Client_Dashboard_Controller {
 		echo '</div>';
 		echo '<span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Client Portal', 'super-mechanic' ) . '</span>';
 		echo '</div>';
+		echo '<div class="sm-grid sm-grid-cards" style="margin-bottom:20px;">';
+		echo '<article class="sm-card sm-kpi-card"><span class="sm-kpi-label">' . esc_html__( 'Navegación', 'super-mechanic' ) . '</span><p class="sm-kpi-footnote"><a href="#sm-client-vehicles">' . esc_html__( 'Vehículos', 'super-mechanic' ) . '</a> | <a href="#sm-client-processes">' . esc_html__( 'Procesos', 'super-mechanic' ) . '</a> | <a href="#sm-client-quotes">' . esc_html__( 'Cotizaciones', 'super-mechanic' ) . '</a> | <a href="#sm-client-invoices">' . esc_html__( 'Facturas', 'super-mechanic' ) . '</a></p></article>';
+		echo '<article class="sm-card sm-kpi-card"><span class="sm-kpi-label">' . esc_html__( 'Documentos', 'super-mechanic' ) . '</span><p class="sm-kpi-footnote">' . esc_html__( 'Descargas seguras de adjuntos, invoices, quotes y comprobantes cuando el entorno PDF está activo.', 'super-mechanic' ) . '</p></article>';
+		echo '</div>';
 		if ( '' !== $comment_notice ) {
 			echo wp_kses_post( $comment_notice );
 		}
@@ -80,13 +84,13 @@ class Client_Dashboard_Controller {
 			echo '<h3>' . esc_html__( 'Detalle del proceso', 'super-mechanic' ) . '</h3>';
 			echo $this->render_process_detail( $requested_process_id, $user_id );
 		}
-		echo '<h3>' . esc_html__( 'Vehiculos', 'super-mechanic' ) . '</h3>';
+		echo '<h3 id="sm-client-vehicles">' . esc_html__( 'Vehiculos', 'super-mechanic' ) . '</h3>';
 		echo $this->render_vehicles( $user_id );
-		echo '<h3>' . esc_html__( 'Procesos recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3 id="sm-client-processes">' . esc_html__( 'Procesos recientes', 'super-mechanic' ) . '</h3>';
 		echo $this->render_processes( $user_id );
-		echo '<h3>' . esc_html__( 'Cotizaciones recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3 id="sm-client-quotes">' . esc_html__( 'Cotizaciones recientes', 'super-mechanic' ) . '</h3>';
 		echo $this->render_quotes( $user_id );
-		echo '<h3>' . esc_html__( 'Facturas recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3 id="sm-client-invoices">' . esc_html__( 'Facturas recientes', 'super-mechanic' ) . '</h3>';
 		echo $this->render_invoices( $user_id );
 		echo '<h3>' . esc_html__( 'Comentarios recientes', 'super-mechanic' ) . '</h3>';
 		echo $this->render_recent_comments_table( $comments );
@@ -548,7 +552,9 @@ class Client_Dashboard_Controller {
 	}
 
 	protected function handle_process_comment_submission( $user_id ) {
-		if ( ! is_user_logged_in() || 'POST' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
+
+		if ( ! is_user_logged_in() || 'POST' !== $request_method ) {
 			return '';
 		}
 

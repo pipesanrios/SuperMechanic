@@ -456,6 +456,33 @@ class Invoice_Service {
 		return $inserted;
 	}
 
+	/**
+	 * Normalize tax and discount inputs into persisted totals.
+	 *
+	 * This keeps schema compatibility: percentage-based inputs are converted
+	 * into absolute totals before saving the invoice row.
+	 *
+	 * @param float                $subtotal Current invoice subtotal.
+	 * @param array<string, mixed> $data     Raw request-like data.
+	 * @return array<string, float>
+	 */
+	public function normalize_adjustment_totals( $subtotal, array $data ) {
+		$subtotal = round( max( 0, (float) $subtotal ), 2 );
+
+		return array(
+			'tax_total'      => $this->normalize_adjustment_total(
+				$subtotal,
+				isset( $data['tax_mode'] ) ? $data['tax_mode'] : 'fixed',
+				isset( $data['tax_value'] ) ? $data['tax_value'] : ( isset( $data['tax_total'] ) ? $data['tax_total'] : 0 )
+			),
+			'discount_total' => $this->normalize_adjustment_total(
+				$subtotal,
+				isset( $data['discount_mode'] ) ? $data['discount_mode'] : 'fixed',
+				isset( $data['discount_value'] ) ? $data['discount_value'] : ( isset( $data['discount_total'] ) ? $data['discount_total'] : 0 )
+			),
+		);
+	}
+
 	public function update_payment( $payment_id, array $data ) {
 		$payment_id = absint( $payment_id );
 		$payment    = $this->payment_repository->get_by_id( $payment_id );
@@ -1272,6 +1299,26 @@ class Invoice_Service {
 	 */
 	protected function normalize_decimal( $value ) {
 		return round( (float) str_replace( ',', '.', (string) $value ), 2 );
+	}
+
+	/**
+	 * Convert a fixed/percent adjustment value into a stored absolute total.
+	 *
+	 * @param float  $subtotal Current subtotal.
+	 * @param string $mode     Adjustment mode.
+	 * @param mixed  $value    Raw value.
+	 * @return float
+	 */
+	protected function normalize_adjustment_total( $subtotal, $mode, $value ) {
+		$subtotal = round( max( 0, (float) $subtotal ), 2 );
+		$mode     = 'percent' === sanitize_key( (string) $mode ) ? 'percent' : 'fixed';
+		$value    = max( 0, $this->normalize_decimal( $value ) );
+
+		if ( 'percent' === $mode ) {
+			return round( ( $subtotal * $value ) / 100, 2 );
+		}
+
+		return round( $value, 2 );
 	}
 
 	/**

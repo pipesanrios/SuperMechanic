@@ -12,6 +12,7 @@ use Super_Mechanic\Attachments\Process_Timeline_Service;
 use Super_Mechanic\Communication\Comment_Service;
 use Super_Mechanic\Flows\Flow_Step_Service;
 use Super_Mechanic\Helpers\Download_Service;
+use Super_Mechanic\Helpers\Permission_Service;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Processes\Process_Service;
 use WP_Error;
@@ -32,8 +33,10 @@ class Mechanic_Dashboard_Controller {
 	protected $maintenance_service;
 	protected $flow_step_service;
 	protected $download_service;
+	protected $permission_service;
+	protected $frontend_render = false;
 
-	public function __construct( Dashboard_Service $dashboard_service = null, Process_Service $process_service = null, Process_Timeline_Service $timeline_service = null, Comment_Service $comment_service = null, Attachment_Service $attachment_service = null, Maintenance_Service $maintenance_service = null, Flow_Step_Service $flow_step_service = null, Download_Service $download_service = null ) {
+	public function __construct( Dashboard_Service $dashboard_service = null, Process_Service $process_service = null, Process_Timeline_Service $timeline_service = null, Comment_Service $comment_service = null, Attachment_Service $attachment_service = null, Maintenance_Service $maintenance_service = null, Flow_Step_Service $flow_step_service = null, Download_Service $download_service = null, Permission_Service $permission_service = null ) {
 		$this->dashboard_service   = $dashboard_service ? $dashboard_service : new Dashboard_Service();
 		$this->process_service     = $process_service ? $process_service : new Process_Service();
 		$this->timeline_service    = $timeline_service ? $timeline_service : new Process_Timeline_Service();
@@ -42,21 +45,27 @@ class Mechanic_Dashboard_Controller {
 		$this->maintenance_service = $maintenance_service ? $maintenance_service : new Maintenance_Service();
 		$this->flow_step_service   = $flow_step_service ? $flow_step_service : new Flow_Step_Service();
 		$this->download_service    = $download_service ? $download_service : new Download_Service();
+		$this->permission_service  = $permission_service ? $permission_service : new Permission_Service();
 	}
 
 	public function register_hooks() {
+		add_action( 'init', array( $this, 'maybe_handle_actions' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_actions' ) );
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
 	}
 
 	public function maybe_handle_actions() {
-		if ( ! $this->is_mechanic_screen() ) {
+		if ( ! $this->is_mechanic_action_request() ) {
 			return;
 		}
 
-		$this->ensure_permissions();
+		if ( is_wp_error( $this->permission_service->user_can_access_mechanic_portal( get_current_user_id() ) ) ) {
+			return;
+		}
 
-		if ( 'POST' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
+
+		if ( 'POST' !== $request_method ) {
 			return;
 		}
 
@@ -75,6 +84,53 @@ class Mechanic_Dashboard_Controller {
 		}
 	}
 
+	public function render_frontend_dashboard() {
+		$permission = $this->permission_service->user_can_access_mechanic_portal( get_current_user_id() );
+
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
+		}
+
+		$process_id            = isset( $_GET['process_id'] ) ? absint( wp_unslash( $_GET['process_id'] ) ) : 0;
+		$this->frontend_render = true;
+
+		ob_start();
+		echo '<div class="sm-client-ui sm-mechanic-portal">';
+		echo '<div class="sm-client-header"><div><h2 class="sm-client-title">' . esc_html__( 'Portal mecánico', 'super-mechanic' ) . '</h2><p class="sm-client-subtitle">' . esc_html__( 'Vista operativa frontend para procesos asignados y acciones permitidas.', 'super-mechanic' ) . '</p></div><span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Mecánico', 'super-mechanic' ) . '</span></div>';
+		$this->render_frontend_notices();
+		if ( $process_id > 0 ) {
+			$this->render_process_detail_page( $process_id );
+		} else {
+			$this->render_dashboard_overview();
+		}
+		echo '</div>';
+
+		$this->frontend_render = false;
+
+		return (string) ob_get_clean();
+	}
+
+	public function render_frontend_processes() {
+		$permission = $this->permission_service->user_can_access_mechanic_portal( get_current_user_id() );
+
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
+		}
+
+		$this->frontend_render = true;
+
+		ob_start();
+		echo '<div class="sm-client-ui sm-mechanic-processes">';
+		echo '<div class="sm-client-header"><div><h2 class="sm-client-title">' . esc_html__( 'Procesos asignados', 'super-mechanic' ) . '</h2><p class="sm-client-subtitle">' . esc_html__( 'Listado seguro de procesos visibles para el mecánico autenticado.', 'super-mechanic' ) . '</p></div><span class="sm-client-badge sm-client-badge-primary">' . esc_html__( 'Mecánico', 'super-mechanic' ) . '</span></div>';
+		$this->render_frontend_notices();
+		$this->render_dashboard_overview();
+		echo '</div>';
+
+		$this->frontend_render = false;
+
+		return (string) ob_get_clean();
+	}
+
 	public function render_page() {
 		$this->ensure_permissions();
 
@@ -83,7 +139,7 @@ class Mechanic_Dashboard_Controller {
 		echo '<div class="wrap sm-admin-shell sm-mechanic-shell sm-mechanic-dashboard">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Mechanic Panel', 'super-mechanic' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Panel mecánico', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Trabaja solo sobre procesos asignados o permitidos por la política actual del sistema.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Operación mecánica', 'super-mechanic' ) . '</span>';
@@ -140,12 +196,14 @@ class Mechanic_Dashboard_Controller {
 
 		echo '<div class="sm-grid sm-grid-cards" style="margin-bottom:24px;">';
 		$this->render_kpi_card( __( 'Procesos activos', 'super-mechanic' ), $kpis['active_processes'] );
-		$this->render_kpi_card( __( 'Esperando aprobación', 'super-mechanic' ), $kpis['pending_approvals'] );
-		$this->render_kpi_card( __( 'Mantenimientos', 'super-mechanic' ), $kpis['maintenance_processes'] );
+		$this->render_kpi_card( __( 'Pendientes de aprobación', 'super-mechanic' ), $kpis['pending_approvals'] );
+		$this->render_kpi_card( __( 'Procesos de mantenimiento', 'super-mechanic' ), $kpis['maintenance_processes'] );
 		echo '</div>';
 
 		echo '<form method="get" class="sm-card sm-filter-card" style="margin-bottom:16px;">';
-		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE_SLUG ) . '" />';
+		if ( ! $this->frontend_render ) {
+			echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE_SLUG ) . '" />';
+		}
 		echo '<select name="filter_process_type">';
 		echo '<option value="">' . esc_html__( 'Todos los tipos', 'super-mechanic' ) . '</option>';
 		foreach ( $process_type_opts as $value => $label ) {
@@ -158,11 +216,11 @@ class Mechanic_Dashboard_Controller {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $current_status, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select> ';
-		submit_button( __( 'Filtrar', 'super-mechanic' ), '', 'filter_action', false );
+		echo $this->render_submit_button( __( 'Filtrar', 'super-mechanic' ), '', 'filter_action' );
 		echo '</form>';
 
 		echo '<div class="sm-table-wrap"><table class="widefat striped">';
-		echo '<thead><tr><th>ID</th><th>' . esc_html__( 'Título', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Paso actual', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehículo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actualizado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Detalle', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<thead><tr><th>ID</th><th>' . esc_html__( 'Título', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Paso actual', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehículo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actualizado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acción', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 
 		if ( empty( $processes ) ) {
 			echo '<tr><td colspan="9">' . esc_html__( 'No hay procesos disponibles para este mecánico.', 'super-mechanic' ) . '</td></tr>';
@@ -183,7 +241,7 @@ class Mechanic_Dashboard_Controller {
 				echo '<td>' . esc_html( $this->get_process_client_label( $process ) ) . '</td>';
 				echo '<td>' . esc_html( $this->get_process_vehicle_label( $process ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $process['updated_at'] ) ? $process['updated_at'] : $process['created_at'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $detail_url ) . '">' . esc_html__( 'Abrir', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $detail_url ) . '">' . esc_html__( 'Ver detalle', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -196,7 +254,7 @@ class Mechanic_Dashboard_Controller {
 
 		if ( empty( $process ) ) {
 			$this->render_notice( __( 'No tienes acceso a este proceso o el proceso no existe.', 'super-mechanic' ), 'error' );
-			echo '<p><a href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Volver al Mechanic Panel', 'super-mechanic' ) . '</a></p>';
+			echo '<p><a href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Volver al panel mecánico', 'super-mechanic' ) . '</a></p>';
 			return;
 		}
 
@@ -378,12 +436,15 @@ class Mechanic_Dashboard_Controller {
 		wp_nonce_field( 'sm_mechanic_update_status', 'sm_mechanic_status_nonce' );
 		echo '<input type="hidden" name="sm_mechanic_operation" value="update_status" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
+		if ( $this->frontend_render ) {
+			echo '<input type="hidden" name="sm_mechanic_frontend" value="1" />';
+		}
 		echo '<select name="status">';
 		foreach ( $status_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $process['status'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select> ';
-		submit_button( __( 'Guardar estado', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo $this->render_submit_button( __( 'Guardar estado', 'super-mechanic' ), 'secondary', 'submit' );
 		echo '</form>';
 	}
 
@@ -399,12 +460,15 @@ class Mechanic_Dashboard_Controller {
 		wp_nonce_field( 'sm_mechanic_update_step', 'sm_mechanic_step_nonce' );
 		echo '<input type="hidden" name="sm_mechanic_operation" value="update_step" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
+		if ( $this->frontend_render ) {
+			echo '<input type="hidden" name="sm_mechanic_frontend" value="1" />';
+		}
 		echo '<select name="current_step_id">';
 		foreach ( $steps as $step ) {
 			echo '<option value="' . esc_attr( absint( $step['id'] ) ) . '" ' . selected( absint( $process['current_step_id'] ), absint( $step['id'] ), false ) . '>' . esc_html( $step['step_label'] ) . '</option>';
 		}
 		echo '</select> ';
-		submit_button( __( 'Guardar paso', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo $this->render_submit_button( __( 'Guardar paso', 'super-mechanic' ), 'secondary', 'submit' );
 		echo '</form>';
 	}
 
@@ -414,6 +478,9 @@ class Mechanic_Dashboard_Controller {
 		wp_nonce_field( 'sm_mechanic_create_comment', 'sm_mechanic_comment_nonce' );
 		echo '<input type="hidden" name="sm_mechanic_operation" value="create_comment" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
+		if ( $this->frontend_render ) {
+			echo '<input type="hidden" name="sm_mechanic_frontend" value="1" />';
+		}
 		echo '<p><label for="sm_mechanic_comment_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label><br />';
 		echo '<select id="sm_mechanic_comment_type" name="comment_type">';
 		echo '<option value="internal_note">' . esc_html__( 'Nota interna', 'super-mechanic' ) . '</option>';
@@ -422,7 +489,7 @@ class Mechanic_Dashboard_Controller {
 		echo '</select></p>';
 		echo '<p><label for="sm_mechanic_comment_content">' . esc_html__( 'Contenido', 'super-mechanic' ) . '</label><br />';
 		echo '<textarea id="sm_mechanic_comment_content" name="content" rows="5" class="large-text" required></textarea></p>';
-		submit_button( __( 'Guardar nota', 'super-mechanic' ), 'primary', 'submit', false );
+		echo $this->render_submit_button( __( 'Guardar nota', 'super-mechanic' ), 'primary', 'submit' );
 		echo '</form>';
 	}
 
@@ -493,7 +560,7 @@ class Mechanic_Dashboard_Controller {
 				echo '<td>' . esc_html( $attachment['attachment_type'] ) . '</td>';
 				echo '<td>' . esc_html( $visibility ) . '</td>';
 				echo '<td>' . esc_html( $attachment['created_at'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $this->download_service->get_download_url( 'attachment', absint( $attachment['id'] ) ) ) . '">' . esc_html__( 'Descargar', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $this->download_service->get_download_url( 'attachment', absint( $attachment['id'] ) ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Abrir', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -610,11 +677,11 @@ class Mechanic_Dashboard_Controller {
 	}
 
 	protected function current_user_can_access_process( $process_id ) {
-		return $this->process_service->user_can_access_process( get_current_user_id(), absint( $process_id ) );
+		return ! is_wp_error( $this->permission_service->user_can_access_mechanic_process( get_current_user_id(), absint( $process_id ) ) );
 	}
 
 	protected function ensure_permissions() {
-		if ( ! current_user_can( 'sm_manage_processes' ) ) {
+		if ( is_wp_error( $this->permission_service->user_can_access_mechanic_portal( get_current_user_id() ) ) ) {
 			wp_die( esc_html__( 'No tienes permisos suficientes para usar el Mechanic Panel.', 'super-mechanic' ) );
 		}
 	}
@@ -624,6 +691,12 @@ class Mechanic_Dashboard_Controller {
 	}
 
 	protected function get_page_url( $args = array() ) {
+		if ( $this->frontend_render ) {
+			$current_url = remove_query_arg( array( 'sm_notice' ), $this->get_current_frontend_url() );
+
+			return add_query_arg( $args, $current_url );
+		}
+
 		return add_query_arg( array_merge( array( 'page' => self::PAGE_SLUG ), $args ), admin_url( 'admin.php' ) );
 	}
 
@@ -649,5 +722,69 @@ class Mechanic_Dashboard_Controller {
 
 	protected function render_notice( $message, $type ) {
 		echo '<div class="notice notice-' . esc_attr( $type ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
+	}
+
+	protected function render_submit_button( $label, $type = '', $name = 'submit' ) {
+		if ( ! $this->frontend_render ) {
+			ob_start();
+			submit_button( $label, $type, $name, false );
+			return (string) ob_get_clean();
+		}
+
+		$classes = array( 'button' );
+
+		if ( 'primary' === $type ) {
+			$classes[] = 'button-primary';
+		} elseif ( 'secondary' === $type ) {
+			$classes[] = 'button-secondary';
+		}
+
+		return sprintf(
+			'<button type="submit" name="%1$s" class="%2$s">%3$s</button>',
+			esc_attr( $name ),
+			esc_attr( implode( ' ', $classes ) ),
+			esc_html( $label )
+		);
+	}
+
+	protected function is_mechanic_action_request() {
+		if ( $this->is_mechanic_screen() ) {
+			return true;
+		}
+
+		return isset( $_POST['sm_mechanic_frontend'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['sm_mechanic_frontend'] ) );
+	}
+
+	protected function get_current_frontend_url() {
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '/';
+
+		return home_url( $request_uri );
+	}
+
+	protected function render_frontend_notices() {
+		$notice = isset( $_GET['sm_notice'] ) ? sanitize_key( wp_unslash( $_GET['sm_notice'] ) ) : '';
+
+		if ( 'status_updated' === $notice ) {
+			echo '<div class="sm-notice-success"><p>' . esc_html__( 'Estado del proceso actualizado correctamente.', 'super-mechanic' ) . '</p></div>';
+		}
+
+		if ( 'step_updated' === $notice ) {
+			echo '<div class="sm-notice-success"><p>' . esc_html__( 'Paso del proceso actualizado correctamente.', 'super-mechanic' ) . '</p></div>';
+		}
+
+		if ( 'comment_created' === $notice ) {
+			echo '<div class="sm-notice-success"><p>' . esc_html__( 'Nota técnica registrada correctamente.', 'super-mechanic' ) . '</p></div>';
+		}
+
+		if ( 'error' === $notice ) {
+			$messages = get_transient( $this->get_error_transient_key() );
+			delete_transient( $this->get_error_transient_key() );
+
+			if ( is_array( $messages ) ) {
+				foreach ( $messages as $message ) {
+					echo '<div class="sm-notice-error"><p>' . esc_html( $message ) . '</p></div>';
+				}
+			}
+		}
 	}
 }

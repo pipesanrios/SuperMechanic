@@ -9,6 +9,7 @@ namespace Super_Mechanic\Communication;
 
 use Super_Mechanic\Dashboard\Client_Dashboard_Controller;
 use Super_Mechanic\Dashboard\Dashboard_Service;
+use Super_Mechanic\Helpers\Permission_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,12 +21,14 @@ class Client_Comment_Shortcodes {
 	protected $notification_service;
 	protected $dashboard_service;
 	protected $client_dashboard_controller;
+	protected $permission_service;
 
-	public function __construct( Comment_Service $comment_service = null, Notification_Service $notification_service = null, Dashboard_Service $dashboard_service = null, Client_Dashboard_Controller $client_dashboard_controller = null ) {
+	public function __construct( Comment_Service $comment_service = null, Notification_Service $notification_service = null, Dashboard_Service $dashboard_service = null, Client_Dashboard_Controller $client_dashboard_controller = null, Permission_Service $permission_service = null ) {
 		$this->comment_service             = $comment_service ? $comment_service : new Comment_Service();
 		$this->notification_service        = $notification_service ? $notification_service : new Notification_Service();
 		$this->dashboard_service           = $dashboard_service ? $dashboard_service : new Dashboard_Service();
 		$this->client_dashboard_controller = $client_dashboard_controller ? $client_dashboard_controller : new Client_Dashboard_Controller();
+		$this->permission_service          = $permission_service ? $permission_service : new Permission_Service();
 	}
 
 	public function register_hooks() {
@@ -36,7 +39,9 @@ class Client_Comment_Shortcodes {
 	}
 
 	public function maybe_handle_form_submission() {
-		if ( 'POST' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
+		$request_method = isset( $_SERVER['REQUEST_METHOD'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) : '';
+
+		if ( 'POST' !== $request_method ) {
 			return;
 		}
 
@@ -63,6 +68,9 @@ class Client_Comment_Shortcodes {
 		}
 
 		$process_id = absint( $atts['process_id'] );
+		if ( ! $process_id && isset( $_GET['process_id'] ) ) {
+			$process_id = absint( wp_unslash( $_GET['process_id'] ) );
+		}
 
 		if ( ! $process_id || ! $this->dashboard_service->user_can_access_client_process( get_current_user_id(), $process_id ) ) {
 			return '<p>' . esc_html__( 'No tienes acceso a los comentarios de este proceso.', 'super-mechanic' ) . '</p>';
@@ -79,6 +87,9 @@ class Client_Comment_Shortcodes {
 		}
 
 		$process_id = absint( $atts['process_id'] );
+		if ( ! $process_id && isset( $_GET['process_id'] ) ) {
+			$process_id = absint( wp_unslash( $_GET['process_id'] ) );
+		}
 
 		if ( ! $process_id || ! $this->dashboard_service->user_can_access_client_process( get_current_user_id(), $process_id ) ) {
 			return '<p>' . esc_html__( 'No tienes acceso a este formulario.', 'super-mechanic' ) . '</p>';
@@ -181,22 +192,10 @@ class Client_Comment_Shortcodes {
 	}
 
 	protected function can_render_client_content() {
-		if ( ! is_user_logged_in() ) {
-			return false;
-		}
-
-		if ( ! current_user_can( 'sm_view_own_processes' ) ) {
-			return false;
-		}
-
-		return (bool) $this->dashboard_service->get_client_id_by_user_id( get_current_user_id() );
+		return ! is_wp_error( $this->permission_service->user_can_access_client_portal( get_current_user_id() ) );
 	}
 
 	protected function get_access_denied_message() {
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesion para ver esta informacion.', 'super-mechanic' ) . '</p>';
-		}
-
-		return '<p>' . esc_html__( 'No tiene permisos para ver esta informacion.', 'super-mechanic' ) . '</p>';
+		return $this->permission_service->get_error_message( $this->permission_service->user_can_access_client_portal( get_current_user_id() ) );
 	}
 }

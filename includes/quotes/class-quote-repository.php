@@ -99,8 +99,11 @@ class Quote_Repository {
 			array(
 				'process_id' => 0,
 				'client_id'  => 0,
+				'process_type' => '',
 				'status'     => '',
 				'search'     => '',
+				'date_from'  => '',
+				'date_to'    => '',
 				'page'       => 1,
 				'per_page'   => 20,
 				'orderby'    => 'created_at',
@@ -149,8 +152,11 @@ class Quote_Repository {
 			array(
 				'process_id' => 0,
 				'client_id'  => 0,
+				'process_type' => '',
 				'status'     => '',
 				'search'     => '',
+				'date_from'  => '',
+				'date_to'    => '',
 			)
 		);
 
@@ -246,8 +252,21 @@ class Quote_Repository {
 			$clauses[] = 'q.status = %s';
 		}
 
+		if ( '' !== $args['process_type'] ) {
+			$tables    = Schema::get_tables();
+			$clauses[] = "q.process_id IN (SELECT id FROM {$tables['processes']} WHERE process_type = %s)";
+		}
+
 		if ( '' !== $args['search'] ) {
 			$clauses[] = '(q.quote_number LIKE %s OR q.notes LIKE %s)';
+		}
+
+		if ( '' !== $args['date_from'] ) {
+			$clauses[] = 'q.created_at >= %s';
+		}
+
+		if ( '' !== $args['date_to'] ) {
+			$clauses[] = 'q.created_at <= %s';
 		}
 
 		if ( empty( $clauses ) ) {
@@ -280,10 +299,22 @@ class Quote_Repository {
 			$params[] = $args['status'];
 		}
 
+		if ( '' !== $args['process_type'] ) {
+			$params[] = sanitize_key( (string) $args['process_type'] );
+		}
+
 		if ( '' !== $args['search'] ) {
 			$search   = '%' . $wpdb->esc_like( $args['search'] ) . '%';
 			$params[] = $search;
 			$params[] = $search;
+		}
+
+		if ( '' !== $args['date_from'] ) {
+			$params[] = sanitize_text_field( (string) $args['date_from'] ) . ' 00:00:00';
+		}
+
+		if ( '' !== $args['date_to'] ) {
+			$params[] = sanitize_text_field( (string) $args['date_to'] ) . ' 23:59:59';
 		}
 
 		return $params;

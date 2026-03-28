@@ -7,6 +7,8 @@
 
 namespace Super_Mechanic\Dashboard;
 
+use Super_Mechanic\Helpers\Permission_Service;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -26,6 +28,7 @@ class Client_Dashboard_Shortcodes {
 	 * @var Dashboard_Service
 	 */
 	protected $service;
+	protected $permission_service;
 
 	/**
 	 * Constructor.
@@ -33,9 +36,10 @@ class Client_Dashboard_Shortcodes {
 	 * @param Client_Dashboard_Controller|null $client_dashboard_controller Client dashboard controller.
 	 * @param Dashboard_Service|null           $service                     Dashboard service.
 	 */
-	public function __construct( Client_Dashboard_Controller $client_dashboard_controller = null, Dashboard_Service $service = null ) {
+	public function __construct( Client_Dashboard_Controller $client_dashboard_controller = null, Dashboard_Service $service = null, Permission_Service $permission_service = null ) {
 		$this->client_dashboard_controller = $client_dashboard_controller ? $client_dashboard_controller : new Client_Dashboard_Controller();
 		$this->service                     = $service ? $service : new Dashboard_Service();
+		$this->permission_service          = $permission_service ? $permission_service : new Permission_Service();
 	}
 
 	/**
@@ -57,17 +61,10 @@ class Client_Dashboard_Shortcodes {
 	 */
 	public function render_client_dashboard( $atts = array() ) {
 		$atts = shortcode_atts( array(), $atts, 'sm_client_dashboard' );
+		$permission = $this->permission_service->user_can_access_client_portal( get_current_user_id() );
 
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesión para ver su panel.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! current_user_can( 'sm_view_own_vehicles' ) && ! current_user_can( 'sm_view_own_processes' ) ) {
-			return '<p>' . esc_html__( 'No tiene permisos para ver este panel.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! $this->service->get_client_id_by_user_id( get_current_user_id() ) ) {
-			return '<p>' . esc_html__( 'No hay un cliente vinculado a su usuario.', 'super-mechanic' ) . '</p>';
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
 		}
 
 		return $this->client_dashboard_controller->render_dashboard( get_current_user_id() );
@@ -81,17 +78,10 @@ class Client_Dashboard_Shortcodes {
 	 */
 	public function render_client_vehicles( $atts = array() ) {
 		$atts = shortcode_atts( array(), $atts, 'sm_client_vehicles' );
+		$permission = $this->permission_service->user_can_access_client_portal( get_current_user_id() );
 
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesión para ver sus vehículos.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! current_user_can( 'sm_view_own_vehicles' ) ) {
-			return '<p>' . esc_html__( 'No tiene permisos para ver sus vehículos.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! $this->service->get_client_id_by_user_id( get_current_user_id() ) ) {
-			return '<p>' . esc_html__( 'No hay un cliente vinculado a su usuario.', 'super-mechanic' ) . '</p>';
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
 		}
 
 		return $this->client_dashboard_controller->render_vehicles( get_current_user_id() );
@@ -105,17 +95,10 @@ class Client_Dashboard_Shortcodes {
 	 */
 	public function render_client_processes( $atts = array() ) {
 		$atts = shortcode_atts( array(), $atts, 'sm_client_processes' );
+		$permission = $this->permission_service->user_can_access_client_portal( get_current_user_id() );
 
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesión para ver sus procesos.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! current_user_can( 'sm_view_own_processes' ) ) {
-			return '<p>' . esc_html__( 'No tiene permisos para ver sus procesos.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! $this->service->get_client_id_by_user_id( get_current_user_id() ) ) {
-			return '<p>' . esc_html__( 'No hay un cliente vinculado a su usuario.', 'super-mechanic' ) . '</p>';
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
 		}
 
 		return $this->client_dashboard_controller->render_processes( get_current_user_id() );

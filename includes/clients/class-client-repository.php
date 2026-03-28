@@ -58,6 +58,9 @@ class Client_Repository {
 			$args,
 			array(
 				'search'            => '',
+				'status'            => '',
+				'date_from'         => '',
+				'date_to'           => '',
 				'page'              => 1,
 				'per_page'          => 20,
 				'orderby'           => 'created_at',
@@ -97,6 +100,9 @@ class Client_Repository {
 			$args,
 			array(
 				'search'            => '',
+				'status'            => '',
+				'date_from'         => '',
+				'date_to'           => '',
 				'exclude_id'        => 0,
 				'exact_email'       => '',
 				'exact_document_id' => '',
@@ -199,6 +205,18 @@ class Client_Repository {
 			$clauses[] = 'document_id = %s';
 		}
 
+		if ( ! empty( $args['status'] ) ) {
+			$clauses[] = 'status = %s';
+		}
+
+		if ( ! empty( $args['date_from'] ) ) {
+			$clauses[] = 'created_at >= %s';
+		}
+
+		if ( ! empty( $args['date_to'] ) ) {
+			$clauses[] = 'created_at <= %s';
+		}
+
 		if ( ! empty( $args['exclude_id'] ) ) {
 			$clauses[] = 'id != %d';
 		}
@@ -233,6 +251,18 @@ class Client_Repository {
 
 		if ( ! empty( $args['exact_document_id'] ) ) {
 			$params[] = (string) $args['exact_document_id'];
+		}
+
+		if ( ! empty( $args['status'] ) ) {
+			$params[] = sanitize_key( (string) $args['status'] );
+		}
+
+		if ( ! empty( $args['date_from'] ) ) {
+			$params[] = sanitize_text_field( (string) $args['date_from'] ) . ' 00:00:00';
+		}
+
+		if ( ! empty( $args['date_to'] ) ) {
+			$params[] = sanitize_text_field( (string) $args['date_to'] ) . ' 23:59:59';
 		}
 
 		if ( ! empty( $args['exclude_id'] ) ) {

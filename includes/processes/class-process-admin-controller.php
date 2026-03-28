@@ -112,8 +112,12 @@ class Process_Admin_Controller {
 			$this->render_notice( __( 'Comentario registrado correctamente.', 'super-mechanic' ), 'success' );
 		}
 
-		if ( 'comment_archived' === $notice ) {
-			$this->render_notice( __( 'Comentario archivado correctamente.', 'super-mechanic' ), 'success' );
+		if ( 'comment_updated' === $notice ) {
+			$this->render_notice( __( 'Comentario actualizado correctamente.', 'super-mechanic' ), 'success' );
+		}
+
+		if ( 'comment_deleted' === $notice ) {
+			$this->render_notice( __( 'Comentario eliminado correctamente.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'error' === $notice ) {
@@ -183,6 +187,7 @@ class Process_Admin_Controller {
 		$title          = $is_edit ? __( 'Editar proceso', 'super-mechanic' ) : __( 'Nuevo proceso', 'super-mechanic' );
 		$vehicles       = $this->service->get_vehicle_options();
 		$clients        = $this->service->get_client_options();
+		$relation_map   = $this->build_process_relation_map( $vehicles, $clients );
 		$process_types  = $this->service->get_process_type_options();
 		$status_options = $this->service->get_status_options();
 		$current_tab    = $this->get_current_tab( $process, $is_edit );
@@ -245,13 +250,14 @@ class Process_Admin_Controller {
 		}
 
 		echo '<div class="sm-card sm-form-card sm-section">';
-		echo '<form method="post" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit', 'id' => absint( $process['id'] ) ) : array( 'action' => 'new' ) ) ) . '">';
+		echo '<form method="post" class="sm-process-form" data-sm-process-relations="' . esc_attr( wp_json_encode( $relation_map ) ) . '" action="' . esc_url( $this->get_page_url( $is_edit ? array( 'action' => 'edit', 'id' => absint( $process['id'] ) ) : array( 'action' => 'new' ) ) ) . '">';
 		wp_nonce_field( 'sm_save_process', 'sm_process_nonce' );
 		echo '<input type="hidden" name="sm_process_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
 		echo '<table class="form-table" role="presentation">';
 		$this->render_vehicle_select_field( $process['vehicle_id'], $vehicles );
 		$this->render_client_select_field( $process['client_id'], $clients );
+		$this->render_relation_context_row( $process, $relation_map );
 		$this->render_select_field( 'process_type', __( 'Tipo de proceso', 'super-mechanic' ), $process['process_type'], $process_types );
 		$this->render_select_field( 'status', __( 'Estado', 'super-mechanic' ), $process['status'], $status_options );
 		$this->render_text_field( 'title', __( 'Titulo', 'super-mechanic' ), $process['title'], true );
@@ -287,14 +293,18 @@ class Process_Admin_Controller {
 			if ( 'create' === $comment_op ) {
 				$this->handle_comment_create_action();
 			}
+
+			if ( 'update' === $comment_op ) {
+				$this->handle_comment_update_action();
+			}
 		}
 
 		if ( isset( $_GET['action'] ) && 'delete' === sanitize_key( wp_unslash( $_GET['action'] ) ) ) {
 			$this->handle_delete_action();
 		}
 
-		if ( isset( $_GET['comment_action'] ) && 'archive' === sanitize_key( wp_unslash( $_GET['comment_action'] ) ) ) {
-			$this->handle_comment_archive_action();
+		if ( isset( $_GET['comment_action'] ) && 'delete' === sanitize_key( wp_unslash( $_GET['comment_action'] ) ) ) {
+			$this->handle_comment_delete_action();
 		}
 	}
 
@@ -396,10 +406,42 @@ class Process_Admin_Controller {
 		$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'comment_created' ) );
 	}
 
-	protected function handle_comment_archive_action() {
+	protected function handle_comment_update_action() {
+		check_admin_referer( 'sm_process_comment_action', 'sm_process_comment_nonce' );
+
+		$process_id = isset( $_POST['process_id'] ) ? absint( wp_unslash( $_POST['process_id'] ) ) : 0;
+		$comment_id = isset( $_POST['comment_id'] ) ? absint( wp_unslash( $_POST['comment_id'] ) ) : 0;
+		$process    = $this->service->get_process( $process_id );
+		$comment    = $this->comment_service->get_comment( $comment_id );
+
+		if ( ! $process || ! $comment || absint( $comment['process_id'] ) !== $process_id ) {
+			$this->store_errors( new WP_Error( 'sm_invalid_process_comment', __( 'El comentario que intentas editar no pertenece al proceso actual.', 'super-mechanic' ) ) );
+			$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'error' ) );
+		}
+
+		$result = $this->comment_service->update_comment(
+			$comment_id,
+			array(
+				'content'           => isset( $_POST['content'] ) ? wp_unslash( $_POST['content'] ) : '',
+				'comment_type'      => isset( $_POST['comment_type'] ) ? wp_unslash( $_POST['comment_type'] ) : 'internal_note',
+				'is_internal'       => isset( $_POST['is_internal'] ) ? 1 : 0,
+				'is_client_visible' => isset( $_POST['is_client_visible'] ) ? 1 : 0,
+				'status'            => 'published',
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$this->store_errors( $result );
+			$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'comment_action' => 'edit', 'comment_id' => $comment_id, 'sm_notice' => 'error' ) );
+		}
+
+		$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'comment_updated' ) );
+	}
+
+	protected function handle_comment_delete_action() {
 		$comment_id = isset( $_GET['comment_id'] ) ? absint( wp_unslash( $_GET['comment_id'] ) ) : 0;
 		$process_id = isset( $_GET['id'] ) ? absint( wp_unslash( $_GET['id'] ) ) : 0;
-		check_admin_referer( 'sm_archive_process_comment_' . $comment_id );
+		check_admin_referer( 'sm_delete_process_comment_' . $comment_id );
 
 		$result = $this->comment_service->delete_comment( $comment_id );
 
@@ -408,7 +450,7 @@ class Process_Admin_Controller {
 			$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'error' ) );
 		}
 
-		$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'comment_archived' ) );
+		$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'comment_deleted' ) );
 	}
 
 	protected function render_filter_form( Process_List_Table $list_table ) {
@@ -504,21 +546,28 @@ class Process_Admin_Controller {
 		$process_id     = absint( $process['id'] );
 		$comments       = $this->comment_service->get_process_comments( $process_id, array( 'per_page' => 200, 'orderby' => 'created_at', 'order' => 'DESC' ) );
 		$notifications  = $this->notification_service->get_notifications( array( 'process_id' => $process_id, 'per_page' => 100, 'orderby' => 'created_at', 'order' => 'DESC' ) );
+		$edit_comment_id = isset( $_GET['comment_id'] ) ? absint( wp_unslash( $_GET['comment_id'] ) ) : 0;
+		$edit_mode       = 'edit' === ( isset( $_GET['comment_action'] ) ? sanitize_key( wp_unslash( $_GET['comment_action'] ) ) : '' );
+		$edit_comment    = $edit_mode ? $this->comment_service->get_comment( $edit_comment_id ) : null;
 
 		echo '<div class="sm-grid sm-grid-two sm-section">';
 		echo '<div class="sm-card sm-form-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Comentarios y mensajes', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( $edit_comment ? 'Editar comentario' : 'Comentarios y mensajes', 'super-mechanic' ) . '</h2></div>';
 		echo '<form method="post" class="sm-process-comment-form">';
 		wp_nonce_field( 'sm_process_comment_action', 'sm_process_comment_nonce' );
-		echo '<input type="hidden" name="sm_process_comment_operation" value="create" />';
+		echo '<input type="hidden" name="sm_process_comment_operation" value="' . esc_attr( $edit_comment ? 'update' : 'create' ) . '" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( $process_id ) . '" />';
+		echo '<input type="hidden" name="comment_id" value="' . esc_attr( $edit_comment ? absint( $edit_comment['id'] ) : 0 ) . '" />';
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="sm_process_comment_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select id="sm_process_comment_type" name="comment_type"><option value="internal_note">' . esc_html__( 'Nota interna', 'super-mechanic' ) . '</option><option value="staff_reply">' . esc_html__( 'Respuesta staff', 'super-mechanic' ) . '</option><option value="system_note">' . esc_html__( 'Nota sistema', 'super-mechanic' ) . '</option></select></td></tr>';
-		echo '<tr><th scope="row"><label for="sm_process_comment_content">' . esc_html__( 'Contenido', 'super-mechanic' ) . '</label></th><td><textarea id="sm_process_comment_content" name="content" rows="5" class="large-text" required></textarea></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Visibilidad', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_internal" value="1" checked /> ' . esc_html__( 'Solo uso interno', 'super-mechanic' ) . '</label><br /><label><input type="checkbox" name="is_client_visible" value="1" /> ' . esc_html__( 'Visible para el cliente', 'super-mechanic' ) . '</label></td></tr>';
+		echo '<tr><th scope="row"><label for="sm_process_comment_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select id="sm_process_comment_type" name="comment_type"><option value="internal_note" ' . selected( $edit_comment ? $edit_comment['comment_type'] : 'internal_note', 'internal_note', false ) . '>' . esc_html__( 'Nota interna', 'super-mechanic' ) . '</option><option value="staff_reply" ' . selected( $edit_comment ? $edit_comment['comment_type'] : '', 'staff_reply', false ) . '>' . esc_html__( 'Respuesta staff', 'super-mechanic' ) . '</option><option value="system_note" ' . selected( $edit_comment ? $edit_comment['comment_type'] : '', 'system_note', false ) . '>' . esc_html__( 'Nota sistema', 'super-mechanic' ) . '</option></select></td></tr>';
+		echo '<tr><th scope="row"><label for="sm_process_comment_content">' . esc_html__( 'Contenido', 'super-mechanic' ) . '</label></th><td><textarea id="sm_process_comment_content" name="content" rows="5" class="large-text" required>' . esc_textarea( $edit_comment ? $edit_comment['content'] : '' ) . '</textarea></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Visibilidad', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_internal" value="1" ' . checked( $edit_comment ? ! empty( $edit_comment['is_internal'] ) : true, true, false ) . ' /> ' . esc_html__( 'Solo uso interno', 'super-mechanic' ) . '</label><br /><label><input type="checkbox" name="is_client_visible" value="1" ' . checked( $edit_comment ? ! empty( $edit_comment['is_client_visible'] ) : false, true, false ) . ' /> ' . esc_html__( 'Visible para el cliente', 'super-mechanic' ) . '</label></td></tr>';
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( __( 'Guardar comentario', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $edit_comment ? __( 'Actualizar comentario', 'super-mechanic' ) : __( 'Guardar comentario', 'super-mechanic' ), 'primary', 'submit', false );
+		if ( $edit_comment ) {
+			echo '<a class="button button-secondary" href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication' ) ) ) . '">' . esc_html__( 'Cancelar edición', 'super-mechanic' ) . '</a>';
+		}
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -530,14 +579,15 @@ class Process_Admin_Controller {
 			echo '<tr><td colspan="6">' . esc_html__( 'No hay comentarios para este proceso.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $comments as $comment ) {
-				$archive_url = wp_nonce_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'comment_action' => 'archive', 'comment_id' => absint( $comment['id'] ) ), admin_url( 'admin.php' ) ), 'sm_archive_process_comment_' . absint( $comment['id'] ) );
+				$edit_url   = add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'comment_action' => 'edit', 'comment_id' => absint( $comment['id'] ) ), admin_url( 'admin.php' ) );
+				$delete_url = wp_nonce_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'comment_action' => 'delete', 'comment_id' => absint( $comment['id'] ) ), admin_url( 'admin.php' ) ), 'sm_delete_process_comment_' . absint( $comment['id'] ) );
 				echo '<tr>';
 				echo '<td>' . esc_html( $comment['created_at'] ) . '</td>';
 				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $comment['comment_type'] ) ) ) . '</td>';
 				echo '<td>' . esc_html( $comment['content'] ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $comment['is_internal'] ) ? __( 'Interno', 'super-mechanic' ) : __( 'Operativo', 'super-mechanic' ) ) . ' / ' . esc_html( ! empty( $comment['is_client_visible'] ) ? __( 'Visible cliente', 'super-mechanic' ) : __( 'Oculto cliente', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( $comment['status'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $archive_url ) . '">' . esc_html__( 'Archivar', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Eliminar este comentario?', 'super-mechanic' ) ) . '\');">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -603,6 +653,85 @@ class Process_Admin_Controller {
 
 		echo '</select></td>';
 		echo '</tr>';
+	}
+
+	protected function render_relation_context_row( $process, $relation_map ) {
+		$client_id            = isset( $process['client_id'] ) ? absint( $process['client_id'] ) : 0;
+		$vehicle_id           = isset( $process['vehicle_id'] ) ? absint( $process['vehicle_id'] ) : 0;
+		$client_label         = isset( $relation_map['client_labels'][ $client_id ] ) ? $relation_map['client_labels'][ $client_id ] : '';
+		$vehicle_label        = isset( $relation_map['vehicle_labels'][ $vehicle_id ] ) ? $relation_map['vehicle_labels'][ $vehicle_id ] : '';
+		$client_vehicle_count = isset( $relation_map['client_to_vehicles'][ $client_id ] ) && is_array( $relation_map['client_to_vehicles'][ $client_id ] ) ? count( $relation_map['client_to_vehicles'][ $client_id ] ) : 0;
+		$active_process       = $vehicle_id > 0 ? $this->service->get_active_vehicle_process( $vehicle_id, isset( $process['id'] ) ? absint( $process['id'] ) : 0 ) : null;
+		$messages             = array();
+
+		if ( $vehicle_id > 0 && '' !== $vehicle_label ) {
+			$messages[] = sprintf( __( 'Vehiculo seleccionado: %s.', 'super-mechanic' ), $vehicle_label );
+		}
+
+		if ( $client_id > 0 && '' !== $client_label ) {
+			$messages[] = sprintf( _n( 'Cliente vinculado: %1$s (%2$d vehiculo asociado).', 'Cliente vinculado: %1$s (%2$d vehiculos asociados).', $client_vehicle_count, 'super-mechanic' ), $client_label, $client_vehicle_count );
+		}
+
+		if ( is_array( $active_process ) && ! empty( $active_process['id'] ) ) {
+			$messages[] = sprintf( __( 'El vehiculo ya tiene un proceso activo: #%1$d (%2$s / %3$s).', 'super-mechanic' ), absint( $active_process['id'] ), $this->humanize_key( $active_process['process_type'] ), $this->humanize_key( $active_process['status'] ) );
+		}
+
+		if ( empty( $messages ) ) {
+			$messages[] = __( 'Selecciona cliente o vehiculo para sincronizar la relacion y limitar las opciones disponibles sin salir del flujo.', 'super-mechanic' );
+		}
+
+		echo '<tr>';
+		echo '<th scope="row">' . esc_html__( 'Relacion operativa', 'super-mechanic' ) . '</th>';
+		echo '<td><p id="sm-process-relation-hint" class="description">' . esc_html( implode( ' ', $messages ) ) . '</p></td>';
+		echo '</tr>';
+	}
+
+	protected function build_process_relation_map( $vehicles, $clients ) {
+		$map = array(
+			'vehicle_to_client' => array(),
+			'client_to_vehicles' => array(),
+			'vehicle_labels'    => array(),
+			'client_labels'     => array(),
+		);
+
+		foreach ( $clients as $client ) {
+			$client_id = isset( $client['id'] ) ? absint( $client['id'] ) : 0;
+			if ( $client_id <= 0 ) {
+				continue;
+			}
+
+			$label = trim( sprintf( '%s %s', isset( $client['first_name'] ) ? $client['first_name'] : '', isset( $client['last_name'] ) ? $client['last_name'] : '' ) );
+			if ( '' === $label && ! empty( $client['email'] ) ) {
+				$label = (string) $client['email'];
+			}
+
+			$map['client_labels'][ $client_id ] = $label;
+		}
+
+		foreach ( $vehicles as $vehicle ) {
+			$vehicle_id = isset( $vehicle['id'] ) ? absint( $vehicle['id'] ) : 0;
+			$client_id  = isset( $vehicle['client_id'] ) ? absint( $vehicle['client_id'] ) : 0;
+
+			if ( $vehicle_id <= 0 ) {
+				continue;
+			}
+
+			$map['vehicle_labels'][ $vehicle_id ] = $this->get_vehicle_label( $vehicle );
+
+			if ( $client_id <= 0 ) {
+				continue;
+			}
+
+			$map['vehicle_to_client'][ $vehicle_id ] = $client_id;
+
+			if ( ! isset( $map['client_to_vehicles'][ $client_id ] ) ) {
+				$map['client_to_vehicles'][ $client_id ] = array();
+			}
+
+			$map['client_to_vehicles'][ $client_id ][] = $vehicle_id;
+		}
+
+		return $map;
 	}
 
 	protected function render_select_field( $name, $label, $selected, $options ) {

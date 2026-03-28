@@ -10,6 +10,7 @@ namespace Super_Mechanic\Invoices;
 use Super_Mechanic\Assets;
 use Super_Mechanic\Dashboard\Dashboard_Service;
 use Super_Mechanic\Helpers\Download_Service;
+use Super_Mechanic\Helpers\Permission_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,11 +21,13 @@ class Client_Invoice_Shortcodes {
 	protected $service;
 	protected $dashboard_service;
 	protected $download_service;
+	protected $permission_service;
 
-	public function __construct( Invoice_Service $service = null, Dashboard_Service $dashboard_service = null, Download_Service $download_service = null ) {
+	public function __construct( Invoice_Service $service = null, Dashboard_Service $dashboard_service = null, Download_Service $download_service = null, Permission_Service $permission_service = null ) {
 		$this->service           = $service ? $service : new Invoice_Service();
 		$this->dashboard_service = $dashboard_service ? $dashboard_service : new Dashboard_Service();
 		$this->download_service  = $download_service ? $download_service : new Download_Service();
+		$this->permission_service = $permission_service ? $permission_service : new Permission_Service();
 	}
 
 	public function register_hooks() {
@@ -203,16 +206,10 @@ class Client_Invoice_Shortcodes {
 	}
 
 	protected function guard_access( $capability ) {
-		if ( ! is_user_logged_in() ) {
-			return '<p>' . esc_html__( 'Debe iniciar sesión para acceder a esta sección.', 'super-mechanic' ) . '</p>';
-		}
+		$permission = $this->permission_service->user_can_access_client_portal( get_current_user_id() );
 
-		if ( ! current_user_can( $capability ) ) {
-			return '<p>' . esc_html__( 'No tiene permisos para acceder a esta sección.', 'super-mechanic' ) . '</p>';
-		}
-
-		if ( ! $this->dashboard_service->get_client_id_by_user_id( get_current_user_id() ) ) {
-			return '<p>' . esc_html__( 'No hay un cliente vinculado a su usuario.', 'super-mechanic' ) . '</p>';
+		if ( is_wp_error( $permission ) ) {
+			return $this->permission_service->get_error_message( $permission );
 		}
 
 		return '';

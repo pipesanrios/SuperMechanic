@@ -105,7 +105,7 @@ Resultado esperado:
 ESCENARIO 6 — REGISTRAR MANTENIMIENTO
 ==================================================
 
-Estado Fase 14: PARCIAL
+Estado Subfases 10-13: OK
 
 Flujo:
 
@@ -250,6 +250,7 @@ Observación Fase 14:
 
 - la visibilidad real se distribuye entre dashboard y shortcodes especializados
 - la actividad reciente del Client Portal debe respetar `customer_visible` en logs de proceso
+- en SUBFASES 10-13 el dashboard cliente consolidado agrega navegación interna y mantiene continuidad real sobre procesos, documentos, quotes e invoices sin abrir bypass de ownership
 
 ==================================================
 ESCENARIO 14 — TIMELINE DEL PROCESO
@@ -299,7 +300,7 @@ Observación Fase 16:
 ESCENARIO 16 — Mechanic Panel OPERATIVO
 ==================================================
 
-Estado Fase 18: OK
+Estado Subfases 10-13: OK
 
 Flujo:
 
@@ -319,6 +320,45 @@ Resultado esperado:
 - nota técnica interna persistida vía `Comment_Service`
 - sin acceso operativo a procesos ajenos
 - sin duplicar el flujo admin completo del proceso
+- shortcodes frontend `sm_mechanic_dashboard` y `sm_mechanic_processes` operativos bajo el mismo enforcement real
+
+==================================================
+ESCENARIO 20 — SHORTCODES MECÁNICOS FRONTEND
+==================================================
+
+Estado Subfases 10-13: OK
+
+Flujo:
+
+Mecánico autenticado con `sm_manage_processes`
+→ abre una página con `sm_mechanic_dashboard` o `sm_mechanic_processes`
+→ ve solo procesos permitidos por rol y ownership operativo
+→ ejecuta acciones válidas sobre un proceso asignado
+
+Resultado esperado:
+
+- render sin errores fuera de admin
+- métricas coherentes con los procesos visibles
+- acciones protegidas por nonce y permisos
+- sin acceso a procesos ajenos
+- sin dependencia de IDs públicos ni bypass de `Permission_Service`
+
+==================================================
+ESCENARIO 21 — TRACKING PÚBLICO SEGURO
+==================================================
+
+Estado Subfases 10-13: N/A
+
+Flujo:
+
+Usuario público
+→ intenta consultar tracking sin autenticación
+
+Resultado esperado:
+
+- no existe shortcode público activo mientras no haya mecanismo seguro
+- no se expone información por IDs internos o parámetros predecibles
+- `sm_public_tracking` permanece como restricción operativa documentada, no como funcionalidad cerrada
 
 ==================================================
 ESCENARIO 17 — REPORTES AVANZADOS
@@ -409,3 +449,29 @@ Resultado esperado:
 - descargas seguras de `quote_pdf`, `invoice_pdf` y `payment_receipt`
 - comentarios creados mediante `Comment_Service`
 - sin pagos online ni bypass de ownership
+
+==================================================
+ESCENARIO 19 — USABILIDAD ADMIN PREVIA FASE 27
+==================================================
+
+Estado Subfases 1-3 previa Fase 27: OK
+
+Flujo:
+
+Administrador
+→ abre `Dashboard`
+→ navega desde KPIs o resúmenes hacia clientes, vehículos o procesos filtrados
+→ entra al detalle `Ver` de cliente o vehículo
+→ revisa procesos relacionados
+→ edita o elimina un comentario en un proceso
+→ abre un adjunto desde el proceso
+→ copia un shortcode desde el panel de shortcodes
+
+Resultado esperado:
+
+- KPIs y bloques relevantes con navegación real
+- detalle reusable de cliente con vehículos y procesos relacionados
+- detalle reusable de vehículo con cliente, procesos e historial relacionado
+- comentarios de proceso editables y eliminables sin sacar lógica de `Comment_Service`
+- adjuntos con acción útil `Abrir`
+- botón copiar funcional en panel de shortcodes

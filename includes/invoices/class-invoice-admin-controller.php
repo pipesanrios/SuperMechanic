@@ -79,6 +79,9 @@ class Invoice_Admin_Controller {
 			case 'create_from_quote':
 				$this->handle_create_from_quote();
 				break;
+			case 'create_manual_invoice':
+				$this->handle_create_manual_invoice();
+				break;
 			case 'save_invoice':
 				$this->handle_save_invoice();
 				break;
@@ -198,6 +201,21 @@ class Invoice_Admin_Controller {
 			echo '</div>';
 		}
 
+		echo '<div style="margin:12px 0 20px;">';
+		echo '<form method="post" class="sm-inline-form">';
+		echo '<input type="hidden" name="sm_invoice_operation" value="create_manual_invoice" />';
+		echo '<input type="hidden" name="process_id" value="' . esc_attr( $process_id ) . '" />';
+		echo '<input type="hidden" name="client_id" value="' . esc_attr( ! empty( $process['client_id'] ) ? absint( $process['client_id'] ) : 0 ) . '" />';
+		wp_nonce_field( 'sm_create_manual_invoice', 'sm_create_manual_invoice_nonce' );
+		echo '<table class="form-table" role="presentation" style="max-width:760px;">';
+		echo '<tr><th scope="row"><label for="invoice_create_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td><input type="text" name="currency" id="invoice_create_currency" value="" class="small-text" placeholder="USD" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_create_due_date">' . esc_html__( 'Fecha de vencimiento', 'super-mechanic' ) . '</label></th><td><input type="date" name="due_date" id="invoice_create_due_date" value="" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_create_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_create_notes" class="large-text" rows="3"></textarea><p class="description">' . esc_html__( 'Crea una factura manual asociada al proceso actual, incluso sin cotización previa.', 'super-mechanic' ) . '</p></td></tr>';
+		echo '</table>';
+		submit_button( __( 'Crear factura manual', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+		echo '</div>';
+
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado de factura', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado de pago', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pagado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pendiente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $invoices ) ) {
 			echo '<tr><td colspan="8">' . esc_html__( 'No hay facturas para este proceso.', 'super-mechanic' ) . '</td></tr>';
@@ -213,7 +231,11 @@ class Invoice_Admin_Controller {
 				echo '<td>' . esc_html( $this->format_money( ! is_wp_error( $payment_summary ) ? $payment_summary['total_paid'] : 0, $invoice['currency'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_money( ! is_wp_error( $payment_summary ) ? $payment_summary['remaining_balance'] : $invoice['grand_total'], $invoice['currency'] ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $invoice['issued_at'] ) ? $invoice['issued_at'] : $invoice['created_at'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $link ) . '">' . esc_html__( 'Abrir', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $link ) . '">' . esc_html__( 'Abrir', 'super-mechanic' ) . '</a>';
+				if ( $this->pdf_service->can_generate_pdf() ) {
+					echo ' | <a href="' . esc_url( $this->get_invoice_pdf_download_url( $process_id, absint( $invoice['id'] ) ) ) . '">' . esc_html__( 'Descargar PDF', 'super-mechanic' ) . '</a>';
+				}
+				echo '</td>';
 				echo '</tr>';
 			}
 		}
@@ -253,8 +275,9 @@ class Invoice_Admin_Controller {
 		wp_nonce_field( 'sm_save_invoice', 'sm_save_invoice_nonce' );
 		echo '<table class="form-table" role="presentation">';
 		echo '<tr><th scope="row"><label for="invoice_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td><input type="text" name="currency" id="invoice_currency" value="' . esc_attr( $active_invoice['currency'] ) . '" class="small-text" /></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_tax_total">' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0" name="tax_total" id="invoice_tax_total" value="' . esc_attr( $active_invoice['tax_total'] ) . '" class="small-text" /></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_discount_total">' . esc_html__( 'Descuento', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0" name="discount_total" id="invoice_discount_total" value="' . esc_attr( $active_invoice['discount_total'] ) . '" class="small-text" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_tax_mode">' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</label></th><td><select name="tax_mode" id="invoice_tax_mode"><option value="fixed">' . esc_html__( 'Monto fijo', 'super-mechanic' ) . '</option><option value="percent">' . esc_html__( 'Porcentaje', 'super-mechanic' ) . '</option></select> <input type="number" step="0.01" min="0" name="tax_value" id="invoice_tax_value" value="' . esc_attr( $active_invoice['tax_total'] ) . '" class="small-text" /> <span class="description">' . esc_html__( 'Si eliges porcentaje, se calcula sobre el subtotal actual y se guarda como monto.', 'super-mechanic' ) . '</span></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_discount_mode">' . esc_html__( 'Descuento', 'super-mechanic' ) . '</label></th><td><select name="discount_mode" id="invoice_discount_mode"><option value="fixed">' . esc_html__( 'Monto fijo', 'super-mechanic' ) . '</option><option value="percent">' . esc_html__( 'Porcentaje', 'super-mechanic' ) . '</option></select> <input type="number" step="0.01" min="0" name="discount_value" id="invoice_discount_value" value="' . esc_attr( $active_invoice['discount_total'] ) . '" class="small-text" /></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Totales actuales aplicados', 'super-mechanic' ) . '</th><td><span class="description">' . esc_html( sprintf( __( 'Impuestos %1$s | Descuento %2$s', 'super-mechanic' ), $this->format_money( $active_invoice['tax_total'], $active_invoice['currency'] ), $this->format_money( $active_invoice['discount_total'], $active_invoice['currency'] ) ) ) . '</span></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_due_date">' . esc_html__( 'Fecha de vencimiento', 'super-mechanic' ) . '</label></th><td><input type="date" name="due_date" id="invoice_due_date" value="' . esc_attr( $active_invoice['due_date'] ) . '" /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_notes" class="large-text" rows="5">' . esc_textarea( $active_invoice['notes'] ) . '</textarea></td></tr>';
 		echo '</table>';
@@ -330,7 +353,11 @@ class Invoice_Admin_Controller {
 				echo '<td><select name="payment_method">' . $this->get_payment_method_options_html( $payment['payment_method'] ) . '</select></td>';
 				echo '<td><input type="text" name="reference" value="' . esc_attr( $payment['reference'] ) . '" class="regular-text" /></td>';
 				echo '<td><input type="text" name="notes" value="' . esc_attr( $payment['notes'] ) . '" class="regular-text" /></td>';
-				echo '<td><button type="submit" name="sm_invoice_operation" value="update_payment" class="button button-secondary button-small">' . esc_html__( 'Actualizar', 'super-mechanic' ) . '</button> <button type="submit" name="sm_invoice_operation" value="delete_payment" class="button button-link-delete">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</button></td>';
+				echo '<td>';
+				if ( $this->pdf_service->can_generate_pdf() ) {
+					echo '<a class="button button-secondary button-small" href="' . esc_url( $this->get_payment_receipt_download_url( absint( $payment['id'] ) ) ) . '">' . esc_html__( 'Comprobante', 'super-mechanic' ) . '</a> ';
+				}
+				echo '<button type="submit" name="sm_invoice_operation" value="update_payment" class="button button-secondary button-small">' . esc_html__( 'Actualizar', 'super-mechanic' ) . '</button> <button type="submit" name="sm_invoice_operation" value="delete_payment" class="button button-link-delete">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</button></td>';
 				echo '</tr></table></form></td></tr>';
 			}
 		}
@@ -344,7 +371,7 @@ class Invoice_Admin_Controller {
 		echo '<table class="form-table" role="presentation">';
 		echo '<tr><th scope="row"><label for="invoice_payment_date">' . esc_html__( 'Fecha de pago', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" name="payment_date" id="invoice_payment_date" value="' . esc_attr( gmdate( 'Y-m-d\TH:i' ) ) . '" /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_payment_amount">' . esc_html__( 'Monto', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0.01" name="amount" id="invoice_payment_amount" class="small-text" /></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_payment_method">' . esc_html__( 'Metodo', 'super-mechanic' ) . '</label></th><td><input type="text" name="payment_method" id="invoice_payment_method" class="regular-text" value="transfer" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_payment_method">' . esc_html__( 'Metodo', 'super-mechanic' ) . '</label></th><td><select name="payment_method" id="invoice_payment_method">' . $this->get_payment_method_options_html( 'transfer' ) . '</select></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_payment_reference">' . esc_html__( 'Referencia', 'super-mechanic' ) . '</label></th><td><input type="text" name="reference" id="invoice_payment_reference" class="regular-text" /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_payment_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_payment_notes" class="large-text" rows="3"></textarea></td></tr>';
 		echo '</table>';
@@ -375,6 +402,34 @@ class Invoice_Admin_Controller {
 		$this->redirect_to_invoice_tab( $process_id, absint( $result ), 'invoice_created' );
 	}
 
+	protected function handle_create_manual_invoice() {
+		check_admin_referer( 'sm_create_manual_invoice', 'sm_create_manual_invoice_nonce' );
+		$process_id = isset( $_POST['process_id'] ) ? absint( wp_unslash( $_POST['process_id'] ) ) : 0;
+		$client_id  = isset( $_POST['client_id'] ) ? absint( wp_unslash( $_POST['client_id'] ) ) : 0;
+
+		if ( ! $process_id ) {
+			$this->store_errors( new WP_Error( 'sm_process_not_found', __( 'El proceso no existe.', 'super-mechanic' ) ) );
+			$this->redirect_to_invoice_tab( $process_id, 0, 'invoice_error' );
+		}
+
+		$result = $this->service->create_invoice(
+			array(
+				'process_id' => $process_id,
+				'client_id'  => $client_id,
+				'currency'   => isset( $_POST['currency'] ) ? wp_unslash( $_POST['currency'] ) : '',
+				'due_date'   => isset( $_POST['due_date'] ) ? wp_unslash( $_POST['due_date'] ) : '',
+				'notes'      => isset( $_POST['notes'] ) ? wp_unslash( $_POST['notes'] ) : '',
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$this->store_errors( $result );
+			$this->redirect_to_invoice_tab( $process_id, 0, 'invoice_error' );
+		}
+
+		$this->redirect_to_invoice_tab( $process_id, absint( $result ), 'invoice_created' );
+	}
+
 	protected function handle_save_invoice() {
 		check_admin_referer( 'sm_save_invoice', 'sm_save_invoice_nonce' );
 		$process_id = isset( $_POST['process_id'] ) ? absint( wp_unslash( $_POST['process_id'] ) ) : 0;
@@ -384,12 +439,22 @@ class Invoice_Admin_Controller {
 			$this->store_errors( $context );
 			$this->redirect_to_invoice_tab( $process_id, $invoice_id, 'invoice_error' );
 		}
+		$invoice      = $this->service->get_invoice( $invoice_id );
+		$adjustments  = $this->service->normalize_adjustment_totals(
+			! empty( $invoice['subtotal'] ) ? (float) $invoice['subtotal'] : 0,
+			array(
+				'tax_mode'       => isset( $_POST['tax_mode'] ) ? wp_unslash( $_POST['tax_mode'] ) : 'fixed',
+				'tax_value'      => isset( $_POST['tax_value'] ) ? wp_unslash( $_POST['tax_value'] ) : ( isset( $_POST['tax_total'] ) ? wp_unslash( $_POST['tax_total'] ) : 0 ),
+				'discount_mode'  => isset( $_POST['discount_mode'] ) ? wp_unslash( $_POST['discount_mode'] ) : 'fixed',
+				'discount_value' => isset( $_POST['discount_value'] ) ? wp_unslash( $_POST['discount_value'] ) : ( isset( $_POST['discount_total'] ) ? wp_unslash( $_POST['discount_total'] ) : 0 ),
+			)
+		);
 		$result     = $this->service->update_invoice(
 			$invoice_id,
 			array(
 				'currency'       => isset( $_POST['currency'] ) ? wp_unslash( $_POST['currency'] ) : '',
-				'tax_total'      => isset( $_POST['tax_total'] ) ? wp_unslash( $_POST['tax_total'] ) : 0,
-				'discount_total' => isset( $_POST['discount_total'] ) ? wp_unslash( $_POST['discount_total'] ) : 0,
+				'tax_total'      => $adjustments['tax_total'],
+				'discount_total' => $adjustments['discount_total'],
 				'due_date'       => isset( $_POST['due_date'] ) ? wp_unslash( $_POST['due_date'] ) : '',
 				'notes'          => isset( $_POST['notes'] ) ? wp_unslash( $_POST['notes'] ) : '',
 			)
@@ -657,6 +722,22 @@ class Invoice_Admin_Controller {
 		);
 
 		return wp_nonce_url( $url, 'sm_download_invoice_pdf_' . absint( $invoice_id ) );
+	}
+
+	protected function get_payment_receipt_download_url( $payment_id ) {
+		return home_url(
+			wp_nonce_url(
+				add_query_arg(
+					array(
+						'sm_document_download' => 1,
+						'sm_document_type'     => 'payment_receipt',
+						'sm_document_id'       => absint( $payment_id ),
+					),
+					'/'
+				),
+				'sm_download_document_payment_receipt_' . absint( $payment_id )
+			)
+		);
 	}
 
 	protected function redirect_to_invoice_tab( $process_id, $invoice_id = 0, $notice = '' ) {

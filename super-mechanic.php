@@ -42,6 +42,8 @@ register_deactivation_hook( SM_PLUGIN_FILE, array( 'Super_Mechanic\\Deactivator'
 
 // Initialize the plugin once other plugins have loaded.
 function sm_run_plugin() {
+    load_plugin_textdomain( 'super-mechanic', false, dirname( plugin_basename( SM_PLUGIN_FILE ) ) . '/languages' );
+
     $plugin = new Super_Mechanic\Plugin();
     $plugin->init();
 }

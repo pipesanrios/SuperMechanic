@@ -164,12 +164,20 @@ class Vehicle_Service {
 	public function validate_vehicle_data( array $data, $is_update = false, $vehicle_id = 0 ) {
 		$errors = new WP_Error();
 
+		if ( empty( $data['client_id'] ) ) {
+			$errors->add( 'client_required', __( 'El cliente es obligatorio.', 'super-mechanic' ) );
+		}
+
 		if ( empty( $data['make'] ) ) {
 			$errors->add( 'brand_required', __( 'La marca es obligatoria.', 'super-mechanic' ) );
 		}
 
 		if ( empty( $data['model'] ) ) {
 			$errors->add( 'model_required', __( 'El modelo es obligatorio.', 'super-mechanic' ) );
+		}
+
+		if ( empty( $data['plate'] ) && empty( $data['vin'] ) ) {
+			$errors->add( 'vin_required_without_plate', __( 'El VIN es obligatorio cuando la placa no está informada.', 'super-mechanic' ) );
 		}
 
 		if ( ! empty( $data['year'] ) ) {

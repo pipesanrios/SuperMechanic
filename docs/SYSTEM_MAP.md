@@ -672,7 +672,30 @@ Registrar solo cambios reales detectables en el codigo y evitar duplicar histori
   - `Settings` reutiliza la capa admin comun sobre la Settings API ya cableada
   - `Client_List_Table`, `Vehicle_List_Table`, `Process_List_Table` y `Flow_List_Table` agregan jerarquia visual y badges sin modificar consultas ni paginacion
 - Riesgos arquitectonicos actualizados:
-  - la modernizacion sigue apoyandose en controllers grandes; si el admin crece mas, convendra extraer helpers de presentacion sin mover logica a nuevas capas paralelas
+- la modernizacion sigue apoyandose en controllers grandes; si el admin crece mas, convendra extraer helpers de presentacion sin mover logica a nuevas capas paralelas
 
+## Actualizacion Fase 27A. API base segura (cliente autenticado)
+
+- Integracion real consolidada:
+  - el runtime activo incorpora `Client_REST_Controller` en `includes/dashboard/class-client-rest-controller.php`
+  - `Plugin` registra hooks REST desde `includes/class-plugin.php` en arquitectura activa `includes/*`
+  - la API 27A mantiene alcance read-only con un único controller, sin usar `includes/modules/*`
+- Endpoints activos en `super-mechanic/v1`:
+  - `GET /client/processes`
+  - `GET /client/processes/{id}`
+  - `GET /client/vehicles`
+  - `GET /client/vehicles/{id}`
+  - `GET /client/quotes`
+  - `GET /client/quotes/{id}`
+  - `GET /client/invoices`
+  - `GET /client/invoices/{id}`
+- Seguridad consolidada:
+  - autenticación WordPress obligatoria por `permission_callback`
+  - acceso portal cliente por `Permission_Service`
+  - ownership estricto por `Access_Control_Service` y services de dominio
+  - sin rutas de descarga ni exposición de `file_url`
+- Riesgos arquitectonicos actualizados:
+  - 27A no incluye write endpoints ni tracking público
+  - comentarios API quedan fuera de 27A por control de alcance y payload estable
 
 

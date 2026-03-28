@@ -58,21 +58,21 @@ class Admin_Dashboard_Controller {
 		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Resumen en vivo', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Las métricas se calculan sobre la operación actual sin alterar los flujos existentes.', 'super-mechanic' ) . '</p></div>';
 
 		echo '<div class="sm-grid sm-grid-cards">';
-		$this->render_kpi_card( __( 'Clientes', 'super-mechanic' ), $kpis['total_clients'], __( 'Base total registrada', 'super-mechanic' ) );
-		$this->render_kpi_card( __( 'Vehículos', 'super-mechanic' ), $kpis['total_vehicles'], __( 'Activos en seguimiento', 'super-mechanic' ) );
-		$this->render_kpi_card( __( 'Procesos', 'super-mechanic' ), $kpis['total_processes'], __( 'Carga histórica consolidada', 'super-mechanic' ) );
-		$this->render_kpi_card( __( 'Procesos abiertos', 'super-mechanic' ), $kpis['open_processes'], __( 'Carga operativa inmediata', 'super-mechanic' ) );
+		$this->render_kpi_card( __( 'Clientes', 'super-mechanic' ), $kpis['total_clients'], __( 'Base total registrada', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-clients' ) );
+		$this->render_kpi_card( __( 'Vehículos', 'super-mechanic' ), $kpis['total_vehicles'], __( 'Activos en seguimiento', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-vehicles' ) );
+		$this->render_kpi_card( __( 'Procesos', 'super-mechanic' ), $kpis['total_processes'], __( 'Carga histórica consolidada', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-processes' ) );
+		$this->render_kpi_card( __( 'Procesos abiertos', 'super-mechanic' ), $kpis['open_processes'], __( 'Carga operativa inmediata', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-processes', array( 'filter_status' => 'open' ) ) );
 		echo '</div>';
 
 		echo '<div class="sm-grid sm-grid-two">';
 		echo '<section class="sm-card sm-card-muted">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Procesos por estado', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( count( $process_status ) ) . ' ' . esc_html__( 'grupos', 'super-mechanic' ) . '</span></div>';
-		$this->render_simple_summary_table( $process_status, __( 'Estado', 'super-mechanic' ) );
+		$this->render_simple_summary_table( $process_status, __( 'Estado', 'super-mechanic' ), 'status' );
 		echo '</section>';
 
 		echo '<section class="sm-card sm-card-muted">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Procesos por tipo', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( count( $process_types ) ) . ' ' . esc_html__( 'grupos', 'super-mechanic' ) . '</span></div>';
-		$this->render_simple_summary_table( $process_types, __( 'Tipo', 'super-mechanic' ) );
+		$this->render_simple_summary_table( $process_types, __( 'Tipo', 'super-mechanic' ), 'process_type' );
 		echo '</section>';
 		echo '</div>';
 
@@ -85,7 +85,7 @@ class Admin_Dashboard_Controller {
 			foreach ( $recent_processes as $process ) {
 				echo '<tr>';
 				echo '<td>' . esc_html( $process['id'] ) . '</td>';
-				echo '<td>' . esc_html( $process['title'] ) . '</td>';
+				echo '<td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'edit', 'id' => absint( $process['id'] ) ) ) ) . '">' . esc_html( $process['title'] ) . '</a></td>';
 				echo '<td>' . esc_html( $this->humanize_key( $process['process_type'] ) ) . '</td>';
 				echo '<td>' . wp_kses_post( $this->render_status_badge( $process['status'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_vehicle_label( $process ) ) . '</td>';
@@ -104,7 +104,7 @@ class Admin_Dashboard_Controller {
 			echo '<tr><td colspan="4">' . esc_html__( 'No hay vehículos recientes.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $recent_vehicles as $vehicle ) {
-				echo '<tr><td>' . esc_html( $vehicle['id'] ) . '</td><td>' . esc_html( $this->format_vehicle_label( $vehicle ) ) . '</td><td>' . esc_html( $vehicle['plate'] ) . '</td><td>' . esc_html( ! empty( $vehicle['client_name'] ) ? $vehicle['client_name'] : __( 'Sin asignar', 'super-mechanic' ) ) . '</td></tr>';
+				echo '<tr><td>' . esc_html( $vehicle['id'] ) . '</td><td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-vehicles', array( 'action' => 'view', 'id' => absint( $vehicle['id'] ) ) ) ) . '">' . esc_html( $this->format_vehicle_label( $vehicle ) ) . '</a></td><td>' . esc_html( $vehicle['plate'] ) . '</td><td>' . esc_html( ! empty( $vehicle['client_name'] ) ? $vehicle['client_name'] : __( 'Sin asignar', 'super-mechanic' ) ) . '</td></tr>';
 			}
 		}
 		echo '</tbody></table></div>';
@@ -118,7 +118,7 @@ class Admin_Dashboard_Controller {
 		} else {
 			foreach ( $recent_clients as $client ) {
 				$name = trim( $client['first_name'] . ' ' . $client['last_name'] );
-				echo '<tr><td>' . esc_html( $client['id'] ) . '</td><td>' . esc_html( $name ) . '</td><td>' . esc_html( $client['email'] ) . '</td><td>' . esc_html( $client['phone'] ) . '</td></tr>';
+				echo '<tr><td>' . esc_html( $client['id'] ) . '</td><td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-clients', array( 'action' => 'view', 'id' => absint( $client['id'] ) ) ) ) . '">' . esc_html( $name ) . '</a></td><td>' . esc_html( $client['email'] ) . '</td><td>' . esc_html( $client['phone'] ) . '</td></tr>';
 			}
 		}
 		echo '</tbody></table></div>';
@@ -135,14 +135,15 @@ class Admin_Dashboard_Controller {
 	 * @param string     $footnote Optional footnote.
 	 * @return void
 	 */
-	protected function render_kpi_card( $label, $value, $footnote = '' ) {
-		echo '<article class="sm-card sm-kpi-card">';
+	protected function render_kpi_card( $label, $value, $footnote = '', $url = '' ) {
+		$tag = '' !== $url ? 'a' : 'article';
+		echo '<' . $tag . ' class="sm-card sm-kpi-card"' . ( '' !== $url ? ' href="' . esc_url( $url ) . '" style="text-decoration:none;color:inherit;"' : '' ) . '>';
 		echo '<span class="sm-kpi-label">' . esc_html( $label ) . '</span>';
 		echo '<strong class="sm-kpi-value">' . esc_html( $value ) . '</strong>';
 		if ( '' !== $footnote ) {
 			echo '<p class="sm-kpi-footnote">' . esc_html( $footnote ) . '</p>';
 		}
-		echo '</article>';
+		echo '</' . $tag . '>';
 	}
 
 	/**
@@ -174,16 +175,39 @@ class Admin_Dashboard_Controller {
 	 * @param string $label_header Column header.
 	 * @return void
 	 */
-	protected function render_simple_summary_table( $rows, $label_header ) {
+	protected function render_simple_summary_table( $rows, $label_header, $filter_key = '' ) {
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html( $label_header ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $rows ) ) {
 			echo '<tr><td colspan="2">' . esc_html__( 'Sin datos.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $rows as $row ) {
-				echo '<tr><td>' . wp_kses_post( $this->render_status_badge( $row['label'] ) ) . '</td><td>' . esc_html( $row['total'] ) . '</td></tr>';
+				$label_markup = wp_kses_post( $this->render_status_badge( $row['label'] ) );
+				if ( '' !== $filter_key ) {
+					$label_markup = '<a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'filter_' . $filter_key => $row['label'] ) ) ) . '">' . $label_markup . '</a>';
+				}
+				echo '<tr><td>' . $label_markup . '</td><td>' . esc_html( $row['total'] ) . '</td></tr>';
 			}
 		}
 		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * Build admin page URLs.
+	 *
+	 * @param string               $page_slug Page slug.
+	 * @param array<string, mixed> $args      Extra args.
+	 * @return string
+	 */
+	protected function get_admin_page_url( $page_slug, $args = array() ) {
+		return add_query_arg(
+			array_merge(
+				array(
+					'page' => $page_slug,
+				),
+				$args
+			),
+			admin_url( 'admin.php' )
+		);
 	}
 
 	/**
