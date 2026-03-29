@@ -380,13 +380,11 @@ Resultado esperado:
 - exportación CSV previa sigue limitada a las vistas soportadas
 
 ==================================================
-RESUMEN FASE 14
+RESUMEN HISTORICO FASE 14
 ==================================================
 
-- OK: 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15
-- PARCIAL: 6, 13
-- DESALINEADO: ninguno critico
-- FRÁGIL: ninguno critico
+- Este bloque es historico de cierre de Fase 14.
+- El estado actual consolidado del proyecto vive en `docs/CURRENT_STATE.md`.
 
 ==================================================
 REGLA DE VALIDACIÓN
@@ -549,3 +547,25 @@ Resultado esperado:
 - si ya está `confirmed`, éxito estable/idempotente
 - si está `cancelled`, `completed` o `in_progress`, respuesta `409`
 - idempotencia por `idempotency_key` (body/header) con transient 24h
+
+==================================================
+ESCENARIO 26 — CALENDARIO OPERATIVO ADMIN (37A)
+==================================================
+
+Estado Fase 37A: PARCIAL (wiring REST corregido; sin validación E2E visual completa en este cierre)
+
+Flujo:
+
+Administrador con `sm_manage_processes`
+→ abre `Super Mechanic -> Calendar`
+→ FullCalendar solicita eventos por rango visible
+→ selecciona cita y cambia estado desde control rápido
+
+Resultado esperado:
+
+- feed interno responde en `GET /wp-json/super-mechanic/v1/admin/appointments/calendar`
+- payload estable por evento (`id`, `title`, `start`, `end`, `url`, `extendedProps`)
+- update de estado en `POST /wp-json/super-mechanic/v1/admin/appointments/{id}/status`
+- cambio de estado vía `Appointment_Service` (sin update directo en repository)
+- tenancy por `business_id` respetada en lectura y cambio de estado
+- click en evento abre el detalle existente de la cita

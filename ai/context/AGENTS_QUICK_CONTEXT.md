@@ -29,4 +29,5 @@ Seguridad:
 
 Fuente de verdad:
 ARCHITECTURE.md
-CURRENT_STATE.md
+docs/CURRENT_STATE.md
+docs/PLUGIN_ROADMAP.md

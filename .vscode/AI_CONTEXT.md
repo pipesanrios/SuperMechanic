@@ -1,305 +1,66 @@
 AI CONTEXT — SUPER MECHANIC
 
-Contexto técnico rápido para agentes de IA en VSCode.
+Contexto operativo rapido para agentes IA.
+Fuente de verdad: codigo real (`includes/*`).
 
-Objetivo:
-dar contexto operativo mínimo del proyecto sin reemplazar la documentación técnica completa.
+## Estado real
 
-==================================================
-PROYECTO
-==================================================
+- Plugin: `0.1.0`
+- Schema: `1.15.0`
+- Fase actual: `37A-3` (consistencia operativa y tenancy endurecida)
+- Arquitectura activa: `includes/*`
+- Legacy no activa: `includes/modules/*`
 
-Nombre:
-Super Mechanic
+## Patrón obligatorio
 
-Tipo:
-Plugin WordPress
+`Controller -> Service -> Repository -> Database`
 
-Propósito:
-sistema modular para gestión de talleres, concesionarios, procesos de vehículos, mantenimiento, trámites, cotizaciones, facturación y Client Portal.
+- SQL solo en repositories (y capa `includes/database/*` para schema/migraciones)
+- `$wpdb` prohibido fuera de repository/database infra
+- Descargas seguras via `Document_Service` + `Download_Service`
+- No exponer `file_url` directo
 
-==================================================
-ARQUITECTURA ACTIVA
-==================================================
+## Modulos activos reales
 
-Patrón principal:
+`clients`, `vehicles`, `relations`, `flows`, `processes`, `maintenance`, `predelivery`, `paperwork`, `quotes`, `invoices`, `attachments`, `communication`, `dashboard`, `reports`, `appointments`, `automation`, `businesses`, `helpers`, `integrations`, `database`
 
-Repository
-Service
-Controller
-Shortcodes
-REST Controller (cuando aplique)
+## Integraciones activas
 
-Reglas base:
+- Google Calendar (OAuth, sync 1-way, inbound controlado, webhook/watch channel)
+- API publica `super-mechanic-public/v1`
+  - read-only: `business`, `processes`, `appointments`
+  - write minima: `appointments/{id}/cancel`, `appointments/{id}/confirm`
+- Webhooks outbound publicos (`sm_webhooks`, `sm_webhook_deliveries`)
+- Calendario operativo admin de citas
+  - FullCalendar local (sin CDN)
+  - REST interno: `GET /super-mechanic/v1/admin/appointments/calendar`
+  - REST interno: `POST /super-mechanic/v1/admin/appointments/{id}/status`
+  - update de estado via `Appointment_Service` (preserva sync Google)
 
-- SQL solo en Repository
-- la arquitectura activa real está en `includes/*`
-- `includes/modules/*` es legacy y no debe usarse
-- Controller → Service → Repository
-- Shortcodes → frontend cliente
-- Controllers admin → UI admin
-- Shortcodes mecánicos → frontend autenticado por rol cuando aplique
+## Tenancy real
 
-==================================================
-MÓDULOS ACTIVOS
-==================================================
+- `business_id` activo en tablas tenant-aware
+- `sm_businesses` activo
+- contexto por prioridad:
+  - `sm_active_business_id` (user meta)
+  - `sm_settings.business.business_id`
+  - fallback negocio default `id=1`
 
-clients
-vehicles
-relations
-flows
-processes
-maintenance
-predelivery
-paperwork
-dashboard
-reports
-quotes
-invoices
-payments
-attachments
-communication
-appointments
-businesses
-helpers
-integrations
+## Deuda tecnica viva
 
-==================================================
-CAPAS TRANSVERSALES
-==================================================
+- placeholders no activos: `includes/class-rest-api.php`, `includes/class-hooks.php`, `includes/class-post-types.php`
+- no hay CI/CD externo ni E2E runtime automatizado
+- faltan UX/admin dedicadas para API keys/webhooks publicos
 
-- core / bootstrap
-- security / ownership
-- settings
-- documents / PDF / secure downloads
-- UI / assets
-- quality / scripts locales
-- client portal
-
-No activas todavía:
-
-- SaaS real
-
-==================================================
-REGLAS CRÍTICAS
-==================================================
-
-- nunca colocar SQL fuera de Repository
-- nunca modificar `includes/modules/*`
-- validar ownership siempre
-- aplicar sanitización y escaping
-- nunca exponer `file_url` directo
-- usar `Document_Service` + `Download_Service` para descargas seguras
-- no romper formularios, nonces ni query args
-- reutilizar sistema visual `sm-*`
-
-==================================================
-FLUJO PRINCIPAL
-==================================================
-
-Cliente
-→ Vehículo
-→ Relación cliente-vehículo
-→ Proceso
-→ Maintenance / Quote / Invoice / Payment
-
-Durante el proceso pueden existir:
-
-attachments
-comments
-notifications
-timeline
-
-==================================================
-SHORTCODES ACTIVOS
-==================================================
-
-Actualmente existen shortcodes activos de cliente:
-
-- sm_client_dashboard
-- sm_client_vehicles
-- sm_client_processes
-- sm_client_process_documents
-- sm_client_process_timeline
-- sm_client_quotes
-- sm_client_quote_detail
-- sm_client_quote_action
-- sm_client_invoices
-- sm_client_invoice_detail
-- sm_client_process_comments
-- sm_client_process_comment_form
-- sm_client_notifications
-
-Shortcodes activos de mecánico:
-
-- sm_mechanic_dashboard
-- sm_mechanic_processes
-
-No existen todavía shortcodes activos para:
-
-- contexto público/general
-
-Fuente de verdad:
-- `includes/dashboard/class-client-dashboard-shortcodes.php`
-- `includes/dashboard/class-mechanic-dashboard-shortcodes.php`
-- `includes/attachments/class-client-attachment-shortcodes.php`
-- `includes/quotes/class-client-quote-shortcodes.php`
-- `includes/invoices/class-client-invoice-shortcodes.php`
-- `includes/communication/class-client-comment-shortcodes.php`
-
-==================================================
-SCRIPTS DE VALIDACIÓN TÉCNICA
-==================================================
-
-Ubicación:
-`scripts/`
-
-Scripts activos:
-
-- `php-lint.php`
-- `structure-check.php`
-- `technical-checklist.php`
-
-Propósito:
-- lint PHP
-- chequeo estructural
-- checklist técnico local previo al cierre
-
-==================================================
-ESTADO ACTUAL RESUMIDO
-==================================================
-
-Versión real:
-- plugin: `0.1.0`
-- schema: `1.15.0`
-
-Fases consolidadas:
-- 12A–12E
-- 13
-- 14
-- 14B
-- 15
-- 16
-- 17
-- 18
-- 19
-- 20
-- 20B
-- 21
-- 22
-- 23
-- 24
-- 24B
-- 25
-- 26
-- 26B
-- 27A
-- 27B
-- 27C-A
-- 27C-B
-- 28
-- 29
-- 30
-- 31A
-- 31B
-- 31C
-- 32A
-- 32B-1
-- 32B-2
-- 32B-3A
-- 32B-3B
-- 33
-- 34
-- 35A
-- 35B
-- 35C
-- 36A
-- 36B
-- 36C-1
-- 36C-2
-
-Resumen de hitos recientes:
-- reports consolidado y avanzado
-- Client Portal y mecánico operativos
-- ownership centralizado
-- workflow endurecido
-- documentos seguros y `payment_receipt`
-- settings avanzados con `sm_settings`
-- UI moderna base + cobertura admin
-- scripts locales de validación
-- hardening pre-SaaS en controllers críticos, transacciones y descargas admin
-- bloque previo a Fase 27 estabilizado con smoke test runtime real `COMPLETO`
-- SUBFASES 7-9 validadas en runtime real: invoice manual sin quote, impuestos/descuentos `percent/fixed`, pagos consolidados sobre `sm_payments` y seguridad documental endurecida sobre `uploads`
-- SUBFASES 10-13 validadas en runtime real: `Permission_Service` reutilizable, portal cliente consolidado, shortcodes mecánicos frontend activos y enforcement coherente por rol + ownership
-- FASE 27A + 27B + 27C-A activas en runtime real: API interna read-only para cliente y admin en `includes/dashboard/class-client-rest-controller.php` y `includes/dashboard/class-admin-rest-controller.php`, con filtros/paginación consistentes y payloads normalizados para procesos, vehículos, clientes, quotes e invoices
-- FASE 27C-B activa en runtime real con write mínimo interno admin: cambio de estado de proceso y comentario interno de proceso, protegidos por `sm_manage_plugin` + `sm_manage_processes`, payload acotado y sin apertura de writes adicionales
-- FASE 28 activa en runtime real: centro financiero admin con paneles dedicados `Finanzas: Invoices` y `Finanzas: Payments`, relación invoice ↔ payments visible, estado de cobro (`pending` / `partial` / `paid`) y acciones seguras de PDF/comprobante por `Download_Service`
-- FASE 29 activa en código: expansión de reportes admin operativos/financieros con filtros por `mechanic_id`/`client_id`/`vehicle_id`, criterio único de mecánico sobre `sm_processes.assigned_to`, separación explícita `invoice_status` vs estado de cobro y agregados de invoices (`subtotal`, `tax_total`, `discount_total`, `grand_total`) sin cambios de schema
-- FASE 31A activa en código: base local de licencias en `sm_settings.license` con `License_Service` + provider local, acciones admin `activate/validate/deactivate`, estado visible en Ajustes y key enmascarada (sin updates privadas, sin feature flags, sin bloqueo de funcionalidades)
-- FASE 31B activa en código: base local de updates privadas con `Update_Service` + contrato provider desacoplado (`Update_Provider_Interface`), metadata de versión/compatibilidad, integración a hooks nativos de updates de WordPress, URL de paquete firmada y temporal, estado visible en Ajustes y persistencia en `sm_settings.updates` (sin 31C, sin schema changes)
-- FASE 31C activa en código: base centralizada de plan efectivo + feature flags con `Plan_Access_Service` y catálogo `Feature_Flags`, persistencia local en `sm_settings.plan` y `sm_settings.features.feature_flags`, estado visible en Ajustes y gating mínimo no destructivo en superficies admin no críticas (reportes, export CSV y catálogo de shortcodes) sin tocar módulos core ni schema
-- FASE 32A activa en código: módulo de citas operativo con `sm_appointments`, CRUD admin, asignación de mecánico por `assigned_to`, estados base y filtros por fecha/mecánico/estado
-- FASE 32B-1 activa en código: feed ICS/iCal read-only de citas con endpoint firmado, token HMAC con expiración y firma de filtros permitidos (`assigned_to`, `status`, `date_from`, `date_to`), `UID` estable por cita, headers `text/calendar` y rango por defecto acotado (hoy + 30 días) sin cambios de schema
-- FASE 32B-2 activa en código: integración Google Calendar 1-way con OAuth básico admin (connect/callback/disconnect), creación/actualización de eventos desde citas y persistencia de estado en tabla separada `sm_appointment_calendar_sync`; los fallos remotos no bloquean el guardado local de citas
-- FASE 32B-3A activa en código: reconciliación inbound controlada (plugin como fuente de verdad), política explícita de conflicto/rechazo, aplicación solo de campos permitidos y acción manual admin de reconciliación
-- FASE 32B-3B activa en código: watch channels + webhook REST dedicado para Google Calendar con validación `X-Goog-*`, idempotencia por `message_number` + lock corto, encolado de procesamiento, renovación preventiva por cron y renovación manual de canal sin cambios de schema
-- FASE 33 activa en código: expansión del motor de notificaciones existente con catálogo central de eventos/plantillas, canal externo desacoplado de email por `wp_mail` (`Email_Notification_Channel`), integración de citas al `Event_Dispatcher` (`appointment_created/updated/status_changed/cancelled`) y toggle mínimo `notifications.enable_email_notifications` en `sm_settings` sin cambios de schema
-- FASE 34 activa en código: automatización operativa controlada con `Automation_Service` + `Automation_Rule_Engine`, scheduler `wp_cron` de recordatorios (`Appointment_Reminder_Scheduler`), trigger `appointment_reminder` integrado al dispatcher y deduplicación por lock/transient para evitar envíos repetidos, sin schema changes
-- FASE 35A activa en código: base multi-business real en núcleo transaccional (`clients`, `vehicles`, `client_vehicles`, `processes`, `quotes`, `invoices`, `payments`) con `business_id`, fallback legacy `1` y backfill idempotente separado
-- FASE 35B activa en código: enforcement tenant-aware transversal en entidades diferidas (`quote_items`, `invoice_items`, `process_step_logs`, `appointments`, `appointment_calendar_sync`, `attachments`, `comments`, `notifications`), hardening `ownership + business_id` en `Access_Control_Service` y filtros de reportes aislados por negocio
-- FASE 35C activa en código: entidad `sm_businesses` + módulo `includes/businesses/*`, negocio default legacy (`id=1`), selector operativo por usuario (`sm_active_business_id`) y resolución de contexto con prioridad `user meta -> sm_settings.business.business_id -> default`
-- FASE 36A activa en código: API pública base separada con namespace `super-mechanic-public/v1`, auth por API key propia del plugin (`sm_settings.public_api` con `key_hash`, `business_id`, `scopes`, `status`, `last_used_at`), resolución tenant-aware desde credencial y endpoints read-only mínimos `business`, `processes`, `appointments` con payload explícito y hardening de filtros/paginación
-- FASE 36B activa en código: base de webhooks outbound por negocio con tablas `sm_webhooks` y `sm_webhook_deliveries`, catálogo público inicial (`process.created`, `process.status_changed`, `appointment.created`, `appointment.status_changed`), entrega asíncrona firmada (`HMAC-SHA256`) y retries básicos controlados con idempotencia por `webhook_id + event_id`
-- FASE 36C-1 activa en código: primera write pública mínima y controlada para citas con endpoint `POST /wp-json/super-mechanic-public/v1/appointments/{id}/cancel`, scope `appointments:cancel`, validación de transición (`scheduled|confirmed|in_progress`), idempotencia por transient (24h) con `idempotency_key` y tenant-safety explícito por `business_id` de credencial en lookup+update
-- FASE 36C-2 activa en código: segunda write pública mínima y controlada para citas con endpoint `POST /wp-json/super-mechanic-public/v1/appointments/{id}/confirm`, scope `appointments:confirm`, confirmación permitida solo desde `scheduled`, respuesta estable si ya está `confirmed`, bloqueo `409` para `cancelled|completed|in_progress` e idempotencia por transient (24h) reutilizando `idempotency_key`
-
-==================================================
-DEUDA TÉCNICA VIVA
-==================================================
-
-- `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen como placeholders / no activos
-- rutas admin de PDF de quotes/invoices siguen como excepción controlada
-- `Process_Admin_Controller` y `Report_Service` siguen siendo puntos a vigilar si crecen más
-- API pública productiva ya incluye writes mínimas controladas de cita (`cancel` y `confirm`); faltan gestión admin de webhooks/credenciales, observabilidad avanzada y evaluación de próximas expansiones contractuales sin abrir CRUD público amplio
-- no hay CI/CD externo real
-- no hay validación runtime completa en WordPress automatizada
-- invoices PDF sigue pendiente mientras no exista motor PDF activo en entorno
-- `sm_public_tracking` sigue pendiente por seguridad hasta que exista un mecanismo público seguro no basado en IDs internos
-
-==================================================
-FUENTE DE VERDAD
-==================================================
-
-Si hay conflicto entre:
-
-- código
-- documentación
-- prompts
-
-manda siempre:
-
-1. código real (`includes/*`)
-2. docs técnicos base
-3. contextos AI rápidos
-
-==================================================
-DOCUMENTACIÓN CLAVE
-==================================================
-
-Ver detalle en:
+## Docs clave
 
 - `ARCHITECTURE.md`
 - `docs/CURRENT_STATE.md`
+- `docs/PLUGIN_ROADMAP.md`
 - `docs/SYSTEM_MAP.md`
 - `docs/MODULE_REGISTRY.md`
 - `docs/DATABASE_MAP.md`
-- `docs/SECURITY_MODEL.md`
-- `docs/PLUGIN_ROADMAP.md`
-- `docs/TEST_SCENARIOS.md`
 
-==================================================
-REGLA FINAL
-==================================================
+## Regla final
 
-AI_CONTEXT.md debe mantenerse como contexto rápido.
-No debe duplicar en detalle a `ARCHITECTURE.md`, `SYSTEM_MAP.md` o `CURRENT_STATE.md`.
+Si docs/prompts difieren del codigo: manda el codigo y corrige la documentacion.

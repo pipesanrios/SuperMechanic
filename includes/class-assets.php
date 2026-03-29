@@ -19,6 +19,8 @@ class Assets {
 	const ADMIN_SCRIPT   = 'sm-admin-ui';
 	const CLIENT_SCRIPT  = 'sm-client-ui';
 	const MECHANIC_SCRIPT = 'sm-mechanic-ui';
+	const CALENDAR_VENDOR_SCRIPT = 'sm-fullcalendar-vendor';
+	const CALENDAR_SCRIPT = 'sm-admin-calendar';
 
 	/**
 	 * Register hooks.
@@ -62,6 +64,20 @@ class Assets {
 			SM_PLUGIN_VERSION,
 			true
 		);
+		wp_register_script(
+			self::CALENDAR_VENDOR_SCRIPT,
+			SM_PLUGIN_URL . 'assets/vendor/fullcalendar/fullcalendar-6.1.19.index.global.min.js',
+			array(),
+			SM_PLUGIN_VERSION,
+			true
+		);
+		wp_register_script(
+			self::CALENDAR_SCRIPT,
+			SM_PLUGIN_URL . 'assets/js/admin-calendar.js',
+			array( self::CALENDAR_VENDOR_SCRIPT ),
+			SM_PLUGIN_VERSION,
+			true
+		);
 
 		if ( ! $this->is_super_mechanic_admin_page() ) {
 			return;
@@ -73,6 +89,32 @@ class Assets {
 		if ( $this->is_mechanic_page() ) {
 			wp_enqueue_style( self::MECHANIC_STYLE );
 			wp_enqueue_script( self::MECHANIC_SCRIPT );
+		}
+
+		if ( $this->is_calendar_page() ) {
+			wp_enqueue_script( self::CALENDAR_SCRIPT );
+			wp_localize_script(
+				self::CALENDAR_SCRIPT,
+				'smAdminCalendar',
+				array(
+					'restUrl'           => esc_url_raw( rest_url( 'super-mechanic/v1/admin/appointments/' ) ),
+					'nonce'             => wp_create_nonce( 'wp_rest' ),
+					'detailsBaseUrl'    => admin_url( 'admin.php?page=super-mechanic-appointments&action=edit&id=' ),
+					'createBaseUrl'     => admin_url( 'admin.php?page=super-mechanic-appointments&action=new' ),
+					'statusUpdateLabel' => __( 'Estado actualizado.', 'super-mechanic' ),
+					'statusUpdateError' => __( 'No fue posible actualizar el estado.', 'super-mechanic' ),
+					'moveUpdateLabel'   => __( 'Cita reprogramada.', 'super-mechanic' ),
+					'moveUpdateError'   => __( 'No fue posible reprogramar la cita.', 'super-mechanic' ),
+					'calendarLoadError' => __( 'No fue posible cargar el calendario.', 'super-mechanic' ),
+					'statusOptions'     => array(
+						'scheduled'   => __( 'Scheduled', 'super-mechanic' ),
+						'confirmed'   => __( 'Confirmed', 'super-mechanic' ),
+						'in_progress' => __( 'In progress', 'super-mechanic' ),
+						'completed'   => __( 'Completed', 'super-mechanic' ),
+						'cancelled'   => __( 'Cancelled', 'super-mechanic' ),
+					),
+				)
+			);
 		}
 	}
 
@@ -133,5 +175,18 @@ class Assets {
 		}
 
 		return 'super-mechanic-mechanic-dashboard' === sanitize_key( wp_unslash( $_GET['page'] ) );
+	}
+
+	/**
+	 * Check whether the current admin page is the operational calendar page.
+	 *
+	 * @return bool
+	 */
+	protected function is_calendar_page() {
+		if ( ! isset( $_GET['page'] ) ) {
+			return false;
+		}
+
+		return 'super-mechanic-calendar' === sanitize_key( wp_unslash( $_GET['page'] ) );
 	}
 }

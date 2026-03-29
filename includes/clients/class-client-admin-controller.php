@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Clients;
 
+use Super_Mechanic\Invoices\Payment_Repository;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Service;
 use WP_Error;
@@ -25,6 +26,7 @@ class Client_Admin_Controller {
 	protected $service;
 	protected $client_vehicle_service;
 	protected $process_service;
+	protected $payment_repository;
 
 	/**
 	 * Constructor.
@@ -35,6 +37,7 @@ class Client_Admin_Controller {
 		$this->service                = $service ? $service : new Client_Service();
 		$this->client_vehicle_service = new Client_Vehicle_Service();
 		$this->process_service        = new Process_Service();
+		$this->payment_repository     = new Payment_Repository();
 	}
 
 	/**
@@ -208,6 +211,7 @@ class Client_Admin_Controller {
 
 		$client = wp_parse_args( $client, $defaults );
 		$title  = $is_edit ? __( 'Editar cliente', 'super-mechanic' ) : __( 'Nuevo cliente', 'super-mechanic' );
+		$return = $this->get_process_return_context();
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
@@ -224,6 +228,10 @@ class Client_Admin_Controller {
 		wp_nonce_field( 'sm_save_client', 'sm_client_nonce' );
 		echo '<input type="hidden" name="sm_client_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( absint( $client['id'] ) ) . '" />';
+		echo '<input type="hidden" name="return_page" value="' . esc_attr( $return['page'] ) . '" />';
+		echo '<input type="hidden" name="return_action" value="' . esc_attr( $return['action'] ) . '" />';
+		echo '<input type="hidden" name="return_process_id" value="' . esc_attr( $return['process_id'] ) . '" />';
+		echo '<input type="hidden" name="return_vehicle_id" value="' . esc_attr( $return['vehicle_id'] ) . '" />';
 		echo '<table class="form-table" role="presentation">';
 		$this->render_text_field( 'first_name', __( 'Nombre', 'super-mechanic' ), $client['first_name'], true );
 		$this->render_text_field( 'last_name', __( 'Apellido', 'super-mechanic' ), $client['last_name'] );
@@ -259,6 +267,15 @@ class Client_Admin_Controller {
 				'client_id' => $client_id,
 				'per_page'  => 100,
 				'orderby'   => 'created_at',
+				'order'     => 'DESC',
+			)
+		);
+		$payments  = $this->payment_repository->get_all(
+			array(
+				'client_id' => $client_id,
+				'per_page'  => 100,
+				'page'      => 1,
+				'orderby'   => 'payment_date',
 				'order'     => 'DESC',
 			)
 		);
@@ -360,6 +377,27 @@ class Client_Admin_Controller {
 		}
 		echo '</tbody></table></div>';
 		echo '</section>';
+
+		echo '<section class="sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Historial de pagos', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Invoice', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Monto', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Método', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Referencia', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $payments ) ) {
+			echo '<tr><td colspan="6">' . esc_html__( 'No hay pagos registrados para este cliente en el negocio activo.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $payments as $payment ) {
+				$currency = isset( $payment['currency'] ) ? (string) $payment['currency'] : 'USD';
+				echo '<tr>';
+				echo '<td>#' . esc_html( absint( $payment['id'] ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $payment['payment_date'] ) ? (string) $payment['payment_date'] : '-' ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $payment['invoice_number'] ) ? (string) $payment['invoice_number'] : '#' . absint( $payment['invoice_id'] ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money( isset( $payment['amount'] ) ? (float) $payment['amount'] : 0, $currency ) ) . '</td>';
+				echo '<td>' . esc_html( $this->humanize_key( isset( $payment['payment_method'] ) ? (string) $payment['payment_method'] : '' ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $payment['reference'] ) ? (string) $payment['reference'] : '-' ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
 		echo '</div>';
 	}
 
@@ -424,6 +462,27 @@ class Client_Admin_Controller {
 					'sm_notice' => 'error',
 				);
 			$this->redirect( $redirect_args );
+		}
+
+		$return_context = $this->get_process_return_context_from_post();
+
+		if ( ! $is_update && $return_context['is_process'] ) {
+			$target_client_id = absint( $result );
+			$args             = array(
+				'page'      => 'super-mechanic-processes',
+				'action'    => $return_context['action'],
+				'client_id' => $target_client_id,
+			);
+
+			if ( $return_context['process_id'] > 0 ) {
+				$args['id'] = $return_context['process_id'];
+			}
+
+			if ( $return_context['vehicle_id'] > 0 ) {
+				$args['vehicle_id'] = $return_context['vehicle_id'];
+			}
+
+			$this->redirect_to_url( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		}
 
 		$this->redirect( array( 'sm_notice' => $is_update ? 'updated' : 'created' ) );
@@ -578,6 +637,17 @@ class Client_Admin_Controller {
 	}
 
 	/**
+	 * Format amount using currency code.
+	 *
+	 * @param float  $amount   Amount.
+	 * @param string $currency Currency code.
+	 * @return string
+	 */
+	protected function format_money( $amount, $currency ) {
+		return strtoupper( sanitize_text_field( (string) $currency ) ) . ' ' . number_format_i18n( (float) $amount, 2 );
+	}
+
+	/**
 	 * Ensure the current user can access the module.
 	 *
 	 * @return void
@@ -634,6 +704,17 @@ class Client_Admin_Controller {
 	}
 
 	/**
+	 * Redirect to a fully resolved URL.
+	 *
+	 * @param string $url URL.
+	 * @return void
+	 */
+	protected function redirect_to_url( $url ) {
+		wp_safe_redirect( esc_url_raw( $url ) );
+		exit;
+	}
+
+	/**
 	 * Get the page URL.
 	 *
 	 * @param array<string, mixed> $args Query args.
@@ -676,5 +757,40 @@ class Client_Admin_Controller {
 	 */
 	protected function get_form_transient_key() {
 		return 'sm_client_form_' . get_current_user_id();
+	}
+
+	/**
+	 * Read return context from request (GET first, then POST).
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_process_return_context() {
+		$page      = isset( $_GET['return_page'] ) ? sanitize_key( wp_unslash( $_GET['return_page'] ) ) : ( isset( $_POST['return_page'] ) ? sanitize_key( wp_unslash( $_POST['return_page'] ) ) : '' );
+		$action    = isset( $_GET['return_action'] ) ? sanitize_key( wp_unslash( $_GET['return_action'] ) ) : ( isset( $_POST['return_action'] ) ? sanitize_key( wp_unslash( $_POST['return_action'] ) ) : '' );
+		$process_id = isset( $_GET['return_process_id'] ) ? absint( wp_unslash( $_GET['return_process_id'] ) ) : ( isset( $_POST['return_process_id'] ) ? absint( wp_unslash( $_POST['return_process_id'] ) ) : 0 );
+		$vehicle_id = isset( $_GET['vehicle_id'] ) ? absint( wp_unslash( $_GET['vehicle_id'] ) ) : ( isset( $_POST['return_vehicle_id'] ) ? absint( wp_unslash( $_POST['return_vehicle_id'] ) ) : 0 );
+
+		return array(
+			'page'       => 'super-mechanic-processes' === $page ? $page : '',
+			'action'     => in_array( $action, array( 'new', 'edit' ), true ) ? $action : 'new',
+			'process_id' => $process_id,
+			'vehicle_id' => $vehicle_id,
+		);
+	}
+
+	/**
+	 * Read and normalize post return context.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_process_return_context_from_post() {
+		$return = $this->get_process_return_context();
+
+		return array(
+			'is_process' => 'super-mechanic-processes' === $return['page'],
+			'action'     => $return['action'],
+			'process_id' => absint( $return['process_id'] ),
+			'vehicle_id' => absint( $return['vehicle_id'] ),
+		);
 	}
 }

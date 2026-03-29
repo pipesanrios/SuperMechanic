@@ -62,6 +62,7 @@ class Payment_Repository {
 			$args,
 			array(
 				'invoice_id'      => 0,
+				'client_id'       => 0,
 				'business_id'     => $this->resolve_business_id(),
 				'payment_method'  => '',
 				'search'          => '',
@@ -113,6 +114,7 @@ class Payment_Repository {
 			$args,
 			array(
 				'invoice_id'      => 0,
+				'client_id'       => 0,
 				'business_id'     => $this->resolve_business_id(),
 				'payment_method'  => '',
 				'search'          => '',
@@ -219,6 +221,10 @@ class Payment_Repository {
 			$clauses[] = 'pay.invoice_id = %d';
 		}
 
+		if ( ! empty( $args['client_id'] ) ) {
+			$clauses[] = 'i.client_id = %d';
+		}
+
 		if ( ! empty( $args['business_id'] ) ) {
 			$clauses[] = 'pay.business_id = %d';
 		}
@@ -259,6 +265,10 @@ class Payment_Repository {
 
 		if ( ! empty( $args['invoice_id'] ) ) {
 			$params[] = absint( $args['invoice_id'] );
+		}
+
+		if ( ! empty( $args['client_id'] ) ) {
+			$params[] = absint( $args['client_id'] );
 		}
 
 		if ( ! empty( $args['business_id'] ) ) {

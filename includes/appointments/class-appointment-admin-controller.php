@@ -8,6 +8,8 @@
 namespace Super_Mechanic\Appointments;
 
 use WP_Error;
+use WP_REST_Request;
+use WP_REST_Server;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -15,6 +17,13 @@ defined( 'ABSPATH' ) || exit;
  * Handles appointment admin flows.
  */
 class Appointment_Admin_Controller {
+	/**
+	 * Internal REST namespace.
+	 *
+	 * @var string
+	 */
+	protected $namespace = 'super-mechanic/v1';
+
 	/**
 	 * Service.
 	 *
@@ -39,6 +48,15 @@ class Appointment_Admin_Controller {
 	public function register_hooks() {
 		add_action( 'admin_init', array( $this, 'maybe_handle_actions' ) );
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
+	}
+
+	/**
+	 * Register REST hooks for calendar endpoints.
+	 *
+	 * @return void
+	 */
+	public function register_rest_hooks() {
+		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 	}
 
 	/**
@@ -82,6 +100,49 @@ class Appointment_Admin_Controller {
 		}
 
 		$this->render_list_page();
+	}
+
+	/**
+	 * Render operational calendar page.
+	 *
+	 * @return void
+	 */
+	public function render_calendar_page() {
+		$this->ensure_permissions();
+
+		echo '<div class="wrap sm-admin-shell sm-calendar-shell">';
+		echo '<div class="sm-admin-header">';
+		echo '<div class="sm-admin-title">';
+		echo '<h1>' . esc_html__( 'Calendar', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Gestion operativa visual de citas por dia, semana y mes.', 'super-mechanic' ) . '</p>';
+		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Nueva cita', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="sm-card sm-section sm-calendar-controls">';
+		echo '<div class="sm-calendar-controls-grid">';
+		echo '<div class="sm-calendar-controls-status">';
+		echo '<label for="sm-calendar-status-select"><strong>' . esc_html__( 'Cambio rapido de estado', 'super-mechanic' ) . '</strong></label>';
+		echo '<select id="sm-calendar-status-select">';
+		foreach ( $this->service->get_status_options() as $status_key => $status_label ) {
+			echo '<option value="' . esc_attr( $status_key ) . '">' . esc_html( $status_label ) . '</option>';
+		}
+		echo '</select>';
+		echo '<button type="button" class="button button-secondary" id="sm-calendar-status-update" disabled>' . esc_html__( 'Actualizar estado', 'super-mechanic' ) . '</button>';
+		echo '</div>';
+		echo '<div class="sm-calendar-selection">';
+		echo '<p id="sm-calendar-selected-title">' . esc_html__( 'Selecciona una cita en el calendario para actualizar su estado.', 'super-mechanic' ) . '</p>';
+		echo '<p class="description" id="sm-calendar-feedback"></p>';
+		echo '</div>';
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="sm-card sm-section sm-calendar-card">';
+		echo '<div id="sm-appointments-calendar" class="sm-appointments-calendar"></div>';
+		echo '</div>';
+		echo '</div>';
 	}
 
 	/**
@@ -178,6 +239,13 @@ class Appointment_Admin_Controller {
 			'start_at'           => '',
 			'notes'              => '',
 		);
+
+		if ( ! $is_edit ) {
+			$prefill = $this->get_form_prefill_from_query();
+			if ( ! empty( $prefill ) ) {
+				$appointment = array_merge( $appointment, $prefill );
+			}
+		}
 
 		$stored = get_transient( $this->get_form_transient_key() );
 		if ( is_array( $stored ) ) {
@@ -386,6 +454,291 @@ class Appointment_Admin_Controller {
 		echo '<a class="button button-link" href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Limpiar', 'super-mechanic' ) . '</a>';
 		echo '</form>';
 		echo '</div>';
+	}
+
+	/**
+	 * Register internal REST routes for admin calendar.
+	 *
+	 * @return void
+	 */
+	public function register_rest_routes() {
+		register_rest_route(
+			$this->namespace,
+			'/admin/appointments/calendar',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_calendar_events' ),
+				'permission_callback' => array( $this, 'check_calendar_permission' ),
+				'args'                => array(
+					'start' => array(
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'end'   => array(
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/admin/appointments/(?P<id>\d+)/status',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_calendar_appointment_status' ),
+				'permission_callback' => array( $this, 'check_calendar_permission' ),
+				'args'                => array(
+					'status' => array(
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_key',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/admin/appointments/(?P<id>\d+)/reschedule',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'update_calendar_appointment_schedule' ),
+				'permission_callback' => array( $this, 'check_calendar_permission' ),
+				'args'                => array(
+					'start_at' => array(
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Check permissions for calendar endpoints.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function check_calendar_permission() {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'sm_rest_login_required', __( 'Debe iniciar sesion para acceder al calendario.', 'super-mechanic' ), array( 'status' => 401 ) );
+		}
+
+		if ( ! current_user_can( 'sm_manage_processes' ) ) {
+			return new WP_Error( 'sm_rest_forbidden', __( 'No tienes permisos para gestionar citas.', 'super-mechanic' ), array( 'status' => 403 ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Return calendar event payload.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function get_calendar_events( WP_REST_Request $request ) {
+		$start        = sanitize_text_field( (string) $request->get_param( 'start' ) );
+		$end          = sanitize_text_field( (string) $request->get_param( 'end' ) );
+		$appointments = $this->service->get_appointments_for_calendar( $start, $end );
+		$events       = array();
+
+		foreach ( $appointments as $appointment ) {
+			$event = $this->map_calendar_event_payload( $appointment );
+			if ( ! empty( $event ) ) {
+				$events[] = $event;
+			}
+		}
+
+		return $events;
+	}
+
+	/**
+	 * Update one appointment status from calendar.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public function update_calendar_appointment_status( WP_REST_Request $request ) {
+		$appointment_id = absint( $request->get_param( 'id' ) );
+		$status         = sanitize_key( (string) $request->get_param( 'status' ) );
+
+		if ( $appointment_id <= 0 ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+		}
+
+		$result = $this->service->update_appointment_status_from_calendar( $appointment_id, $status );
+		if ( is_wp_error( $result ) ) {
+			return new WP_Error(
+				$result->get_error_code(),
+				$result->get_error_message(),
+				array( 'status' => 400 )
+			);
+		}
+
+		$appointment = $this->service->get_appointment( $appointment_id );
+		if ( ! is_array( $appointment ) ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+		}
+
+		return $this->map_calendar_event_payload( $appointment );
+	}
+
+	/**
+	 * Update one appointment schedule from calendar drag/drop.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public function update_calendar_appointment_schedule( WP_REST_Request $request ) {
+		$appointment_id = absint( $request->get_param( 'id' ) );
+		$start_at       = sanitize_text_field( (string) $request->get_param( 'start_at' ) );
+
+		if ( $appointment_id <= 0 ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+		}
+
+		$result = $this->service->update_appointment_schedule_from_calendar( $appointment_id, $start_at );
+		if ( is_wp_error( $result ) ) {
+			return new WP_Error(
+				$result->get_error_code(),
+				$result->get_error_message(),
+				array( 'status' => 400 )
+			);
+		}
+
+		$appointment = $this->service->get_appointment( $appointment_id );
+		if ( ! is_array( $appointment ) ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+		}
+
+		return $this->map_calendar_event_payload( $appointment );
+	}
+
+	/**
+	 * Build stable FullCalendar event payload.
+	 *
+	 * @param array<string,mixed> $appointment Appointment row.
+	 * @return array<string,mixed>
+	 */
+	protected function map_calendar_event_payload( array $appointment ) {
+		$appointment_id = isset( $appointment['id'] ) ? absint( $appointment['id'] ) : 0;
+		$start_at       = isset( $appointment['start_at'] ) ? sanitize_text_field( (string) $appointment['start_at'] ) : '';
+
+		if ( $appointment_id <= 0 || '' === $start_at ) {
+			return array();
+		}
+
+		$start_ts = strtotime( $start_at );
+		if ( false === $start_ts ) {
+			return array();
+		}
+
+		$end_ts = strtotime( '+1 hour', $start_ts );
+		$status = isset( $appointment['appointment_status'] ) ? sanitize_key( (string) $appointment['appointment_status'] ) : 'scheduled';
+		$client = isset( $appointment['client_name'] ) ? sanitize_text_field( (string) $appointment['client_name'] ) : '';
+		$vehicle = $this->build_vehicle_label( $appointment );
+		$title_parts = array_filter(
+			array(
+				gmdate( 'H:i', $start_ts ),
+				$client,
+				$vehicle,
+			)
+		);
+		$title       = implode( ' - ', $title_parts );
+		$colors      = $this->get_status_colors( $status );
+
+		return array(
+			'id'            => (string) $appointment_id,
+			'title'         => '' !== $title ? $title : '#' . $appointment_id,
+			'start'         => gmdate( 'c', $start_ts ),
+			'end'           => gmdate( 'c', false !== $end_ts ? $end_ts : $start_ts ),
+			'url'           => $this->get_page_url(
+				array(
+					'action' => 'edit',
+					'id'     => $appointment_id,
+				)
+			),
+			'backgroundColor' => $colors['background'],
+			'borderColor'     => $colors['border'],
+			'textColor'       => $colors['text'],
+			'extendedProps' => array(
+				'appointment_status' => $status,
+				'client_name'        => $client,
+				'vehicle_label'      => $vehicle,
+				'mechanic_name'      => isset( $appointment['mechanic_name'] ) ? sanitize_text_field( (string) $appointment['mechanic_name'] ) : '',
+				'process_id'         => isset( $appointment['process_id'] ) ? absint( $appointment['process_id'] ) : 0,
+			),
+		);
+	}
+
+	/**
+	 * Build one calendar vehicle label from appointment row.
+	 *
+	 * @param array<string,mixed> $appointment Appointment row.
+	 * @return string
+	 */
+	protected function build_vehicle_label( array $appointment ) {
+		$label = trim(
+			sprintf(
+				'%s %s',
+				isset( $appointment['vehicle_make'] ) ? sanitize_text_field( (string) $appointment['vehicle_make'] ) : '',
+				isset( $appointment['vehicle_model'] ) ? sanitize_text_field( (string) $appointment['vehicle_model'] ) : ''
+			)
+		);
+
+		$plate = isset( $appointment['vehicle_plate'] ) ? sanitize_text_field( (string) $appointment['vehicle_plate'] ) : '';
+		$vin   = isset( $appointment['vehicle_vin'] ) ? sanitize_text_field( (string) $appointment['vehicle_vin'] ) : '';
+		if ( '' !== $plate ) {
+			$label .= ' - ' . $plate;
+		} elseif ( '' !== $vin ) {
+			$label .= ' - ' . $vin;
+		}
+
+		return trim( $label );
+	}
+
+	/**
+	 * Resolve status colors aligned with existing admin badge system.
+	 *
+	 * @param string $status Appointment status.
+	 * @return array<string,string>
+	 */
+	protected function get_status_colors( $status ) {
+		$palette = array(
+			'scheduled'   => array(
+				'background' => '#e7f0ff',
+				'border'     => '#bfd4ff',
+				'text'       => '#185fbe',
+			),
+			'confirmed'   => array(
+				'background' => '#e7f7ef',
+				'border'     => '#bee7d0',
+				'text'       => '#166d53',
+			),
+			'in_progress' => array(
+				'background' => '#fff5df',
+				'border'     => '#f0db9f',
+				'text'       => '#956617',
+			),
+			'completed'   => array(
+				'background' => '#edf2fa',
+				'border'     => '#d8e1ef',
+				'text'       => '#42526e',
+			),
+			'cancelled'   => array(
+				'background' => '#fde9ea',
+				'border'     => '#f2c0c4',
+				'text'       => '#a43640',
+			),
+		);
+
+		return isset( $palette[ $status ] ) ? $palette[ $status ] : $palette['scheduled'];
 	}
 
 	/**
@@ -637,6 +990,31 @@ class Appointment_Admin_Controller {
 	 */
 	protected function get_form_transient_key() {
 		return 'sm_appointment_form_' . get_current_user_id();
+	}
+
+	/**
+	 * Build safe form prefill values from query args.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function get_form_prefill_from_query() {
+		$prefill = array();
+
+		if ( isset( $_GET['appointment_date'] ) ) {
+			$date = $this->format_date_for_input( sanitize_text_field( wp_unslash( $_GET['appointment_date'] ) ) );
+			if ( '' !== $date ) {
+				$prefill['appointment_date'] = $date;
+			}
+		}
+
+		if ( isset( $_GET['start_at'] ) ) {
+			$start_at = $this->format_datetime_for_input( sanitize_text_field( wp_unslash( $_GET['start_at'] ) ) );
+			if ( '' !== $start_at ) {
+				$prefill['start_at'] = $start_at;
+			}
+		}
+
+		return $prefill;
 	}
 
 	/**

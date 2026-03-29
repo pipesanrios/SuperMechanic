@@ -174,7 +174,14 @@ class Process_List_Table extends \WP_List_Table {
 			$tone = 'danger';
 		}
 
-		return $this->render_badge( ucwords( str_replace( '_', ' ', $status ) ), $tone );
+		$badge = $this->render_badge( ucwords( str_replace( '_', ' ', $status ) ), $tone );
+
+		$quick_actions = $this->build_quick_status_actions( $item, $status );
+		if ( empty( $quick_actions ) ) {
+			return $badge;
+		}
+
+		return $badge . $this->row_actions( $quick_actions, true );
 	}
 
 	/**
@@ -229,6 +236,48 @@ class Process_List_Table extends \WP_List_Table {
 	 */
 	protected function render_badge( $label, $tone ) {
 		return '<span class="sm-badge sm-badge-' . esc_attr( $tone ) . '">' . esc_html( $label ) . '</span>';
+	}
+
+	/**
+	 * Build quick status actions for a process row.
+	 *
+	 * @param array<string, mixed> $item           Process row.
+	 * @param string               $current_status Current status.
+	 * @return array<string, string>
+	 */
+	protected function build_quick_status_actions( $item, $current_status ) {
+		$process_id = isset( $item['id'] ) ? absint( $item['id'] ) : 0;
+
+		if ( $process_id <= 0 ) {
+			return array();
+		}
+
+		$status_options = $this->service->get_status_options();
+		$allowed_quick  = array( 'pending', 'in_progress', 'completed', 'cancelled' );
+		$actions        = array();
+
+		foreach ( $allowed_quick as $status_key ) {
+			if ( $status_key === $current_status || ! isset( $status_options[ $status_key ] ) ) {
+				continue;
+			}
+
+			$target_url = wp_nonce_url(
+				add_query_arg(
+					array(
+						'page'   => 'super-mechanic-processes',
+						'action' => 'quick_status',
+						'id'     => $process_id,
+						'status' => $status_key,
+					),
+					admin_url( 'admin.php' )
+				),
+				'sm_quick_process_status_' . $process_id . '_' . $status_key
+			);
+
+			$actions[ 'status_' . $status_key ] = '<a href="' . esc_url( $target_url ) . '">' . esc_html( sprintf( __( 'Marcar: %s', 'super-mechanic' ), $status_options[ $status_key ] ) ) . '</a>';
+		}
+
+		return $actions;
 	}
 
 	/**

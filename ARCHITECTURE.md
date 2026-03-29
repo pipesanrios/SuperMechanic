@@ -214,6 +214,10 @@ Reglas:
 - schema: `1.15.0`
 
 ### Fases consolidadas
+- 0
+- 1
+- 2-10
+- 11
 - 12A–12E
 - 13
 - 14
@@ -257,6 +261,7 @@ Reglas:
 - 36B
 - 36C-1
 - 36C-2
+- 37A
 
 ### Hitos recientes
 - reports consolidado
@@ -272,6 +277,7 @@ Reglas:
 - API pública separada `super-mechanic-public/v1` con auth por API key tenant-aware
 - webhooks outbound públicos por negocio con firma `HMAC-SHA256`, idempotencia y retries básicos
 - write pública mínima de citas (`cancel` + `confirm`) con scopes dedicados e idempotencia por transient
+- calendario operativo admin de citas (FullCalendar local + REST interno `GET /admin/appointments/calendar` y `POST /admin/appointments/{id}/status`)
 - `payment_receipt` lógico por `payment_id`
 - panel admin de shortcodes
 - scripts locales de validación técnica
@@ -281,7 +287,7 @@ Reglas:
 
 ## Deuda técnica activa
 
-- REST API interna autenticada conectada al runtime real (`includes/dashboard/class-client-rest-controller.php` y `includes/dashboard/class-admin-rest-controller.php`)
+- Placeholders legacy/no activos que pueden confundir onboarding: `includes/class-rest-api.php`, `includes/class-hooks.php`, `includes/class-post-types.php`
 - rutas admin de PDF de quotes/invoices siguen como excepción controlada
 - `Process_Admin_Controller` y `Report_Service` siguen siendo puntos a vigilar
 - no existe CI/CD real todavía

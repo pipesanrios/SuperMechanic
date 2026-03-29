@@ -235,17 +235,13 @@ class Process_Service {
 	}
 
 	public function get_processes( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->get_all( $args );
 	}
 
 	public function count_processes( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->count_all( $args );
 	}
@@ -355,14 +351,50 @@ class Process_Service {
 		);
 	}
 
+	/**
+	 * Update only process status through the service layer.
+	 *
+	 * @param int    $id     Process ID.
+	 * @param string $status New status.
+	 * @return bool|WP_Error
+	 */
+	public function update_process_status( $id, $status ) {
+		$status = sanitize_key( (string) $status );
+
+		if ( ! in_array( $status, $this->allowed_statuses, true ) ) {
+			return new WP_Error( 'sm_process_invalid_quick_status', __( 'El estado seleccionado no es válido para este proceso.', 'super-mechanic' ) );
+		}
+
+		return $this->update_process( $id, array( 'status' => $status ) );
+	}
+
 	public function get_vehicle_options() {
-		return $this->vehicle_service->get_vehicles(
+		$vehicles = $this->vehicle_service->get_vehicles(
 			array(
 				'per_page' => 200,
 				'orderby'  => 'created_at',
 				'order'    => 'DESC',
 			)
 		);
+
+		if ( ! is_array( $vehicles ) ) {
+			return array();
+		}
+
+		foreach ( $vehicles as &$vehicle ) {
+			$vehicle_id = isset( $vehicle['id'] ) ? absint( $vehicle['id'] ) : 0;
+			if ( $vehicle_id <= 0 ) {
+				continue;
+			}
+
+			$current_owner = $this->client_vehicle_repository->get_current_owner( $vehicle_id );
+			if ( is_array( $current_owner ) && ! empty( $current_owner['client_id'] ) ) {
+				$vehicle['client_id'] = absint( $current_owner['client_id'] );
+			}
+		}
+		unset( $vehicle );
+
+		return $vehicles;
 	}
 
 	public function get_client_options() {
@@ -377,8 +409,13 @@ class Process_Service {
 
 	public function get_default_client_id_for_vehicle( $vehicle_id ) {
 		$relation = $this->client_vehicle_repository->get_current_owner( $vehicle_id );
+		if ( is_array( $relation ) && ! empty( $relation['client_id'] ) ) {
+			return absint( $relation['client_id'] );
+		}
 
-		return is_array( $relation ) && ! empty( $relation['client_id'] ) ? absint( $relation['client_id'] ) : 0;
+		$vehicle = $this->vehicle_service->get_vehicle( $vehicle_id );
+
+		return is_array( $vehicle ) && ! empty( $vehicle['client_id'] ) ? absint( $vehicle['client_id'] ) : 0;
 	}
 
 	public function is_active_status( $status ) {
@@ -605,9 +642,10 @@ class Process_Service {
 	}
 
 	protected function prepare_process_data( array $data, $is_update ) {
+		$candidate_business_id = isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0;
 		$prepared = array(
-			'business_id'   => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
-				? absint( $data['business_id'] )
+			'business_id'   => $candidate_business_id > 0
+				? $this->normalize_business_id( $candidate_business_id )
 				: $this->resolve_business_id_from_roots(
 					isset( $data['vehicle_id'] ) ? absint( $data['vehicle_id'] ) : 0,
 					isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0
@@ -1042,5 +1080,28 @@ class Process_Service {
 	 */
 	protected function resolve_business_id() {
 		return absint( $this->business_context_service->resolve_business_id() );
+	}
+
+	/**
+	 * Normalize explicit business filter by user tenancy scope.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_list_business_scope( array $args ) {
+		$candidate_business_id = isset( $args['business_id'] ) ? absint( $args['business_id'] ) : 0;
+		$args['business_id']   = $candidate_business_id > 0 ? $this->normalize_business_id( $candidate_business_id ) : $this->resolve_business_id();
+
+		return $args;
+	}
+
+	/**
+	 * Normalize business ID against allowed businesses for current user.
+	 *
+	 * @param int $business_id Candidate business ID.
+	 * @return int
+	 */
+	protected function normalize_business_id( $business_id ) {
+		return absint( $this->business_context_service->normalize_business_id( $business_id ) );
 	}
 }

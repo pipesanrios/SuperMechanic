@@ -17,6 +17,22 @@ defined( 'ABSPATH' ) || exit;
  */
 class Client_Repository {
 	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service|null
+	 */
+	protected $business_context_service;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Business_Context_Service|null $business_context_service Business context service.
+	 */
+	public function __construct( Business_Context_Service $business_context_service = null ) {
+		$this->business_context_service = $business_context_service;
+	}
+
+	/**
 	 * Get the clients table name.
 	 *
 	 * @return string
@@ -164,9 +180,12 @@ class Client_Repository {
 		$result = $wpdb->update(
 			$this->get_table_name(),
 			$data,
-			array( 'id' => absint( $id ) ),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			$this->get_update_formats(),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -183,8 +202,11 @@ class Client_Repository {
 
 		$result = $wpdb->delete(
 			$this->get_table_name(),
-			array( 'id' => absint( $id ) ),
-			array( '%d' )
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -367,9 +389,11 @@ class Client_Repository {
 	 * @return int
 	 */
 	protected function resolve_business_id() {
-		$context_service = new Business_Context_Service();
+		if ( null === $this->business_context_service ) {
+			$this->business_context_service = new Business_Context_Service();
+		}
 
-		return absint( $context_service->resolve_business_id() );
+		return absint( $this->business_context_service->resolve_business_id() );
 	}
 }
 

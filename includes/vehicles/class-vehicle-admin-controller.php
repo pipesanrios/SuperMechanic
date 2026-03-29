@@ -7,6 +7,8 @@
 
 namespace Super_Mechanic\Vehicles;
 
+use Super_Mechanic\Appointments\Appointment_Service;
+use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Service;
 use WP_Error;
@@ -25,6 +27,8 @@ class Vehicle_Admin_Controller {
 	protected $service;
 	protected $process_service;
 	protected $client_vehicle_service;
+	protected $appointment_service;
+	protected $maintenance_service;
 
 	/**
 	 * Constructor.
@@ -35,6 +39,8 @@ class Vehicle_Admin_Controller {
 		$this->service                = $service ? $service : new Vehicle_Service();
 		$this->process_service        = new Process_Service();
 		$this->client_vehicle_service = new Client_Vehicle_Service();
+		$this->appointment_service    = new Appointment_Service();
+		$this->maintenance_service    = new Maintenance_Service();
 	}
 
 	/**
@@ -192,7 +198,7 @@ class Vehicle_Admin_Controller {
 	protected function render_form_page( $vehicle = array(), $is_edit = false ) {
 		$defaults = array(
 			'id'        => 0,
-			'client_id' => 0,
+			'client_id' => isset( $_GET['client_id'] ) ? absint( wp_unslash( $_GET['client_id'] ) ) : 0,
 			'vin'       => '',
 			'plate'     => '',
 			'brand'     => '',
@@ -211,6 +217,7 @@ class Vehicle_Admin_Controller {
 		$vehicle = wp_parse_args( $vehicle, $defaults );
 		$title   = $is_edit ? __( 'Editar vehículo', 'super-mechanic' ) : __( 'Nuevo vehículo', 'super-mechanic' );
 		$clients = $this->service->get_client_options();
+		$return  = $this->get_process_return_context();
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
@@ -227,6 +234,10 @@ class Vehicle_Admin_Controller {
 		wp_nonce_field( 'sm_save_vehicle', 'sm_vehicle_nonce' );
 		echo '<input type="hidden" name="sm_vehicle_operation" value="' . esc_attr( $is_edit ? 'update' : 'create' ) . '" />';
 		echo '<input type="hidden" name="vehicle_id" value="' . esc_attr( absint( $vehicle['id'] ) ) . '" />';
+		echo '<input type="hidden" name="return_page" value="' . esc_attr( $return['page'] ) . '" />';
+		echo '<input type="hidden" name="return_action" value="' . esc_attr( $return['action'] ) . '" />';
+		echo '<input type="hidden" name="return_process_id" value="' . esc_attr( $return['process_id'] ) . '" />';
+		echo '<input type="hidden" name="return_client_id" value="' . esc_attr( $return['client_id'] ) . '" />';
 		echo '<table class="form-table" role="presentation">';
 		$this->render_client_select_field( $vehicle['client_id'], $clients );
 		$this->render_text_field( 'vin', __( 'VIN', 'super-mechanic' ), $vehicle['vin'] );
@@ -269,10 +280,34 @@ class Vehicle_Admin_Controller {
 		);
 		$active_count    = 0;
 		$active_process  = $this->process_service->get_active_vehicle_process( $vehicle_id );
+		$appointments    = $this->appointment_service->get_appointments(
+			array(
+				'vehicle_id' => $vehicle_id,
+				'per_page'   => 100,
+				'page'       => 1,
+				'orderby'    => 'start_at',
+				'order'      => 'DESC',
+			)
+		);
+		$maintenance_timeline = array();
 
 		foreach ( $processes as $process ) {
 			if ( $this->process_service->is_active_status( isset( $process['status'] ) ? $process['status'] : '' ) ) {
 				++$active_count;
+			}
+
+			if ( isset( $process['process_type'] ) && 'maintenance' === $process['process_type'] ) {
+				$maintenance = $this->maintenance_service->get_maintenance_by_process( absint( $process['id'] ) );
+				if ( is_array( $maintenance ) ) {
+					$maintenance_timeline[] = array(
+						'process_id'      => absint( $process['id'] ),
+						'process_title'   => isset( $process['title'] ) ? (string) $process['title'] : '',
+						'status'          => isset( $process['status'] ) ? (string) $process['status'] : '',
+						'diagnosis'       => isset( $maintenance['diagnosis'] ) ? (string) $maintenance['diagnosis'] : '',
+						'estimated_hours' => isset( $maintenance['estimated_hours'] ) ? (float) $maintenance['estimated_hours'] : 0.0,
+						'updated_at'      => isset( $maintenance['updated_at'] ) ? (string) $maintenance['updated_at'] : '',
+					);
+				}
 			}
 		}
 
@@ -310,6 +345,8 @@ class Vehicle_Admin_Controller {
 		echo '<p><strong>' . esc_html__( 'Estado actual visible', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $active_process ) && ! empty( $active_process['status'] ) ? $this->humanize_key( $active_process['status'] ) : __( 'Sin proceso activo', 'super-mechanic' ) ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Procesos activos', 'super-mechanic' ) . ':</strong> ' . esc_html( $active_count ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Procesos totales', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $processes ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Citas relacionadas', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $appointments ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Registros maintenance', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $maintenance_timeline ) ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Historial de relaciones', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $related_clients ) ? count( $related_clients ) : 0 ) . '</p>';
 		echo '<p>' . esc_html__( 'Los campos de vencimiento de seguro, placa e inspección no forman parte del runtime activo actual, así que no se exponen ni se validan en esta subfase.', 'super-mechanic' ) . '</p>';
 		echo '</section>';
@@ -340,6 +377,44 @@ class Vehicle_Admin_Controller {
 				echo '<td>' . esc_html( ! empty( $process['completed_at'] ) ? $process['completed_at'] : '-' ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $process['client_name'] ) ? $process['client_name'] : __( 'Sin asignar', 'super-mechanic' ) ) . '</td>';
 				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Abrir proceso', 'super-mechanic' ) . '</a></td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Citas relacionadas', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notas', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $appointments ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No hay citas relacionadas para este vehículo.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $appointments as $appointment ) {
+				echo '<tr>';
+				echo '<td>#' . esc_html( absint( $appointment['id'] ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $appointment['start_at'] ) ? (string) $appointment['start_at'] : ( ! empty( $appointment['appointment_date'] ) ? (string) $appointment['appointment_date'] : '-' ) ) . '</td>';
+				echo '<td>' . esc_html( $this->humanize_key( isset( $appointment['appointment_status'] ) ? (string) $appointment['appointment_status'] : '' ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $appointment['client_name'] ) ? (string) $appointment['client_name'] : __( 'Sin cliente', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $appointment['notes'] ) ? (string) $appointment['notes'] : '-' ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Timeline maintenance', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Diagnóstico', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Horas estimadas', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actualizado', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $maintenance_timeline ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No hay datos de mantenimiento registrados para este vehículo.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $maintenance_timeline as $maintenance_row ) {
+				echo '<tr>';
+				echo '<td>#' . esc_html( absint( $maintenance_row['process_id'] ) ) . ' ' . esc_html( $maintenance_row['process_title'] ) . '</td>';
+				echo '<td>' . esc_html( $this->humanize_key( $maintenance_row['status'] ) ) . '</td>';
+				echo '<td>' . esc_html( '' !== trim( $maintenance_row['diagnosis'] ) ? $maintenance_row['diagnosis'] : '-' ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( (float) $maintenance_row['estimated_hours'], 2 ) ) . '</td>';
+				echo '<td>' . esc_html( '' !== trim( $maintenance_row['updated_at'] ) ? $maintenance_row['updated_at'] : '-' ) . '</td>';
 				echo '</tr>';
 			}
 		}
@@ -439,6 +514,27 @@ class Vehicle_Admin_Controller {
 					'sm_notice' => 'error',
 				);
 			$this->redirect( $redirect_args );
+		}
+
+		$return_context = $this->get_process_return_context_from_post();
+
+		if ( ! $is_update && $return_context['is_process'] ) {
+			$target_vehicle_id = absint( $result );
+			$args              = array(
+				'page'       => 'super-mechanic-processes',
+				'action'     => $return_context['action'],
+				'vehicle_id' => $target_vehicle_id,
+			);
+
+			if ( $return_context['process_id'] > 0 ) {
+				$args['id'] = $return_context['process_id'];
+			}
+
+			if ( $return_context['client_id'] > 0 ) {
+				$args['client_id'] = $return_context['client_id'];
+			}
+
+			$this->redirect_to_url( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		}
 
 		$this->redirect( array( 'sm_notice' => $is_update ? 'updated' : 'created' ) );
@@ -688,6 +784,17 @@ class Vehicle_Admin_Controller {
 	}
 
 	/**
+	 * Redirect to a full URL.
+	 *
+	 * @param string $url URL.
+	 * @return void
+	 */
+	protected function redirect_to_url( $url ) {
+		wp_safe_redirect( esc_url_raw( $url ) );
+		exit;
+	}
+
+	/**
 	 * Get the page URL.
 	 *
 	 * @param array<string, mixed> $args Query args.
@@ -730,5 +837,40 @@ class Vehicle_Admin_Controller {
 	 */
 	protected function get_form_transient_key() {
 		return 'sm_vehicle_form_' . get_current_user_id();
+	}
+
+	/**
+	 * Read return context from request.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_process_return_context() {
+		$page       = isset( $_GET['return_page'] ) ? sanitize_key( wp_unslash( $_GET['return_page'] ) ) : ( isset( $_POST['return_page'] ) ? sanitize_key( wp_unslash( $_POST['return_page'] ) ) : '' );
+		$action     = isset( $_GET['return_action'] ) ? sanitize_key( wp_unslash( $_GET['return_action'] ) ) : ( isset( $_POST['return_action'] ) ? sanitize_key( wp_unslash( $_POST['return_action'] ) ) : '' );
+		$process_id = isset( $_GET['return_process_id'] ) ? absint( wp_unslash( $_GET['return_process_id'] ) ) : ( isset( $_POST['return_process_id'] ) ? absint( wp_unslash( $_POST['return_process_id'] ) ) : 0 );
+		$client_id  = isset( $_GET['client_id'] ) ? absint( wp_unslash( $_GET['client_id'] ) ) : ( isset( $_POST['return_client_id'] ) ? absint( wp_unslash( $_POST['return_client_id'] ) ) : 0 );
+
+		return array(
+			'page'       => 'super-mechanic-processes' === $page ? $page : '',
+			'action'     => in_array( $action, array( 'new', 'edit' ), true ) ? $action : 'new',
+			'process_id' => $process_id,
+			'client_id'  => $client_id,
+		);
+	}
+
+	/**
+	 * Read post return context.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_process_return_context_from_post() {
+		$return = $this->get_process_return_context();
+
+		return array(
+			'is_process' => 'super-mechanic-processes' === $return['page'],
+			'action'     => $return['action'],
+			'process_id' => absint( $return['process_id'] ),
+			'client_id'  => absint( $return['client_id'] ),
+		);
 	}
 }

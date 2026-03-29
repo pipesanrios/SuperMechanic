@@ -391,6 +391,7 @@ Registrar citas operativas del taller con relacion a cliente, vehiculo y mecanic
 
 Columnas principales:
 - `id`
+- `business_id`
 - `client_id`
 - `vehicle_id`
 - `process_id`
@@ -412,6 +413,7 @@ Claves foraneas logicas:
 - `assigned_to` -> `wp_users.ID`
 
 Indices importantes:
+- `business_id`
 - `client_id`
 - `vehicle_id`
 - `process_id`
@@ -434,6 +436,7 @@ Persistir estado de sincronizacion externa de citas con proveedores de calendari
 
 Columnas principales:
 - `id`
+- `business_id`
 - `appointment_id`
 - `provider`
 - `external_calendar_id`
@@ -449,9 +452,11 @@ Clave primaria:
 - `id`
 
 Claves foraneas logicas:
+- `business_id` -> `sm_businesses.id`
 - `appointment_id` -> `sm_appointments.id`
 
 Indices importantes:
+- `business_id`
 - `appointment_id`
 - `provider`
 - `sync_status`
@@ -472,6 +477,7 @@ Registrar eventos y trazabilidad basica de pasos del proceso.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `process_id`
 - `flow_step_id`
 - `action_type`
@@ -489,6 +495,7 @@ Claves foraneas logicas:
 - `flow_step_id` -> `sm_flow_steps.id`
 
 Indices importantes:
+- `business_id`
 - `process_id`
 - `flow_step_id`
 - `action_type`
@@ -765,6 +772,7 @@ Registrar lineas de detalle de una cotizacion.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `quote_id`
 - `item_type`
 - `reference_id`
@@ -781,6 +789,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `quote_id`
 - `item_type`
 - `sort_order`
@@ -843,6 +852,7 @@ Registrar lineas de detalle de una factura.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `invoice_id`
 - `item_type`
 - `reference_id`
@@ -859,6 +869,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `invoice_id`
 - `item_type`
 - `sort_order`
@@ -911,6 +922,7 @@ Registrar documentos adjuntos por proceso u objeto funcional.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `object_type`
 - `object_id`
 - `process_id`
@@ -933,6 +945,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `object_type`
 - `object_id`
 - `process_id`
@@ -1000,6 +1013,7 @@ Registrar notificaciones internas por usuario o cliente.
 
 Columnas principales:
 - `id`
+- `business_id`
 - `recipient_type`
 - `recipient_id`
 - `object_type`
@@ -1019,6 +1033,7 @@ Clave primaria:
 - `id`
 
 Indices importantes:
+- `business_id`
 - `recipient_type`
 - `recipient_id`
 - `object_type`
@@ -1344,10 +1359,14 @@ Si el schema cambia en futuras fases, actualizar tambien:
 - La Fase 30 no modifica schema ni agrega tablas.
 - La fase introduce únicamente una capa de contexto de negocio en services:
   - `includes/helpers/class-business-context-service.php`
-- El runtime permanece en modo `single_business`:
-  - sin `business_id` persistente
-  - sin filtros tenant-aware en repositories
-  - sin cambios de ownership/enforcement existentes
+- El runtime quedo en modo `single_business` durante esa fase:
+  - sin `business_id` persistente en Fase 30
+  - sin filtros tenant-aware en repositories en Fase 30
+  - sin cambios de ownership/enforcement en Fase 30
+- Estado actual (posterior a 35A/35B/35C):
+  - `business_id` ya esta activo en tablas tenant-aware
+  - hay filtros tenant-aware reales
+  - existe `sm_businesses` como entidad visible
 - Tablas candidatas para futura evolucion a `business_id` (fase posterior, fuera de Fase 30):
   - `sm_clients`
   - `sm_vehicles`

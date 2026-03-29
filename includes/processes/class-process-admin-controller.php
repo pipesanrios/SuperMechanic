@@ -100,6 +100,10 @@ class Process_Admin_Controller {
 			$this->render_notice( __( 'Proceso actualizado correctamente.', 'super-mechanic' ), 'success' );
 		}
 
+		if ( 'status_updated' === $notice ) {
+			$this->render_notice( __( 'Estado del proceso actualizado correctamente.', 'super-mechanic' ), 'success' );
+		}
+
 		if ( 'deleted' === $notice ) {
 			$this->render_notice( __( 'Proceso eliminado correctamente.', 'super-mechanic' ), 'success' );
 		}
@@ -163,7 +167,7 @@ class Process_Admin_Controller {
 		$defaults = array(
 			'id'             => 0,
 			'vehicle_id'     => isset( $_GET['vehicle_id'] ) ? absint( wp_unslash( $_GET['vehicle_id'] ) ) : 0,
-			'client_id'      => 0,
+			'client_id'      => isset( $_GET['client_id'] ) ? absint( wp_unslash( $_GET['client_id'] ) ) : 0,
 			'process_type'   => 'maintenance',
 			'status'         => 'draft',
 			'title'          => '',
@@ -184,6 +188,16 @@ class Process_Admin_Controller {
 		}
 
 		$process        = wp_parse_args( $process, $defaults );
+
+		if ( $is_edit ) {
+			if ( isset( $_GET['client_id'] ) ) {
+				$process['client_id'] = absint( wp_unslash( $_GET['client_id'] ) );
+			}
+			if ( isset( $_GET['vehicle_id'] ) ) {
+				$process['vehicle_id'] = absint( wp_unslash( $_GET['vehicle_id'] ) );
+			}
+		}
+
 		$title          = $is_edit ? __( 'Editar proceso', 'super-mechanic' ) : __( 'Nuevo proceso', 'super-mechanic' );
 		$vehicles       = $this->service->get_vehicle_options();
 		$clients        = $this->service->get_client_options();
@@ -258,6 +272,7 @@ class Process_Admin_Controller {
 		$this->render_vehicle_select_field( $process['vehicle_id'], $vehicles );
 		$this->render_client_select_field( $process['client_id'], $clients );
 		$this->render_relation_context_row( $process, $relation_map );
+		$this->render_quick_add_context_row( $process, $is_edit );
 		$this->render_select_field( 'process_type', __( 'Tipo de proceso', 'super-mechanic' ), $process['process_type'], $process_types );
 		$this->render_select_field( 'status', __( 'Estado', 'super-mechanic' ), $process['status'], $status_options );
 		$this->render_text_field( 'title', __( 'Titulo', 'super-mechanic' ), $process['title'], true );
@@ -301,6 +316,10 @@ class Process_Admin_Controller {
 
 		if ( isset( $_GET['action'] ) && 'delete' === sanitize_key( wp_unslash( $_GET['action'] ) ) ) {
 			$this->handle_delete_action();
+		}
+
+		if ( isset( $_GET['action'] ) && 'quick_status' === sanitize_key( wp_unslash( $_GET['action'] ) ) ) {
+			$this->handle_quick_status_action();
 		}
 
 		if ( isset( $_GET['comment_action'] ) && 'delete' === sanitize_key( wp_unslash( $_GET['comment_action'] ) ) ) {
@@ -347,6 +366,27 @@ class Process_Admin_Controller {
 		}
 
 		$this->redirect( array( 'sm_notice' => 'deleted' ) );
+	}
+
+	/**
+	 * Handle quick status update from list table.
+	 *
+	 * @return void
+	 */
+	protected function handle_quick_status_action() {
+		$process_id = isset( $_GET['id'] ) ? absint( wp_unslash( $_GET['id'] ) ) : 0;
+		$status     = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+
+		check_admin_referer( 'sm_quick_process_status_' . $process_id . '_' . $status );
+
+		$result = $this->service->update_process_status( $process_id, $status );
+
+		if ( is_wp_error( $result ) ) {
+			$this->store_errors( $result );
+			$this->redirect( array( 'sm_notice' => 'error' ) );
+		}
+
+		$this->redirect( array( 'sm_notice' => 'status_updated' ) );
 	}
 
 	protected function handle_bulk_delete_action() {
@@ -683,6 +723,61 @@ class Process_Admin_Controller {
 		echo '<tr>';
 		echo '<th scope="row">' . esc_html__( 'Relacion operativa', 'super-mechanic' ) . '</th>';
 		echo '<td><p id="sm-process-relation-hint" class="description">' . esc_html( implode( ' ', $messages ) ) . '</p></td>';
+		echo '</tr>';
+	}
+
+	/**
+	 * Render quick-add links to create missing client/vehicle in context.
+	 *
+	 * @param array<string, mixed> $process Process payload.
+	 * @param bool                 $is_edit Whether editing current process.
+	 * @return void
+	 */
+	protected function render_quick_add_context_row( $process, $is_edit ) {
+		$client_url  = add_query_arg(
+			array(
+				'page' => 'super-mechanic-clients',
+				'action' => 'new',
+			),
+			admin_url( 'admin.php' )
+		);
+		$vehicle_url = add_query_arg(
+			array(
+				'page' => 'super-mechanic-vehicles',
+				'action' => 'new',
+			),
+			admin_url( 'admin.php' )
+		);
+
+		$return_action = $is_edit ? 'edit' : 'new';
+		$return_id     = $is_edit && ! empty( $process['id'] ) ? absint( $process['id'] ) : 0;
+
+		$client_url = add_query_arg(
+			array(
+				'return_page'      => 'super-mechanic-processes',
+				'return_action'    => $return_action,
+				'return_process_id'=> $return_id,
+				'vehicle_id'       => isset( $process['vehicle_id'] ) ? absint( $process['vehicle_id'] ) : 0,
+			),
+			$client_url
+		);
+		$vehicle_url = add_query_arg(
+			array(
+				'return_page'      => 'super-mechanic-processes',
+				'return_action'    => $return_action,
+				'return_process_id'=> $return_id,
+				'client_id'        => isset( $process['client_id'] ) ? absint( $process['client_id'] ) : 0,
+			),
+			$vehicle_url
+		);
+
+		echo '<tr>';
+		echo '<th scope="row">' . esc_html__( 'Alta rápida', 'super-mechanic' ) . '</th>';
+		echo '<td>';
+		echo '<a id="sm-quick-add-client" class="button button-secondary" href="' . esc_url( $client_url ) . '">' . esc_html__( 'Agregar cliente', 'super-mechanic' ) . '</a> ';
+		echo '<a id="sm-quick-add-vehicle" class="button button-secondary" href="' . esc_url( $vehicle_url ) . '">' . esc_html__( 'Agregar vehículo', 'super-mechanic' ) . '</a>';
+		echo '<p class="description">' . esc_html__( 'Si falta un cliente o vehículo, puedes crearlo aquí y volver al flujo del proceso sin abrir una UI nueva.', 'super-mechanic' ) . '</p>';
+		echo '</td>';
 		echo '</tr>';
 	}
 

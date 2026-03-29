@@ -72,6 +72,8 @@ document.addEventListener('DOMContentLoaded', function () {
 		const vehicleSelect = form.querySelector('#vehicle_id');
 		const clientSelect = form.querySelector('#client_id');
 		const hint = form.querySelector('#sm-process-relation-hint');
+		const quickAddClientLink = form.querySelector('#sm-quick-add-client');
+		const quickAddVehicleLink = form.querySelector('#sm-quick-add-vehicle');
 
 		if (!vehicleSelect || !clientSelect) {
 			return;
@@ -122,6 +124,24 @@ document.addEventListener('DOMContentLoaded', function () {
 			hint.textContent = messages.join(' ');
 		}
 
+		function updateQuickAddLinks() {
+			if (quickAddClientLink) {
+				try {
+					const nextClientUrl = new URL(quickAddClientLink.href);
+					nextClientUrl.searchParams.set('vehicle_id', vehicleSelect.value || '0');
+					quickAddClientLink.href = nextClientUrl.toString();
+				} catch (error) {}
+			}
+
+			if (quickAddVehicleLink) {
+				try {
+					const nextVehicleUrl = new URL(quickAddVehicleLink.href);
+					nextVehicleUrl.searchParams.set('client_id', clientSelect.value || '0');
+					quickAddVehicleLink.href = nextVehicleUrl.toString();
+				} catch (error) {}
+			}
+		}
+
 		function rebuildVehicleOptions(clientId) {
 			const allowedVehicles = clientId !== '0' && Array.isArray(clientToVehicles[clientId])
 				? clientToVehicles[clientId].map(String)
@@ -163,6 +183,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		clientSelect.addEventListener('change', function () {
 			rebuildVehicleOptions(clientSelect.value || '0');
 			updateHint();
+			updateQuickAddLinks();
 		});
 
 		vehicleSelect.addEventListener('change', function () {
@@ -176,6 +197,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 
 			updateHint();
+			updateQuickAddLinks();
 		});
 
 		if ((clientSelect.value || '0') !== '0') {
@@ -187,5 +209,6 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 
 		updateHint();
+		updateQuickAddLinks();
 	});
 });

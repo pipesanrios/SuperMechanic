@@ -520,6 +520,71 @@
 	color: #166d53;
 }
 
+.sm-calendar-controls-grid {
+	display: grid;
+	grid-template-columns: minmax(280px, 420px) 1fr;
+	gap: 16px;
+	align-items: end;
+}
+
+.sm-calendar-controls-status {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.sm-calendar-controls-status label {
+	width: 100%;
+	margin-bottom: 4px;
+}
+
+.sm-calendar-controls-status select {
+	min-width: 190px;
+}
+
+.sm-calendar-selection p {
+	margin: 0;
+}
+
+.sm-calendar-selection .description {
+	margin-top: 8px;
+}
+
+#sm-calendar-feedback.is-success {
+	color: #166d53;
+}
+
+#sm-calendar-feedback.is-error {
+	color: #a43640;
+}
+
+.sm-appointments-calendar.is-loading {
+	opacity: 0.6;
+	pointer-events: none;
+	transition: opacity 0.2s ease;
+}
+
+#sm-calendar-feedback.is-loading {
+	color: #185fbe;
+}
+
+.sm-calendar-card {
+	padding: 14px;
+}
+
+.sm-appointments-calendar {
+	min-height: 680px;
+}
+
+.sm-appointments-calendar .fc .fc-toolbar.fc-header-toolbar {
+	margin-bottom: 1rem;
+}
+
+.sm-appointments-calendar .fc .fc-button {
+	text-transform: none;
+}
+
 @media (max-width: 782px) {
 	.sm-admin-shell {
 		padding: 18px;
@@ -580,5 +645,13 @@
 
 	.sm-shortcode-table th {
 		width: auto;
+	}
+
+	.sm-calendar-controls-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.sm-appointments-calendar {
+		min-height: 520px;
 	}
 }

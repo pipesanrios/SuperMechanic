@@ -20,6 +20,7 @@ use Super_Mechanic\Attachments\Client_Attachment_Shortcodes;
 use Super_Mechanic\Attachments\Process_Timeline_Service;
 use Super_Mechanic\Businesses\Business_Admin_Controller;
 use Super_Mechanic\Businesses\Business_Service;
+use Super_Mechanic\Businesses\Business_User_Assignment_Controller;
 use Super_Mechanic\Clients\Client_Admin_Controller;
 use Super_Mechanic\Communication\Client_Comment_Shortcodes;
 use Super_Mechanic\Communication\Comment_Service;
@@ -90,6 +91,7 @@ class Plugin {
 	protected $business_context_service;
 	protected $business_service;
 	protected $business_admin_controller;
+	protected $business_user_assignment_controller;
 	protected $admin_menu;
 	protected $client_admin_controller;
 	protected $vehicle_admin_controller;
@@ -165,6 +167,7 @@ class Plugin {
 		$this->business_service              = new Business_Service();
 		$this->business_context_service      = new Business_Context_Service( $this->settings_service, $this->business_service );
 		$this->business_admin_controller     = new Business_Admin_Controller( $this->business_service, $this->business_context_service, $this->settings_service );
+		$this->business_user_assignment_controller = new Business_User_Assignment_Controller( $this->business_service, $this->business_context_service );
 		$this->appointment_ical_feed_service = new Appointment_Ical_Feed_Service();
 		$this->feed_token_service            = new Feed_Token_Service();
 		$this->google_calendar_client        = new Google_Calendar_Client();
@@ -294,6 +297,7 @@ class Plugin {
 			$this->google_calendar_auth_controller->register_hooks();
 			$this->mechanic_dashboard_controller->register_hooks();
 			$this->business_admin_controller->register_hooks();
+			$this->business_user_assignment_controller->register_hooks();
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();
@@ -302,6 +306,7 @@ class Plugin {
 		$this->client_quote_shortcodes->register_hooks();
 		$this->client_invoice_shortcodes->register_hooks();
 		$this->client_comment_shortcodes->register_hooks();
+		$this->appointment_admin_controller->register_rest_hooks();
 		$this->client_rest_controller->register_hooks();
 		$this->admin_rest_controller->register_hooks();
 		$this->public_rest_controller->register_hooks();

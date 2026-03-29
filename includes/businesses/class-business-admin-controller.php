@@ -188,7 +188,18 @@ class Business_Admin_Controller {
 		check_admin_referer( 'sm_business_switch_context', 'sm_business_context_nonce' );
 
 		$business_id = isset( $_POST['active_business_id'] ) ? absint( wp_unslash( $_POST['active_business_id'] ) ) : 0;
-		$this->business_context_service->set_user_selected_business_id( $business_id );
+		$allowed_ids = $this->business_context_service->get_user_allowed_business_ids( get_current_user_id() );
+		$valid_id    = $this->service->resolve_valid_business_id( $business_id );
+
+		if ( $valid_id <= 0 ) {
+			$this->redirect_with_notice( 'error', __( 'El negocio seleccionado no es valido.', 'super-mechanic' ), 0 );
+		}
+
+		if ( ! empty( $allowed_ids ) && ! in_array( $valid_id, $allowed_ids, true ) ) {
+			$this->redirect_with_notice( 'error', __( 'No puedes cambiar a un negocio no permitido para tu usuario.', 'super-mechanic' ), 0 );
+		}
+
+		$this->business_context_service->set_user_selected_business_id( $valid_id );
 
 		$this->redirect_with_notice( 'success', __( 'Contexto de negocio actualizado para tu usuario.', 'super-mechanic' ), 0 );
 	}
@@ -209,6 +220,7 @@ class Business_Admin_Controller {
 			)
 		);
 		$current_id  = $this->business_context_service->resolve_business_id();
+		$allowed_ids = $this->business_context_service->get_user_allowed_business_ids( get_current_user_id() );
 
 		echo '<div class="sm-card sm-form-card sm-settings-card">';
 		echo '<h2>' . esc_html__( 'Contexto operativo actual', 'super-mechanic' ) . '</h2>';
@@ -221,6 +233,9 @@ class Business_Admin_Controller {
 		foreach ( $all as $row ) {
 			$row_id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
 			if ( $row_id <= 0 ) {
+				continue;
+			}
+			if ( ! empty( $allowed_ids ) && ! in_array( $row_id, $allowed_ids, true ) ) {
 				continue;
 			}
 			echo '<option value="' . esc_attr( (string) $row_id ) . '" ' . selected( $current_id, $row_id, false ) . '>' . esc_html( (string) $row['name'] . ' (#' . $row_id . ')' ) . '</option>';
@@ -369,4 +384,3 @@ class Business_Admin_Controller {
 		}
 	}
 }
-

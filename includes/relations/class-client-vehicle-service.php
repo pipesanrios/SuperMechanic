@@ -218,7 +218,56 @@ class Client_Vehicle_Service {
 			return new WP_Error( 'sm_client_not_found', __( 'El cliente no existe.', 'super-mechanic' ) );
 		}
 
-		return $this->repository->get_by_client( $client_id, $args );
+		$relations = $this->repository->get_by_client( $client_id, $args );
+		$indexed   = array();
+
+		if ( is_array( $relations ) ) {
+			foreach ( $relations as $relation ) {
+				$vehicle_id = isset( $relation['vehicle_id'] ) ? absint( $relation['vehicle_id'] ) : 0;
+				if ( $vehicle_id <= 0 ) {
+					continue;
+				}
+
+				$indexed[ $vehicle_id ] = $relation;
+			}
+		}
+
+		$per_page = isset( $args['per_page'] ) ? max( 1, absint( $args['per_page'] ) ) : 200;
+		$vehicles = $this->vehicle_service->get_vehicles(
+			array(
+				'client_id' => $client_id,
+				'per_page'  => max( $per_page, 200 ),
+				'page'      => 1,
+				'orderby'   => 'created_at',
+				'order'     => 'DESC',
+			)
+		);
+
+		if ( is_array( $vehicles ) ) {
+			foreach ( $vehicles as $vehicle ) {
+				$vehicle_id = isset( $vehicle['id'] ) ? absint( $vehicle['id'] ) : 0;
+				if ( $vehicle_id <= 0 || isset( $indexed[ $vehicle_id ] ) ) {
+					continue;
+				}
+
+				$indexed[ $vehicle_id ] = array(
+					'id'             => 0,
+					'business_id'    => isset( $vehicle['business_id'] ) ? absint( $vehicle['business_id'] ) : $this->resolve_business_id(),
+					'client_id'      => $client_id,
+					'vehicle_id'     => $vehicle_id,
+					'ownership_type' => 'owner',
+					'start_date'     => null,
+					'end_date'       => null,
+					'is_primary'     => 1,
+					'make'           => isset( $vehicle['make'] ) ? (string) $vehicle['make'] : '',
+					'model'          => isset( $vehicle['model'] ) ? (string) $vehicle['model'] : '',
+					'plate'          => isset( $vehicle['plate'] ) ? (string) $vehicle['plate'] : '',
+					'vin'            => isset( $vehicle['vin'] ) ? (string) $vehicle['vin'] : '',
+				);
+			}
+		}
+
+		return array_values( $indexed );
 	}
 
 	/**

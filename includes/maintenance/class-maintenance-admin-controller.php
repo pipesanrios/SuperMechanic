@@ -149,6 +149,7 @@ class Maintenance_Admin_Controller {
 			echo '<option value="' . esc_attr( absint( $mechanic->ID ) ) . '" ' . selected( absint( $maintenance['mechanic_id'] ), absint( $mechanic->ID ), false ) . '>' . esc_html( $mechanic->display_name ) . '</option>';
 		}
 		echo '</select></td></tr>';
+		echo '<tr><th scope="row"><label for="reassignment_note">' . esc_html__( 'Nota de traspaso (si cambia mecánico)', 'super-mechanic' ) . '</label></th><td><textarea name="reassignment_note" id="reassignment_note" class="large-text" rows="3"></textarea><p class="description">' . esc_html__( 'Si el trabajo ya inició, este campo es obligatorio para registrar qué se hizo antes de reasignar.', 'super-mechanic' ) . '</p></td></tr>';
 		echo '<tr><th scope="row"><label for="estimated_hours">' . esc_html__( 'Horas estimadas', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0" name="estimated_hours" id="estimated_hours" value="' . esc_attr( $maintenance['estimated_hours'] ) . '" class="small-text" /></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Aprobación del cliente', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="client_approved" value="1" ' . checked( ! empty( $maintenance['client_approved'] ), true, false ) . ' /> ' . esc_html__( 'Cliente aprobó el servicio', 'super-mechanic' ) . '</label></td></tr>';
 		echo '<tr><th scope="row"><label for="approved_at">' . esc_html__( 'Fecha de aprobación', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" name="approved_at" id="approved_at" value="' . esc_attr( $this->format_datetime_for_input( $maintenance['approved_at'] ) ) . '" class="regular-text" /></td></tr>';
@@ -242,6 +243,7 @@ class Maintenance_Admin_Controller {
 				'client_approved' => isset( $_POST['client_approved'] ) ? wp_unslash( $_POST['client_approved'] ) : 0,
 				'approved_at'     => isset( $_POST['approved_at'] ) ? wp_unslash( $_POST['approved_at'] ) : '',
 				'mechanic_id'     => isset( $_POST['mechanic_id'] ) ? wp_unslash( $_POST['mechanic_id'] ) : 0,
+				'reassignment_note' => isset( $_POST['reassignment_note'] ) ? wp_unslash( $_POST['reassignment_note'] ) : '',
 				'estimated_hours' => isset( $_POST['estimated_hours'] ) ? wp_unslash( $_POST['estimated_hours'] ) : 0,
 			)
 		);

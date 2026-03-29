@@ -62,6 +62,18 @@ class Access_Control_Service {
 	 */
 	protected $attachment_repository;
 	protected $business_context_service;
+	/**
+	 * Per-request cache of resolved client IDs by user.
+	 *
+	 * @var array<int,int>
+	 */
+	protected $client_id_cache = array();
+	/**
+	 * Per-request cache of resolved business IDs by user.
+	 *
+	 * @var array<int,int>
+	 */
+	protected $business_id_cache = array();
 
 	/**
 	 * Constructor.
@@ -74,13 +86,13 @@ class Access_Control_Service {
 	 * @param Attachment_Repository|null     $attachment_repository     Attachment repository.
 	 */
 	public function __construct( Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Process_Repository $process_repository = null, Quote_Repository $quote_repository = null, Invoice_Repository $invoice_repository = null, Attachment_Repository $attachment_repository = null, Business_Context_Service $business_context_service = null ) {
-		$this->client_service            = $client_service ? $client_service : new Client_Service();
-		$this->client_vehicle_repository = $client_vehicle_repository ? $client_vehicle_repository : new Client_Vehicle_Repository();
-		$this->process_repository        = $process_repository ? $process_repository : new Process_Repository();
-		$this->quote_repository          = $quote_repository ? $quote_repository : new Quote_Repository();
-		$this->invoice_repository        = $invoice_repository ? $invoice_repository : new Invoice_Repository();
-		$this->attachment_repository     = $attachment_repository ? $attachment_repository : new Attachment_Repository();
-		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->client_service            = $client_service;
+		$this->client_vehicle_repository = $client_vehicle_repository;
+		$this->process_repository        = $process_repository;
+		$this->quote_repository          = $quote_repository;
+		$this->invoice_repository        = $invoice_repository;
+		$this->attachment_repository     = $attachment_repository;
+		$this->business_context_service  = $business_context_service;
 	}
 
 	/**
@@ -91,12 +103,18 @@ class Access_Control_Service {
 	 */
 	public function get_client_id_by_user_id( $user_id ) {
 		$user_id   = absint( $user_id );
+		if ( isset( $this->client_id_cache[ $user_id ] ) ) {
+			return $this->client_id_cache[ $user_id ];
+		}
+
 		$client_id = absint( get_user_meta( $user_id, 'sm_client_id', true ) );
 
-		if ( $client_id && $this->client_service->get_client( $client_id ) ) {
+		if ( $client_id && $this->get_client_service()->get_client( $client_id ) ) {
+			$this->client_id_cache[ $user_id ] = $client_id;
 			return $client_id;
 		}
 
+		$this->client_id_cache[ $user_id ] = 0;
 		return 0;
 	}
 
@@ -153,7 +171,7 @@ class Access_Control_Service {
 			return false;
 		}
 
-		$relations = $this->client_vehicle_repository->get_by_client(
+		$relations = $this->get_client_vehicle_repository()->get_by_client(
 			$client_id,
 			array(
 				'current_only' => true,
@@ -179,13 +197,13 @@ class Access_Control_Service {
 	public function user_can_access_process( $user_id, $process_id ) {
 		$user_id    = absint( $user_id );
 		$process_id = absint( $process_id );
-		$process    = $this->process_repository->get_by_id( $process_id );
+		$process    = $this->get_process_repository()->get_by_id( $process_id );
 
 		if ( ! $user_id || ! $process ) {
 			return false;
 		}
 
-		if ( ! $this->row_matches_current_business( $process ) ) {
+		if ( ! $this->row_matches_current_business( $process, $user_id ) ) {
 			return false;
 		}
 
@@ -220,13 +238,13 @@ class Access_Control_Service {
 	public function user_can_access_quote( $user_id, $quote_id ) {
 		$user_id  = absint( $user_id );
 		$quote_id = absint( $quote_id );
-		$quote    = $this->quote_repository->get_by_id( $quote_id );
+		$quote    = $this->get_quote_repository()->get_by_id( $quote_id );
 
 		if ( ! $user_id || ! $quote ) {
 			return false;
 		}
 
-		if ( ! $this->row_matches_current_business( $quote ) ) {
+		if ( ! $this->row_matches_current_business( $quote, $user_id ) ) {
 			return false;
 		}
 
@@ -265,13 +283,13 @@ class Access_Control_Service {
 	public function user_can_access_invoice( $user_id, $invoice_id ) {
 		$user_id    = absint( $user_id );
 		$invoice_id = absint( $invoice_id );
-		$invoice    = $this->invoice_repository->get_by_id( $invoice_id );
+		$invoice    = $this->get_invoice_repository()->get_by_id( $invoice_id );
 
 		if ( ! $user_id || ! $invoice ) {
 			return false;
 		}
 
-		if ( ! $this->row_matches_current_business( $invoice ) ) {
+		if ( ! $this->row_matches_current_business( $invoice, $user_id ) ) {
 			return false;
 		}
 
@@ -315,13 +333,13 @@ class Access_Control_Service {
 	public function user_can_access_attachment( $user_id, $attachment_id, $client_safe = true ) {
 		$user_id       = absint( $user_id );
 		$attachment_id = absint( $attachment_id );
-		$attachment    = $this->attachment_repository->get_by_id( $attachment_id );
+		$attachment    = $this->get_attachment_repository()->get_by_id( $attachment_id );
 
 		if ( ! $user_id || ! $attachment ) {
 			return false;
 		}
 
-		if ( ! $this->row_matches_current_business( $attachment ) ) {
+		if ( ! $this->row_matches_current_business( $attachment, $user_id ) ) {
 			return false;
 		}
 
@@ -390,16 +408,126 @@ class Access_Control_Service {
 	/**
 	 * Ensure row belongs to the active business context when available.
 	 *
-	 * @param array<string,mixed> $row Data row.
+	 * @param array<string,mixed> $row     Data row.
+	 * @param int                 $user_id User ID.
 	 * @return bool
 	 */
-	protected function row_matches_current_business( array $row ) {
+	protected function row_matches_current_business( array $row, $user_id = 0 ) {
 		if ( empty( $row['business_id'] ) ) {
 			return true;
 		}
 
-		$current_business_id = absint( $this->business_context_service->resolve_business_id() );
+		$current_business_id = $this->resolve_business_id_for_user_cached( $user_id );
 
 		return $current_business_id === absint( $row['business_id'] );
+	}
+
+	/**
+	 * Lazily resolve client service.
+	 *
+	 * @return Client_Service
+	 */
+	protected function get_client_service() {
+		if ( null === $this->client_service ) {
+			$this->client_service = new Client_Service();
+		}
+
+		return $this->client_service;
+	}
+
+	/**
+	 * Lazily resolve client-vehicle repository.
+	 *
+	 * @return Client_Vehicle_Repository
+	 */
+	protected function get_client_vehicle_repository() {
+		if ( null === $this->client_vehicle_repository ) {
+			$this->client_vehicle_repository = new Client_Vehicle_Repository();
+		}
+
+		return $this->client_vehicle_repository;
+	}
+
+	/**
+	 * Lazily resolve process repository.
+	 *
+	 * @return Process_Repository
+	 */
+	protected function get_process_repository() {
+		if ( null === $this->process_repository ) {
+			$this->process_repository = new Process_Repository();
+		}
+
+		return $this->process_repository;
+	}
+
+	/**
+	 * Lazily resolve quote repository.
+	 *
+	 * @return Quote_Repository
+	 */
+	protected function get_quote_repository() {
+		if ( null === $this->quote_repository ) {
+			$this->quote_repository = new Quote_Repository();
+		}
+
+		return $this->quote_repository;
+	}
+
+	/**
+	 * Lazily resolve invoice repository.
+	 *
+	 * @return Invoice_Repository
+	 */
+	protected function get_invoice_repository() {
+		if ( null === $this->invoice_repository ) {
+			$this->invoice_repository = new Invoice_Repository();
+		}
+
+		return $this->invoice_repository;
+	}
+
+	/**
+	 * Lazily resolve attachment repository.
+	 *
+	 * @return Attachment_Repository
+	 */
+	protected function get_attachment_repository() {
+		if ( null === $this->attachment_repository ) {
+			$this->attachment_repository = new Attachment_Repository();
+		}
+
+		return $this->attachment_repository;
+	}
+
+	/**
+	 * Lazily resolve business context service.
+	 *
+	 * @return Business_Context_Service
+	 */
+	protected function get_business_context_service() {
+		if ( null === $this->business_context_service ) {
+			$this->business_context_service = new Business_Context_Service();
+		}
+
+		return $this->business_context_service;
+	}
+
+	/**
+	 * Resolve current business ID with per-user memoization.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int
+	 */
+	protected function resolve_business_id_for_user_cached( $user_id ) {
+		$user_id = absint( $user_id );
+
+		if ( isset( $this->business_id_cache[ $user_id ] ) ) {
+			return $this->business_id_cache[ $user_id ];
+		}
+
+		$this->business_id_cache[ $user_id ] = absint( $this->get_business_context_service()->resolve_business_id_for_user( $user_id ) );
+
+		return $this->business_id_cache[ $user_id ];
 	}
 }

@@ -195,9 +195,12 @@ class Vehicle_Repository {
 		$result = $wpdb->update(
 			$this->get_table_name(),
 			$data,
-			array( 'id' => absint( $id ) ),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			$this->get_update_formats(),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -214,8 +217,11 @@ class Vehicle_Repository {
 
 		$result = $wpdb->delete(
 			$this->get_table_name(),
-			array( 'id' => absint( $id ) ),
-			array( '%d' )
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;

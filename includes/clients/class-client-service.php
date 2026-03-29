@@ -36,7 +36,7 @@ class Client_Service {
 	 */
 	public function __construct( Client_Repository $repository = null, Business_Context_Service $business_context_service = null ) {
 		$this->repository               = $repository ? $repository : new Client_Repository();
-		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->business_context_service = $business_context_service;
 	}
 
 	/**
@@ -128,9 +128,7 @@ class Client_Service {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_clients( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->get_all( $args );
 	}
@@ -142,9 +140,7 @@ class Client_Service {
 	 * @return int
 	 */
 	public function count_clients( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->count_all( $args );
 	}
@@ -202,8 +198,10 @@ class Client_Service {
 	 * @return array<string, mixed>
 	 */
 	protected function normalize_client_data( array $data ) {
+		$candidate_business_id = isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0;
+
 		return array(
-			'business_id' => isset( $data['business_id'] ) ? max( 1, absint( $data['business_id'] ) ) : $this->resolve_business_id(),
+			'business_id' => $candidate_business_id > 0 ? $this->normalize_business_id( $candidate_business_id ) : $this->resolve_business_id(),
 			'first_name'  => isset( $data['first_name'] ) ? sanitize_text_field( $data['first_name'] ) : '',
 			'last_name'   => isset( $data['last_name'] ) ? sanitize_text_field( $data['last_name'] ) : '',
 			'email'       => isset( $data['email'] ) ? sanitize_email( $data['email'] ) : '',
@@ -220,7 +218,43 @@ class Client_Service {
 	 * @return int
 	 */
 	protected function resolve_business_id() {
-		return absint( $this->business_context_service->resolve_business_id() );
+		return absint( $this->get_business_context_service()->resolve_business_id() );
+	}
+
+	/**
+	 * Normalize explicit business filter by user tenancy scope.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_list_business_scope( array $args ) {
+		$candidate_business_id = isset( $args['business_id'] ) ? absint( $args['business_id'] ) : 0;
+		$args['business_id']   = $candidate_business_id > 0 ? $this->normalize_business_id( $candidate_business_id ) : $this->resolve_business_id();
+
+		return $args;
+	}
+
+	/**
+	 * Normalize business ID against allowed businesses for current user.
+	 *
+	 * @param int $business_id Candidate business ID.
+	 * @return int
+	 */
+	protected function normalize_business_id( $business_id ) {
+		return absint( $this->get_business_context_service()->normalize_business_id( $business_id ) );
+	}
+
+	/**
+	 * Lazily resolve business context service to avoid bootstrap cascades.
+	 *
+	 * @return Business_Context_Service
+	 */
+	protected function get_business_context_service() {
+		if ( null === $this->business_context_service ) {
+			$this->business_context_service = new Business_Context_Service();
+		}
+
+		return $this->business_context_service;
 	}
 
 	/**

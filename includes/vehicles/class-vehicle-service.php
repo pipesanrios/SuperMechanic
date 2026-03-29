@@ -148,9 +148,7 @@ class Vehicle_Service {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_vehicles( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->get_all( $args );
 	}
@@ -162,9 +160,7 @@ class Vehicle_Service {
 	 * @return int
 	 */
 	public function count_vehicles( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->count_all( $args );
 	}
@@ -256,10 +252,11 @@ class Vehicle_Service {
 	 */
 	protected function normalize_vehicle_data( array $data ) {
 		$year = isset( $data['year'] ) ? absint( $data['year'] ) : 0;
+		$candidate_business_id = isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0;
 
 		return array(
-			'business_id' => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
-				? absint( $data['business_id'] )
+			'business_id' => $candidate_business_id > 0
+				? $this->normalize_business_id( $candidate_business_id )
 				: $this->resolve_business_id_for_client( isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0 ),
 			'client_id' => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
 			'type'      => 'vehicle',
@@ -298,6 +295,29 @@ class Vehicle_Service {
 	 */
 	protected function resolve_business_id() {
 		return absint( $this->business_context_service->resolve_business_id() );
+	}
+
+	/**
+	 * Normalize explicit business filter by user tenancy scope.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_list_business_scope( array $args ) {
+		$candidate_business_id = isset( $args['business_id'] ) ? absint( $args['business_id'] ) : 0;
+		$args['business_id']   = $candidate_business_id > 0 ? $this->normalize_business_id( $candidate_business_id ) : $this->resolve_business_id();
+
+		return $args;
+	}
+
+	/**
+	 * Normalize business ID against allowed businesses for current user.
+	 *
+	 * @param int $business_id Candidate business ID.
+	 * @return int
+	 */
+	protected function normalize_business_id( $business_id ) {
+		return absint( $this->business_context_service->normalize_business_id( $business_id ) );
 	}
 
 	/**

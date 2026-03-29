@@ -83,6 +83,18 @@
   - firma: `HMAC-SHA256` sobre `timestamp.delivery_id.raw_body`
   - headers: `X-SM-Signature`, `X-SM-Timestamp`, `X-SM-Delivery-Id`, `X-SM-Event`
 
+## API interna admin activa (37A)
+
+- Namespace interno:
+  - `super-mechanic/v1`
+- Endpoints calendario operativo:
+  - `GET /wp-json/super-mechanic/v1/admin/appointments/calendar`
+  - `POST /wp-json/super-mechanic/v1/admin/appointments/{id}/status`
+- Seguridad:
+  - autenticacion WordPress + capability `sm_manage_processes`
+  - cambio de estado via `Appointment_Service`
+  - tenancy por `business_id` preservada en consulta y mutacion
+
 ## Dependencias entre modulos
 
 - Core -> inicializa todos los modulos activos.
@@ -297,6 +309,9 @@
 - `Vehiculos`
 - `Procesos`
 - `Flujos`
+- `Negocios`
+- `Citas`
+- `Calendar`
 - `Finanzas: Invoices`
 - `Finanzas: Payments`
 - `Reportes`

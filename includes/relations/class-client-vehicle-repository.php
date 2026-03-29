@@ -167,9 +167,12 @@ class Client_Vehicle_Repository {
 				'end_date'   => $end_date ? $end_date : current_time( 'Y-m-d' ),
 				'is_primary' => 0,
 			),
-			array( 'id' => absint( $relation_id ) ),
+			array(
+				'id'          => absint( $relation_id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			array( '%s', '%d' ),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;
@@ -232,9 +235,12 @@ class Client_Vehicle_Repository {
 		$result = $wpdb->update(
 			$this->get_vehicles_table_name(),
 			array( 'client_id' => absint( $client_id ) ),
-			array( 'id' => absint( $vehicle_id ) ),
+			array(
+				'id'          => absint( $vehicle_id ),
+				'business_id' => $this->resolve_business_id(),
+			),
 			array( '%d' ),
-			array( '%d' )
+			array( '%d', '%d' )
 		);
 
 		return false !== $result;

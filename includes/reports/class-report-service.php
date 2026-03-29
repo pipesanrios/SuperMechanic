@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Reports;
 
+use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Processes\Process_Service;
 
 defined( 'ABSPATH' ) || exit;
@@ -40,6 +41,12 @@ class Report_Service {
 	 * @var Process_Service
 	 */
 	protected $process_service;
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
 
 	/**
 	 * Constructor.
@@ -47,9 +54,10 @@ class Report_Service {
 	 * @param Report_Repository|null $repository      Report repository.
 	 * @param Process_Service|null   $process_service Process service.
 	 */
-	public function __construct( Report_Repository $repository = null, Process_Service $process_service = null ) {
-		$this->repository      = $repository ? $repository : new Report_Repository();
-		$this->process_service = $process_service ? $process_service : new Process_Service();
+	public function __construct( Report_Repository $repository = null, Process_Service $process_service = null, Business_Context_Service $business_context_service = null ) {
+		$this->repository               = $repository ? $repository : new Report_Repository();
+		$this->process_service          = $process_service ? $process_service : new Process_Service();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 	}
 
 	/**
@@ -74,6 +82,7 @@ class Report_Service {
 				'mechanic_id'    => 0,
 				'client_id'      => 0,
 				'vehicle_id'     => 0,
+				'business_id'    => 0,
 				'limit'          => Report_Repository::DEFAULT_RECENT_LIMIT,
 			)
 		);
@@ -104,6 +113,7 @@ class Report_Service {
 		$mechanic_id    = absint( $filters['mechanic_id'] );
 		$client_id      = absint( $filters['client_id'] );
 		$vehicle_id     = absint( $filters['vehicle_id'] );
+		$business_id    = absint( $filters['business_id'] );
 
 		if ( ! in_array( $process_status, $status_options, true ) ) {
 			$process_status = '';
@@ -133,6 +143,12 @@ class Report_Service {
 			$payment_method = '';
 		}
 
+		if ( $business_id > 0 ) {
+			$business_id = absint( $this->business_context_service->normalize_business_id( $business_id ) );
+		} else {
+			$business_id = absint( $this->business_context_service->resolve_business_id() );
+		}
+
 		return array(
 			'date_from'      => $date_from,
 			'date_to'        => $date_to,
@@ -146,6 +162,7 @@ class Report_Service {
 			'mechanic_id'    => $mechanic_id,
 			'client_id'      => $client_id,
 			'vehicle_id'     => $vehicle_id,
+			'business_id'    => $business_id,
 			'limit'          => min( Report_Repository::MAX_RECENT_LIMIT, max( 1, absint( $filters['limit'] ) ) ),
 		);
 	}

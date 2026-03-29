@@ -187,6 +187,150 @@ class Appointment_Service {
 	}
 
 	/**
+	 * Update only appointment status from the admin calendar workflow.
+	 *
+	 * Keeps calendar write payload minimal while preserving side effects
+	 * (Google sync + internal events) already expected by runtime.
+	 *
+	 * @param int    $id                 Appointment ID.
+	 * @param string $appointment_status Next status.
+	 * @return bool|WP_Error
+	 */
+	public function update_appointment_status_from_calendar( $id, $appointment_status ) {
+		$id = absint( $id );
+		if ( $id <= 0 ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ) );
+		}
+
+		$current = $this->repository->get_by_id( $id );
+		if ( ! is_array( $current ) ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ) );
+		}
+
+		$appointment_status = sanitize_key( (string) $appointment_status );
+		$allowed_statuses   = array_keys( $this->get_status_options() );
+
+		if ( '' === $appointment_status || ! in_array( $appointment_status, $allowed_statuses, true ) ) {
+			return new WP_Error( 'sm_appointment_invalid_status', __( 'El estado de la cita no es valido.', 'super-mechanic' ) );
+		}
+
+		$old_status = ! empty( $current['appointment_status'] ) ? sanitize_key( (string) $current['appointment_status'] ) : '';
+		if ( $old_status === $appointment_status ) {
+			return true;
+		}
+
+		$updated = $this->repository->update(
+			$id,
+			array(
+				'appointment_status' => $appointment_status,
+			)
+		);
+
+		if ( ! $updated ) {
+			return new WP_Error( 'sm_appointment_update_failed', __( 'No fue posible actualizar la cita.', 'super-mechanic' ) );
+		}
+
+		$this->sync_appointment_after_write( $id );
+
+		$current_after = $this->repository->get_by_id( $id );
+		$this->dispatch_event(
+			'appointment_updated',
+			array(
+				'appointment_id' => $id,
+				'appointment'    => $current_after,
+				'source'         => 'runtime',
+			)
+		);
+		$this->dispatch_event(
+			'appointment_status_changed',
+			array(
+				'appointment_id' => $id,
+				'appointment'    => $current_after,
+				'old_status'     => $old_status,
+				'new_status'     => $appointment_status,
+				'source'         => 'runtime',
+			)
+		);
+
+		if ( 'cancelled' === $appointment_status ) {
+			$this->dispatch_event(
+				'appointment_cancelled',
+				array(
+					'appointment_id' => $id,
+					'appointment'    => $current_after,
+					'old_status'     => $old_status,
+					'new_status'     => $appointment_status,
+					'source'         => 'runtime',
+				)
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Update appointment schedule from admin calendar drag/drop.
+	 *
+	 * @param int    $id       Appointment ID.
+	 * @param string $start_at New start datetime.
+	 * @return bool|WP_Error
+	 */
+	public function update_appointment_schedule_from_calendar( $id, $start_at ) {
+		$id = absint( $id );
+		if ( $id <= 0 ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ) );
+		}
+
+		$current = $this->repository->get_by_id( $id );
+		if ( ! is_array( $current ) ) {
+			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ) );
+		}
+
+		$normalized_start_at = $this->normalize_datetime_to_mysql( $start_at );
+		if ( '' === $normalized_start_at ) {
+			return new WP_Error( 'sm_appointment_invalid_start_at', __( 'La fecha y hora de inicio no es valida.', 'super-mechanic' ) );
+		}
+
+		$start_ts = strtotime( $normalized_start_at );
+		if ( false === $start_ts ) {
+			return new WP_Error( 'sm_appointment_invalid_start_at', __( 'La fecha y hora de inicio no es valida.', 'super-mechanic' ) );
+		}
+
+		$min_ts = strtotime( '-10 years', current_time( 'timestamp', true ) );
+		$max_ts = strtotime( '+10 years', current_time( 'timestamp', true ) );
+
+		if ( false === $min_ts || false === $max_ts || $start_ts < $min_ts || $start_ts > $max_ts ) {
+			return new WP_Error( 'sm_appointment_time_out_of_range', __( 'La fecha y hora estan fuera de rango permitido.', 'super-mechanic' ) );
+		}
+
+		$updated = $this->repository->update(
+			$id,
+			array(
+				'start_at'         => $normalized_start_at,
+				'appointment_date' => gmdate( 'Y-m-d', $start_ts ),
+			)
+		);
+
+		if ( ! $updated ) {
+			return new WP_Error( 'sm_appointment_update_failed', __( 'No fue posible reprogramar la cita.', 'super-mechanic' ) );
+		}
+
+		$this->sync_appointment_after_write( $id );
+
+		$current_after = $this->repository->get_by_id( $id );
+		$this->dispatch_event(
+			'appointment_updated',
+			array(
+				'appointment_id' => $id,
+				'appointment'    => $current_after,
+				'source'         => 'runtime',
+			)
+		);
+
+		return true;
+	}
+
+	/**
 	 * Apply inbound Google patch with an explicit allowed-field policy.
 	 *
 	 * This method intentionally avoids touching structural relations and can skip outbound sync
@@ -506,11 +650,40 @@ class Appointment_Service {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function get_appointments( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->get_all( $args );
+	}
+
+	/**
+	 * Get bounded appointments for calendar visible range.
+	 *
+	 * @param string $start_iso Start date/time string.
+	 * @param string $end_iso   End date/time string.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function get_appointments_for_calendar( $start_iso, $end_iso ) {
+		$date_from = $this->normalize_feed_date( $start_iso );
+		$date_to   = $this->normalize_feed_date( $end_iso );
+
+		if ( '' === $date_from ) {
+			$date_from = gmdate( 'Y-m-d' );
+		}
+
+		if ( '' === $date_to ) {
+			$date_to = gmdate( 'Y-m-d', strtotime( '+35 days', strtotime( $date_from . ' 00:00:00' ) ) );
+		}
+
+		return $this->get_appointments(
+			array(
+				'date_from' => $date_from,
+				'date_to'   => $date_to,
+				'per_page'  => 1000,
+				'page'      => 1,
+				'orderby'   => 'start_at',
+				'order'     => 'ASC',
+			)
+		);
 	}
 
 	/**
@@ -520,9 +693,7 @@ class Appointment_Service {
 	 * @return int
 	 */
 	public function count_appointments( array $args = array() ) {
-		if ( empty( $args['business_id'] ) ) {
-			$args['business_id'] = $this->resolve_business_id();
-		}
+		$args = $this->normalize_list_business_scope( $args );
 
 		return $this->repository->count_all( $args );
 	}
@@ -631,7 +802,14 @@ class Appointment_Service {
 		}
 
 		$options = array();
+		$current_business_id = $this->resolve_business_id();
+
 		foreach ( $users as $user ) {
+			$allowed_business_ids = $this->business_context_service->get_user_allowed_business_ids( absint( $user->ID ) );
+			if ( ! empty( $allowed_business_ids ) && ! in_array( $current_business_id, $allowed_business_ids, true ) ) {
+				continue;
+			}
+
 			$options[] = array(
 				'id'           => absint( $user->ID ),
 				'display_name' => (string) $user->display_name,
@@ -729,10 +907,11 @@ class Appointment_Service {
 		$process  = ! empty( $data['process_id'] ) ? $this->process_service->get_process( absint( $data['process_id'] ) ) : null;
 		$client   = ! empty( $data['client_id'] ) ? $this->client_service->get_client( absint( $data['client_id'] ) ) : null;
 		$vehicle  = ! empty( $data['vehicle_id'] ) ? $this->vehicle_service->get_vehicle( absint( $data['vehicle_id'] ) ) : null;
+		$candidate_business_id = isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0;
 
 		return array(
-			'business_id'        => isset( $data['business_id'] ) && absint( $data['business_id'] ) > 0
-				? absint( $data['business_id'] )
+			'business_id'        => $candidate_business_id > 0
+				? $this->normalize_business_id( $candidate_business_id )
 				: $this->resolve_business_id_from_parents( $process, $client, $vehicle ),
 			'client_id'          => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
 			'vehicle_id'         => isset( $data['vehicle_id'] ) ? absint( $data['vehicle_id'] ) : 0,
@@ -810,7 +989,16 @@ class Appointment_Service {
 
 		$roles = is_array( $user->roles ) ? $user->roles : array();
 
-		return ! empty( array_intersect( $roles, array( 'sm_mechanic', 'sm_admin', 'administrator' ) ) );
+		if ( empty( array_intersect( $roles, array( 'sm_mechanic', 'sm_admin', 'administrator' ) ) ) ) {
+			return false;
+		}
+
+		$allowed_business_ids = $this->business_context_service->get_user_allowed_business_ids( $user_id );
+		if ( empty( $allowed_business_ids ) ) {
+			return true;
+		}
+
+		return in_array( $this->resolve_business_id(), $allowed_business_ids, true );
 	}
 
 	/**
@@ -908,5 +1096,28 @@ class Appointment_Service {
 	 */
 	protected function resolve_business_id() {
 		return absint( $this->business_context_service->resolve_business_id() );
+	}
+
+	/**
+	 * Normalize explicit business filter by user tenancy scope.
+	 *
+	 * @param array<string, mixed> $args Query args.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_list_business_scope( array $args ) {
+		$candidate_business_id = isset( $args['business_id'] ) ? absint( $args['business_id'] ) : 0;
+		$args['business_id']   = $candidate_business_id > 0 ? $this->normalize_business_id( $candidate_business_id ) : $this->resolve_business_id();
+
+		return $args;
+	}
+
+	/**
+	 * Normalize business ID against allowed businesses for current user.
+	 *
+	 * @param int $business_id Candidate business ID.
+	 * @return int
+	 */
+	protected function normalize_business_id( $business_id ) {
+		return absint( $this->business_context_service->normalize_business_id( $business_id ) );
 	}
 }

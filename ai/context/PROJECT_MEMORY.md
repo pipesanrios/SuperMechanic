@@ -1,38 +1,35 @@
 # PROJECT MEMORY — SUPER MECHANIC
 
-Propósito:
-Registrar decisiones técnicas y cambios relevantes.
+Memoria de decisiones vigentes para continuidad de IA.
 
----
+## Decisiones vigentes
 
-## Decisiones clave
+- Arquitectura activa unica: `includes/*`
+- Legacy aislado: `includes/modules/*` (no extender)
+- Patron obligatorio: `Controller -> Service -> Repository`
+- SQL solo en repositories (y en `includes/database/*` para schema/migraciones)
+- Descargas y documentos: `Document_Service` + `Download_Service`
+- Tenancy activa por `business_id` + `sm_businesses`
+- API publica separada de API interna
 
-- Arquitectura fija: Controller → Service → Repository
-- SQL solo en Repository
-- Shortcodes como frontend cliente
-- Download_Service obligatorio para documentos
+## Estado tecnico actual
 
----
+- Plugin `0.1.0`
+- Schema `1.15.0`
+- Fase actual cerrada: `36C-2`
+- API publica write minima activa:
+  - cancel appointment
+  - confirm appointment
 
-## Cambios recientes
+## Riesgos/deuda viva
 
-- Fase 26: Panel de shortcodes implementado
-- Limpieza de prompts y contexto IA
-- Reducción de redundancia documental
+- `Process_Admin_Controller` y `Report_Service` son hotspots de complejidad
+- Placeholders no activos (`class-rest-api`, `class-hooks`, `class-post-types`) pueden confundir onboarding
+- Falta UX/admin dedicada para API keys y webhooks publicos
+- Sin validacion runtime automatizada E2E en WordPress
 
----
+## Prioridad de continuidad (siguiente bloque)
 
-## Deuda actual
-
-- UX incompleta en admin
-- Mechanic Panel inconsistente
-- Acciones incompletas (botones no funcionales)
-- Sistema de pagos pendiente de validación
-
----
-
-## Próximo foco
-
-- API base (Fase 27A)
-- Mejora UX
-- Preparación SaaS (tenancy)
+- consolidar gestion admin de API keys/webhooks publicos
+- mejorar observabilidad de webhook deliveries
+- formalizar pruebas runtime para 36B/36C

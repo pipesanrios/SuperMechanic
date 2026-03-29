@@ -142,6 +142,15 @@ class Admin_Menu {
 
 		add_submenu_page(
 			'super-mechanic',
+			__( 'Calendar', 'super-mechanic' ),
+			__( 'Calendar', 'super-mechanic' ),
+			'sm_manage_processes',
+			'super-mechanic-calendar',
+			array( $this->appointment_admin_controller, 'render_calendar_page' )
+		);
+
+		add_submenu_page(
+			'super-mechanic',
 			__( 'Flujos', 'super-mechanic' ),
 			__( 'Flujos', 'super-mechanic' ),
 			'sm_manage_flows',

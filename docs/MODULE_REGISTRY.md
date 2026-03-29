@@ -1086,17 +1086,20 @@ Carpeta:
 - `includes/modules/`
 
 Proposito:
-Preparar una API REST futura para integraciones y operaciones headless.
+Exponer API interna y API publica activas, manteniendo aislamiento de la capa legacy experimental.
 
 Tablas:
 - reutiliza tablas de modulos existentes
 
 Clases principales:
-- `class-rest-api.php`
-- `modules/clients/class-client-rest-controller.php`
-- `modules/vehicles/class-vehicle-rest-controller.php`
-- `modules/processes/class-process-rest-controller.php`
-- `modules/flows/class-flow-rest-controller.php`
+- `includes/dashboard/class-client-rest-controller.php`
+- `includes/dashboard/class-admin-rest-controller.php`
+- `includes/integrations/public-api/class-public-rest-controller.php`
+- `includes/integrations/public-api/class-public-api-auth-service.php`
+- `includes/integrations/public-api/class-public-api-service.php`
+- `includes/integrations/public-api/class-public-webhook-service.php`
+- `class-rest-api.php` (placeholder legacy/no activo)
+- `modules/*` (REST experimental legacy/no activo)
 
 Dependencias:
 - clients
@@ -1106,9 +1109,9 @@ Dependencias:
 - services estables por modulo
 
 Estado:
-- scaffolding presente
-- controladores REST experimentales en `includes/modules/*`
-- no integrado al flujo principal del plugin
+- API interna activa en runtime (`super-mechanic/v1`)
+- API publica activa en runtime (`super-mechanic-public/v1`)
+- capa REST en `includes/modules/*` sigue como legacy experimental no activa
 
 Riesgos o puntos sensibles:
 - mantener el scope de 27A read-only para no abrir regresiones de seguridad
@@ -1197,6 +1200,18 @@ Actualización Fase 36C-2:
   - idempotencia por transient (24h) con `idempotency_key`
 
 --------------------------------------------------
+
+Actualización Fase 37A:
+- integración real adicional (calendario operativo admin):
+  - submenu `Calendar` en admin
+  - assets locales FullCalendar (sin CDN)
+  - endpoints internos:
+    - `GET /admin/appointments/calendar`
+    - `POST /admin/appointments/{id}/status`
+- hardening:
+  - `register_rest_hooks()` de citas cableado fuera de `is_admin()` para evitar 404 por runtime/hook
+  - permiso por `sm_manage_processes`
+  - mutación de estado pasando por service (sin update directo en repository)
 
 ## WooCommerce Integration
 
@@ -1453,6 +1468,11 @@ Cambios tecnicos recientes confirmados:
 - estados basicos implementados: `scheduled`, `confirmed`, `in_progress`, `completed`, `cancelled`
 - en FASE 33, `Appointment_Service` integra `Event_Dispatcher` y emite `sm_event_appointment_*` en alta, edición, cambio de estado y cancelación (incluyendo flujo inbound controlado)
 - en FASE 34, `Appointment_Reminder_Scheduler` añade recordatorios automáticos por `wp_cron` y dispatch controlado de `appointment_reminder`
+- en FASE 37A se agrega vista admin `Calendar` con FullCalendar local y carga por rango visible
+- en FASE 37A se habilitan endpoints internos admin:
+  - `GET /super-mechanic/v1/admin/appointments/calendar`
+  - `POST /super-mechanic/v1/admin/appointments/{id}/status`
+- en FASE 37A el cambio rapido de estado desde calendario pasa por `Appointment_Service::update_appointment_status_from_calendar()`
 
 --------------------------------------------------
 

@@ -37,7 +37,7 @@ class Quote_Service {
 		$this->repository                = $repository ? $repository : new Quote_Repository();
 		$this->item_repository           = $item_repository ? $item_repository : new Quote_Item_Repository();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
-		$this->maintenance_service       = $maintenance_service ? $maintenance_service : new Maintenance_Service();
+		$this->maintenance_service       = $maintenance_service;
 		$this->client_vehicle_repository = $client_vehicle_repository ? $client_vehicle_repository : new Client_Vehicle_Repository();
 		$this->event_dispatcher          = $event_dispatcher ? $event_dispatcher : Event_Dispatcher::get_instance();
 		$this->transaction_repository    = $transaction_repository ? $transaction_repository : new Quote_Transaction_Repository();
@@ -294,7 +294,7 @@ class Quote_Service {
 			return new WP_Error( 'sm_invalid_quote_process_type', __( 'Solo se puede generar una cotizacion automatica desde procesos de mantenimiento.', 'super-mechanic' ) );
 		}
 
-		$source = $this->maintenance_service->get_quote_source_data( $process_id );
+		$source = $this->get_maintenance_service()->get_quote_source_data( $process_id );
 		if ( is_wp_error( $source ) ) {
 			return $source;
 		}
@@ -772,5 +772,18 @@ class Quote_Service {
 	 */
 	protected function resolve_business_id() {
 		return absint( $this->business_context_service->resolve_business_id() );
+	}
+
+	/**
+	 * Lazily resolve maintenance service to avoid constructor cycles.
+	 *
+	 * @return Maintenance_Service
+	 */
+	protected function get_maintenance_service() {
+		if ( null === $this->maintenance_service ) {
+			$this->maintenance_service = new Maintenance_Service();
+		}
+
+		return $this->maintenance_service;
 	}
 }

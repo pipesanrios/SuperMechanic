@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Maintenance;
 
+use Super_Mechanic\Communication\Comment_Service;
 use Super_Mechanic\Processes\Process_Service;
 use WP_Error;
 
@@ -20,12 +21,14 @@ class Maintenance_Service {
 	protected $part_repository;
 	protected $labor_repository;
 	protected $process_service;
+	protected $comment_service;
 
-	public function __construct( Maintenance_Repository $repository = null, Maintenance_Part_Repository $part_repository = null, Maintenance_Labor_Repository $labor_repository = null, Process_Service $process_service = null ) {
+	public function __construct( Maintenance_Repository $repository = null, Maintenance_Part_Repository $part_repository = null, Maintenance_Labor_Repository $labor_repository = null, Process_Service $process_service = null, Comment_Service $comment_service = null ) {
 		$this->repository       = $repository ? $repository : new Maintenance_Repository();
 		$this->part_repository  = $part_repository ? $part_repository : new Maintenance_Part_Repository();
 		$this->labor_repository = $labor_repository ? $labor_repository : new Maintenance_Labor_Repository();
 		$this->process_service  = $process_service ? $process_service : new Process_Service();
+		$this->comment_service  = $comment_service;
 	}
 
 	public function create_maintenance( $process_id ) {
@@ -72,11 +75,21 @@ class Maintenance_Service {
 			return $maintenance;
 		}
 
+		$process = $this->process_service->get_process( $process_id );
+		if ( ! is_array( $process ) ) {
+			return new WP_Error( 'sm_process_not_found', __( 'El proceso no existe.', 'super-mechanic' ) );
+		}
+
+		$current_mechanic_id = ! empty( $maintenance['mechanic_id'] ) ? absint( $maintenance['mechanic_id'] ) : 0;
+		$target_mechanic_id  = isset( $data['mechanic_id'] ) ? absint( $data['mechanic_id'] ) : 0;
+		$reassignment_note   = isset( $data['reassignment_note'] ) ? sanitize_textarea_field( (string) $data['reassignment_note'] ) : '';
+		$mechanic_changed    = $current_mechanic_id !== $target_mechanic_id;
+
 		$prepared = array(
 			'diagnosis'       => isset( $data['diagnosis'] ) ? sanitize_textarea_field( $data['diagnosis'] ) : '',
 			'client_approved' => ! empty( $data['client_approved'] ) ? 1 : 0,
 			'approved_at'     => isset( $data['approved_at'] ) ? $this->normalize_datetime_value( $data['approved_at'] ) : null,
-			'mechanic_id'     => isset( $data['mechanic_id'] ) ? absint( $data['mechanic_id'] ) : 0,
+			'mechanic_id'     => $target_mechanic_id,
 			'estimated_hours' => isset( $data['estimated_hours'] ) ? $this->normalize_decimal( $data['estimated_hours'] ) : 0,
 		);
 
@@ -84,8 +97,39 @@ class Maintenance_Service {
 			return new WP_Error( 'sm_invalid_mechanic', __( 'El mecánico seleccionado no existe.', 'super-mechanic' ) );
 		}
 
+		if ( $mechanic_changed && $current_mechanic_id > 0 && $this->has_started_work( $process, $maintenance ) && '' === $reassignment_note ) {
+			return new WP_Error(
+				'sm_mechanic_change_requires_note',
+				__( 'Debes registrar una nota de traspaso antes de cambiar el mecánico cuando el trabajo ya inició.', 'super-mechanic' )
+			);
+		}
+
 		if ( ! $this->repository->update( absint( $maintenance['id'] ), $prepared ) ) {
 			return new WP_Error( 'sm_maintenance_update_failed', __( 'No fue posible actualizar los datos de mantenimiento.', 'super-mechanic' ) );
+		}
+
+		if ( $mechanic_changed && '' !== $reassignment_note ) {
+			$this->get_comment_service()->create_comment(
+				array(
+					'object_type'       => 'process',
+					'object_id'         => absint( $process_id ),
+					'process_id'        => absint( $process_id ),
+					'client_id'         => isset( $process['client_id'] ) ? absint( $process['client_id'] ) : 0,
+					'vehicle_id'        => isset( $process['vehicle_id'] ) ? absint( $process['vehicle_id'] ) : 0,
+					'comment_type'      => 'system_note',
+					'content'           => sprintf(
+						/* translators: 1: old mechanic id, 2: new mechanic id, 3: note */
+						__( 'Reasignación de mecánico (%1$d → %2$d). Nota de traspaso: %3$s', 'super-mechanic' ),
+						$current_mechanic_id,
+						$target_mechanic_id,
+						$reassignment_note
+					),
+					'is_internal'       => 1,
+					'is_client_visible' => 0,
+					'author_user_id'    => get_current_user_id(),
+					'status'            => 'published',
+				)
+			);
 		}
 
 		return true;
@@ -240,5 +284,52 @@ class Maintenance_Service {
 
 		$timestamp = strtotime( $value );
 		return false === $timestamp ? null : gmdate( 'Y-m-d H:i:s', $timestamp );
+	}
+
+	/**
+	 * Detect whether maintenance work already started.
+	 *
+	 * @param array<string,mixed> $process     Process data.
+	 * @param array<string,mixed> $maintenance Maintenance data.
+	 * @return bool
+	 */
+	protected function has_started_work( array $process, array $maintenance ) {
+		$process_status = isset( $process['status'] ) ? sanitize_key( (string) $process['status'] ) : '';
+
+		if ( in_array( $process_status, array( 'in_progress', 'waiting_parts', 'completed', 'delivered' ), true ) ) {
+			return true;
+		}
+
+		if ( ! empty( $maintenance['diagnosis'] ) ) {
+			return true;
+		}
+
+		$maintenance_id = isset( $maintenance['id'] ) ? absint( $maintenance['id'] ) : 0;
+		if ( $maintenance_id <= 0 ) {
+			return false;
+		}
+
+		if ( ! empty( $this->part_repository->get_by_maintenance_id( $maintenance_id ) ) ) {
+			return true;
+		}
+
+		if ( ! empty( $this->labor_repository->get_by_maintenance_id( $maintenance_id ) ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Lazily resolve comment service to avoid constructor cycles.
+	 *
+	 * @return Comment_Service
+	 */
+	protected function get_comment_service() {
+		if ( null === $this->comment_service ) {
+			$this->comment_service = new Comment_Service();
+		}
+
+		return $this->comment_service;
 	}
 }
