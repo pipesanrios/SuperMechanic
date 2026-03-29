@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Reports;
 
 use Super_Mechanic\Helpers\Business_Context_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Processes\Process_Service;
 
 defined( 'ABSPATH' ) || exit;
@@ -47,6 +48,12 @@ class Report_Service {
 	 * @var Business_Context_Service
 	 */
 	protected $business_context_service;
+	/**
+	 * Settings service.
+	 *
+	 * @var Settings_Service
+	 */
+	protected $settings_service;
 
 	/**
 	 * Constructor.
@@ -54,10 +61,11 @@ class Report_Service {
 	 * @param Report_Repository|null $repository      Report repository.
 	 * @param Process_Service|null   $process_service Process service.
 	 */
-	public function __construct( Report_Repository $repository = null, Process_Service $process_service = null, Business_Context_Service $business_context_service = null ) {
+	public function __construct( Report_Repository $repository = null, Process_Service $process_service = null, Business_Context_Service $business_context_service = null, Settings_Service $settings_service = null ) {
 		$this->repository               = $repository ? $repository : new Report_Repository();
 		$this->process_service          = $process_service ? $process_service : new Process_Service();
-		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->settings_service         = $settings_service ? $settings_service : new Settings_Service();
+		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service( $this->settings_service );
 	}
 
 	/**
@@ -497,7 +505,7 @@ class Report_Service {
 	 */
 	public function get_csv_export_views() {
 		return array(
-			'recent_processes' => __( 'Procesos recientes', 'super-mechanic' ),
+			'recent_processes' => __( 'Recent processes', 'super-mechanic' ),
 			'recent_quotes'    => __( 'Quotes recientes', 'super-mechanic' ),
 			'recent_invoices'  => __( 'Invoices recientes', 'super-mechanic' ),
 			'recent_payments'  => __( 'Payments recientes', 'super-mechanic' ),
@@ -636,11 +644,7 @@ class Report_Service {
 	 * @return array<string, string>
 	 */
 	public function get_currency_options() {
-		return array(
-			'USD' => 'USD',
-			'EUR' => 'EUR',
-			'MXN' => 'MXN',
-		);
+		return $this->settings_service->get_supported_currencies();
 	}
 
 	/**
@@ -790,22 +794,22 @@ class Report_Service {
 	) {
 		return array(
 			array(
-				'label'          => __( 'Procesos del período', 'super-mechanic' ),
+				'label'          => __( 'Processes in period', 'super-mechanic' ),
 				'metric_type'    => 'count',
 				'comparison'     => $this->build_count_comparison_block( $process_current, $process_previous ),
 			),
 			array(
-				'label'          => __( 'Quotes del período', 'super-mechanic' ),
+				'label'          => __( 'Quotes in period', 'super-mechanic' ),
 				'metric_type'    => 'count',
 				'comparison'     => $this->build_count_comparison_block( $quote_current, $quote_previous ),
 			),
 			array(
-				'label'          => __( 'Invoices del período', 'super-mechanic' ),
+				'label'          => __( 'Invoices in period', 'super-mechanic' ),
 				'metric_type'    => 'count',
 				'comparison'     => $this->build_count_comparison_block( $invoice_current, $invoice_previous ),
 			),
 			array(
-				'label'          => __( 'Payments cobrados del período', 'super-mechanic' ),
+				'label'          => __( 'Collected payments in period', 'super-mechanic' ),
 				'metric_type'    => 'currency',
 				'comparison'     => $this->build_currency_comparison_block( $payment_current, $payment_previous ),
 			),

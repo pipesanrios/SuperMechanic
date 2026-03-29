@@ -184,6 +184,10 @@
   - `Access_Control_Service`
 - Settings:
   - `Settings`
+  - `DB_Security_Service`
+  - `DB_Export_Format_Service`
+  - `DB_Import_Validator`
+  - `DB_Security_Repository`
 - Clients:
   - `Client_Repository`
   - `Client_Service`

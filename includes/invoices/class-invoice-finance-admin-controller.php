@@ -99,7 +99,7 @@ class Invoice_Finance_Admin_Controller {
 	protected function render_filter_form( Invoice_Finance_List_Table $list_table ) {
 		$current_status = isset( $_GET['filter_status'] ) ? sanitize_key( wp_unslash( $_GET['filter_status'] ) ) : '';
 		$status_options = array(
-			''               => __( 'Todos los estados', 'super-mechanic' ),
+			''               => __( 'All statuses', 'super-mechanic' ),
 			'draft'          => __( 'Draft', 'super-mechanic' ),
 			'issued'         => __( 'Issued', 'super-mechanic' ),
 			'partially_paid' => __( 'Partially paid', 'super-mechanic' ),
@@ -112,7 +112,7 @@ class Invoice_Finance_Admin_Controller {
 		echo '<form method="get" class="sm-card sm-section" style="margin-bottom:16px;">';
 		echo '<input type="hidden" name="page" value="super-mechanic-financial-invoices" />';
 		echo '<div class="sm-inline-filters">';
-		echo '<label for="sm-finance-invoice-status" class="screen-reader-text">' . esc_html__( 'Filtrar por estado', 'super-mechanic' ) . '</label>';
+		echo '<label for="sm-finance-invoice-status" class="screen-reader-text">' . esc_html__( 'Filter by status', 'super-mechanic' ) . '</label>';
 		echo '<select id="sm-finance-invoice-status" name="filter_status">';
 
 		foreach ( $status_options as $status => $label ) {
@@ -120,7 +120,7 @@ class Invoice_Finance_Admin_Controller {
 		}
 
 		echo '</select>';
-		submit_button( __( 'Filtrar', 'super-mechanic' ), 'secondary', 'filter_action', false );
+		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', 'filter_action', false );
 		echo '</div>';
 		$list_table->search_box( __( 'Buscar invoices', 'super-mechanic' ), 'sm-finance-invoices' );
 		echo '</form>';

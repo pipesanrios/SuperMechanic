@@ -52,10 +52,10 @@ class Process_List_Table extends \WP_List_Table {
 		return array(
 			'cb'           => '<input type="checkbox" />',
 			'id'           => __( 'ID', 'super-mechanic' ),
-			'title'        => __( 'Título', 'super-mechanic' ),
+			'title'        => __( 'Title', 'super-mechanic' ),
 			'process_type' => __( 'Tipo', 'super-mechanic' ),
 			'status'       => __( 'Estado', 'super-mechanic' ),
-			'vehicle'      => __( 'Vehículo', 'super-mechanic' ),
+			'vehicle'      => __( 'Vehicle', 'super-mechanic' ),
 			'client'       => __( 'Cliente', 'super-mechanic' ),
 			'opened_at'    => __( 'Apertura', 'super-mechanic' ),
 			'due_date'     => __( 'Objetivo', 'super-mechanic' ),
@@ -199,7 +199,7 @@ class Process_List_Table extends \WP_List_Table {
 			$label .= ' - ' . $item['vehicle_vin'];
 		}
 
-		return esc_html( '' !== trim( $label ) ? trim( $label ) : __( 'Vehículo sin identificar', 'super-mechanic' ) );
+		return esc_html( '' !== trim( $label ) ? trim( $label ) : __( 'Unidentified vehicle', 'super-mechanic' ) );
 	}
 
 	/**

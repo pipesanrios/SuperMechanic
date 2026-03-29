@@ -16,6 +16,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Settings_Service {
 	const OPTION_NAME = 'sm_settings';
+	const DEFAULT_SUPPORTED_CURRENCIES = array( 'USD', 'EUR', 'COP', 'PAB' );
 
 	/**
 	 * Get normalized fallback business id from settings.
@@ -24,6 +25,45 @@ class Settings_Service {
 	 */
 	public function get_fallback_business_id() {
 		return max( 1, absint( $this->get_setting( 'business', 'business_id', 1 ) ) );
+	}
+
+	/**
+	 * Get supported currencies for operational UI and filters.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_supported_currencies() {
+		$business_group = $this->get_group( 'business' );
+		$configured     = isset( $business_group['supported_currencies'] ) ? $business_group['supported_currencies'] : array();
+		$normalized     = $this->normalize_currency_codes( is_array( $configured ) ? $configured : array() );
+
+		if ( empty( $normalized ) ) {
+			$normalized = self::DEFAULT_SUPPORTED_CURRENCIES;
+		}
+
+		$base_currency = strtoupper( sanitize_text_field( (string) $this->get_setting( 'business', 'currency', 'USD' ) ) );
+		if ( '' !== $base_currency && ! in_array( $base_currency, $normalized, true ) ) {
+			$normalized[] = $base_currency;
+		}
+
+		/**
+		 * Filter supported currency codes.
+		 *
+		 * @param array<int, string> $normalized Currency codes.
+		 */
+		$normalized = apply_filters( 'sm_supported_currencies', $normalized );
+		$normalized = $this->normalize_currency_codes( is_array( $normalized ) ? $normalized : array() );
+
+		if ( empty( $normalized ) ) {
+			$normalized = self::DEFAULT_SUPPORTED_CURRENCIES;
+		}
+
+		$options = array();
+		foreach ( $normalized as $currency ) {
+			$options[ $currency ] = $currency;
+		}
+
+		return $options;
 	}
 
 	/**
@@ -139,7 +179,18 @@ class Settings_Service {
 		$settings['business']['business_name']                = sanitize_text_field( $settings['business']['business_name'] );
 		$settings['business']['business_context_key']         = sanitize_key( $settings['business']['business_context_key'] );
 		$settings['business']['business_id']                  = max( 1, absint( $settings['business']['business_id'] ) );
-		$settings['business']['currency']                     = sanitize_text_field( $settings['business']['currency'] );
+		$settings['business']['currency']                     = strtoupper( sanitize_text_field( (string) $settings['business']['currency'] ) );
+		$settings['business']['supported_currencies']         = $this->normalize_currency_codes(
+			isset( $settings['business']['supported_currencies'] ) && is_array( $settings['business']['supported_currencies'] )
+				? $settings['business']['supported_currencies']
+				: self::DEFAULT_SUPPORTED_CURRENCIES
+		);
+		if ( empty( $settings['business']['supported_currencies'] ) ) {
+			$settings['business']['supported_currencies'] = self::DEFAULT_SUPPORTED_CURRENCIES;
+		}
+		if ( ! in_array( $settings['business']['currency'], $settings['business']['supported_currencies'], true ) ) {
+			$settings['business']['currency'] = $settings['business']['supported_currencies'][0];
+		}
 		$settings['business']['timezone']                     = sanitize_text_field( $settings['business']['timezone'] );
 		$settings['business']['locale']                       = sanitize_text_field( $settings['business']['locale'] );
 		if ( ! in_array( $settings['business']['locale'], array( 'en_US', 'es_ES', 'it_IT' ), true ) ) {
@@ -207,6 +258,8 @@ class Settings_Service {
 		$settings['google_calendar']['watch_last_message_number'] = isset( $settings['google_calendar']['watch_last_message_number'] ) ? absint( $settings['google_calendar']['watch_last_message_number'] ) : 0;
 		$settings['google_calendar']['watch_last_webhook_at'] = isset( $settings['google_calendar']['watch_last_webhook_at'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_last_webhook_at'] ) : '';
 		$settings['google_calendar']['watch_next_sync_token'] = isset( $settings['google_calendar']['watch_next_sync_token'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_next_sync_token'] ) : '';
+		$settings['security']['master_password_hash']         = isset( $settings['security']['master_password_hash'] ) ? sanitize_text_field( (string) $settings['security']['master_password_hash'] ) : '';
+		$settings['security']['master_password_generated_at'] = isset( $settings['security']['master_password_generated_at'] ) ? sanitize_text_field( (string) $settings['security']['master_password_generated_at'] ) : '';
 		$settings['public_api']['enabled']                    = ! empty( $settings['public_api']['enabled'] );
 		$settings['public_api']['webhooks_enabled']           = ! empty( $settings['public_api']['webhooks_enabled'] );
 		$settings['public_api']['api_keys']                   = $this->normalize_public_api_keys(
@@ -241,6 +294,7 @@ class Settings_Service {
 				'business_context_key' => 'default',
 				'business_id'          => 1,
 				'currency'             => ! empty( $legacy['default_currency'] ) ? sanitize_text_field( $legacy['default_currency'] ) : 'USD',
+				'supported_currencies' => self::DEFAULT_SUPPORTED_CURRENCIES,
 				'timezone'             => $timezone,
 				'locale'               => 'en_US',
 				'date_format'          => ! empty( $legacy['date_format'] ) ? sanitize_text_field( $legacy['date_format'] ) : 'Y-m-d',
@@ -319,12 +373,41 @@ class Settings_Service {
 				'watch_last_webhook_at'  => '',
 				'watch_next_sync_token'  => '',
 			),
+			'security' => array(
+				'master_password_hash'         => '',
+				'master_password_generated_at' => '',
+			),
 			'public_api' => array(
 				'enabled'          => false,
 				'webhooks_enabled' => true,
 				'api_keys'         => array(),
 			),
 		);
+	}
+
+	/**
+	 * Normalize currency codes to uppercase unique values.
+	 *
+	 * @param array<int, mixed> $codes Raw codes.
+	 * @return array<int, string>
+	 */
+	protected function normalize_currency_codes( array $codes ) {
+		$normalized = array();
+
+		foreach ( $codes as $raw_code ) {
+			$code = strtoupper( sanitize_text_field( (string) $raw_code ) );
+			$code = preg_replace( '/[^A-Z]/', '', $code );
+
+			if ( ! is_string( $code ) || strlen( $code ) < 3 || strlen( $code ) > 5 ) {
+				continue;
+			}
+
+			if ( ! in_array( $code, $normalized, true ) ) {
+				$normalized[] = $code;
+			}
+		}
+
+		return $normalized;
 	}
 
 	/**

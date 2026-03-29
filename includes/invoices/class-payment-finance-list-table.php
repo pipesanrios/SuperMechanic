@@ -71,13 +71,13 @@ class Payment_Finance_List_Table extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'id'                => __( 'Payment', 'super-mechanic' ),
-			'payment_date'      => __( 'Fecha', 'super-mechanic' ),
+			'payment_date'      => __( 'Date', 'super-mechanic' ),
 			'invoice'           => __( 'Invoice', 'super-mechanic' ),
-			'payment_method'    => __( 'Metodo', 'super-mechanic' ),
+			'payment_method'    => __( 'Method', 'super-mechanic' ),
 			'amount'            => __( 'Monto', 'super-mechanic' ),
 			'collection_status' => __( 'Estado cobro invoice', 'super-mechanic' ),
 			'reference'         => __( 'Referencia', 'super-mechanic' ),
-			'actions'           => __( 'Acciones', 'super-mechanic' ),
+			'actions'           => __( 'Actions', 'super-mechanic' ),
 		);
 	}
 
@@ -217,7 +217,7 @@ class Payment_Finance_List_Table extends \WP_List_Table {
 
 		if ( $process_id > 0 && $invoice_id > 0 ) {
 			$actions[] = '<a class="button button-small" href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id ) ) . '">' . esc_html__( 'Abrir invoice', 'super-mechanic' ) . '</a>';
-			$actions[] = '<a class="button button-secondary button-small" href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id, array( 'sm_finance_focus' => 'register_payment' ) ) ) . '">' . esc_html__( 'Registrar pago', 'super-mechanic' ) . '</a>';
+			$actions[] = '<a class="button button-secondary button-small" href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id, array( 'sm_finance_focus' => 'register_payment' ) ) ) . '">' . esc_html__( 'Register payment', 'super-mechanic' ) . '</a>';
 		}
 
 		if ( $payment_id > 0 && $this->download_service->can_generate_pdf() ) {

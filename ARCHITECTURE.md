@@ -262,6 +262,8 @@ Reglas:
 - 36C-1
 - 36C-2
 - 37A
+- 38A-1
+- 38A-2 (en cierre)
 
 ### Hitos recientes
 - reports consolidado

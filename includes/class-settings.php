@@ -15,6 +15,7 @@ use Super_Mechanic\Helpers\License_Service;
 use Super_Mechanic\Helpers\Update_Service;
 use Super_Mechanic\Helpers\Plan_Access_Service;
 use Super_Mechanic\Helpers\Feature_Flags;
+use Super_Mechanic\Helpers\DB_Security_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
 
@@ -87,6 +88,12 @@ class Settings {
 	 * @var Business_Service
 	 */
 	protected $business_service;
+	/**
+	 * DB security service.
+	 *
+	 * @var DB_Security_Service
+	 */
+	protected $db_security_service;
 
 	/**
 	 * Constructor.
@@ -100,6 +107,7 @@ class Settings {
 		$this->google_calendar_sync_service = new Google_Calendar_Sync_Service( $this->google_calendar_service );
 		$this->business_service = new Business_Service();
 		$this->business_context_service = new Business_Context_Service( $this->settings_service, $this->business_service );
+		$this->db_security_service = new DB_Security_Service( $this->settings_service );
 		$this->google_calendar_service->set_sync_service( $this->google_calendar_sync_service );
 		$appointment_service = new Appointment_Service( null, null, null, null, $this->google_calendar_sync_service );
 		$this->google_calendar_sync_service->set_appointment_service( $appointment_service );
@@ -117,6 +125,10 @@ class Settings {
 		add_action( 'admin_post_sm_google_calendar_save_config', array( $this, 'handle_google_calendar_save_config' ) );
 		add_action( 'admin_post_sm_google_calendar_reconcile_now', array( $this, 'handle_google_calendar_reconcile_now' ) );
 		add_action( 'admin_post_sm_google_calendar_renew_watch', array( $this, 'handle_google_calendar_renew_watch' ) );
+		add_action( 'admin_post_sm_db_security_generate_master_password', array( $this, 'handle_db_security_generate_master_password' ) );
+		add_action( 'admin_post_sm_db_security_export', array( $this, 'handle_db_security_export' ) );
+		add_action( 'admin_post_sm_db_security_reset', array( $this, 'handle_db_security_reset' ) );
+		add_action( 'admin_post_sm_db_security_import_json', array( $this, 'handle_db_security_import_json' ) );
 	}
 
 	/**
@@ -177,6 +189,13 @@ class Settings {
 			'default_currency',
 			__( 'Default currency', 'super-mechanic' ),
 			array( $this, 'render_field_default_currency' ),
+			self::PAGE_SLUG,
+			'sm_general_settings'
+		);
+		add_settings_field(
+			'supported_currencies',
+			__( 'Supported currencies', 'super-mechanic' ),
+			array( $this, 'render_field_supported_currencies' ),
 			self::PAGE_SLUG,
 			'sm_general_settings'
 		);
@@ -316,6 +335,7 @@ class Settings {
 			'business_id'           => 1,
 			'language_locale'       => 'en_US',
 			'default_currency'      => 'USD',
+			'supported_currencies'  => array( 'USD', 'EUR', 'COP', 'PAB' ),
 			'timezone'              => function_exists( 'wp_timezone_string' ) && wp_timezone_string() ? wp_timezone_string() : 'UTC',
 			'date_format'           => 'd/m/Y',
 			'enabled_process_types' => array( 'maintenance', 'pre_delivery', 'paperwork' ),
@@ -358,6 +378,7 @@ class Settings {
 			'business_id'                => isset( $service_settings['business']['business_id'] ) ? absint( $service_settings['business']['business_id'] ) : $defaults['business_id'],
 			'language_locale'            => $mapped_locale,
 			'default_currency'           => isset( $service_settings['business']['currency'] ) ? $service_settings['business']['currency'] : $defaults['default_currency'],
+			'supported_currencies'       => isset( $service_settings['business']['supported_currencies'] ) ? $service_settings['business']['supported_currencies'] : $defaults['supported_currencies'],
 			'timezone'                   => isset( $service_settings['business']['timezone'] ) ? $service_settings['business']['timezone'] : $defaults['timezone'],
 			'date_format'                => isset( $service_settings['business']['date_format'] ) ? $service_settings['business']['date_format'] : $defaults['date_format'],
 			'enabled_process_types'      => isset( $service_settings['process']['enabled_process_types'] ) ? $service_settings['process']['enabled_process_types'] : $defaults['enabled_process_types'],
@@ -386,7 +407,19 @@ class Settings {
 		$defaults = $this->get_default_settings();
 		$input    = is_array( $input ) ? $input : array();
 
-		$currencies = array( 'USD', 'EUR', 'COP', 'PAB' );
+		$currencies = array_keys( $this->settings_service->get_supported_currencies() );
+		$supported_input = array();
+		if ( isset( $input['supported_currencies'] ) ) {
+			$supported_input = $this->parse_supported_currencies_input( $input['supported_currencies'] );
+		}
+		$supported_currencies = ! empty( $supported_input ) ? $supported_input : $currencies;
+		if ( empty( $supported_currencies ) ) {
+			$supported_currencies = isset( $defaults['supported_currencies'] ) && is_array( $defaults['supported_currencies'] ) ? $defaults['supported_currencies'] : array( 'USD', 'EUR', 'COP', 'PAB' );
+		}
+		$default_currency = isset( $input['default_currency'] ) ? strtoupper( sanitize_text_field( (string) $input['default_currency'] ) ) : $defaults['default_currency'];
+		if ( ! in_array( $default_currency, $supported_currencies, true ) ) {
+			$default_currency = $supported_currencies[0];
+		}
 		$formats    = array( 'd/m/Y', 'm/d/Y', 'Y-m-d' );
 		$types      = array( 'maintenance', 'pre_delivery', 'paperwork' );
 		$locales    = array( 'en_US', 'es_ES', 'it_IT' );
@@ -397,7 +430,8 @@ class Settings {
 			'business_context_key'  => isset( $input['business_context_key'] ) ? sanitize_key( $input['business_context_key'] ) : $defaults['business_context_key'],
 			'business_id'           => isset( $input['business_id'] ) ? max( 1, absint( $input['business_id'] ) ) : $defaults['business_id'],
 			'language_locale'       => isset( $input['language_locale'] ) && in_array( $input['language_locale'], $locales, true ) ? $input['language_locale'] : $defaults['language_locale'],
-			'default_currency'      => isset( $input['default_currency'] ) && in_array( $input['default_currency'], $currencies, true ) ? $input['default_currency'] : $defaults['default_currency'],
+			'default_currency'      => $default_currency,
+			'supported_currencies'  => $supported_currencies,
 			'timezone'              => isset( $input['timezone'] ) && in_array( $input['timezone'], $timezones, true ) ? $input['timezone'] : $defaults['timezone'],
 			'date_format'           => isset( $input['date_format'] ) && in_array( $input['date_format'], $formats, true ) ? $input['date_format'] : $defaults['date_format'],
 			'enabled_process_types' => array_values( array_intersect( $types, isset( $input['enabled_process_types'] ) && is_array( $input['enabled_process_types'] ) ? array_map( 'sanitize_text_field', $input['enabled_process_types'] ) : array() ) ),
@@ -439,6 +473,12 @@ class Settings {
 		echo '<div class="wrap sm-admin-shell">';
 		$this->render_license_notice();
 		$this->render_google_calendar_notice();
+		$this->render_db_security_notice();
+		$auto_master_password = '';
+		$auto_generation      = $this->db_security_service->ensure_master_password_exists( false );
+		if ( ! empty( $auto_generation['generated'] ) && ! empty( $auto_generation['master_password'] ) ) {
+			$auto_master_password = (string) $auto_generation['master_password'];
+		}
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Super Mechanic Settings', 'super-mechanic' ) . '</h1>';
@@ -480,6 +520,10 @@ class Settings {
 		echo '<h2>' . esc_html__( 'Google Calendar (1-way sync)', 'super-mechanic' ) . '</h2>';
 		$this->render_google_calendar_section();
 		$this->render_field_google_calendar_status();
+		echo '</div>';
+		echo '<div class="sm-card sm-form-card sm-settings-card">';
+		echo '<h2>' . esc_html__( 'Database security (export/reset)', 'super-mechanic' ) . '</h2>';
+		$this->render_db_security_section( $auto_master_password );
 		echo '</div>';
 		echo '</div>';
 	}
@@ -661,7 +705,13 @@ class Settings {
 	 */
 	public function render_field_default_currency() {
 		$settings   = $this->get_settings();
-		$currencies = array( 'USD', 'EUR', 'COP', 'PAB' );
+		$currencies = array_keys( $this->settings_service->get_supported_currencies() );
+		if ( empty( $currencies ) && ! empty( $settings['supported_currencies'] ) && is_array( $settings['supported_currencies'] ) ) {
+			$currencies = $settings['supported_currencies'];
+		}
+		if ( empty( $currencies ) ) {
+			$currencies = array( 'USD', 'EUR', 'COP', 'PAB' );
+		}
 
 		echo '<select name="' . esc_attr( self::OPTION_NAME ) . '[default_currency]">';
 
@@ -670,7 +720,21 @@ class Settings {
 		}
 
 		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'Default currency used by quote and invoice services when a specific value is not provided.', 'super-mechanic' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Default business currency used by quote and invoice services when a specific value is not provided.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render supported currencies field.
+	 *
+	 * @return void
+	 */
+	public function render_field_supported_currencies() {
+		$settings   = $this->get_settings();
+		$currencies = isset( $settings['supported_currencies'] ) && is_array( $settings['supported_currencies'] ) ? $settings['supported_currencies'] : array( 'USD', 'EUR', 'COP', 'PAB' );
+		$value      = implode( ', ', array_map( 'sanitize_text_field', $currencies ) );
+
+		echo '<input type="text" class="regular-text" name="' . esc_attr( self::OPTION_NAME ) . '[supported_currencies]" value="' . esc_attr( $value ) . '" />';
+		echo '<p class="description">' . esc_html__( 'Comma-separated ISO currency codes available in forms and report filters. Example: USD, EUR, COP, PAB.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -1177,6 +1241,238 @@ class Settings {
 	}
 
 	/**
+	 * Render one-time DB security notice.
+	 *
+	 * @return void
+	 */
+	protected function render_db_security_notice() {
+		$type_raw    = isset( $_GET['sm_db_notice'] ) ? sanitize_key( wp_unslash( $_GET['sm_db_notice'] ) ) : '';
+		$message_raw = isset( $_GET['sm_db_msg'] ) ? sanitize_text_field( wp_unslash( $_GET['sm_db_msg'] ) ) : '';
+
+		if ( '' === $type_raw || '' === $message_raw ) {
+			return;
+		}
+
+		$type_class = ( 'success' === $type_raw ) ? 'notice-success' : 'notice-error';
+		echo '<div class="notice ' . esc_attr( $type_class ) . ' is-dismissible"><p>' . esc_html( $message_raw ) . '</p></div>';
+	}
+
+	/**
+	 * Render DB security admin actions section.
+	 *
+	 * @param string $auto_master_password Master password generated in this request.
+	 * @return void
+	 */
+	protected function render_db_security_section( $auto_master_password = '' ) {
+		$generated_at = $this->db_security_service->get_master_password_generated_at();
+		$token        = isset( $_GET['sm_db_master_token'] ) ? sanitize_key( wp_unslash( $_GET['sm_db_master_token'] ) ) : '';
+		$one_time     = '' !== $token ? $this->db_security_service->consume_one_time_master_password( $token ) : '';
+		$master_plain = '';
+
+		if ( '' !== (string) $auto_master_password ) {
+			$master_plain = (string) $auto_master_password;
+		} elseif ( '' !== $one_time ) {
+			$master_plain = $one_time;
+		}
+
+		echo '<p>' . esc_html__( 'Sensitive DB operations require capability + nonce + master password. Reset only affects Super Mechanic plugin tables.', 'super-mechanic' ) . '</p>';
+
+		if ( '' !== $master_plain ) {
+			echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Master password (showing once):', 'super-mechanic' ) . '</strong> <code>' . esc_html( $master_plain ) . '</code></p></div>';
+		}
+
+		echo '<p><strong>' . esc_html__( 'Master password status:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->db_security_service->has_master_password() ? __( 'Configured', 'super-mechanic' ) : __( 'Missing', 'super-mechanic' ) ) . '</p>';
+		if ( '' !== $generated_at ) {
+			echo '<p><strong>' . esc_html__( 'Generated at:', 'super-mechanic' ) . '</strong> ' . esc_html( $generated_at ) . '</p>';
+		}
+
+		echo '<h3>' . esc_html__( 'Generate or rotate master password', 'super-mechanic' ) . '</h3>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="sm_db_security_generate_master_password" />';
+		wp_nonce_field( 'sm_db_security_generate_master_password', 'sm_db_security_generate_nonce' );
+		echo '<p><label><input type="checkbox" name="sm_db_send_email" value="1" /> ' . esc_html__( 'Send generated password to admin email', 'super-mechanic' ) . '</label></p>';
+		submit_button( __( 'Generate new master password', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<h3>' . esc_html__( 'Export plugin database', 'super-mechanic' ) . '</h3>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="sm_db_security_export" />';
+		wp_nonce_field( 'sm_db_security_export', 'sm_db_security_export_nonce' );
+		echo '<p><label><strong>' . esc_html__( 'Export format', 'super-mechanic' ) . '</strong><br />';
+		echo '<select name="sm_db_export_format">';
+		echo '<option value="json">' . esc_html__( 'JSON (canonical backup)', 'super-mechanic' ) . '</option>';
+		echo '<option value="csv">' . esc_html__( 'CSV ZIP (operational)', 'super-mechanic' ) . '</option>';
+		echo '<option value="excel">' . esc_html__( 'Excel XML (operational)', 'super-mechanic' ) . '</option>';
+		echo '</select></label></p>';
+		echo '<p><label><strong>' . esc_html__( 'Master password', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="password" class="regular-text" name="sm_db_master_password" value="" required /></label></p>';
+		submit_button( __( 'Export DB', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+
+		echo '<h3>' . esc_html__( 'Reset plugin database', 'super-mechanic' ) . '</h3>';
+		echo '<p class="description">' . esc_html__( 'This action deletes data from Super Mechanic tables and re-seeds only the default business baseline.', 'super-mechanic' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="sm_db_security_reset" />';
+		wp_nonce_field( 'sm_db_security_reset', 'sm_db_security_reset_nonce' );
+		echo '<p><label><strong>' . esc_html__( 'Master password', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="password" class="regular-text" name="sm_db_master_password" value="" required /></label></p>';
+		echo '<p><label><strong>' . esc_html__( 'Type confirmation phrase', 'super-mechanic' ) . '</strong> <code>RESET DB</code><br />';
+		echo '<input type="text" class="regular-text" name="sm_db_reset_confirm_phrase" value="" required /></label></p>';
+		echo '<p><label><input type="checkbox" name="sm_db_reset_confirm_checked" value="1" /> ' . esc_html__( 'I understand this operation is destructive.', 'super-mechanic' ) . '</label></p>';
+		submit_button( __( 'Reset plugin DB', 'super-mechanic' ), 'delete', 'submit', false );
+		echo '</form>';
+
+		echo '<h3>' . esc_html__( 'Import plugin database backup (JSON only)', 'super-mechanic' ) . '</h3>';
+		echo '<p class="description">' . esc_html__( 'Import accepts only canonical JSON backups generated by this module. CSV/Excel exports are not importable.', 'super-mechanic' ) . '</p>';
+		echo '<form method="post" enctype="multipart/form-data" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="sm_db_security_import_json" />';
+		wp_nonce_field( 'sm_db_security_import_json', 'sm_db_security_import_json_nonce' );
+		echo '<p><label><strong>' . esc_html__( 'Master password', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="password" class="regular-text" name="sm_db_master_password" value="" required /></label></p>';
+		echo '<p><label><strong>' . esc_html__( 'Backup file (.json)', 'super-mechanic' ) . '</strong><br />';
+		echo '<input type="file" name="sm_db_import_file" accept=".json,application/json" required /></label></p>';
+		submit_button( __( 'Import JSON backup', 'super-mechanic' ), 'secondary', 'submit', false );
+		echo '</form>';
+	}
+
+	/**
+	 * Handle master password generation/rotation.
+	 *
+	 * @return void
+	 */
+	public function handle_db_security_generate_master_password() {
+		$this->assert_db_security_permissions();
+		check_admin_referer( 'sm_db_security_generate_master_password', 'sm_db_security_generate_nonce' );
+
+		$send_email = ! empty( $_POST['sm_db_send_email'] );
+		$result     = $this->db_security_service->generate_master_password( $send_email );
+
+		if ( empty( $result['success'] ) ) {
+			$this->redirect_after_db_security_action(
+				'error',
+				! empty( $result['message'] ) ? (string) $result['message'] : __( 'Could not generate a master password.', 'super-mechanic' )
+			);
+		}
+
+		$extra = array();
+		if ( ! empty( $result['token'] ) ) {
+			$extra['sm_db_master_token'] = sanitize_key( (string) $result['token'] );
+		}
+
+		$this->redirect_after_db_security_action(
+			'success',
+			! empty( $result['message'] ) ? (string) $result['message'] : __( 'Master password generated.', 'super-mechanic' ),
+			$extra
+		);
+	}
+
+	/**
+	 * Handle plugin DB export action.
+	 *
+	 * @return void
+	 */
+	public function handle_db_security_export() {
+		$this->assert_db_security_permissions();
+		check_admin_referer( 'sm_db_security_export', 'sm_db_security_export_nonce' );
+
+		$master_password = isset( $_POST['sm_db_master_password'] ) ? (string) wp_unslash( $_POST['sm_db_master_password'] ) : '';
+		$format          = isset( $_POST['sm_db_export_format'] ) ? sanitize_key( wp_unslash( $_POST['sm_db_export_format'] ) ) : 'json';
+		$payload         = $this->db_security_service->export_plugin_data_file( $master_password, $format );
+
+		if ( is_wp_error( $payload ) ) {
+			$this->redirect_after_db_security_action( 'error', $payload->get_error_message() );
+		}
+
+		$filename = isset( $payload['filename'] ) ? sanitize_file_name( (string) $payload['filename'] ) : '';
+		$mime     = isset( $payload['mime'] ) ? (string) $payload['mime'] : 'application/octet-stream';
+		$content  = isset( $payload['content'] ) ? (string) $payload['content'] : '';
+		if ( '' === $filename || '' === $content ) {
+			$this->redirect_after_db_security_action( 'error', __( 'Could not generate export payload.', 'super-mechanic' ) );
+		}
+
+		nocache_headers();
+		header( 'Content-Type: ' . $mime );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Download payload.
+		exit;
+	}
+
+	/**
+	 * Handle plugin DB reset action.
+	 *
+	 * @return void
+	 */
+	public function handle_db_security_reset() {
+		$this->assert_db_security_permissions();
+		check_admin_referer( 'sm_db_security_reset', 'sm_db_security_reset_nonce' );
+
+		$master_password = isset( $_POST['sm_db_master_password'] ) ? (string) wp_unslash( $_POST['sm_db_master_password'] ) : '';
+		$confirm_phrase  = isset( $_POST['sm_db_reset_confirm_phrase'] ) ? (string) wp_unslash( $_POST['sm_db_reset_confirm_phrase'] ) : '';
+		$confirm_checked = ! empty( $_POST['sm_db_reset_confirm_checked'] );
+
+		$result = $this->db_security_service->reset_plugin_data( $master_password, $confirm_phrase, $confirm_checked );
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_after_db_security_action( 'error', $result->get_error_message() );
+		}
+
+		$this->redirect_after_db_security_action( 'success', __( 'Plugin database reset completed.', 'super-mechanic' ) );
+	}
+
+	/**
+	 * Handle plugin DB import action (JSON only).
+	 *
+	 * @return void
+	 */
+	public function handle_db_security_import_json() {
+		$this->assert_db_security_permissions();
+		check_admin_referer( 'sm_db_security_import_json', 'sm_db_security_import_json_nonce' );
+
+		$master_password = isset( $_POST['sm_db_master_password'] ) ? (string) wp_unslash( $_POST['sm_db_master_password'] ) : '';
+		$file_payload    = isset( $_FILES['sm_db_import_file'] ) && is_array( $_FILES['sm_db_import_file'] ) ? $_FILES['sm_db_import_file'] : array();
+
+		$result = $this->db_security_service->import_plugin_data_from_uploaded_json( $master_password, $file_payload );
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_after_db_security_action( 'error', $result->get_error_message() );
+		}
+
+		$this->redirect_after_db_security_action( 'success', __( 'Plugin database import completed.', 'super-mechanic' ) );
+	}
+
+	/**
+	 * Assert permissions for DB security actions.
+	 *
+	 * @return void
+	 */
+	protected function assert_db_security_permissions() {
+		if ( ! current_user_can( 'sm_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage DB security actions.', 'super-mechanic' ) );
+		}
+	}
+
+	/**
+	 * Redirect after DB security action.
+	 *
+	 * @param string               $type    Notice type.
+	 * @param string               $message Notice message.
+	 * @param array<string,string> $extra   Extra query args.
+	 * @return void
+	 */
+	protected function redirect_after_db_security_action( $type, $message, array $extra = array() ) {
+		$args = array_merge(
+			array(
+				'page'         => self::PAGE_SLUG,
+				'sm_db_notice' => sanitize_key( (string) $type ),
+				'sm_db_msg'    => sanitize_text_field( (string) $message ),
+			),
+			$extra
+		);
+
+		$target = add_query_arg( $args, admin_url( 'admin.php' ) );
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	/**
 	 * Get translatable status label.
 	 *
 	 * @param string $status Status key.
@@ -1329,6 +1625,7 @@ class Settings {
 		$plan_settings    = $this->settings_service->get_group( 'plan' );
 		$feature_settings = $this->settings_service->get_group( 'features' );
 		$google_calendar_settings = $this->settings_service->get_group( 'google_calendar' );
+		$security_settings = $this->settings_service->get_group( 'security' );
 
 		update_option(
 			Settings_Service::OPTION_NAME,
@@ -1338,6 +1635,7 @@ class Settings {
 					'business_context_key' => $settings['business_context_key'],
 					'business_id'          => max( 1, absint( $settings['business_id'] ) ),
 					'currency'             => $settings['default_currency'],
+					'supported_currencies' => isset( $settings['supported_currencies'] ) && is_array( $settings['supported_currencies'] ) ? array_values( array_map( 'sanitize_text_field', $settings['supported_currencies'] ) ) : array( 'USD', 'EUR', 'COP', 'PAB' ),
 					'timezone'             => $settings['timezone'],
 					'locale'               => $settings['language_locale'],
 					'date_format'          => $settings['date_format'],
@@ -1369,7 +1667,44 @@ class Settings {
 				'plan'          => is_array( $plan_settings ) ? $plan_settings : array(),
 				'features'      => is_array( $feature_settings ) ? $feature_settings : array(),
 				'google_calendar' => is_array( $google_calendar_settings ) ? $google_calendar_settings : array(),
+				'security'      => is_array( $security_settings ) ? $security_settings : array(),
 			)
 		);
+	}
+
+	/**
+	 * Parse supported currencies input from settings payload.
+	 *
+	 * @param mixed $value Raw input.
+	 * @return array<int, string>
+	 */
+	protected function parse_supported_currencies_input( $value ) {
+		$items = array();
+
+		if ( is_array( $value ) ) {
+			$items = $value;
+		} elseif ( is_string( $value ) ) {
+			$items = preg_split( '/[\s,;]+/', $value );
+		}
+
+		if ( ! is_array( $items ) ) {
+			return array();
+		}
+
+		$currencies = array();
+		foreach ( $items as $item ) {
+			$code = strtoupper( sanitize_text_field( (string) $item ) );
+			$code = preg_replace( '/[^A-Z]/', '', $code );
+
+			if ( ! is_string( $code ) || strlen( $code ) < 3 || strlen( $code ) > 5 ) {
+				continue;
+			}
+
+			if ( ! in_array( $code, $currencies, true ) ) {
+				$currencies[] = $code;
+			}
+		}
+
+		return $currencies;
 	}
 }

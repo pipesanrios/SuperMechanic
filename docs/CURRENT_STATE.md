@@ -1,6 +1,6 @@
 # CURRENT STATE — SUPER MECHANIC
 
-Fecha de consolidacion: 2026-03-29
+Fecha de consolidacion: 2026-03-30
 
 ## Versiones reales
 
@@ -10,10 +10,22 @@ Fecha de consolidacion: 2026-03-29
 ## Estado general
 
 - Estado: ESTABLE CON RIESGOS CONTROLADOS
-- Fase actual real: `37A-6` (cierre UX operativa general pre-CRM)
-- Ultima fase completa real: `37A-6`
+- Bloque actual real: `38B (Comercial / WooCommerce)` en ejecucion
+- Estado de bloque 38A: COMPLETA CON OBSERVACIONES
+- Subfases 38A:
+  - `38A-1`: COMPLETA (i18n/idioma base)
+  - `38A-2`: PARCIAL (validacion UI manual final pendiente o confirmacion explicita)
+  - `38A-3`: PARCIAL (email admin no validado + inestabilidad externa registrada)
+  - `38A-3B`: COMPLETA (export/import operativo)
+- Subfases 38B:
+  - `38B-1`: COMPLETA (vinculacion comercial base WooCommerce con snapshot en quotes/invoices y autofill manual en maintenance)
 - Bloque tecnico post-cierre: `HOTFIX-MEM-1` COMPLETO (fatal `Allowed memory size exhausted` en cascadas de servicios)
 - Runtime WordPress real para 37A-6: confirmado (validacion manual UI real + runtime backend, incluyendo timeline unificada de vehiculo con proceso+cita+mantenimiento)
+- Runtime tecnico para 38A-1: validacion de cierre ejecutada (barrido dirigido final en list tables/flujo de facturacion + smoke backend `tmp-runtime-check.php` + `php-lint` global limpio)
+- Runtime tecnico para 38A-2: validacion tecnica ejecutada (`php-lint` global + barrido dirigido de hardcode monetario). Validacion UI manual pendiente.
+- Runtime tecnico para 38A-3: validacion base de seguridad DB ejecutada (master password + export JSON protegido + reset protegido). Pendiente validacion formal de envio email admin y se mantiene registro de inestabilidad externa.
+- Runtime tecnico para 38A-3B: validacion tecnica y runtime manual dirigidas ejecutadas (export JSON/CSV ZIP/Excel XML + import JSON seguro con validacion previa y rollback transaccional).
+- Runtime WordPress real para 38B-1: validacion ejecutada en modo Woo activo e inactivo (selector condicional, snapshot `reference_id/label/unit_price` en quote/invoice, autofill manual en maintenance, sin regresion de totales y sin dependencia forzada de Woo).
 
 ## Arquitectura activa real
 
@@ -87,12 +99,17 @@ Fecha de consolidacion: 2026-03-29
 - Motor PDF depende del entorno; validacion funcional completa de PDFs no siempre disponible en cierres recientes
 - Falta UX/admin dedicada para gestionar API keys y webhooks publicos (alta/rotacion/revocacion/observabilidad)
 - Faltan tests automatizados de regresion para detectar bucles de inicializacion/cascadas de servicios antes de runtime WordPress
+- 38A-2 pendiente de validacion runtime/UI manual final o confirmacion explicita de cierre
+- 38A-3 pendiente de validacion formal del envio email al admin en flujo de master password
+- 38A-3 mantiene inestabilidad externa registrada fuera del control de logica del plugin
 
 ## Siguiente fase real
 
-- Siguiente subfase recomendada: `bloque CRM` (posterior al cierre 37A-6).
+- Siguiente fase habilitada: `38B-2 — Comercial / WooCommerce (continuidad)`.
 - Condicion de continuidad: el bloqueante `HOTFIX-MEM-1` queda cerrado y no bloquea retomar roadmap.
 - Backlog inmediato recomendado:
+  - cierre formal pendiente de 38A-2/38A-3 (validaciones manuales restantes)
+  - continuidad funcional de 38B-2 sobre base 38B-1 ya cerrada
   - UX/admin de API keys y webhooks publicos
   - observabilidad avanzada de entregas webhook
   - consolidacion final de checklist runtime 36B/36C

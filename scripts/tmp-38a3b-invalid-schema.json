@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-03-29 20:07:05",
+  "schema_version": "9.99.0",
+  "plugin_version": "0.1.0",
+  "tables": {
+    "businesses": {
+      "table": "wp_sm_businesses",
+      "count": 1,
+      "rows": [
+        {
+          "id": "1",
+          "slug": "default",
+          "name": "SM QA Workshop",
+          "status": "active",
+          "is_default": "1",
+          "timezone": "UTC",
+          "currency": "USD",
+          "branding_logo_attachment_id": null,
+          "primary_color": null,
+          "created_at": "2026-03-29 19:35:54",
+          "updated_at": "2026-03-29 19:35:54"
+        }
+      ]
+    },
+    "clients": {
+      "table": "wp_sm_clients",
+      "count": 0,
+      "rows": []
+    },
+    "vehicles": {
+      "table": "wp_sm_vehicles",
+      "count": 0,
+      "rows": []
+    },
+    "client_vehicles": {
+      "table": "wp_sm_client_vehicles",
+      "count": 0,
+      "rows": []
+    },
+    "flows": {
+      "table": "wp_sm_flows",
+      "count": 0,
+      "rows": []
+    },
+    "flow_steps": {
+      "table": "wp_sm_flow_steps",
+      "count": 0,
+      "rows": []
+    },
+    "processes": {
+      "table": "wp_sm_processes",
+      "count": 0,
+      "rows": []
+    },
+    "appointments": {
+      "table": "wp_sm_appointments",
+      "count": 0,
+      "rows": []
+    },
+    "appointment_calendar_sync": {
+      "table": "wp_sm_appointment_calendar_sync",
+      "count": 0,
+      "rows": []
+    },
+    "process_step_logs": {
+      "table": "wp_sm_process_step_logs",
+      "count": 0,
+      "rows": []
+    },
+    "process_parts": {
+      "table": "wp_sm_process_parts",
+      "count": 0,
+      "rows": []
+    },
+    "process_meta": {
+      "table": "wp_sm_process_meta",
+      "count": 0,
+      "rows": []
+    },
+    "maintenance": {
+      "table": "wp_sm_maintenance",
+      "count": 0,
+      "rows": []
+    },
+    "maintenance_parts": {
+      "table": "wp_sm_maintenance_parts",
+      "count": 0,
+      "rows": []
+    },
+    "maintenance_labor": {
+      "table": "wp_sm_maintenance_labor",
+      "count": 0,
+      "rows": []
+    },
+    "pre_delivery": {
+      "table": "wp_sm_pre_delivery",
+      "count": 0,
+      "rows": []
+    },
+    "paperwork": {
+      "table": "wp_sm_paperwork",
+      "count": 0,
+      "rows": []
+    },
+    "paperwork_items": {
+      "table": "wp_sm_paperwork_items",
+      "count": 0,
+      "rows": []
+    },
+    "quotes": {
+      "table": "wp_sm_quotes",
+      "count": 0,
+      "rows": []
+    },
+    "quote_items": {
+      "table": "wp_sm_quote_items",
+      "count": 0,
+      "rows": []
+    },
+    "invoices": {
+      "table": "wp_sm_invoices",
+      "count": 0,
+      "rows": []
+    },
+    "invoice_items": {
+      "table": "wp_sm_invoice_items",
+      "count": 0,
+      "rows": []
+    },
+    "payments": {
+      "table": "wp_sm_payments",
+      "count": 0,
+      "rows": []
+    },
+    "attachments": {
+      "table": "wp_sm_attachments",
+      "count": 0,
+      "rows": []
+    },
+    "comments": {
+      "table": "wp_sm_comments",
+      "count": 0,
+      "rows": []
+    },
+    "notifications": {
+      "table": "wp_sm_notifications",
+      "count": 0,
+      "rows": []
+    },
+    "webhooks": {
+      "table": "wp_sm_webhooks",
+      "count": 0,
+      "rows": []
+    },
+    "webhook_deliveries": {
+      "table": "wp_sm_webhook_deliveries",
+      "count": 0,
+      "rows": []
+    }
+  }
+}

@@ -103,7 +103,7 @@ class Business_Admin_Controller {
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header"><div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Negocios', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Gestiona los talleres y selecciona el contexto operativo actual por usuario.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Manage workshop businesses and choose each user operational context.', 'super-mechanic' ) . '</p>';
 		echo '</div></div>';
 
 		$this->render_notice();
@@ -111,10 +111,10 @@ class Business_Admin_Controller {
 		$this->render_form( $editing ? $business : null );
 
 		echo '<div class="sm-card sm-form-card sm-settings-card">';
-		echo '<h2>' . esc_html__( 'Listado de negocios', 'super-mechanic' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Business list', 'super-mechanic' ) . '</h2>';
 		echo '<form method="get">';
 		echo '<input type="hidden" name="page" value="super-mechanic-businesses" />';
-		$list_table->search_box( __( 'Buscar negocios', 'super-mechanic' ), 'sm-business-search' );
+		$list_table->search_box( __( 'Search businesses', 'super-mechanic' ), 'sm-business-search' );
 		$list_table->display();
 		echo '</form>';
 		echo '</div>';
@@ -192,16 +192,16 @@ class Business_Admin_Controller {
 		$valid_id    = $this->service->resolve_valid_business_id( $business_id );
 
 		if ( $valid_id <= 0 ) {
-			$this->redirect_with_notice( 'error', __( 'El negocio seleccionado no es valido.', 'super-mechanic' ), 0 );
+			$this->redirect_with_notice( 'error', __( 'The selected business is not valid.', 'super-mechanic' ), 0 );
 		}
 
 		if ( ! empty( $allowed_ids ) && ! in_array( $valid_id, $allowed_ids, true ) ) {
-			$this->redirect_with_notice( 'error', __( 'No puedes cambiar a un negocio no permitido para tu usuario.', 'super-mechanic' ), 0 );
+			$this->redirect_with_notice( 'error', __( 'You cannot switch to a business not allowed for your user.', 'super-mechanic' ), 0 );
 		}
 
 		$this->business_context_service->set_user_selected_business_id( $valid_id );
 
-		$this->redirect_with_notice( 'success', __( 'Contexto de negocio actualizado para tu usuario.', 'super-mechanic' ), 0 );
+		$this->redirect_with_notice( 'success', __( 'Business context updated for your user.', 'super-mechanic' ), 0 );
 	}
 
 	/**
@@ -241,7 +241,7 @@ class Business_Admin_Controller {
 			echo '<option value="' . esc_attr( (string) $row_id ) . '" ' . selected( $current_id, $row_id, false ) . '>' . esc_html( (string) $row['name'] . ' (#' . $row_id . ')' ) . '</option>';
 		}
 		echo '</select>';
-		echo '<p class="description">' . esc_html__( 'Prioridad de resolución: user meta -> sm_settings.business.business_id -> default id=1.', 'super-mechanic' ) . '</p></td>';
+		echo '<p class="description">' . esc_html__( 'Resolution priority: user meta -> sm_settings.business.business_id -> default id=1.', 'super-mechanic' ) . '</p></td>';
 		echo '</tr></table>';
 		echo '<div class="sm-form-actions">';
 		submit_button( __( 'Cambiar contexto', 'super-mechanic' ), 'secondary', 'submit', false );
@@ -282,17 +282,17 @@ class Business_Admin_Controller {
 		wp_nonce_field( 'sm_business_save', 'sm_business_nonce' );
 
 		echo '<table class="form-table" role="presentation">';
-		$this->render_text_row( 'name', __( 'Nombre', 'super-mechanic' ), (string) $data['name'], true );
+		$this->render_text_row( 'name', __( 'Name', 'super-mechanic' ), (string) $data['name'], true );
 		$this->render_text_row( 'slug', __( 'Slug', 'super-mechanic' ), (string) $data['slug'], true );
 		$this->render_select_row( 'status', __( 'Estado', 'super-mechanic' ), (string) $data['status'], array( 'active' => __( 'Activo', 'super-mechanic' ), 'inactive' => __( 'Inactivo', 'super-mechanic' ) ) );
 		$this->render_text_row( 'timezone', __( 'Timezone', 'super-mechanic' ), (string) $data['timezone'], true );
-		$this->render_text_row( 'currency', __( 'Currency', 'super-mechanic' ), (string) $data['currency'], true );
+		$this->render_select_row( 'currency', __( 'Currency', 'super-mechanic' ), (string) $data['currency'], $this->get_currency_options() );
 		$this->render_text_row( 'branding_logo_attachment_id', __( 'Branding logo attachment_id', 'super-mechanic' ), (string) absint( $data['branding_logo_attachment_id'] ), false );
 		$this->render_text_row( 'primary_color', __( 'Color primario', 'super-mechanic' ), (string) $data['primary_color'], false );
-		echo '<tr><th scope="row">' . esc_html__( 'Default legacy', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_default" value="1" ' . checked( absint( $data['is_default'] ), 1, false ) . ' /> ' . esc_html__( 'Marcar como negocio por defecto', 'super-mechanic' ) . '</label></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Default legacy', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_default" value="1" ' . checked( absint( $data['is_default'] ), 1, false ) . ' /> ' . esc_html__( 'Mark as default business', 'super-mechanic' ) . '</label></td></tr>';
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( $is_edit ? __( 'Actualizar negocio', 'super-mechanic' ) : __( 'Crear negocio', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $is_edit ? __( 'Update business', 'super-mechanic' ) : __( 'Create business', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -329,6 +329,26 @@ class Business_Admin_Controller {
 			echo '<option value="' . esc_attr( $key ) . '" ' . selected( $value, $key, false ) . '>' . esc_html( $option_label ) . '</option>';
 		}
 		echo '</select></td></tr>';
+	}
+
+	/**
+	 * Get supported currency options for business forms.
+	 *
+	 * @return array<string, string>
+	 */
+	protected function get_currency_options() {
+		$options = $this->settings_service->get_supported_currencies();
+
+		if ( empty( $options ) ) {
+			$options = array(
+				'USD' => 'USD',
+				'EUR' => 'EUR',
+				'COP' => 'COP',
+				'PAB' => 'PAB',
+			);
+		}
+
+		return $options;
 	}
 
 	/**

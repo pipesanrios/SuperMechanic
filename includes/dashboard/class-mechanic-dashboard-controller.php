@@ -206,18 +206,18 @@ class Mechanic_Dashboard_Controller {
 			echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE_SLUG ) . '" />';
 		}
 		echo '<select name="filter_process_type">';
-		echo '<option value="">' . esc_html__( 'Todos los tipos', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All types', 'super-mechanic' ) . '</option>';
 		foreach ( $process_type_opts as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $current_type, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select> ';
 		echo '<select name="filter_status">';
-		echo '<option value="">' . esc_html__( 'Todos los estados', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All statuses', 'super-mechanic' ) . '</option>';
 		foreach ( $status_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $current_status, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select> ';
-		echo $this->render_submit_button( __( 'Filtrar', 'super-mechanic' ), '', 'filter_action' );
+		echo $this->render_submit_button( __( 'Filter', 'super-mechanic' ), '', 'filter_action' );
 		echo '</form>';
 
 		echo '<div class="sm-table-wrap"><table class="widefat striped">';
@@ -488,7 +488,7 @@ class Mechanic_Dashboard_Controller {
 		echo '<select id="sm_mechanic_comment_type" name="comment_type">';
 		echo '<option value="internal_note">' . esc_html__( 'Nota interna', 'super-mechanic' ) . '</option>';
 		echo '<option value="staff_reply">' . esc_html__( 'bvance operativo', 'super-mechanic' ) . '</option>';
-		echo '<option value="system_note">' . esc_html__( 'Nota de sistema', 'super-mechanic' ) . '</option>';
+		echo '<option value="system_note">' . esc_html__( 'System note', 'super-mechanic' ) . '</option>';
 		echo '</select></p>';
 		echo '<p><label for="sm_mechanic_comment_content">' . esc_html__( 'Content', 'super-mechanic' ) . '</label><br />';
 		echo '<textarea id="sm_mechanic_comment_content" name="content" rows="5" class="large-text" required></textarea></p>';
@@ -519,12 +519,12 @@ class Mechanic_Dashboard_Controller {
 		$this->render_summary_row( __( 'Times estimadas', 'super-mechanic' ), isset( $maintenance['estimated_hours'] ) ? (string) $maintenance['estimated_hours'] : '-' );
 		$this->render_summary_row( __( 'bpproved by client', 'super-mechanic' ), ! empty( $maintenance['client_approved'] ) ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) );
 		$this->render_summary_row( __( 'Total repuestos', 'super-mechanic' ), (string) number_format_i18n( $this->maintenance_service->calculate_total_parts( $maintenance_id ), 2 ) );
-		$this->render_summary_row( __( 'Total mano de obra', 'super-mechanic' ), (string) number_format_i18n( $this->maintenance_service->calculate_total_labor( $maintenance_id ), 2 ) );
+		$this->render_summary_row( __( 'Total labor', 'super-mechanic' ), (string) number_format_i18n( $this->maintenance_service->calculate_total_labor( $maintenance_id ), 2 ) );
 		$this->render_summary_row( __( 'Total servicio', 'super-mechanic' ), (string) number_format_i18n( $this->maintenance_service->calculate_total_service( $maintenance_id ), 2 ) );
 		echo '</tbody></table>';
 
 		echo '<h4>' . esc_html__( 'Repuestos', 'super-mechanic' ) . '</h4>';
-		echo '<table class="widefat striped" style="margin-bottom:16px;"><thead><tr><th>' . esc_html__( 'Nombre', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped" style="margin-bottom:16px;"><thead><tr><th>' . esc_html__( 'Name', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Quantity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $parts ) ) {
 			echo '<tr><td colspan="3">' . esc_html__( 'No parts recorded.', 'super-mechanic' ) . '</td></tr>';
 		} else {
@@ -534,7 +534,7 @@ class Mechanic_Dashboard_Controller {
 		}
 		echo '</tbody></table>';
 
-		echo '<h4>' . esc_html__( 'Mano de obra', 'super-mechanic' ) . '</h4>';
+		echo '<h4>' . esc_html__( 'Labor', 'super-mechanic' ) . '</h4>';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Description', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Times', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $labor ) ) {
 			echo '<tr><td colspan="3">' . esc_html__( 'No labor recorded.', 'super-mechanic' ) . '</td></tr>';
@@ -723,7 +723,7 @@ class Mechanic_Dashboard_Controller {
 
 	protected function ensure_permissions() {
 		if ( is_wp_error( $this->permission_service->user_can_access_mechanic_portal( get_current_user_id() ) ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para usar el Mechanic Panel.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to use the Mechanic Panel.', 'super-mechanic' ) );
 		}
 	}
 

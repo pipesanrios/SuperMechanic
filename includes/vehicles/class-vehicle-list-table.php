@@ -57,7 +57,7 @@ class Vehicle_List_Table extends \WP_List_Table {
 			'plate'      => __( 'Placa', 'super-mechanic' ),
 			'brand'      => __( 'Marca', 'super-mechanic' ),
 			'model'      => __( 'Modelo', 'super-mechanic' ),
-			'year'       => __( 'Año', 'super-mechanic' ),
+			'year'       => __( 'Year', 'super-mechanic' ),
 			'color'      => __( 'Color', 'super-mechanic' ),
 			'created_at' => __( 'Creado', 'super-mechanic' ),
 		);

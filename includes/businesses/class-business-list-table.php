@@ -49,7 +49,7 @@ class Business_List_Table extends \WP_List_Table {
 	public function get_columns() {
 		return array(
 			'id'         => __( 'ID', 'super-mechanic' ),
-			'name'       => __( 'Nombre', 'super-mechanic' ),
+			'name'       => __( 'Name', 'super-mechanic' ),
 			'slug'       => __( 'Slug', 'super-mechanic' ),
 			'status'     => __( 'Estado', 'super-mechanic' ),
 			'is_default' => __( 'Default', 'super-mechanic' ),
@@ -128,7 +128,7 @@ class Business_List_Table extends \WP_List_Table {
 	 * @return string
 	 */
 	public function column_is_default( $item ) {
-		return absint( $item['is_default'] ) === 1 ? esc_html__( 'Sí', 'super-mechanic' ) : esc_html__( 'No', 'super-mechanic' );
+		return absint( $item['is_default'] ) === 1 ? esc_html__( 'Yes', 'super-mechanic' ) : esc_html__( 'No', 'super-mechanic' );
 	}
 
 	/**
@@ -184,4 +184,3 @@ class Business_List_Table extends \WP_List_Table {
 		);
 	}
 }
-

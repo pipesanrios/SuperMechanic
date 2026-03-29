@@ -1,0 +1,45 @@
+{
+    "timestamp": "2026-03-29 22:08:37",
+    "core_counts": {
+        "wp_users": 8,
+        "wp_posts": 27,
+        "wp_options": 433
+    },
+    "sm_table_count": 28,
+    "sm_counts": {
+        "wp_sm_appointment_calendar_sync": 0,
+        "wp_sm_appointments": 0,
+        "wp_sm_attachments": 0,
+        "wp_sm_businesses": 1,
+        "wp_sm_client_vehicles": 0,
+        "wp_sm_clients": 0,
+        "wp_sm_comments": 0,
+        "wp_sm_flow_steps": 0,
+        "wp_sm_flows": 0,
+        "wp_sm_invoice_items": 0,
+        "wp_sm_invoices": 0,
+        "wp_sm_maintenance": 0,
+        "wp_sm_maintenance_labor": 0,
+        "wp_sm_maintenance_parts": 0,
+        "wp_sm_notifications": 0,
+        "wp_sm_paperwork": 0,
+        "wp_sm_paperwork_items": 0,
+        "wp_sm_payments": 0,
+        "wp_sm_pre_delivery": 0,
+        "wp_sm_process_meta": 0,
+        "wp_sm_process_parts": 0,
+        "wp_sm_process_step_logs": 0,
+        "wp_sm_processes": 0,
+        "wp_sm_quote_items": 0,
+        "wp_sm_quotes": 0,
+        "wp_sm_vehicles": 0,
+        "wp_sm_webhook_deliveries": 0,
+        "wp_sm_webhooks": 0
+    },
+    "default_business": {
+        "id": "1",
+        "slug": "default",
+        "name": "SM QA Workshop",
+        "is_default": "1"
+    }
+}

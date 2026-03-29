@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Invoices;
 
 use Super_Mechanic\Helpers\PDF_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -29,16 +30,24 @@ class Invoice_Admin_Controller {
 	 * @var PDF_Service
 	 */
 	protected $pdf_service;
+	/**
+	 * Settings service.
+	 *
+	 * @var Settings_Service
+	 */
+	protected $settings_service;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Invoice_Service|null $service     Invoice service.
-	 * @param PDF_Service|null     $pdf_service PDF service.
+	 * @param Invoice_Service|null  $service          Invoice service.
+	 * @param PDF_Service|null      $pdf_service      PDF service.
+	 * @param Settings_Service|null $settings_service Settings service.
 	 */
-	public function __construct( Invoice_Service $service = null, PDF_Service $pdf_service = null ) {
-		$this->service     = $service ? $service : new Invoice_Service();
-		$this->pdf_service = $pdf_service ? $pdf_service : new PDF_Service( $this->service );
+	public function __construct( Invoice_Service $service = null, PDF_Service $pdf_service = null, Settings_Service $settings_service = null ) {
+		$this->service          = $service ? $service : new Invoice_Service();
+		$this->settings_service = $settings_service ? $settings_service : new Settings_Service();
+		$this->pdf_service      = $pdf_service ? $pdf_service : new PDF_Service( $this->service );
 	}
 
 	/**
@@ -62,7 +71,7 @@ class Invoice_Admin_Controller {
 		}
 
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar facturas.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage invoices.', 'super-mechanic' ) );
 		}
 
 		if ( isset( $_GET['sm_invoice_action'] ) && 'download_pdf' === sanitize_key( wp_unslash( $_GET['sm_invoice_action'] ) ) ) {
@@ -184,7 +193,7 @@ class Invoice_Admin_Controller {
 		}
 
 		echo '<h2>' . esc_html__( 'Facturas', 'super-mechanic' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Gestiona facturas, items, pagos y saldo pendiente del proceso.', 'super-mechanic' ) . '</p>';
+		echo '<p>' . esc_html__( 'Manage invoices, items, payments, and pending balance for the process.', 'super-mechanic' ) . '</p>';
 
 		$approved_quotes = $this->service->get_approved_quotes_for_process( $process_id );
 		if ( ! empty( $approved_quotes ) ) {
@@ -195,7 +204,7 @@ class Invoice_Admin_Controller {
 				echo '<input type="hidden" name="process_id" value="' . esc_attr( $process_id ) . '" />';
 				echo '<input type="hidden" name="quote_id" value="' . esc_attr( absint( $quote['id'] ) ) . '" />';
 				wp_nonce_field( 'sm_create_invoice_from_quote', 'sm_create_invoice_from_quote_nonce' );
-				submit_button( sprintf( __( 'Crear factura desde %s', 'super-mechanic' ), $quote['quote_number'] ), 'secondary', 'submit', false );
+				submit_button( sprintf( __( 'Create invoice from %s', 'super-mechanic' ), $quote['quote_number'] ), 'secondary', 'submit', false );
 				echo '</form>';
 			}
 			echo '</div>';
@@ -208,17 +217,17 @@ class Invoice_Admin_Controller {
 		echo '<input type="hidden" name="client_id" value="' . esc_attr( ! empty( $process['client_id'] ) ? absint( $process['client_id'] ) : 0 ) . '" />';
 		wp_nonce_field( 'sm_create_manual_invoice', 'sm_create_manual_invoice_nonce' );
 		echo '<table class="form-table" role="presentation" style="max-width:760px;">';
-		echo '<tr><th scope="row"><label for="invoice_create_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td><input type="text" name="currency" id="invoice_create_currency" value="" class="small-text" placeholder="USD" /></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_create_due_date">' . esc_html__( 'Fecha de vencimiento', 'super-mechanic' ) . '</label></th><td><input type="date" name="due_date" id="invoice_create_due_date" value="" /></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_create_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_create_notes" class="large-text" rows="3"></textarea><p class="description">' . esc_html__( 'Crea una factura manual asociada al proceso actual, incluso sin cotización previa.', 'super-mechanic' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_create_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td>' . $this->render_currency_select_html( 'invoice_create_currency', 'currency', '' ) . '</td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_create_due_date">' . esc_html__( 'Due date', 'super-mechanic' ) . '</label></th><td><input type="date" name="due_date" id="invoice_create_due_date" value="" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_create_notes">' . esc_html__( 'Notes', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_create_notes" class="large-text" rows="3"></textarea><p class="description">' . esc_html__( 'Create a manual invoice linked to the current process, even without a previous quote.', 'super-mechanic' ) . '</p></td></tr>';
 		echo '</table>';
-		submit_button( __( 'Crear factura manual', 'super-mechanic' ), 'secondary', 'submit', false );
+		submit_button( __( 'Create manual invoice', 'super-mechanic' ), 'secondary', 'submit', false );
 		echo '</form>';
 		echo '</div>';
 
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Numero', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado de factura', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado de pago', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pagado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pendiente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Number', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Invoice status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Payment status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Paid', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Pending', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $invoices ) ) {
-			echo '<tr><td colspan="8">' . esc_html__( 'No hay facturas para este proceso.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="8">' . esc_html__( 'No invoices found for this process.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $invoices as $invoice ) {
 				$payment_summary = $this->service->get_invoice_payment_summary( absint( $invoice['id'] ) );
@@ -247,6 +256,8 @@ class Invoice_Admin_Controller {
 
 		$items    = $this->service->get_invoice_items( absint( $active_invoice['id'] ) );
 		$payments = $this->service->get_payments( absint( $active_invoice['id'] ) );
+		$woo_available = $this->service->is_woo_available();
+		$woo_products  = $woo_available ? $this->service->get_woo_product_options( 100 ) : array();
 
 		echo '<hr />';
 		echo '<h3>' . esc_html( sprintf( __( 'Factura activa: %s', 'super-mechanic' ), $active_invoice['invoice_number'] ) ) . '</h3>';
@@ -257,8 +268,8 @@ class Invoice_Admin_Controller {
 		}
 
 		$payment_summary = $this->service->get_invoice_payment_summary( absint( $active_invoice['id'] ) );
-		echo '<p><strong>' . esc_html__( 'Estado de factura', 'super-mechanic' ) . ':</strong> ' . esc_html( $this->humanize_key( $active_invoice['status'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Estado de pago', 'super-mechanic' ) . ':</strong> ' . esc_html( ! is_wp_error( $payment_summary ) ? $payment_summary['collection_label'] : __( 'Pendiente', 'super-mechanic' ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Invoice status', 'super-mechanic' ) . ':</strong> ' . esc_html( $this->humanize_key( $active_invoice['status'] ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Payment status', 'super-mechanic' ) . ':</strong> ' . esc_html( ! is_wp_error( $payment_summary ) ? $payment_summary['collection_label'] : __( 'Pending', 'super-mechanic' ) ) . '</p>';
 		echo '<p><a class="button" target="_blank" href="' . esc_url( $this->get_process_url( $process_id, array( 'invoice_id' => absint( $active_invoice['id'] ), 'invoice_view' => 'print' ) ) ) . '">' . esc_html__( 'Ver version imprimible', 'super-mechanic' ) . '</a> ';
 		if ( $this->pdf_service->can_generate_pdf() ) {
 			echo '<a class="button button-secondary" href="' . esc_url( $this->get_invoice_pdf_download_url( $process_id, absint( $active_invoice['id'] ) ) ) . '">' . esc_html__( 'Descargar PDF', 'super-mechanic' ) . '</a>';
@@ -274,31 +285,31 @@ class Invoice_Admin_Controller {
 		echo '<input type="hidden" name="invoice_id" value="' . esc_attr( absint( $active_invoice['id'] ) ) . '" />';
 		wp_nonce_field( 'sm_save_invoice', 'sm_save_invoice_nonce' );
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="invoice_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td><input type="text" name="currency" id="invoice_currency" value="' . esc_attr( $active_invoice['currency'] ) . '" class="small-text" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td>' . $this->render_currency_select_html( 'invoice_currency', 'currency', (string) $active_invoice['currency'] ) . '</td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_tax_mode">' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</label></th><td><select name="tax_mode" id="invoice_tax_mode"><option value="fixed">' . esc_html__( 'Monto fijo', 'super-mechanic' ) . '</option><option value="percent">' . esc_html__( 'Porcentaje', 'super-mechanic' ) . '</option></select> <input type="number" step="0.01" min="0" name="tax_value" id="invoice_tax_value" value="' . esc_attr( $active_invoice['tax_total'] ) . '" class="small-text" /> <span class="description">' . esc_html__( 'Si eliges porcentaje, se calcula sobre el subtotal actual y se guarda como monto.', 'super-mechanic' ) . '</span></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_discount_mode">' . esc_html__( 'Descuento', 'super-mechanic' ) . '</label></th><td><select name="discount_mode" id="invoice_discount_mode"><option value="fixed">' . esc_html__( 'Monto fijo', 'super-mechanic' ) . '</option><option value="percent">' . esc_html__( 'Porcentaje', 'super-mechanic' ) . '</option></select> <input type="number" step="0.01" min="0" name="discount_value" id="invoice_discount_value" value="' . esc_attr( $active_invoice['discount_total'] ) . '" class="small-text" /></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Totales actuales aplicados', 'super-mechanic' ) . '</th><td><span class="description">' . esc_html( sprintf( __( 'Impuestos %1$s | Descuento %2$s', 'super-mechanic' ), $this->format_money( $active_invoice['tax_total'], $active_invoice['currency'] ), $this->format_money( $active_invoice['discount_total'], $active_invoice['currency'] ) ) ) . '</span></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_due_date">' . esc_html__( 'Fecha de vencimiento', 'super-mechanic' ) . '</label></th><td><input type="date" name="due_date" id="invoice_due_date" value="' . esc_attr( $active_invoice['due_date'] ) . '" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_due_date">' . esc_html__( 'Due date', 'super-mechanic' ) . '</label></th><td><input type="date" name="due_date" id="invoice_due_date" value="' . esc_attr( $active_invoice['due_date'] ) . '" /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_notes" class="large-text" rows="5">' . esc_textarea( $active_invoice['notes'] ) . '</textarea></td></tr>';
 		echo '</table>';
-		submit_button( __( 'Guardar factura', 'super-mechanic' ) );
+		submit_button( __( 'Save invoice', 'super-mechanic' ) );
 		echo '</form>';
 
 		echo '<div style="margin:16px 0;">';
 		if ( 'draft' === $active_invoice['status'] ) {
-			$this->render_action_form( 'issue_invoice', 'sm_issue_invoice', 'sm_issue_invoice_nonce', __( 'Emitir factura', 'super-mechanic' ), $process_id, $active_invoice['id'] );
+			$this->render_action_form( 'issue_invoice', 'sm_issue_invoice', 'sm_issue_invoice_nonce', __( 'Issue invoice', 'super-mechanic' ), $process_id, $active_invoice['id'] );
 		}
 		if ( in_array( $active_invoice['status'], array( 'draft', 'issued', 'partially_paid', 'overdue' ), true ) ) {
-			$this->render_action_form( 'cancel_invoice', 'sm_cancel_invoice', 'sm_cancel_invoice_nonce', __( 'Cancelar factura', 'super-mechanic' ), $process_id, $active_invoice['id'] );
+			$this->render_action_form( 'cancel_invoice', 'sm_cancel_invoice', 'sm_cancel_invoice_nonce', __( 'Cancel invoice', 'super-mechanic' ), $process_id, $active_invoice['id'] );
 		}
 		if ( in_array( $active_invoice['status'], array( 'draft', 'cancelled' ), true ) ) {
-			$this->render_action_form( 'delete_invoice', 'sm_delete_invoice', 'sm_delete_invoice_nonce', __( 'Eliminar factura', 'super-mechanic' ), $process_id, $active_invoice['id'], 'delete' );
+			$this->render_action_form( 'delete_invoice', 'sm_delete_invoice', 'sm_delete_invoice_nonce', __( 'Delete invoice', 'super-mechanic' ), $process_id, $active_invoice['id'], 'delete' );
 		}
 		echo '</div>';
-		echo '<h4>' . esc_html__( 'Items de factura', 'super-mechanic' ) . '</h4>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Orden', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Etiqueta', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Precio', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<h4>' . esc_html__( 'Invoice items', 'super-mechanic' ) . '</h4>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Order', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Label', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Quantity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Price', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $items ) ) {
-			echo '<tr><td colspan="7">' . esc_html__( 'No hay items en esta factura.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="7">' . esc_html__( 'No items found for this invoice.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $items as $item ) {
 				echo '<tr><td colspan="7"><form method="post" style="margin:0;">';
@@ -308,7 +319,7 @@ class Invoice_Admin_Controller {
 				wp_nonce_field( 'sm_update_invoice_item', 'sm_update_invoice_item_nonce' );
 				echo '<table style="width:100%;"><tr>';
 				echo '<td><input type="number" name="sort_order" value="' . esc_attr( $item['sort_order'] ) . '" class="small-text" /></td>';
-				echo '<td><select name="item_type"><option value="part" ' . selected( $item['item_type'], 'part', false ) . '>part</option><option value="labor" ' . selected( $item['item_type'], 'labor', false ) . '>labor</option><option value="custom" ' . selected( $item['item_type'], 'custom', false ) . '>custom</option><option value="quote_item" ' . selected( $item['item_type'], 'quote_item', false ) . '>quote_item</option></select></td>';
+				echo '<td><select name="item_type"><option value="part" ' . selected( $item['item_type'], 'part', false ) . '>part</option><option value="labor" ' . selected( $item['item_type'], 'labor', false ) . '>labor</option><option value="custom" ' . selected( $item['item_type'], 'custom', false ) . '>custom</option><option value="quote_item" ' . selected( $item['item_type'], 'quote_item', false ) . '>quote_item</option><option value="woo_product" ' . selected( $item['item_type'], 'woo_product', false ) . '>woo_product</option></select></td>';
 				echo '<td><input type="text" name="label" value="' . esc_attr( $item['label'] ) . '" class="regular-text" /><br /><textarea name="description" class="large-text" rows="2">' . esc_textarea( $item['description'] ) . '</textarea></td>';
 				echo '<td><input type="number" step="0.01" min="0.01" name="quantity" value="' . esc_attr( $item['quantity'] ) . '" class="small-text" /></td>';
 				echo '<td><input type="number" step="0.01" min="0" name="unit_price" value="' . esc_attr( $item['unit_price'] ) . '" class="small-text" /></td>';
@@ -326,7 +337,15 @@ class Invoice_Admin_Controller {
 		echo '<input type="hidden" name="invoice_id" value="' . esc_attr( absint( $active_invoice['id'] ) ) . '" />';
 		wp_nonce_field( 'sm_add_invoice_item', 'sm_add_invoice_item_nonce' );
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="invoice_item_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select name="item_type" id="invoice_item_type"><option value="part">part</option><option value="labor">labor</option><option value="custom">custom</option><option value="quote_item">quote_item</option></select></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_item_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select name="item_type" id="invoice_item_type"><option value="part">part</option><option value="labor">labor</option><option value="custom">custom</option><option value="quote_item">quote_item</option><option value="woo_product">woo_product</option></select></td></tr>';
+		if ( $woo_available ) {
+			echo '<tr><th scope="row"><label for="sm_invoice_woo_product">' . esc_html__( 'Woo product', 'super-mechanic' ) . '</label></th><td><select name="woo_product_id" id="sm_invoice_woo_product" class="regular-text">';
+			echo '<option value="0">' . esc_html__( 'Select Woo product (optional)', 'super-mechanic' ) . '</option>';
+			foreach ( $woo_products as $woo_product ) {
+				echo '<option value="' . esc_attr( absint( $woo_product['id'] ) ) . '" data-name="' . esc_attr( $woo_product['name'] ) . '" data-price="' . esc_attr( $woo_product['unit_price'] ) . '">' . esc_html( $woo_product['label'] ) . '</option>';
+			}
+			echo '</select><p class="description">' . esc_html__( 'Selecting a Woo product snapshots current name and price into this invoice item.', 'super-mechanic' ) . '</p></td></tr>';
+		}
 		echo '<tr><th scope="row"><label for="invoice_item_label">' . esc_html__( 'Etiqueta', 'super-mechanic' ) . '</label></th><td><input type="text" name="label" id="invoice_item_label" class="regular-text" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_item_description">' . esc_html__( 'Descripcion', 'super-mechanic' ) . '</label></th><td><textarea name="description" id="invoice_item_description" class="large-text" rows="3"></textarea></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_item_quantity">' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</label></th><td><input type="number" name="quantity" id="invoice_item_quantity" class="small-text" step="0.01" min="0.01" value="1" /></td></tr>';
@@ -335,11 +354,14 @@ class Invoice_Admin_Controller {
 		echo '</table>';
 		submit_button( __( 'Agregar item', 'super-mechanic' ) );
 		echo '</form>';
+		if ( $woo_available ) {
+			echo '<script>(function(){var s=document.getElementById("sm_invoice_woo_product");if(!s){return;}var t=document.getElementById("invoice_item_type");var l=document.getElementById("invoice_item_label");var p=document.getElementById("invoice_item_unit_price");s.addEventListener("change",function(){var o=s.options[s.selectedIndex];if(!o||o.value==="0"){return;}if(t){t.value="woo_product";}if(l&&o.dataset.name){l.value=o.dataset.name;}if(p&&o.dataset.price){p.value=o.dataset.price;}});})();</script>';
+		}
 
 		echo '<h4>' . esc_html__( 'Pagos', 'super-mechanic' ) . '</h4>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Monto', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Metodo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Referencia', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notas', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Amount', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Method', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Reference', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notes', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $payments ) ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No hay pagos registrados.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No payments registered.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $payments as $payment ) {
 				echo '<tr><td colspan="6"><form method="post" style="margin:0;">';
@@ -362,20 +384,20 @@ class Invoice_Admin_Controller {
 			}
 		}
 		echo '</tbody></table>';
-		echo '<h4>' . esc_html__( 'Registrar pago', 'super-mechanic' ) . '</h4>';
+		echo '<h4>' . esc_html__( 'Register payment', 'super-mechanic' ) . '</h4>';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="sm_invoice_operation" value="add_payment" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( $process_id ) . '" />';
 		echo '<input type="hidden" name="invoice_id" value="' . esc_attr( absint( $active_invoice['id'] ) ) . '" />';
 		wp_nonce_field( 'sm_add_invoice_payment', 'sm_add_invoice_payment_nonce' );
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="invoice_payment_date">' . esc_html__( 'Fecha de pago', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" name="payment_date" id="invoice_payment_date" value="' . esc_attr( gmdate( 'Y-m-d\TH:i' ) ) . '" /></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_payment_date">' . esc_html__( 'Payment date', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" name="payment_date" id="invoice_payment_date" value="' . esc_attr( gmdate( 'Y-m-d\TH:i' ) ) . '" /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_payment_amount">' . esc_html__( 'Monto', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0.01" name="amount" id="invoice_payment_amount" class="small-text" /></td></tr>';
-		echo '<tr><th scope="row"><label for="invoice_payment_method">' . esc_html__( 'Metodo', 'super-mechanic' ) . '</label></th><td><select name="payment_method" id="invoice_payment_method">' . $this->get_payment_method_options_html( 'transfer' ) . '</select></td></tr>';
+		echo '<tr><th scope="row"><label for="invoice_payment_method">' . esc_html__( 'Method', 'super-mechanic' ) . '</label></th><td><select name="payment_method" id="invoice_payment_method">' . $this->get_payment_method_options_html( 'transfer' ) . '</select></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_payment_reference">' . esc_html__( 'Referencia', 'super-mechanic' ) . '</label></th><td><input type="text" name="reference" id="invoice_payment_reference" class="regular-text" /></td></tr>';
 		echo '<tr><th scope="row"><label for="invoice_payment_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="invoice_payment_notes" class="large-text" rows="3"></textarea></td></tr>';
 		echo '</table>';
-		submit_button( __( 'Registrar pago', 'super-mechanic' ) );
+		submit_button( __( 'Register payment', 'super-mechanic' ) );
 		echo '</form>';
 
 		echo '<h4>' . esc_html__( 'Resumen', 'super-mechanic' ) . '</h4>';
@@ -383,7 +405,7 @@ class Invoice_Admin_Controller {
 		echo '<tr><th>' . esc_html__( 'Subtotal', 'super-mechanic' ) . '</th><td>' . esc_html( $this->format_money( $active_invoice['subtotal'], $active_invoice['currency'] ) ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</th><td>' . esc_html( $this->format_money( $active_invoice['tax_total'], $active_invoice['currency'] ) ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Descuento', 'super-mechanic' ) . '</th><td>' . esc_html( $this->format_money( $active_invoice['discount_total'], $active_invoice['currency'] ) ) . '</td></tr>';
-		echo '<tr><th>' . esc_html__( 'Estado de cobro', 'super-mechanic' ) . '</th><td>' . esc_html( ! is_wp_error( $payment_summary ) ? $payment_summary['collection_label'] : __( 'Pendiente', 'super-mechanic' ) ) . '</td></tr>';
+		echo '<tr><th>' . esc_html__( 'Collection status', 'super-mechanic' ) . '</th><td>' . esc_html( ! is_wp_error( $payment_summary ) ? $payment_summary['collection_label'] : __( 'Pending', 'super-mechanic' ) ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th><td><strong>' . esc_html( $this->format_money( $active_invoice['grand_total'], $active_invoice['currency'] ) ) . '</strong></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Pagado', 'super-mechanic' ) . '</th><td>' . esc_html( $this->format_money( $active_invoice['amount_paid'], $active_invoice['currency'] ) ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Saldo pendiente', 'super-mechanic' ) . '</th><td><strong>' . esc_html( $this->format_money( $active_invoice['balance_due'], $active_invoice['currency'] ) ) . '</strong></td></tr>';
@@ -657,7 +679,7 @@ class Invoice_Admin_Controller {
 	}
 
 	protected function get_item_payload() {
-		return array(
+		$payload = array(
 			'item_type'   => isset( $_POST['item_type'] ) ? wp_unslash( $_POST['item_type'] ) : 'custom',
 			'label'       => isset( $_POST['label'] ) ? wp_unslash( $_POST['label'] ) : '',
 			'description' => isset( $_POST['description'] ) ? wp_unslash( $_POST['description'] ) : '',
@@ -665,6 +687,14 @@ class Invoice_Admin_Controller {
 			'unit_price'  => isset( $_POST['unit_price'] ) ? wp_unslash( $_POST['unit_price'] ) : 0,
 			'sort_order'  => isset( $_POST['sort_order'] ) ? wp_unslash( $_POST['sort_order'] ) : 0,
 		);
+
+		$woo_product_id = isset( $_POST['woo_product_id'] ) ? absint( wp_unslash( $_POST['woo_product_id'] ) ) : 0;
+		if ( $woo_product_id > 0 ) {
+			$payload['reference_id']   = $woo_product_id;
+			$payload['woo_product_id'] = $woo_product_id;
+		}
+
+		return $payload;
 	}
 
 	protected function get_payment_payload() {
@@ -756,6 +786,45 @@ class Invoice_Admin_Controller {
 		return ucwords( str_replace( '_', ' ', (string) $value ) );
 	}
 
+	/**
+	 * Render currency select HTML.
+	 *
+	 * @param string $field_id       Field id.
+	 * @param string $field_name     Field name.
+	 * @param string $selected_value Selected currency.
+	 * @return string
+	 */
+	protected function render_currency_select_html( $field_id, $field_name, $selected_value ) {
+		$options = $this->settings_service->get_supported_currencies();
+		$selected = strtoupper( sanitize_text_field( (string) $selected_value ) );
+
+		if ( '' !== $selected && ! isset( $options[ $selected ] ) ) {
+			$options[ $selected ] = $selected;
+		}
+
+		if ( empty( $options ) ) {
+			$options = array(
+				'USD' => 'USD',
+				'EUR' => 'EUR',
+				'COP' => 'COP',
+				'PAB' => 'PAB',
+			);
+		}
+
+		if ( '' === $selected ) {
+			$keys     = array_keys( $options );
+			$selected = isset( $keys[0] ) ? (string) $keys[0] : 'USD';
+		}
+
+		$html = '<select id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" class="small-text">';
+		foreach ( $options as $code => $label ) {
+			$html .= '<option value="' . esc_attr( $code ) . '" ' . selected( $selected, $code, false ) . '>' . esc_html( $label ) . '</option>';
+		}
+		$html .= '</select>';
+
+		return $html;
+	}
+
 	protected function format_money( $value, $currency ) {
 		return sprintf( '%s %s', sanitize_text_field( (string) $currency ), number_format_i18n( (float) $value, 2 ) );
 	}
@@ -794,11 +863,11 @@ class Invoice_Admin_Controller {
 		$invoice = $this->service->get_invoice( $invoice_id );
 
 		if ( ! $invoice ) {
-			return new WP_Error( 'sm_invoice_not_found', __( 'La factura no existe.', 'super-mechanic' ) );
+			return new WP_Error( 'sm_invoice_not_found', __( 'The invoice does not exist.', 'super-mechanic' ) );
 		}
 
 		if ( absint( $invoice['process_id'] ) !== absint( $process_id ) ) {
-			return new WP_Error( 'sm_invoice_process_mismatch', __( 'La factura no pertenece al proceso actual.', 'super-mechanic' ) );
+			return new WP_Error( 'sm_invoice_process_mismatch', __( 'The invoice does not belong to the current process.', 'super-mechanic' ) );
 		}
 
 		return true;
@@ -825,7 +894,7 @@ class Invoice_Admin_Controller {
 			}
 		}
 
-		return new WP_Error( 'sm_invoice_item_not_found', __( 'El item no pertenece a la factura seleccionada.', 'super-mechanic' ) );
+		return new WP_Error( 'sm_invoice_item_not_found', __( 'The item does not belong to the selected invoice.', 'super-mechanic' ) );
 	}
 
 	/**
@@ -849,7 +918,7 @@ class Invoice_Admin_Controller {
 			}
 		}
 
-		return new WP_Error( 'sm_invoice_payment_not_found', __( 'El pago no pertenece a la factura seleccionada.', 'super-mechanic' ) );
+		return new WP_Error( 'sm_invoice_payment_not_found', __( 'The payment does not belong to the selected invoice.', 'super-mechanic' ) );
 	}
 }
 

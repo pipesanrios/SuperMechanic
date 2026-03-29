@@ -1,6 +1,6 @@
 PLUGIN ROADMAP — SUPER MECHANIC
 
-Fecha de consolidacion: 2026-03-29
+Fecha de consolidacion: 2026-03-30
 
 Este roadmap mantiene continuidad desde Fase 0 y refleja el estado real implementado.
 Si hay conflicto con otro documento, manda el codigo real.
@@ -170,6 +170,50 @@ Subfases de cierre operativo:
 - Fase 37A-6 — UX operativa general + validacion runtime de timeline unificada por vehiculo: COMPLETA
 - Bloque tecnico post 37A-3 — `HOTFIX-MEM-1` (fatal memory exhausted en cascadas de inicializacion): COMPLETO
 
+Fase 38A-1 — Idioma / internacionalizacion base (ingles por defecto, limpieza visible ES/EN en pantallas clave)
+- Estado: COMPLETA
+
+Fase 38A-2 — Monedas / configuracion monetaria (listas configurables + consistencia multi-store)
+- Estado: PARCIAL
+
+Fase 38A-3 — Seguridad DB base (master password + export JSON protegido + reset protegido)
+- Estado: PARCIAL
+
+Fase 38A-3B — Export / Import operativo (CSV ZIP + Excel XML + import seguro JSON canónico)
+- Estado: COMPLETA
+- Decisiones consolidadas:
+  - JSON canónico para backup/restauración
+  - CSV/Excel solo para export operativo/humano
+  - import soportado solo para JSON canónico
+  - validación previa completa antes de transacción
+  - rollback transaccional y preservación de baseline default business
+
+Consolidado del bloque 38A (Plataforma):
+- Cobertura funcional del bloque:
+  - i18n/idioma base
+  - moneda configurable por settings/filtro
+  - seguridad DB administrativa con master password
+  - backup/restauracion operativa con JSON canónico
+- Estado global del bloque: COMPLETA CON OBSERVACIONES
+- Observaciones abiertas:
+  - 38A-2 sigue PARCIAL por validacion UI/manual pendiente o confirmacion explicita
+  - 38A-3 sigue PARCIAL por validacion de email admin pendiente e inestabilidad externa registrada
+  - 38A-3B se mantiene COMPLETA con limite explicito: import solo JSON canónico
+
+Fase 38B-1 — Vinculacion comercial base (WooCommerce como fuente de productos)
+- Estado: COMPLETA
+- Alcance consolidado:
+  - seleccion de productos Woo en quotes e invoices
+  - persistencia por snapshot en `label` y `unit_price`
+  - persistencia de `woo_product_id` en `reference_id`
+  - maintenance sin cambio de schema: Woo solo para autofill manual de nombre/precio
+  - comportamiento seguro con Woo activo e inactivo sin romper flujo manual
+- Validacion de cierre:
+  - runtime WordPress real con Woo activo: OK
+  - runtime WordPress real con Woo inactivo: OK
+  - no regresion de totales: OK
+  - sin dependencia forzada de Woo: OK
+
 Alcance consolidado:
 - menu admin `Super Mechanic -> Calendar`
 - FullCalendar local (sin CDN)
@@ -182,7 +226,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es el bloque CRM (posterior a 37A-6, no cerrado).
+La siguiente continuidad habilitada es `FASE 38B-2 — Comercial / WooCommerce`.
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

@@ -1,0 +1,69 @@
+{
+    "mode": "active",
+    "timestamp": "2026-03-29T22:01:57+00:00",
+    "checks": {
+        "woo_runtime": {
+            "ok": true,
+            "details": {
+                "quote_options": 1,
+                "invoice_options": 1,
+                "maintenance_options": 1
+            }
+        },
+        "selector_visibility": {
+            "ok": true,
+            "details": {
+                "expect": true,
+                "quote_selector": true,
+                "invoice_selector": true,
+                "maintenance_selector": true
+            }
+        },
+        "quote_snapshot_persist": {
+            "ok": true,
+            "details": {
+                "quote_id": 11,
+                "item_id": 13,
+                "item_type": "woo_product",
+                "reference_id": 28,
+                "label": "Bombillo delantero",
+                "unit_price": 35,
+                "expected_id": 28,
+                "expected_name": "Bombillo delantero",
+                "expected_price": 35
+            }
+        },
+        "invoice_snapshot_persist": {
+            "ok": true,
+            "details": {
+                "invoice_id": 11,
+                "item_id": 14,
+                "item_type": "woo_product",
+                "reference_id": 28,
+                "label": "Bombillo delantero",
+                "unit_price": 35,
+                "expected_id": 28,
+                "expected_name": "Bombillo delantero",
+                "expected_price": 35
+            }
+        },
+        "maintenance_manual_autofill": {
+            "ok": true,
+            "details": {
+                "part_id": 3,
+                "part_name": "Bombillo delantero",
+                "unit_price": 35,
+                "expected_name": "Bombillo delantero",
+                "expected_price": 35
+            }
+        },
+        "totals_no_regression": {
+            "ok": true,
+            "details": {
+                "quote_grand_total": 35,
+                "invoice_grand_total": 35
+            }
+        }
+    },
+    "errors": []
+}

@@ -118,6 +118,19 @@ Cambios tecnicos recientes confirmados:
 - los defaults preservan el comportamiento actual y mantienen fallback minimo hacia settings legacy del negocio
 - en Fase 24B, `class-settings.php` reutiliza la shell visual admin sobre la Settings API existente sin alterar guardado ni estructura de options
 - en Fase 31A, `Settings_Service` incorpora el grupo `license` en `sm_settings` y `class-settings.php` agrega estado visible + acciones locales de licencia (activate/validate/deactivate) dentro de Ajustes
+- en Fase 38A-2, la capa monetaria pasa a configuración dinámica:
+  - `Settings_Service::get_supported_currencies()`
+  - `sm_settings.business.supported_currencies`
+  - `default_currency` validada contra lista soportada
+  - opciones extensibles por filtro `sm_supported_currencies`
+- en Fase 38A-3, `class-settings.php` incorpora acciones admin protegidas para seguridad DB:
+  - generación/rotación de master password (visible solo una vez)
+  - export JSON canónico protegido por capability + nonce + master password
+  - reset de tablas del plugin protegido con confirmación fuerte + master password
+- en Fase 38A-3B, se amplía la capa operativa de backup/restauración:
+  - `DB_Export_Format_Service` para export `JSON`, `CSV ZIP` (1 CSV por tabla + `manifest.json`) y `Excel XML`
+  - `DB_Import_Validator` para validación previa completa de backup JSON antes de tocar DB
+  - import soportado solo para JSON canónico con allowlist por `Schema::get_tables()` y rollback transaccional
 
 --------------------------------------------------
 
@@ -1338,6 +1351,7 @@ Cambios tecnicos recientes confirmados:
 - en 12E, `Report_Admin_Controller` endurece la lectura de filtros admin y deja de renderizar comparativas monetarias sinteticas cuando no hay datos
 - en 12E, la deuda tecnica del modulo queda explicitada en la documentacion sin cambiar schema ni exportaciones soportadas
 - en Fase 24, `Report_Admin_Controller` mejora la presentacion visual y de filtros sin alterar datasets, filtros ni exportacion
+- en Fase 38A-2, `Report_Service::get_currency_options()` deja lista hardcodeada y consume monedas soportadas desde `Settings_Service`
 
 Deuda tecnica vigente:
 - `Report_Service` sigue siendo grande y conviene vigilarlo si el modulo incorpora nuevas capas analiticas

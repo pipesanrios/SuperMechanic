@@ -136,6 +136,8 @@ class Maintenance_Admin_Controller {
 		$total_labor   = $this->service->calculate_total_labor( absint( $maintenance['id'] ) );
 		$total_service = $this->service->calculate_total_service( absint( $maintenance['id'] ) );
 		$mechanics     = $this->get_mechanics();
+		$woo_available = $this->service->is_woo_available();
+		$woo_products  = $woo_available ? $this->service->get_woo_product_options( 100 ) : array();
 
 		echo '<h2>' . esc_html__( 'Diagnóstico', 'super-mechanic' ) . '</h2>';
 		echo '<form method="post">';
@@ -182,6 +184,14 @@ class Maintenance_Admin_Controller {
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( absint( $process['id'] ) ) . '" />';
 		wp_nonce_field( 'sm_add_maintenance_part', 'sm_add_part_nonce' );
 		echo '<table class="form-table" role="presentation">';
+		if ( $woo_available ) {
+			echo '<tr><th scope="row"><label for="sm_maintenance_woo_product">' . esc_html__( 'Woo product', 'super-mechanic' ) . '</label></th><td><select name="woo_product_id" id="sm_maintenance_woo_product" class="regular-text">';
+			echo '<option value="0">' . esc_html__( 'Select Woo product (optional)', 'super-mechanic' ) . '</option>';
+			foreach ( $woo_products as $woo_product ) {
+				echo '<option value="' . esc_attr( absint( $woo_product['id'] ) ) . '" data-name="' . esc_attr( $woo_product['name'] ) . '" data-price="' . esc_attr( $woo_product['unit_price'] ) . '">' . esc_html( $woo_product['label'] ) . '</option>';
+			}
+			echo '</select><p class="description">' . esc_html__( 'Optional quick fill from WooCommerce catalog.', 'super-mechanic' ) . '</p></td></tr>';
+		}
 		echo '<tr><th scope="row"><label for="part_name">' . esc_html__( 'Repuesto', 'super-mechanic' ) . '</label></th><td><input type="text" name="part_name" id="part_name" class="regular-text" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="part_quantity">' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0.01" name="quantity" id="part_quantity" class="small-text" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="part_unit_price">' . esc_html__( 'Precio unitario', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0" name="unit_price" id="part_unit_price" class="small-text" required /></td></tr>';
@@ -189,6 +199,9 @@ class Maintenance_Admin_Controller {
 		echo '</table>';
 		submit_button( __( 'Agregar repuesto', 'super-mechanic' ) );
 		echo '</form>';
+		if ( $woo_available ) {
+			echo '<script>(function(){var s=document.getElementById("sm_maintenance_woo_product");if(!s){return;}var n=document.getElementById("part_name");var p=document.getElementById("part_unit_price");s.addEventListener("change",function(){var o=s.options[s.selectedIndex];if(!o||o.value==="0"){return;}if(n&&o.dataset.name){n.value=o.dataset.name;}if(p&&o.dataset.price){p.value=o.dataset.price;}});})();</script>';
+		}
 
 		echo '<hr />';
 		echo '<h2>' . esc_html__( 'Mano de obra', 'super-mechanic' ) . '</h2>';
@@ -275,6 +288,7 @@ class Maintenance_Admin_Controller {
 			absint( $maintenance['id'] ),
 			array(
 				'part_name'  => isset( $_POST['part_name'] ) ? wp_unslash( $_POST['part_name'] ) : '',
+				'woo_product_id' => isset( $_POST['woo_product_id'] ) ? wp_unslash( $_POST['woo_product_id'] ) : 0,
 				'quantity'   => isset( $_POST['quantity'] ) ? wp_unslash( $_POST['quantity'] ) : 0,
 				'unit_price' => isset( $_POST['unit_price'] ) ? wp_unslash( $_POST['unit_price'] ) : 0,
 				'notes'      => isset( $_POST['notes'] ) ? wp_unslash( $_POST['notes'] ) : '',

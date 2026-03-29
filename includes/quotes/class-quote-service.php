@@ -11,6 +11,7 @@ use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Helpers\Access_Control_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
+use Super_Mechanic\Integrations\WooCommerce\Woo_Product_Service;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Repository;
@@ -32,8 +33,9 @@ class Quote_Service {
 	protected $access_control_service;
 	protected $settings_service;
 	protected $business_context_service;
+	protected $woo_product_service;
 
-	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null ) {
+	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Woo_Product_Service $woo_product_service = null ) {
 		$this->repository                = $repository ? $repository : new Quote_Repository();
 		$this->item_repository           = $item_repository ? $item_repository : new Quote_Item_Repository();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
@@ -44,6 +46,26 @@ class Quote_Service {
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service( null, $this->client_vehicle_repository, null, $this->repository );
 		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
 		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->woo_product_service       = $woo_product_service ? $woo_product_service : new Woo_Product_Service();
+	}
+
+	/**
+	 * Whether Woo product catalog is available.
+	 *
+	 * @return bool
+	 */
+	public function is_woo_available() {
+		return $this->woo_product_service->is_available();
+	}
+
+	/**
+	 * Get Woo product options for admin selectors.
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_woo_product_options( $limit = 100 ) {
+		return $this->woo_product_service->get_product_options( $limit );
 	}
 
 	public function create_quote( array $data ) {
@@ -651,7 +673,7 @@ class Quote_Service {
 
 	public function validate_quote_item_data( array $data, $is_update = false ) {
 		$errors             = new WP_Error();
-		$allowed_item_types = array( 'part', 'labor', 'custom' );
+		$allowed_item_types = array( 'part', 'labor', 'custom', 'woo_product' );
 
 		if ( empty( $data['quote_id'] ) ) {
 			$errors->add( 'invalid_quote_id', __( 'El item requiere una cotizacion valida.', 'super-mechanic' ) );
@@ -704,6 +726,22 @@ class Quote_Service {
 	}
 
 	protected function prepare_item_data( array $data ) {
+		$woo_product_id = isset( $data['woo_product_id'] ) ? absint( $data['woo_product_id'] ) : 0;
+		if ( $woo_product_id > 0 ) {
+			$snapshot = $this->woo_product_service->get_product_snapshot( $woo_product_id );
+			if ( is_array( $snapshot ) ) {
+				$data['reference_id'] = absint( $snapshot['id'] );
+				$data['label']        = $snapshot['name'];
+				$data['unit_price']   = $snapshot['unit_price'];
+				$data['item_type']    = 'woo_product';
+			} else {
+				$data['reference_id'] = 0;
+				if ( 'woo_product' === ( isset( $data['item_type'] ) ? sanitize_key( $data['item_type'] ) : '' ) ) {
+					$data['item_type'] = 'custom';
+				}
+			}
+		}
+
 		$quantity   = isset( $data['quantity'] ) ? $this->normalize_decimal( $data['quantity'] ) : 0;
 		$unit_price = isset( $data['unit_price'] ) ? $this->normalize_decimal( $data['unit_price'] ) : 0;
 

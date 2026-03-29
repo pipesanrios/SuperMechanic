@@ -430,7 +430,7 @@ class Appointment_Admin_Controller {
 
 		echo '<label for="filter_status" class="screen-reader-text">' . esc_html__( 'Filter by status', 'super-mechanic' ) . '</label>';
 		echo '<select id="filter_status" name="filter_status">';
-		echo '<option value="">' . esc_html__( 'Todos los estados', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All statuses', 'super-mechanic' ) . '</option>';
 		foreach ( $statuses as $status_key => $status_label ) {
 			echo '<option value="' . esc_attr( $status_key ) . '" ' . selected( $status, $status_key, false ) . '>' . esc_html( $status_label ) . '</option>';
 		}
@@ -438,7 +438,7 @@ class Appointment_Admin_Controller {
 
 		echo '<label for="filter_assigned_to" class="screen-reader-text">' . esc_html__( 'Filter by mechanic', 'super-mechanic' ) . '</label>';
 		echo '<select id="filter_assigned_to" name="filter_assigned_to">';
-		echo '<option value="0">' . esc_html__( 'Todos los mecanicos', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'All mechanics', 'super-mechanic' ) . '</option>';
 		foreach ( $mechanics as $mechanic ) {
 			echo '<option value="' . esc_attr( absint( $mechanic['id'] ) ) . '" ' . selected( $assigned_to, absint( $mechanic['id'] ), false ) . '>' . esc_html( $mechanic['display_name'] ) . '</option>';
 		}
@@ -450,7 +450,7 @@ class Appointment_Admin_Controller {
 		echo '<label for="filter_date_to" class="screen-reader-text">' . esc_html__( 'To date', 'super-mechanic' ) . '</label>';
 		echo '<input type="date" id="filter_date_to" name="filter_date_to" value="' . esc_attr( $date_to ) . '" />';
 
-		submit_button( __( 'Filtrar', 'super-mechanic' ), 'secondary', 'submit', false );
+		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', 'submit', false );
 		echo '<a class="button button-link" href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Clear', 'super-mechanic' ) . '</a>';
 		echo '</form>';
 		echo '</div>';
@@ -526,7 +526,7 @@ class Appointment_Admin_Controller {
 	 */
 	public function check_calendar_permission() {
 		if ( ! is_user_logged_in() ) {
-			return new WP_Error( 'sm_rest_login_required', __( 'Debe iniciar sesion para acceder al calendario.', 'super-mechanic' ), array( 'status' => 401 ) );
+			return new WP_Error( 'sm_rest_login_required', __( 'You must log in to access the calendar.', 'super-mechanic' ), array( 'status' => 401 ) );
 		}
 
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {

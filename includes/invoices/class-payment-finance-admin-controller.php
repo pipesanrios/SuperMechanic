@@ -178,8 +178,8 @@ class Payment_Finance_Admin_Controller {
 		);
 
 		echo '<form method="post" class="sm-card sm-section" style="margin-bottom:16px;">';
-		echo '<h2 style="margin-top:0;">' . esc_html__( 'Registrar pago directo', 'super-mechanic' ) . '</h2>';
-		echo '<p class="description">' . esc_html__( 'Registra pagos sin entrar por procesos, manteniendo validaciones y persistencia vía Invoice/Payment Service.', 'super-mechanic' ) . '</p>';
+		echo '<h2 style="margin-top:0;">' . esc_html__( 'Register direct payment', 'super-mechanic' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Register payments without entering through processes, preserving validation and persistence via Invoice/Payment Service.', 'super-mechanic' ) . '</p>';
 		echo '<input type="hidden" name="sm_payment_finance_operation" value="add_payment" />';
 		wp_nonce_field( 'sm_finance_add_payment', 'sm_finance_add_payment_nonce' );
 		echo '<table class="form-table" role="presentation">';
@@ -200,7 +200,7 @@ class Payment_Finance_Admin_Controller {
 		}
 
 		echo '</select></td></tr>';
-		echo '<tr><th scope="row"><label for="sm-finance-payment-date">' . esc_html__( 'Fecha de pago', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" id="sm-finance-payment-date" name="payment_date" value="' . esc_attr( gmdate( 'Y-m-d\TH:i' ) ) . '" required /></td></tr>';
+		echo '<tr><th scope="row"><label for="sm-finance-payment-date">' . esc_html__( 'Payment date', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" id="sm-finance-payment-date" name="payment_date" value="' . esc_attr( gmdate( 'Y-m-d\TH:i' ) ) . '" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="sm-finance-payment-amount">' . esc_html__( 'Monto', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0.01" id="sm-finance-payment-amount" name="amount" class="small-text" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="sm-finance-payment-method">' . esc_html__( 'Method', 'super-mechanic' ) . '</label></th><td><select id="sm-finance-payment-method" name="payment_method">';
 		foreach ( $this->get_payment_method_options() as $method_key => $method_label ) {
@@ -210,7 +210,7 @@ class Payment_Finance_Admin_Controller {
 		echo '<tr><th scope="row"><label for="sm-finance-payment-reference">' . esc_html__( 'Referencia', 'super-mechanic' ) . '</label></th><td><input type="text" id="sm-finance-payment-reference" name="reference" class="regular-text" /></td></tr>';
 		echo '<tr><th scope="row"><label for="sm-finance-payment-notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea id="sm-finance-payment-notes" name="notes" class="large-text" rows="3"></textarea></td></tr>';
 		echo '</table>';
-		submit_button( __( 'Registrar pago', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( __( 'Register payment', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</form>';
 	}
 
@@ -223,7 +223,7 @@ class Payment_Finance_Admin_Controller {
 	protected function render_filter_form( Payment_Finance_List_Table $list_table ) {
 		$current_method = isset( $_GET['filter_payment_method'] ) ? sanitize_key( wp_unslash( $_GET['filter_payment_method'] ) ) : '';
 		$methods        = array(
-			''         => __( 'Todos los metodos', 'super-mechanic' ),
+			''         => __( 'All methods', 'super-mechanic' ),
 			'cash'     => __( 'Cash', 'super-mechanic' ),
 			'transfer' => __( 'Transfer', 'super-mechanic' ),
 			'card'     => __( 'Card', 'super-mechanic' ),
@@ -236,7 +236,7 @@ class Payment_Finance_Admin_Controller {
 		echo '<form method="get" class="sm-card sm-section" style="margin-bottom:16px;">';
 		echo '<input type="hidden" name="page" value="super-mechanic-financial-payments" />';
 		echo '<div class="sm-inline-filters">';
-		echo '<label for="sm-finance-payment-method" class="screen-reader-text">' . esc_html__( 'Filtrar por metodo', 'super-mechanic' ) . '</label>';
+		echo '<label for="sm-finance-payment-method" class="screen-reader-text">' . esc_html__( 'Filter by method', 'super-mechanic' ) . '</label>';
 		echo '<select id="sm-finance-payment-method" name="filter_payment_method">';
 
 		foreach ( $methods as $value => $label ) {
@@ -244,11 +244,11 @@ class Payment_Finance_Admin_Controller {
 		}
 
 		echo '</select>';
-		echo '<label for="sm-finance-payment-date-from" class="screen-reader-text">' . esc_html__( 'Fecha desde', 'super-mechanic' ) . '</label>';
+		echo '<label for="sm-finance-payment-date-from" class="screen-reader-text">' . esc_html__( 'Date from', 'super-mechanic' ) . '</label>';
 		echo '<input id="sm-finance-payment-date-from" type="date" name="date_from" value="' . esc_attr( $date_from ) . '" />';
-		echo '<label for="sm-finance-payment-date-to" class="screen-reader-text">' . esc_html__( 'Fecha hasta', 'super-mechanic' ) . '</label>';
+		echo '<label for="sm-finance-payment-date-to" class="screen-reader-text">' . esc_html__( 'Date to', 'super-mechanic' ) . '</label>';
 		echo '<input id="sm-finance-payment-date-to" type="date" name="date_to" value="' . esc_attr( $date_to ) . '" />';
-		submit_button( __( 'Filtrar', 'super-mechanic' ), 'secondary', 'filter_action', false );
+		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', 'filter_action', false );
 		echo '</div>';
 		$list_table->search_box( __( 'Buscar payments', 'super-mechanic' ), 'sm-finance-payments' );
 		echo '</form>';

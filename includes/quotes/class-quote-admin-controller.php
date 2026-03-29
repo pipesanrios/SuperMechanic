@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Quotes;
 
 use Super_Mechanic\Helpers\PDF_Service;
+use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Invoices\Invoice_Service;
 use WP_Error;
 
@@ -37,18 +38,26 @@ class Quote_Admin_Controller {
 	 * @var PDF_Service
 	 */
 	protected $pdf_service;
+	/**
+	 * Settings service.
+	 *
+	 * @var Settings_Service
+	 */
+	protected $settings_service;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Quote_Service|null   $service         Quote service.
-	 * @param Invoice_Service|null $invoice_service Invoice service.
-	 * @param PDF_Service|null     $pdf_service     PDF service.
+	 * @param Quote_Service|null    $service          Quote service.
+	 * @param Invoice_Service|null  $invoice_service  Invoice service.
+	 * @param PDF_Service|null      $pdf_service      PDF service.
+	 * @param Settings_Service|null $settings_service Settings service.
 	 */
-	public function __construct( Quote_Service $service = null, Invoice_Service $invoice_service = null, PDF_Service $pdf_service = null ) {
+	public function __construct( Quote_Service $service = null, Invoice_Service $invoice_service = null, PDF_Service $pdf_service = null, Settings_Service $settings_service = null ) {
 		$this->service         = $service ? $service : new Quote_Service();
 		$this->invoice_service = $invoice_service ? $invoice_service : new Invoice_Service();
 		$this->pdf_service     = $pdf_service ? $pdf_service : new PDF_Service( $this->invoice_service, $this->service );
+		$this->settings_service = $settings_service ? $settings_service : new Settings_Service();
 	}
 
 	/**
@@ -232,6 +241,8 @@ class Quote_Admin_Controller {
 
 		$quote     = $this->service->get_quote( absint( $quote['id'] ) );
 		$items     = $this->service->get_quote_items( absint( $quote['id'] ) );
+		$woo_available = $this->service->is_woo_available();
+		$woo_products  = $woo_available ? $this->service->get_woo_product_options( 100 ) : array();
 		$invoices  = $this->invoice_service->get_invoices(
 			array(
 				'quote_id' => absint( $quote['id'] ),
@@ -257,7 +268,7 @@ class Quote_Admin_Controller {
 		echo '<input type="hidden" name="quote_id" value="' . esc_attr( absint( $quote['id'] ) ) . '" />';
 		wp_nonce_field( 'sm_save_quote', 'sm_save_quote_nonce' );
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="quote_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td><input type="text" name="currency" id="quote_currency" value="' . esc_attr( $quote['currency'] ) . '" class="small-text" /></td></tr>';
+		echo '<tr><th scope="row"><label for="quote_currency">' . esc_html__( 'Moneda', 'super-mechanic' ) . '</label></th><td>' . $this->render_currency_select_html( 'quote_currency', 'currency', (string) $quote['currency'] ) . '</td></tr>';
 		echo '<tr><th scope="row"><label for="quote_tax_total">' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0" name="tax_total" id="quote_tax_total" value="' . esc_attr( $quote['tax_total'] ) . '" class="small-text" /></td></tr>';
 		echo '<tr><th scope="row"><label for="quote_discount_total">' . esc_html__( 'Descuento', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0" name="discount_total" id="quote_discount_total" value="' . esc_attr( $quote['discount_total'] ) . '" class="small-text" /></td></tr>';
 		echo '<tr><th scope="row"><label for="quote_notes">' . esc_html__( 'Notas', 'super-mechanic' ) . '</label></th><td><textarea name="notes" id="quote_notes" class="large-text" rows="5">' . esc_textarea( $quote['notes'] ) . '</textarea></td></tr>';
@@ -311,7 +322,7 @@ class Quote_Admin_Controller {
 				wp_nonce_field( 'sm_update_quote_item', 'sm_update_quote_item_nonce' );
 				echo '<table style="width:100%;"><tr>';
 				echo '<td><input type="number" name="sort_order" value="' . esc_attr( $item['sort_order'] ) . '" class="small-text" /></td>';
-				echo '<td><select name="item_type"><option value="part" ' . selected( $item['item_type'], 'part', false ) . '>part</option><option value="labor" ' . selected( $item['item_type'], 'labor', false ) . '>labor</option><option value="custom" ' . selected( $item['item_type'], 'custom', false ) . '>custom</option></select></td>';
+				echo '<td><select name="item_type"><option value="part" ' . selected( $item['item_type'], 'part', false ) . '>part</option><option value="labor" ' . selected( $item['item_type'], 'labor', false ) . '>labor</option><option value="custom" ' . selected( $item['item_type'], 'custom', false ) . '>custom</option><option value="woo_product" ' . selected( $item['item_type'], 'woo_product', false ) . '>woo_product</option></select></td>';
 				echo '<td><input type="text" name="label" value="' . esc_attr( $item['label'] ) . '" class="regular-text" /><br /><textarea name="description" class="large-text" rows="2">' . esc_textarea( $item['description'] ) . '</textarea></td>';
 				echo '<td><input type="number" step="0.01" min="0.01" name="quantity" value="' . esc_attr( $item['quantity'] ) . '" class="small-text" /></td>';
 				echo '<td><input type="number" step="0.01" min="0" name="unit_price" value="' . esc_attr( $item['unit_price'] ) . '" class="small-text" /></td>';
@@ -329,7 +340,15 @@ class Quote_Admin_Controller {
 		echo '<input type="hidden" name="quote_id" value="' . esc_attr( absint( $quote['id'] ) ) . '" />';
 		wp_nonce_field( 'sm_add_quote_item', 'sm_add_quote_item_nonce' );
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="quote_item_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select name="item_type" id="quote_item_type"><option value="part">part</option><option value="labor">labor</option><option value="custom">custom</option></select></td></tr>';
+		echo '<tr><th scope="row"><label for="quote_item_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select name="item_type" id="quote_item_type"><option value="part">part</option><option value="labor">labor</option><option value="custom">custom</option><option value="woo_product">woo_product</option></select></td></tr>';
+		if ( $woo_available ) {
+			echo '<tr><th scope="row"><label for="sm_quote_woo_product">' . esc_html__( 'Woo product', 'super-mechanic' ) . '</label></th><td><select name="woo_product_id" id="sm_quote_woo_product" class="regular-text">';
+			echo '<option value="0">' . esc_html__( 'Select Woo product (optional)', 'super-mechanic' ) . '</option>';
+			foreach ( $woo_products as $woo_product ) {
+				echo '<option value="' . esc_attr( absint( $woo_product['id'] ) ) . '" data-name="' . esc_attr( $woo_product['name'] ) . '" data-price="' . esc_attr( $woo_product['unit_price'] ) . '">' . esc_html( $woo_product['label'] ) . '</option>';
+			}
+			echo '</select><p class="description">' . esc_html__( 'Selecting a Woo product snapshots current name and price into this quote item.', 'super-mechanic' ) . '</p></td></tr>';
+		}
 		echo '<tr><th scope="row"><label for="quote_item_label">' . esc_html__( 'Etiqueta', 'super-mechanic' ) . '</label></th><td><input type="text" name="label" id="quote_item_label" class="regular-text" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="quote_item_description">' . esc_html__( 'Descripcion', 'super-mechanic' ) . '</label></th><td><textarea name="description" id="quote_item_description" class="large-text" rows="3"></textarea></td></tr>';
 		echo '<tr><th scope="row"><label for="quote_item_quantity">' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0.01" name="quantity" id="quote_item_quantity" class="small-text" value="1" /></td></tr>';
@@ -338,6 +357,9 @@ class Quote_Admin_Controller {
 		echo '</table>';
 		submit_button( __( 'Agregar item', 'super-mechanic' ) );
 		echo '</form>';
+		if ( $woo_available ) {
+			echo '<script>(function(){var s=document.getElementById("sm_quote_woo_product");if(!s){return;}var t=document.getElementById("quote_item_type");var l=document.getElementById("quote_item_label");var p=document.getElementById("quote_item_unit_price");s.addEventListener("change",function(){var o=s.options[s.selectedIndex];if(!o||o.value==="0"){return;}if(t){t.value="woo_product";}if(l&&o.dataset.name){l.value=o.dataset.name;}if(p&&o.dataset.price){p.value=o.dataset.price;}});})();</script>';
+		}
 		echo '<h3>' . esc_html__( 'Totales', 'super-mechanic' ) . '</h3>';
 		echo '<table class="widefat striped"><tbody>';
 		echo '<tr><th>' . esc_html__( 'Subtotal', 'super-mechanic' ) . '</th><td>' . esc_html( $this->format_money( $quote['subtotal'], $quote['currency'] ) ) . '</td></tr>';
@@ -498,6 +520,8 @@ class Quote_Admin_Controller {
 			$quote_id,
 			array(
 				'item_type'   => isset( $_POST['item_type'] ) ? wp_unslash( $_POST['item_type'] ) : 'custom',
+				'reference_id' => isset( $_POST['woo_product_id'] ) ? wp_unslash( $_POST['woo_product_id'] ) : 0,
+				'woo_product_id' => isset( $_POST['woo_product_id'] ) ? wp_unslash( $_POST['woo_product_id'] ) : 0,
 				'label'       => isset( $_POST['label'] ) ? wp_unslash( $_POST['label'] ) : '',
 				'description' => isset( $_POST['description'] ) ? wp_unslash( $_POST['description'] ) : '',
 				'quantity'    => isset( $_POST['quantity'] ) ? wp_unslash( $_POST['quantity'] ) : 1,
@@ -859,6 +883,45 @@ class Quote_Admin_Controller {
 	 */
 	protected function humanize_key( $value ) {
 		return ucwords( str_replace( '_', ' ', (string) $value ) );
+	}
+
+	/**
+	 * Render currency select HTML.
+	 *
+	 * @param string $field_id       Field id.
+	 * @param string $field_name     Field name.
+	 * @param string $selected_value Selected currency.
+	 * @return string
+	 */
+	protected function render_currency_select_html( $field_id, $field_name, $selected_value ) {
+		$options  = $this->settings_service->get_supported_currencies();
+		$selected = strtoupper( sanitize_text_field( (string) $selected_value ) );
+
+		if ( '' !== $selected && ! isset( $options[ $selected ] ) ) {
+			$options[ $selected ] = $selected;
+		}
+
+		if ( empty( $options ) ) {
+			$options = array(
+				'USD' => 'USD',
+				'EUR' => 'EUR',
+				'COP' => 'COP',
+				'PAB' => 'PAB',
+			);
+		}
+
+		if ( '' === $selected ) {
+			$keys     = array_keys( $options );
+			$selected = isset( $keys[0] ) ? (string) $keys[0] : 'USD';
+		}
+
+		$html = '<select id="' . esc_attr( $field_id ) . '" name="' . esc_attr( $field_name ) . '" class="small-text">';
+		foreach ( $options as $code => $label ) {
+			$html .= '<option value="' . esc_attr( $code ) . '" ' . selected( $selected, $code, false ) . '>' . esc_html( $label ) . '</option>';
+		}
+		$html .= '</select>';
+
+		return $html;
 	}
 
 	/**

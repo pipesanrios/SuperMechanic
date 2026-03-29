@@ -50,11 +50,11 @@ class Appointment_List_Table extends \WP_List_Table {
 		return array(
 			'cb'                 => '<input type="checkbox" />',
 			'id'                 => __( 'ID', 'super-mechanic' ),
-			'appointment_date'   => __( 'Fecha', 'super-mechanic' ),
+			'appointment_date'   => __( 'Date', 'super-mechanic' ),
 			'start_at'           => __( 'Inicio', 'super-mechanic' ),
 			'client_name'        => __( 'Cliente', 'super-mechanic' ),
 			'vehicle_label'      => __( 'Vehiculo', 'super-mechanic' ),
-			'process_id'         => __( 'Proceso', 'super-mechanic' ),
+			'process_id'         => __( 'Process', 'super-mechanic' ),
 			'mechanic_name'      => __( 'Mecanico', 'super-mechanic' ),
 			'appointment_status' => __( 'Estado', 'super-mechanic' ),
 			'updated_at'         => __( 'Actualizado', 'super-mechanic' ),
@@ -166,7 +166,7 @@ class Appointment_List_Table extends \WP_List_Table {
 	protected function column_process_id( $item ) {
 		$process_id = isset( $item['process_id'] ) ? absint( $item['process_id'] ) : 0;
 		if ( $process_id <= 0 ) {
-			return esc_html__( 'Sin proceso', 'super-mechanic' );
+			return esc_html__( 'No process', 'super-mechanic' );
 		}
 
 		$label = ! empty( $item['process_title'] ) ? (string) $item['process_title'] : '';

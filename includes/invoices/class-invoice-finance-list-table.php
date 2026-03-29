@@ -80,8 +80,8 @@ class Invoice_Finance_List_Table extends \WP_List_Table {
 			'grand_total'        => __( 'Grand total', 'super-mechanic' ),
 			'amount_paid'        => __( 'Pagado', 'super-mechanic' ),
 			'balance_due'        => __( 'Pendiente', 'super-mechanic' ),
-			'due_date'           => __( 'Vencimiento', 'super-mechanic' ),
-			'actions'            => __( 'Acciones', 'super-mechanic' ),
+			'due_date'           => __( 'Due date', 'super-mechanic' ),
+			'actions'            => __( 'Actions', 'super-mechanic' ),
 		);
 	}
 
@@ -132,7 +132,7 @@ class Invoice_Finance_List_Table extends \WP_List_Table {
 		}
 
 		if ( $process_id > 0 && $invoice_id > 0 ) {
-			$actions['payment'] = '<a href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id, array( 'sm_finance_focus' => 'register_payment' ) ) ) . '">' . esc_html__( 'Registrar pago', 'super-mechanic' ) . '</a>';
+			$actions['payment'] = '<a href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id, array( 'sm_finance_focus' => 'register_payment' ) ) ) . '">' . esc_html__( 'Register payment', 'super-mechanic' ) . '</a>';
 		}
 
 		if ( $invoice_id > 0 && $this->pdf_service->can_generate_pdf() ) {
@@ -261,7 +261,7 @@ class Invoice_Finance_List_Table extends \WP_List_Table {
 
 		if ( $process_id > 0 && $invoice_id > 0 ) {
 			$actions[] = '<a class="button button-small" href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id ) ) . '">' . esc_html__( 'Abrir', 'super-mechanic' ) . '</a>';
-			$actions[] = '<a class="button button-secondary button-small" href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id, array( 'sm_finance_focus' => 'register_payment' ) ) ) . '">' . esc_html__( 'Registrar pago', 'super-mechanic' ) . '</a>';
+			$actions[] = '<a class="button button-secondary button-small" href="' . esc_url( $this->get_process_invoice_url( $process_id, $invoice_id, array( 'sm_finance_focus' => 'register_payment' ) ) ) . '">' . esc_html__( 'Register payment', 'super-mechanic' ) . '</a>';
 		}
 
 		if ( $invoice_id > 0 && $this->pdf_service->can_generate_pdf() ) {

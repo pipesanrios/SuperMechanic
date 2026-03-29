@@ -11,6 +11,7 @@ use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Helpers\Access_Control_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
+use Super_Mechanic\Integrations\WooCommerce\Woo_Product_Service;
 use Super_Mechanic\Quotes\Quote_Service;
 use WP_Error;
 
@@ -70,6 +71,7 @@ class Invoice_Service {
 	protected $access_control_service;
 	protected $settings_service;
 	protected $business_context_service;
+	protected $woo_product_service;
 
 	/**
 	 * Constructor.
@@ -81,7 +83,7 @@ class Invoice_Service {
 	 * @param Event_Dispatcher|null               $event_dispatcher       Event dispatcher.
 	 * @param Invoice_Transaction_Repository|null $transaction_repository Transaction repository.
 	 */
-	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null ) {
+	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Woo_Product_Service $woo_product_service = null ) {
 		$this->repository             = $repository ? $repository : new Invoice_Repository();
 		$this->item_repository        = $item_repository ? $item_repository : new Invoice_Item_Repository();
 		$this->payment_repository     = $payment_repository ? $payment_repository : new Payment_Repository();
@@ -91,6 +93,26 @@ class Invoice_Service {
 		$this->access_control_service = $access_control_service ? $access_control_service : new Access_Control_Service( null, null, null, null, $this->repository );
 		$this->settings_service       = $settings_service ? $settings_service : new Settings_Service();
 		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->woo_product_service      = $woo_product_service ? $woo_product_service : new Woo_Product_Service();
+	}
+
+	/**
+	 * Whether Woo product catalog is available.
+	 *
+	 * @return bool
+	 */
+	public function is_woo_available() {
+		return $this->woo_product_service->is_available();
+	}
+
+	/**
+	 * Get Woo product options for admin selectors.
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_woo_product_options( $limit = 100 ) {
+		return $this->woo_product_service->get_product_options( $limit );
 	}
 
 	/**
@@ -1169,7 +1191,7 @@ class Invoice_Service {
 	 */
 	public function validate_invoice_item_data( array $data, $is_update = false ) {
 		$errors             = new WP_Error();
-		$allowed_item_types = array( 'part', 'labor', 'custom', 'quote_item' );
+		$allowed_item_types = array( 'part', 'labor', 'custom', 'quote_item', 'woo_product' );
 
 		if ( empty( $data['invoice_id'] ) ) {
 			$errors->add( 'invoice_required', __( 'La factura es obligatoria.', 'super-mechanic' ) );
@@ -1279,6 +1301,22 @@ class Invoice_Service {
 	 * @return array<string, mixed>
 	 */
 	protected function prepare_invoice_item_data( array $data ) {
+		$woo_product_id = isset( $data['woo_product_id'] ) ? absint( $data['woo_product_id'] ) : 0;
+		if ( $woo_product_id > 0 ) {
+			$snapshot = $this->woo_product_service->get_product_snapshot( $woo_product_id );
+			if ( is_array( $snapshot ) ) {
+				$data['reference_id'] = absint( $snapshot['id'] );
+				$data['label']        = $snapshot['name'];
+				$data['unit_price']   = $snapshot['unit_price'];
+				$data['item_type']    = 'woo_product';
+			} else {
+				$data['reference_id'] = 0;
+				if ( 'woo_product' === ( isset( $data['item_type'] ) ? sanitize_key( $data['item_type'] ) : '' ) ) {
+					$data['item_type'] = 'custom';
+				}
+			}
+		}
+
 		$quantity   = isset( $data['quantity'] ) ? $this->normalize_decimal( $data['quantity'] ) : 1;
 		$unit_price = isset( $data['unit_price'] ) ? $this->normalize_decimal( $data['unit_price'] ) : 0;
 

@@ -52,7 +52,7 @@ class Client_List_Table extends \WP_List_Table {
 		return array(
 			'cb'          => '<input type="checkbox" />',
 			'id'          => __( 'ID', 'super-mechanic' ),
-			'first_name'  => __( 'Nombre', 'super-mechanic' ),
+			'first_name'  => __( 'Name', 'super-mechanic' ),
 			'last_name'   => __( 'Apellido', 'super-mechanic' ),
 			'email'       => __( 'Email', 'super-mechanic' ),
 			'phone'       => __( 'Phone', 'super-mechanic' ),

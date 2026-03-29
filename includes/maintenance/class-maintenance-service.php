@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Maintenance;
 
 use Super_Mechanic\Communication\Comment_Service;
+use Super_Mechanic\Integrations\WooCommerce\Woo_Product_Service;
 use Super_Mechanic\Processes\Process_Service;
 use WP_Error;
 
@@ -22,13 +23,34 @@ class Maintenance_Service {
 	protected $labor_repository;
 	protected $process_service;
 	protected $comment_service;
+	protected $woo_product_service;
 
-	public function __construct( Maintenance_Repository $repository = null, Maintenance_Part_Repository $part_repository = null, Maintenance_Labor_Repository $labor_repository = null, Process_Service $process_service = null, Comment_Service $comment_service = null ) {
+	public function __construct( Maintenance_Repository $repository = null, Maintenance_Part_Repository $part_repository = null, Maintenance_Labor_Repository $labor_repository = null, Process_Service $process_service = null, Comment_Service $comment_service = null, Woo_Product_Service $woo_product_service = null ) {
 		$this->repository       = $repository ? $repository : new Maintenance_Repository();
 		$this->part_repository  = $part_repository ? $part_repository : new Maintenance_Part_Repository();
 		$this->labor_repository = $labor_repository ? $labor_repository : new Maintenance_Labor_Repository();
 		$this->process_service  = $process_service ? $process_service : new Process_Service();
 		$this->comment_service  = $comment_service;
+		$this->woo_product_service = $woo_product_service ? $woo_product_service : new Woo_Product_Service();
+	}
+
+	/**
+	 * Whether Woo product catalog is available.
+	 *
+	 * @return bool
+	 */
+	public function is_woo_available() {
+		return $this->woo_product_service->is_available();
+	}
+
+	/**
+	 * Get Woo product options for maintenance part quick fill.
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_woo_product_options( $limit = 100 ) {
+		return $this->woo_product_service->get_product_options( $limit );
 	}
 
 	public function create_maintenance( $process_id ) {
@@ -146,6 +168,15 @@ class Maintenance_Service {
 		$quantity   = $this->normalize_decimal( isset( $data['quantity'] ) ? $data['quantity'] : 0 );
 		$unit_price = $this->normalize_decimal( isset( $data['unit_price'] ) ? $data['unit_price'] : 0 );
 		$part_name  = isset( $data['part_name'] ) ? sanitize_text_field( $data['part_name'] ) : '';
+		$woo_product_id = isset( $data['woo_product_id'] ) ? absint( $data['woo_product_id'] ) : 0;
+
+		if ( $woo_product_id > 0 ) {
+			$snapshot = $this->woo_product_service->get_product_snapshot( $woo_product_id );
+			if ( is_array( $snapshot ) ) {
+				$part_name  = $snapshot['name'];
+				$unit_price = $this->normalize_decimal( $snapshot['unit_price'] );
+			}
+		}
 
 		if ( '' === $part_name ) {
 			return new WP_Error( 'sm_part_name_required', __( 'El nombre del repuesto es obligatorio.', 'super-mechanic' ) );

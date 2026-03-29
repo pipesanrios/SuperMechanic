@@ -617,3 +617,119 @@ Evidencia runtime 2026-03-29 (dataset QA):
 - `appointment_id=5`
 - `maintenance_id=5`
 - flags de validación: `TIMELINE_HAS_PROCESS=1`, `TIMELINE_HAS_APPOINTMENT=1`, `TIMELINE_HAS_MAINTENANCE=1`, `TIMELINE_HAS_PROCESS_LINK=1`, `TIMELINE_HAS_APPOINTMENT_LINK=1`, `TIMELINE_CHRONO_DESC=1`
+
+==================================================
+ESCENARIO 29 - LIMPIEZA VISIBLE DE IDIOMA (38A-1)
+==================================================
+
+Estado 38A-1: COMPLETA
+
+Flujo:
+
+Administrador
+-> revisa pantallas clave: dashboard admin, mechanic dashboard, procesos, clientes, vehiculos, citas, reportes, negocios, finanzas/pagos
+-> verifica labels, botones, filtros y mensajes visibles sin mezcla ES/EN importante
+
+Resultado esperado:
+
+- textos visibles principales en ingles base
+- textdomain `super-mechanic` mantenido en funciones i18n estandar
+- sin cambios de schema ni logica funcional
+- `php-lint` global limpio y smoke backend sin fatal
+
+==================================================
+ESCENARIO 30 — CONFIGURACION MONETARIA DINAMICA (38A-2)
+==================================================
+
+Estado 38A-2: PARCIAL (validacion tecnica OK; runtime UI manual pendiente)
+
+Flujo:
+
+Administrador
+-> abre `Ajustes` y configura `Supported currencies`
+-> valida coherencia de `Default currency` con la lista soportada
+-> revisa selector `currency` en Negocios, Quotes e Invoices
+-> valida filtros de moneda en Reportes
+
+Resultado esperado:
+
+- no existen listas de monedas rigidas en settings/reportes
+- monedas base soportadas: `USD`, `EUR`, `COP`, `PAB`
+- lista extensible por configuracion sin tocar codigo central
+- `default_currency` siempre pertenece a `supported_currencies`
+- sin cambios de schema ni conversion automatica de montos
+
+==================================================
+ESCENARIO 30B — SEGURIDAD DB BASE (38A-3)
+==================================================
+
+Estado 38A-3: PARCIAL (seguridad base validada; email admin no validado + inestabilidad externa registrada)
+
+Flujo:
+
+Administrador
+-> genera/rota master password
+-> ejecuta export JSON protegido
+-> ejecuta reset DB protegido con confirmacion fuerte
+-> verifica bloqueos por capability + nonce + master password en intentos invalidos
+
+Resultado esperado:
+
+- controles de seguridad DB base operativos en runtime admin
+- export JSON y reset protegido funcionan sin tocar tablas core WordPress
+- pendiente: validacion formal de envio email admin (si aplica en entorno)
+- pendiente: cierre de inestabilidad externa registrada fuera de la logica del plugin
+
+==================================================
+ESCENARIO 31 — BACKUP/RESTAURACION OPERATIVA (38A-3B)
+==================================================
+
+Estado 38A-3B: COMPLETA (validacion tecnica + runtime manual dirigida)
+
+Flujo:
+
+Administrador
+-> exporta DB en `JSON` (canonico), `CSV ZIP` y `Excel XML`
+-> ejecuta import con JSON invalido y verifica rechazo por validacion previa
+-> ejecuta import con JSON canonico valido y verifica restauracion exitosa
+
+Resultado esperado:
+
+- export JSON mantiene payload canonico (`schema_version`, `plugin_version`, `tables`)
+- export CSV genera ZIP con `manifest.json` + 1 CSV por tabla del plugin
+- export Excel genera XML compatible con Excel (sin librerias externas)
+- import acepta solo JSON canonico
+- import exige capability + nonce + master password
+- import valida estructura completa antes de `START TRANSACTION`
+- import aplica rollback completo en error
+- import preserva baseline de negocio default (`sm_businesses` id=1) cuando aplica
+- sin cambios de schema ni impacto en tablas core de WordPress
+
+==================================================
+ESCENARIO 32 — VINCULACION COMERCIAL BASE WOO (38B-1)
+==================================================
+
+Estado 38B-1: COMPLETA (validacion runtime WordPress real en Woo ON/OFF)
+
+Flujo:
+
+Administrador
+-> con Woo activo abre tabs de quote/invoice/maintenance en un proceso
+-> selecciona producto Woo para quote/invoice
+-> registra parte en maintenance usando autofill Woo
+-> repite validacion con Woo inactivo
+
+Resultado esperado:
+
+- con Woo activo:
+  - selector Woo visible en quote/invoice/maintenance
+  - quote/invoice persisten snapshot en `label` y `unit_price`
+  - quote/invoice persisten `woo_product_id` en `reference_id`
+  - maintenance usa Woo solo para autofill manual de nombre/precio
+- con Woo inactivo:
+  - selector Woo no visible
+  - flujo manual de quote/invoice/maintenance sigue operativo
+  - sin fatales ni bloqueos por dependencia de Woo
+- no regresion:
+  - totales de quote/invoice permanecen consistentes
+  - sin cambios de schema

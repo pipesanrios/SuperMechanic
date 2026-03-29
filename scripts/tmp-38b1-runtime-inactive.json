@@ -1,0 +1,32 @@
+{
+    "mode": "inactive",
+    "timestamp": "2026-03-29T22:02:25+00:00",
+    "checks": {
+        "woo_runtime": {
+            "ok": false,
+            "details": {
+                "quote_options": 0,
+                "invoice_options": 0,
+                "maintenance_options": 0
+            }
+        },
+        "selector_visibility": {
+            "ok": true,
+            "details": {
+                "expect": false,
+                "quote_selector": false,
+                "invoice_selector": false,
+                "maintenance_selector": false
+            }
+        },
+        "manual_flow_unchanged_baseline": {
+            "ok": true,
+            "details": {
+                "quote_selector": false,
+                "invoice_selector": false,
+                "maintenance_selector": false
+            }
+        }
+    },
+    "errors": []
+}
