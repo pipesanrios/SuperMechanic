@@ -756,3 +756,25 @@ Resultado esperado:
 - precios Woo no se recalculan en tiempo real; se usa solo snapshot persistido
 - si hay correccion de registros legacy, se registra como saneamiento controlado
 - con Woo activo e inactivo, el calculo final mantiene consistencia y no hay regresion de totales
+
+==================================================
+ESCENARIO 34 — HARDENING COMERCIAL WOO (38B-3)
+==================================================
+
+Estado 38B-3: COMPLETA (validacion runtime WordPress real + hotfix de cierre)
+
+Flujo:
+
+Administrador
+-> crea/edita quote e invoice con item manual y Woo valido
+-> intenta alta/edicion Woo incompleta o invalida
+-> ejecuta update sobre item legacy `woo_product` inconsistente
+-> valida comportamiento con disponibilidad e indisponibilidad de catalogo Woo
+
+Resultado esperado:
+
+- altas/ediciones Woo con datos incompletos no persisten como `woo_product` y devuelven error claro
+- cuando Woo no esta disponible, el mensaje priorizado es `WooCommerce not available`
+- en inconsistencia legacy ya persistida (`woo_product` roto), se aplica saneamiento controlado a `custom`
+- snapshot comercial valido (`reference_id`, `label`, `unit_price`) sigue funcionando sin recalculo dinamico
+- totales de quote/invoice se mantienen consistentes con formula por item

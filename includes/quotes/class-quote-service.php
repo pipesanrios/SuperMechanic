@@ -203,10 +203,17 @@ class Quote_Service {
 			return new WP_Error( 'sm_quote_not_found', __( 'La cotizacion no existe.', 'super-mechanic' ) );
 		}
 
-		$data['quote_id'] = $quote_id;
+		$raw_data            = $data;
+		$data['quote_id']    = $quote_id;
 		$data['business_id'] = ! empty( $quote['business_id'] ) ? absint( $quote['business_id'] ) : $this->resolve_business_id();
-		$data             = $this->prepare_item_data( $data );
-		$valid            = $this->validate_quote_item_data( $data, false );
+		$data                = $this->prepare_item_data( $data );
+		$valid               = $this->validate_quote_item_data(
+			$data,
+			false,
+			array(
+				'raw' => $raw_data,
+			)
+		);
 
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
@@ -230,7 +237,9 @@ class Quote_Service {
 			return new WP_Error( 'sm_quote_item_not_found', __( 'El item de la cotizacion no existe.', 'super-mechanic' ) );
 		}
 
-		$merged = array_merge( $item, $data );
+		$raw_data = $data;
+		$merged   = array_merge( $item, $data );
+		$merged   = $this->apply_legacy_woo_sanitization( $merged, $raw_data, $item );
 		if ( ! empty( $item['quote_id'] ) ) {
 			$parent_quote = $this->repository->get_by_id( absint( $item['quote_id'] ) );
 			if ( is_array( $parent_quote ) && ! empty( $parent_quote['business_id'] ) ) {
@@ -239,7 +248,14 @@ class Quote_Service {
 		}
 
 		$data  = $this->prepare_item_data( $merged );
-		$valid = $this->validate_quote_item_data( $data, true );
+		$valid = $this->validate_quote_item_data(
+			$data,
+			true,
+			array(
+				'raw'           => $raw_data,
+				'existing_item' => $item,
+			)
+		);
 
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
@@ -691,9 +707,22 @@ class Quote_Service {
 		return $errors->has_errors() ? $errors : true;
 	}
 
-	public function validate_quote_item_data( array $data, $is_update = false ) {
+	public function validate_quote_item_data( array $data, $is_update = false, array $context = array() ) {
 		$errors             = new WP_Error();
 		$allowed_item_types = array( 'part', 'labor', 'custom', 'woo_product' );
+		$context            = wp_parse_args(
+			$context,
+			array(
+				'raw'           => array(),
+				'existing_item' => null,
+			)
+		);
+		$raw_data           = is_array( $context['raw'] ) ? $context['raw'] : array();
+		$existing_item      = is_array( $context['existing_item'] ) ? $context['existing_item'] : null;
+		$raw_item_type      = sanitize_key( isset( $raw_data['item_type'] ) ? (string) $raw_data['item_type'] : '' );
+		$raw_woo_product_id = isset( $raw_data['woo_product_id'] ) ? absint( $raw_data['woo_product_id'] ) : 0;
+		$existing_is_inconsistent_woo = $this->is_inconsistent_woo_snapshot_payload( $existing_item );
+		$explicit_woo_intent          = $this->has_explicit_woo_intent( $raw_item_type, $raw_woo_product_id, $is_update, $existing_is_inconsistent_woo );
 
 		if ( empty( $data['quote_id'] ) ) {
 			$errors->add( 'invalid_quote_id', __( 'El item requiere una cotizacion valida.', 'super-mechanic' ) );
@@ -709,6 +738,24 @@ class Quote_Service {
 		}
 		if ( (float) $data['unit_price'] < 0 ) {
 			$errors->add( 'invalid_item_price', __( 'El precio unitario del item no es valido.', 'super-mechanic' ) );
+		}
+		if ( 'woo_product' === $data['item_type'] && ! $this->is_valid_woo_snapshot_payload( $data ) ) {
+			$errors->add( 'invalid_woo_snapshot', __( 'Invalid Woo product snapshot. Use manual/custom or reselect the Woo product.', 'super-mechanic' ) );
+		}
+
+		if ( $explicit_woo_intent ) {
+			if ( ! $this->is_woo_catalog_available() ) {
+				$errors->add( 'woo_not_available', __( 'WooCommerce not available. Use manual/custom item.', 'super-mechanic' ) );
+			} elseif ( $raw_woo_product_id > 0 && 'woo_product' !== $data['item_type'] ) {
+				$errors->add( 'woo_product_not_found', __( 'Woo product not found. Select a valid Woo product.', 'super-mechanic' ) );
+			} elseif ( 0 === $raw_woo_product_id ) {
+				$existing_is_valid_woo        = $this->is_valid_woo_snapshot_payload( $existing_item );
+				$sanitized_to_custom          = ( 'custom' === $data['item_type'] );
+
+				if ( ! ( $is_update && $existing_is_valid_woo && 'woo_product' === $data['item_type'] ) && ! ( $is_update && $existing_is_inconsistent_woo && $sanitized_to_custom ) ) {
+					$errors->add( 'invalid_woo_snapshot', __( 'Invalid Woo product snapshot. Use manual/custom or reselect the Woo product.', 'super-mechanic' ) );
+				}
+			}
 		}
 
 		return $errors->has_errors() ? $errors : true;
@@ -810,6 +857,113 @@ class Quote_Service {
 		}
 
 		return $item_type;
+	}
+
+	/**
+	 * Apply controlled sanitization for legacy inconsistent Woo payloads.
+	 *
+	 * @param array<string,mixed>      $candidate     Candidate payload.
+	 * @param array<string,mixed>      $raw_data      Raw incoming payload.
+	 * @param array<string,mixed>|null $existing_item Existing item payload.
+	 * @return array<string,mixed>
+	 */
+	protected function apply_legacy_woo_sanitization( array $candidate, array $raw_data, $existing_item = null ) {
+		$existing_is_inconsistent_woo = $this->is_inconsistent_woo_snapshot_payload( $existing_item );
+		if ( ! $existing_is_inconsistent_woo ) {
+			return $candidate;
+		}
+
+		$raw_item_type      = sanitize_key( isset( $raw_data['item_type'] ) ? (string) $raw_data['item_type'] : '' );
+		$raw_woo_product_id = isset( $raw_data['woo_product_id'] ) ? absint( $raw_data['woo_product_id'] ) : 0;
+		$explicit_woo_intent = $this->has_explicit_woo_intent( $raw_item_type, $raw_woo_product_id, true, $existing_is_inconsistent_woo );
+
+		if ( $explicit_woo_intent ) {
+			return $candidate;
+		}
+
+		$candidate['item_type']    = 'custom';
+		$candidate['reference_id'] = 0;
+
+		$label = isset( $candidate['label'] ) ? sanitize_text_field( (string) $candidate['label'] ) : '';
+		if ( '' === $label ) {
+			$candidate['label'] = __( 'Legacy custom item', 'super-mechanic' );
+		}
+
+		return $candidate;
+	}
+
+	/**
+	 * Determine whether request has explicit Woo intent.
+	 *
+	 * @param string $raw_item_type              Raw item type.
+	 * @param int    $raw_woo_product_id         Raw Woo product ID.
+	 * @param bool   $is_update                  Updating item.
+	 * @param bool   $existing_is_inconsistent_woo Existing legacy inconsistency.
+	 * @return bool
+	 */
+	protected function has_explicit_woo_intent( $raw_item_type, $raw_woo_product_id, $is_update, $existing_is_inconsistent_woo ) {
+		if ( $raw_woo_product_id > 0 ) {
+			return true;
+		}
+
+		if ( 'woo_product' !== $raw_item_type ) {
+			return false;
+		}
+
+		if ( $is_update && $existing_is_inconsistent_woo ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Determine whether Woo product catalog is available.
+	 *
+	 * @return bool
+	 */
+	protected function is_woo_catalog_available() {
+		return $this->woo_product_service->is_available();
+	}
+
+	/**
+	 * Validate whether an item payload has a consistent Woo snapshot shape.
+	 *
+	 * @param array<string,mixed>|null $item Item payload.
+	 * @return bool
+	 */
+	protected function is_valid_woo_snapshot_payload( $item ) {
+		if ( ! is_array( $item ) ) {
+			return false;
+		}
+
+		$item_type = $this->normalize_item_type( isset( $item['item_type'] ) ? $item['item_type'] : '' );
+		if ( 'woo_product' !== $item_type ) {
+			return false;
+		}
+
+		$reference_id = isset( $item['reference_id'] ) ? absint( $item['reference_id'] ) : 0;
+		$label        = isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : '';
+		$quantity     = isset( $item['quantity'] ) ? $this->normalize_decimal( $item['quantity'] ) : 0;
+		$unit_price   = isset( $item['unit_price'] ) ? $this->normalize_decimal( $item['unit_price'] ) : -1;
+
+		return $reference_id > 0 && '' !== $label && $quantity > 0 && $unit_price >= 0;
+	}
+
+	/**
+	 * Detect legacy inconsistent Woo payloads that can be safely sanitized to custom.
+	 *
+	 * @param array<string,mixed>|null $item Item payload.
+	 * @return bool
+	 */
+	protected function is_inconsistent_woo_snapshot_payload( $item ) {
+		if ( ! is_array( $item ) ) {
+			return false;
+		}
+
+		$item_type = $this->normalize_item_type( isset( $item['item_type'] ) ? $item['item_type'] : '' );
+
+		return 'woo_product' === $item_type && ! $this->is_valid_woo_snapshot_payload( $item );
 	}
 
 	protected function get_default_currency() {

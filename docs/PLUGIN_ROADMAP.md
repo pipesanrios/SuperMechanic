@@ -228,6 +228,33 @@ Fase 38B-2 — Totales automaticos y consistencia comercial
   - sin regresion de totales en quotes/invoices: OK
   - sin cambios de schema ni dependencia forzada de Woo: OK
 
+Fase 38B-3 — Hardening comercial Woo
+- Estado: COMPLETA
+- Alcance consolidado:
+  - reglas de integridad equivalentes en quotes e invoices para `item_type`, `reference_id`, `label`, `unit_price`, `quantity`
+  - bloqueo de persistencia Woo incompleta en altas/ediciones con intención Woo explícita
+  - saneamiento controlado de legacy inconsistente `woo_product -> custom` sin error duro al usuario actual
+  - mensajes mínimos y claros para indisponibilidad Woo o snapshot inválido
+  - preservación de snapshot-only (`reference_id`, `label`, `unit_price`) sin recalculo dinámico desde Woo
+- Validacion de cierre:
+  - runtime WordPress real con Woo activo: OK
+  - runtime WordPress real con Woo inactivo: OK
+  - saneamiento legacy controlado validado: OK
+  - sin regresion de cálculo de totales/snapshots: OK
+
+Consolidado del bloque 38B (Comercial / WooCommerce):
+- Cobertura funcional del bloque:
+  - WooCommerce como catálogo operativo de productos
+  - quote/invoice con snapshot comercial (`reference_id=woo_product_id`, `label`, `unit_price`)
+  - maintenance con autofill manual (sin vínculo estructural persistente)
+  - normalización de `line_total = quantity * unit_price` y recálculo coherente por item
+  - hardening de integridad y saneamiento legacy controlado
+- Estado global del bloque: COMPLETA
+- Límites vigentes:
+  - sin integración de orders/checkout/pagos Woo en este bloque
+  - sin sync de precios Woo en tiempo real
+  - sin cambios de schema
+
 Alcance consolidado:
 - menu admin `Super Mechanic -> Calendar`
 - FullCalendar local (sin CDN)
@@ -240,7 +267,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es `FASE 38B-3 — Comercial / WooCommerce`.
+La siguiente continuidad habilitada es `FASE 38C — Comercial / continuidad post-Woo base`.
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

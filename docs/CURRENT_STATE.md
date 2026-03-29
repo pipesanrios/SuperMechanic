@@ -10,7 +10,7 @@ Fecha de consolidacion: 2026-03-30
 ## Estado general
 
 - Estado: ESTABLE CON RIESGOS CONTROLADOS
-- Bloque actual real: `38B (Comercial / WooCommerce)` en ejecucion
+- Bloque actual real: `38B (Comercial / WooCommerce)` consolidado
 - Estado de bloque 38A: COMPLETA CON OBSERVACIONES
 - Subfases 38A:
   - `38A-1`: COMPLETA (i18n/idioma base)
@@ -20,6 +20,7 @@ Fecha de consolidacion: 2026-03-30
 - Subfases 38B:
   - `38B-1`: COMPLETA (vinculacion comercial base WooCommerce con snapshot en quotes/invoices y autofill manual en maintenance)
   - `38B-2`: COMPLETA (totales comerciales consistentes para items manuales y Woo con snapshot-only y saneamiento legacy controlado)
+  - `38B-3`: COMPLETA (hardening comercial Woo en quotes/invoices con validaciones de integridad equivalentes, saneamiento legacy y mensajes claros de Woo no disponible)
 - Bloque tecnico post-cierre: `HOTFIX-MEM-1` COMPLETO (fatal `Allowed memory size exhausted` en cascadas de servicios)
 - Runtime WordPress real para 37A-6: confirmado (validacion manual UI real + runtime backend, incluyendo timeline unificada de vehiculo con proceso+cita+mantenimiento)
 - Runtime tecnico para 38A-1: validacion de cierre ejecutada (barrido dirigido final en list tables/flujo de facturacion + smoke backend `tmp-runtime-check.php` + `php-lint` global limpio)
@@ -28,6 +29,7 @@ Fecha de consolidacion: 2026-03-30
 - Runtime tecnico para 38A-3B: validacion tecnica y runtime manual dirigidas ejecutadas (export JSON/CSV ZIP/Excel XML + import JSON seguro con validacion previa y rollback transaccional).
 - Runtime WordPress real para 38B-1: validacion ejecutada en modo Woo activo e inactivo (selector condicional, snapshot `reference_id/label/unit_price` en quote/invoice, autofill manual en maintenance, sin regresion de totales y sin dependencia forzada de Woo).
 - Runtime WordPress real para 38B-2: validacion ejecutada en modo Woo activo e inactivo (normalizacion `line_total = quantity * unit_price`, `recalculate_totals()` por formula coherente por item, mapeo `manual -> custom`, sin recalculo de precios desde Woo y sin regresiones en totales).
+- Runtime WordPress real para 38B-3: validacion ejecutada sobre hardening comercial Woo (manual/Woo valido/Woo invalido, saneamiento legacy a `custom`, mensaje especifico `WooCommerce not available` en indisponibilidad de catalogo, sin regresion de snapshot/totales).
 
 ## Arquitectura activa real
 
@@ -107,11 +109,11 @@ Fecha de consolidacion: 2026-03-30
 
 ## Siguiente fase real
 
-- Siguiente fase habilitada: `38B-3 — Comercial / WooCommerce (continuidad)`.
+- Siguiente fase habilitada: `38C — Comercial / continuidad post-Woo base`.
 - Condicion de continuidad: el bloqueante `HOTFIX-MEM-1` queda cerrado y no bloquea retomar roadmap.
 - Backlog inmediato recomendado:
   - cierre formal pendiente de 38A-2/38A-3 (validaciones manuales restantes)
-  - continuidad funcional de 38B-3 sobre base 38B-1/38B-2 ya cerradas
+  - continuidad funcional del bloque comercial post 38B consolidado
   - UX/admin de API keys y webhooks publicos
   - observabilidad avanzada de entregas webhook
   - consolidacion final de checklist runtime 36B/36C

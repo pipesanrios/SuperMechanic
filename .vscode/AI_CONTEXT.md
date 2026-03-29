@@ -16,7 +16,8 @@ Fuente de verdad: código real (`includes/*`).
 - Estado de subfases 38B:
   - `38B-1` — COMPLETA (vinculacion comercial base Woo con snapshot en quote/invoice y autofill manual en maintenance)
   - `38B-2` — COMPLETA (totales consistentes por formula por item, saneamiento legacy controlado y snapshot-only en Woo)
-- Siguiente fase habilitada: `38B-3 — Comercial / WooCommerce`
+  - `38B-3` — COMPLETA (hardening comercial Woo en quotes/invoices con saneamiento legacy y mensajes de validacion claros)
+- Siguiente fase habilitada: `38C — Comercial / continuidad post-Woo base`
 - Últimas subfases completas:
   - `38A-3B` — export/import operativo (JSON canónico + CSV ZIP + Excel XML)
   - `37A-3` — consistencia operativa y tenancy endurecida
@@ -122,6 +123,12 @@ Fuente de verdad: código real (`includes/*`).
   - saneamiento controlado de `line_total` legacy inconsistente
   - Woo snapshot-only: no recalculo dinamico de precios desde catalogo Woo
   - validacion runtime WordPress real en Woo activo/inactivo: OK
+- `38B-3`:
+  - integridad equivalente quotes/invoices para payload Woo
+  - no persistencia de Woo incompleta con intención explícita Woo
+  - saneamiento controlado `woo_product` legacy inconsistente a `custom`
+  - mensaje priorizado de indisponibilidad: `WooCommerce not available`
+  - validacion runtime WordPress real de cierre/hotfix: OK
 
 ## Deuda técnica viva
 
