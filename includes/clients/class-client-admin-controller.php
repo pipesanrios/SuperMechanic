@@ -84,7 +84,7 @@ class Client_Admin_Controller {
 			$client = $this->service->get_client( $id );
 
 			if ( empty( $client ) ) {
-				wp_die( esc_html__( 'El cliente solicitado no existe.', 'super-mechanic' ) );
+				wp_die( esc_html__( 'The requested client does not exist.', 'super-mechanic' ) );
 			}
 
 			$this->render_form_page( $client, true );
@@ -95,7 +95,7 @@ class Client_Admin_Controller {
 			$client = $this->service->get_client( $id );
 
 			if ( empty( $client ) ) {
-				wp_die( esc_html__( 'El cliente solicitado no existe.', 'super-mechanic' ) );
+				wp_die( esc_html__( 'The requested client does not exist.', 'super-mechanic' ) );
 			}
 
 			$this->render_detail_page( $client );
@@ -119,22 +119,22 @@ class Client_Admin_Controller {
 		$count  = isset( $_GET['deleted_count'] ) ? absint( $_GET['deleted_count'] ) : 0;
 
 		if ( 'created' === $notice ) {
-			$this->render_notice( __( 'Cliente creado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Client created successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'updated' === $notice ) {
-			$this->render_notice( __( 'Cliente actualizado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Client updated successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'deleted' === $notice ) {
-			$this->render_notice( __( 'Cliente eliminado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Client deleted successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'bulk_deleted' === $notice ) {
 			$this->render_notice(
 				sprintf(
 					/* translators: %d: number of deleted clients. */
-					__( '%d clientes eliminados correctamente.', 'super-mechanic' ),
+					__( '%d clients deleted successfully.', 'super-mechanic' ),
 					$count
 				),
 				'success'
@@ -165,18 +165,18 @@ class Client_Admin_Controller {
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Clientes', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Gestiona la base de clientes del taller con un flujo administrativo mas claro y consistente.', 'super-mechanic' ) . '</p>';
+		echo '<h1>' . esc_html__( 'Clients', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Manage the workshop client base with a clearer and more consistent admin flow.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Add new', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		echo '<div class="sm-card sm-filter-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-clients" />';
 		wp_nonce_field( 'sm_bulk_delete_clients', 'sm_bulk_delete_nonce' );
-		$list_table->search_box( __( 'Buscar clientes', 'super-mechanic' ), 'sm-clients' );
+		$list_table->search_box( __( 'Search clients', 'super-mechanic' ), 'sm-clients' );
 		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
 		echo '</div>';
@@ -210,17 +210,17 @@ class Client_Admin_Controller {
 		}
 
 		$client = wp_parse_args( $client, $defaults );
-		$title  = $is_edit ? __( 'Editar cliente', 'super-mechanic' ) : __( 'Nuevo cliente', 'super-mechanic' );
+		$title  = $is_edit ? __( 'Edit client', 'super-mechanic' ) : __( 'New client', 'super-mechanic' );
 		$return = $this->get_process_return_context();
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Completa los datos clave del cliente sin alterar el flujo operativo existente del modulo.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Complete key client data without altering the existing operational flow of the module.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		echo '<div class="sm-card sm-form-card">';
@@ -233,15 +233,15 @@ class Client_Admin_Controller {
 		echo '<input type="hidden" name="return_process_id" value="' . esc_attr( $return['process_id'] ) . '" />';
 		echo '<input type="hidden" name="return_vehicle_id" value="' . esc_attr( $return['vehicle_id'] ) . '" />';
 		echo '<table class="form-table" role="presentation">';
-		$this->render_text_field( 'first_name', __( 'Nombre', 'super-mechanic' ), $client['first_name'], true );
-		$this->render_text_field( 'last_name', __( 'Apellido', 'super-mechanic' ), $client['last_name'] );
-		$this->render_email_field( 'email', __( 'Correo electrónico', 'super-mechanic' ), $client['email'], true );
-		$this->render_text_field( 'phone', __( 'Teléfono', 'super-mechanic' ), $client['phone'], true );
-		$this->render_text_field( 'document_id', __( 'Documento', 'super-mechanic' ), $client['document_id'], true );
-		$this->render_textarea_field( 'notes', __( 'Notas', 'super-mechanic' ), $client['notes'] );
+		$this->render_text_field( 'first_name', __( 'First name', 'super-mechanic' ), $client['first_name'], true );
+		$this->render_text_field( 'last_name', __( 'Last name', 'super-mechanic' ), $client['last_name'] );
+		$this->render_email_field( 'email', __( 'Email', 'super-mechanic' ), $client['email'], true );
+		$this->render_text_field( 'phone', __( 'Phone', 'super-mechanic' ), $client['phone'], true );
+		$this->render_text_field( 'document_id', __( 'Document ID', 'super-mechanic' ), $client['document_id'], true );
+		$this->render_textarea_field( 'notes', __( 'Notes', 'super-mechanic' ), $client['notes'] );
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( $is_edit ? __( 'Actualizar cliente', 'super-mechanic' ) : __( 'Crear cliente', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $is_edit ? __( 'Update client', 'super-mechanic' ) : __( 'Create client', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -282,49 +282,49 @@ class Client_Admin_Controller {
 		$name      = trim( $client['first_name'] . ' ' . $client['last_name'] );
 
 		if ( '' === $name ) {
-			$name = __( 'Cliente sin nombre', 'super-mechanic' );
+			$name = __( 'Unnamed client', 'super-mechanic' );
 		}
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $name ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Detalle administrativo del cliente, sus vehículos vinculados y los procesos relacionados en la arquitectura activa.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Administrative detail for the client, linked vehicles, and related processes in the active architecture.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $client_id ) ) ) . '" class="button button-primary">' . esc_html__( 'Editar cliente', 'super-mechanic' ) . '</a> ';
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $client_id ) ) ) . '" class="button button-primary">' . esc_html__( 'Edit client', 'super-mechanic' ) . '</a> ';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
 		echo '<div class="sm-grid sm-grid-two sm-section">';
 		echo '<section class="sm-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Datos del cliente', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Client details', 'super-mechanic' ) . '</h2></div>';
 		echo '<table class="sm-table"><tbody>';
 		$this->render_detail_row( __( 'ID', 'super-mechanic' ), (string) $client_id );
-		$this->render_detail_row( __( 'Nombre', 'super-mechanic' ), $name );
-		$this->render_detail_row( __( 'Correo electrónico', 'super-mechanic' ), ! empty( $client['email'] ) ? (string) $client['email'] : __( 'Sin correo registrado', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'Teléfono', 'super-mechanic' ), ! empty( $client['phone'] ) ? (string) $client['phone'] : __( 'Sin teléfono registrado', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'Documento', 'super-mechanic' ), ! empty( $client['document_id'] ) ? (string) $client['document_id'] : __( 'Sin documento registrado', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'Estado', 'super-mechanic' ), ! empty( $client['status'] ) ? (string) $client['status'] : __( 'Sin estado', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'Creado', 'super-mechanic' ), ! empty( $client['created_at'] ) ? (string) $client['created_at'] : '-' );
-		$this->render_detail_row( __( 'Notas', 'super-mechanic' ), ! empty( $client['notes'] ) ? (string) $client['notes'] : __( 'Sin notas', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'First name', 'super-mechanic' ), $name );
+		$this->render_detail_row( __( 'Email', 'super-mechanic' ), ! empty( $client['email'] ) ? (string) $client['email'] : __( 'No email recorded', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Phone', 'super-mechanic' ), ! empty( $client['phone'] ) ? (string) $client['phone'] : __( 'No phone recorded', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Document ID', 'super-mechanic' ), ! empty( $client['document_id'] ) ? (string) $client['document_id'] : __( 'No document recorded', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Status', 'super-mechanic' ), ! empty( $client['status'] ) ? (string) $client['status'] : __( 'No status', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Created', 'super-mechanic' ), ! empty( $client['created_at'] ) ? (string) $client['created_at'] : '-' );
+		$this->render_detail_row( __( 'Notes', 'super-mechanic' ), ! empty( $client['notes'] ) ? (string) $client['notes'] : __( 'No notes', 'super-mechanic' ) );
 		echo '</tbody></table>';
 		echo '</section>';
 
 		echo '<section class="sm-card sm-card-muted">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Contexto operativo', 'super-mechanic' ) . '</h2></div>';
-		echo '<p><strong>' . esc_html__( 'Vehículos vinculados', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $vehicles ) ? count( $vehicles ) : 0 ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Procesos relacionados', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $processes ) ) . '</p>';
-		echo '<p>' . esc_html__( 'El vínculo con usuarios WordPress en el runtime activo depende de la meta `sm_client_id`. Esta fase no crea todavía un flujo admin nuevo para enlazar usuarios si no existe uno ya operativo.', 'super-mechanic' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Linked vehicles', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $vehicles ) ? count( $vehicles ) : 0 ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Related processes', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $processes ) ) . '</p>';
+		echo '<p>' . esc_html__( 'The link to WordPress users in the active runtime depends on the `sm_client_id` meta. This phase does not add a new admin flow to link users if one is not already operational.', 'super-mechanic' ) . '</p>';
 		echo '</section>';
 		echo '</div>';
 
 		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Vehículos vinculados', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Vehículo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Placa / VIN', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Relación', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Linked vehicles', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Plate / VIN', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Relationship', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( ! is_array( $vehicles ) || empty( $vehicles ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay vehículos vinculados para este cliente.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'No vehicles linked to this client.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $vehicles as $vehicle ) {
 				$vehicle_id = ! empty( $vehicle['vehicle_id'] ) ? absint( $vehicle['vehicle_id'] ) : ( ! empty( $vehicle['id'] ) ? absint( $vehicle['id'] ) : 0 );
@@ -342,8 +342,8 @@ class Client_Admin_Controller {
 				echo '<td>' . esc_html( $vehicle_id ) . '</td>';
 				echo '<td>' . esc_html( $label ) . '</td>';
 				echo '<td>' . esc_html( $identifier ) . '</td>';
-				echo '<td>' . esc_html( ! empty( $vehicle['ownership_type'] ) ? (string) $vehicle['ownership_type'] : __( 'Vínculo activo', 'super-mechanic' ) ) . '</td>';
-				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Ver', 'super-mechanic' ) . '</a></td>';
+				echo '<td>' . esc_html( ! empty( $vehicle['ownership_type'] ) ? (string) $vehicle['ownership_type'] : __( 'Active link', 'super-mechanic' ) ) . '</td>';
+				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'View', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -351,10 +351,10 @@ class Client_Admin_Controller {
 		echo '</section>';
 
 		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Procesos relacionados', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Título', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehículo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Related processes', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $processes ) ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No hay procesos relacionados para este cliente.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No related processes found for this client.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $processes as $process ) {
 				$view_url = add_query_arg(
@@ -371,7 +371,7 @@ class Client_Admin_Controller {
 				echo '<td>' . esc_html( $this->humanize_key( $process['process_type'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->humanize_key( $process['status'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_vehicle_label( $process ) ) . '</td>';
-				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Abrir proceso', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Open process', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -379,10 +379,10 @@ class Client_Admin_Controller {
 		echo '</section>';
 
 		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Historial de pagos', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Invoice', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Monto', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Método', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Referencia', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Payment history', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Invoice', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Amount', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Method', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Reference', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $payments ) ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No hay pagos registrados para este cliente en el negocio activo.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No payments recorded for this client in the active business.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $payments as $payment ) {
 				$currency = isset( $payment['currency'] ) ? (string) $payment['currency'] : 'USD';
@@ -519,7 +519,7 @@ class Client_Admin_Controller {
 		$ids = array_filter( $ids );
 
 		if ( empty( $ids ) ) {
-			$this->store_errors( new WP_Error( 'sm_no_clients_selected', __( 'Selecciona al menos un cliente para eliminar.', 'super-mechanic' ) ) );
+			$this->store_errors( new WP_Error( 'sm_no_clients_selected', __( 'Select at least one client to delete.', 'super-mechanic' ) ) );
 			$this->redirect( array( 'sm_notice' => 'error' ) );
 		}
 
@@ -623,7 +623,7 @@ class Client_Admin_Controller {
 			$label .= ' - ' . $plate;
 		}
 
-		return $label ? $label : __( 'Vehículo sin identificar', 'super-mechanic' );
+		return $label ? $label : __( 'Unidentified vehicle', 'super-mechanic' );
 	}
 
 	/**
@@ -654,7 +654,7 @@ class Client_Admin_Controller {
 	 */
 	protected function ensure_permissions() {
 		if ( ! current_user_can( 'sm_manage_clients' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar clientes.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage clients.', 'super-mechanic' ) );
 		}
 	}
 
@@ -794,3 +794,6 @@ class Client_Admin_Controller {
 		);
 	}
 }
+
+
+

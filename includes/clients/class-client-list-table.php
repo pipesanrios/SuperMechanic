@@ -55,9 +55,9 @@ class Client_List_Table extends \WP_List_Table {
 			'first_name'  => __( 'Nombre', 'super-mechanic' ),
 			'last_name'   => __( 'Apellido', 'super-mechanic' ),
 			'email'       => __( 'Email', 'super-mechanic' ),
-			'phone'       => __( 'Teléfono', 'super-mechanic' ),
+			'phone'       => __( 'Phone', 'super-mechanic' ),
 			'document_id' => __( 'Documento', 'super-mechanic' ),
-			'created_at'  => __( 'Creado', 'super-mechanic' ),
+			'created_at'  => __( 'Created', 'super-mechanic' ),
 		);
 	}
 
@@ -169,7 +169,7 @@ class Client_List_Table extends \WP_List_Table {
 		}
 
 		$output  = '<strong>' . esc_html( $name ) . '</strong>';
-		$output .= '<div class="sm-list-meta">' . esc_html( '' !== $email ? $email : __( 'Sin correo registrado', 'super-mechanic' ) ) . '</div>';
+		$output .= '<div class="sm-list-meta">' . esc_html( '' !== $email ? $email : __( 'No email recorded', 'super-mechanic' ) ) . '</div>';
 
 		return $output . $this->row_actions( $actions );
 	}

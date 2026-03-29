@@ -408,6 +408,7 @@ Riesgos o puntos sensibles:
 
 Cambios tecnicos recientes confirmados:
 - en Fase 24B, `Client_Admin_Controller` y `Client_List_Table` modernizan listado, formulario, CTA y mensajes con la capa `sm-*` sin tocar handlers ni queries
+- en `HOTFIX-MEM-1`, `Client_Service` adopta resolucion lazy de `Business_Context_Service` para evitar cascadas de inicializacion durante bootstrap/runtime admin
 
 --------------------------------------------------
 
@@ -1411,6 +1412,10 @@ Riesgos o puntos sensibles:
 - evitar dependencias circulares con services de dominio
 - no volver a mover ownership al dashboard o a shortcodes cliente
 - mantener alineado el acceso documental con esta politica comun
+- llamadas repetitivas de contexto/cliente en el mismo request pueden escalar memoria si no hay memoizacion por request
+
+Cambios tecnicos recientes confirmados:
+- en `HOTFIX-MEM-1`, `Access_Control_Service` adopta inicializacion lazy de dependencias y cache por request para `client_id` / `business_id` con el objetivo de cortar cascadas y evitar consumo masivo de memoria
 ## Actualizacion Fase 23. Client Portal premium con acciones reales
 
 ### Dashboard / Client Portal

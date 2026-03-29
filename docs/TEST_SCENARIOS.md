@@ -569,3 +569,51 @@ Resultado esperado:
 - cambio de estado vía `Appointment_Service` (sin update directo en repository)
 - tenancy por `business_id` respetada en lectura y cambio de estado
 - click en evento abre el detalle existente de la cita
+
+==================================================
+ESCENARIO 27 — REGRESION DE MEMORIA EN SERVICIOS CORE (HOTFIX-MEM-1)
+==================================================
+
+Estado HOTFIX-MEM-1: PARCIAL (validacion tecnica OK; runtime formal pendiente en este cierre)
+
+Flujo:
+
+Administrador
+-> abre paneles con carga transversal (dashboard, clientes, procesos)
+-> navega entre listados y detalles con tenancy activa
+
+Resultado esperado:
+
+- no aparece `Allowed memory size exhausted`
+- no hay cascada de inicializacion entre services que degrade memoria progresivamente
+- resolucion de `client_id` y `business_id` se mantiene estable por request
+
+==================================================
+ESCENARIO 28 — TIMELINE UNIFICADA DE VEHICULO (37A-6)
+==================================================
+
+Estado 37A-6: OK (runtime WordPress real validado en 2026-03-29)
+
+Flujo:
+
+Administrador con permisos de vehículos
+→ abre `Super Mechanic -> Vehículos`
+→ entra a `Ver` de un vehículo con dataset operativo mínimo
+
+Resultado esperado:
+
+- la sección `Timeline operativa del vehículo` muestra eventos de Proceso, Cita y Mantenimiento en un mismo vehículo
+- el orden de eventos es cronológico descendente por fecha (`event_at`)
+- los links operativos existen y abren detalle real:
+  - `Abrir proceso` (`super-mechanic-processes`)
+  - `Abrir cita` (`super-mechanic-appointments`)
+  - `Abrir mantenimiento` (detalle de proceso maintenance)
+- sin mezcla cross-tenant en la carga del vehículo validado
+
+Evidencia runtime 2026-03-29 (dataset QA):
+
+- `vehicle_id=12`
+- `process_id=12`
+- `appointment_id=5`
+- `maintenance_id=5`
+- flags de validación: `TIMELINE_HAS_PROCESS=1`, `TIMELINE_HAS_APPOINTMENT=1`, `TIMELINE_HAS_MAINTENANCE=1`, `TIMELINE_HAS_PROCESS_LINK=1`, `TIMELINE_HAS_APPOINTMENT_LINK=1`, `TIMELINE_CHRONO_DESC=1`

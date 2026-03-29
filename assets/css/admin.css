@@ -174,6 +174,37 @@
 	padding: 18px;
 }
 
+.sm-report-filters {
+	padding: 14px 16px;
+}
+
+.sm-report-filter-columns {
+	gap: 12px;
+	align-items: start;
+	margin-bottom: 10px;
+}
+
+.sm-report-filter-column .sm-card-title {
+	margin: 0 0 10px;
+	font-size: 16px;
+}
+
+.sm-report-filters .sm-filter-grid {
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 10px;
+}
+
+.sm-report-filters .sm-filter-field label {
+	margin-bottom: 4px;
+	font-size: 12px;
+}
+
+.sm-report-filter-actions {
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 6px;
+}
+
 .sm-form-card {
 	padding: 22px;
 }
@@ -649,6 +680,10 @@
 
 	.sm-calendar-controls-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.sm-report-filter-actions {
+		justify-content: flex-start;
 	}
 
 	.sm-appointments-calendar {

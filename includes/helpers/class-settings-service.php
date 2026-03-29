@@ -142,6 +142,9 @@ class Settings_Service {
 		$settings['business']['currency']                     = sanitize_text_field( $settings['business']['currency'] );
 		$settings['business']['timezone']                     = sanitize_text_field( $settings['business']['timezone'] );
 		$settings['business']['locale']                       = sanitize_text_field( $settings['business']['locale'] );
+		if ( ! in_array( $settings['business']['locale'], array( 'en_US', 'es_ES', 'it_IT' ), true ) ) {
+			$settings['business']['locale'] = 'en_US';
+		}
 		$settings['business']['date_format']                  = sanitize_text_field( $settings['business']['date_format'] );
 		$settings['process']['enabled_process_types']         = array_values(
 			array_intersect(
@@ -239,7 +242,7 @@ class Settings_Service {
 				'business_id'          => 1,
 				'currency'             => ! empty( $legacy['default_currency'] ) ? sanitize_text_field( $legacy['default_currency'] ) : 'USD',
 				'timezone'             => $timezone,
-				'locale'               => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
+				'locale'               => 'en_US',
 				'date_format'          => ! empty( $legacy['date_format'] ) ? sanitize_text_field( $legacy['date_format'] ) : 'Y-m-d',
 			),
 			'process'       => array(

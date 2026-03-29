@@ -10,9 +10,10 @@ Fecha de consolidacion: 2026-03-29
 ## Estado general
 
 - Estado: ESTABLE CON RIESGOS CONTROLADOS
-- Fase actual real: `37A-3` (bloqueadores de consistencia operativa y hardening tenancy)
-- Ultima fase completa real: `37A-3`
-- Runtime WordPress real para 37A-3: confirmado (validacion manual UI real + runtime backend)
+- Fase actual real: `37A-6` (cierre UX operativa general pre-CRM)
+- Ultima fase completa real: `37A-6`
+- Bloque tecnico post-cierre: `HOTFIX-MEM-1` COMPLETO (fatal `Allowed memory size exhausted` en cascadas de servicios)
+- Runtime WordPress real para 37A-6: confirmado (validacion manual UI real + runtime backend, incluyendo timeline unificada de vehiculo con proceso+cita+mantenimiento)
 
 ## Arquitectura activa real
 
@@ -85,10 +86,12 @@ Fecha de consolidacion: 2026-03-29
 - No hay bateria automatizada de runtime WordPress E2E
 - Motor PDF depende del entorno; validacion funcional completa de PDFs no siempre disponible en cierres recientes
 - Falta UX/admin dedicada para gestionar API keys y webhooks publicos (alta/rotacion/revocacion/observabilidad)
+- Faltan tests automatizados de regresion para detectar bucles de inicializacion/cascadas de servicios antes de runtime WordPress
 
 ## Siguiente fase real
 
-- Siguiente subfase recomendada: `37A-4` (consolidacion operativa previa a CRM).
+- Siguiente subfase recomendada: `bloque CRM` (posterior al cierre 37A-6).
+- Condicion de continuidad: el bloqueante `HOTFIX-MEM-1` queda cerrado y no bloquea retomar roadmap.
 - Backlog inmediato recomendado:
   - UX/admin de API keys y webhooks publicos
   - observabilidad avanzada de entregas webhook

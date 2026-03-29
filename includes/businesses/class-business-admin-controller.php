@@ -85,7 +85,7 @@ class Business_Admin_Controller {
 	 */
 	public function render_page() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
 
 		$action   = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
@@ -154,7 +154,7 @@ class Business_Admin_Controller {
 
 		$this->redirect_with_notice(
 			'success',
-			$business_id > 0 ? __( 'Negocio actualizado.', 'super-mechanic' ) : __( 'Negocio creado.', 'super-mechanic' ),
+			$business_id > 0 ? __( 'Business updated.', 'super-mechanic' ) : __( 'Business created.', 'super-mechanic' ),
 			0
 		);
 	}
@@ -175,7 +175,7 @@ class Business_Admin_Controller {
 			$this->redirect_with_notice( 'error', $result->get_error_message(), 0 );
 		}
 
-		$this->redirect_with_notice( 'success', __( 'Negocio eliminado.', 'super-mechanic' ), 0 );
+		$this->redirect_with_notice( 'success', __( 'Business deleted.', 'super-mechanic' ), 0 );
 	}
 
 	/**
@@ -228,7 +228,7 @@ class Business_Admin_Controller {
 		echo '<input type="hidden" name="action" value="sm_business_switch_context" />';
 		wp_nonce_field( 'sm_business_switch_context', 'sm_business_context_nonce' );
 		echo '<table class="form-table" role="presentation"><tr>';
-		echo '<th scope="row"><label for="active_business_id">' . esc_html__( 'Negocio activo (usuario)', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="active_business_id">' . esc_html__( 'Active business (user)', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="active_business_id" id="active_business_id">';
 		foreach ( $all as $row ) {
 			$row_id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
@@ -275,7 +275,7 @@ class Business_Admin_Controller {
 		);
 
 		echo '<div class="sm-card sm-form-card sm-settings-card">';
-		echo '<h2>' . esc_html( $is_edit ? __( 'Editar negocio', 'super-mechanic' ) : __( 'Nuevo negocio', 'super-mechanic' ) ) . '</h2>';
+		echo '<h2>' . esc_html( $is_edit ? __( 'Edit business', 'super-mechanic' ) : __( 'New business', 'super-mechanic' ) ) . '</h2>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="sm_business_save" />';
 		echo '<input type="hidden" name="business_id" value="' . esc_attr( (string) absint( $data['id'] ) ) . '" />';
@@ -286,7 +286,7 @@ class Business_Admin_Controller {
 		$this->render_text_row( 'slug', __( 'Slug', 'super-mechanic' ), (string) $data['slug'], true );
 		$this->render_select_row( 'status', __( 'Estado', 'super-mechanic' ), (string) $data['status'], array( 'active' => __( 'Activo', 'super-mechanic' ), 'inactive' => __( 'Inactivo', 'super-mechanic' ) ) );
 		$this->render_text_row( 'timezone', __( 'Timezone', 'super-mechanic' ), (string) $data['timezone'], true );
-		$this->render_text_row( 'currency', __( 'Moneda', 'super-mechanic' ), (string) $data['currency'], true );
+		$this->render_text_row( 'currency', __( 'Currency', 'super-mechanic' ), (string) $data['currency'], true );
 		$this->render_text_row( 'branding_logo_attachment_id', __( 'Branding logo attachment_id', 'super-mechanic' ), (string) absint( $data['branding_logo_attachment_id'] ), false );
 		$this->render_text_row( 'primary_color', __( 'Color primario', 'super-mechanic' ), (string) $data['primary_color'], false );
 		echo '<tr><th scope="row">' . esc_html__( 'Default legacy', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_default" value="1" ' . checked( absint( $data['is_default'] ), 1, false ) . ' /> ' . esc_html__( 'Marcar como negocio por defecto', 'super-mechanic' ) . '</label></td></tr>';
@@ -380,7 +380,7 @@ class Business_Admin_Controller {
 	 */
 	protected function assert_permissions() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos para gestionar negocios.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have permissions to manage businesses.', 'super-mechanic' ) );
 		}
 	}
 }

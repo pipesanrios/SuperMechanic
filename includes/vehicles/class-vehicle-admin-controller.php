@@ -87,7 +87,7 @@ class Vehicle_Admin_Controller {
 			$vehicle = $this->service->get_vehicle( $id );
 
 			if ( empty( $vehicle ) ) {
-				wp_die( esc_html__( 'El vehículo solicitado no existe.', 'super-mechanic' ) );
+				wp_die( esc_html__( 'The requested vehicle does not exist.', 'super-mechanic' ) );
 			}
 
 			$this->render_form_page( $vehicle, true );
@@ -98,7 +98,7 @@ class Vehicle_Admin_Controller {
 			$vehicle = $this->service->get_vehicle( $id );
 
 			if ( empty( $vehicle ) ) {
-				wp_die( esc_html__( 'El vehículo solicitado no existe.', 'super-mechanic' ) );
+				wp_die( esc_html__( 'The requested vehicle does not exist.', 'super-mechanic' ) );
 			}
 
 			$this->render_detail_page( $vehicle );
@@ -122,22 +122,22 @@ class Vehicle_Admin_Controller {
 		$count  = isset( $_GET['deleted_count'] ) ? absint( $_GET['deleted_count'] ) : 0;
 
 		if ( 'created' === $notice ) {
-			$this->render_notice( __( 'Vehículo creado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Vehicle created successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'updated' === $notice ) {
-			$this->render_notice( __( 'Vehículo actualizado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Vehicle updated successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'deleted' === $notice ) {
-			$this->render_notice( __( 'Vehículo eliminado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Vehicle deleted successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'bulk_deleted' === $notice ) {
 			$this->render_notice(
 				sprintf(
 					/* translators: %d: number of deleted vehicles. */
-					__( '%d vehículos eliminados correctamente.', 'super-mechanic' ),
+					__( '%d vehicles deleted successfully.', 'super-mechanic' ),
 					$count
 				),
 				'success'
@@ -168,18 +168,18 @@ class Vehicle_Admin_Controller {
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Vehículos', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Consulta, crea y organiza los vehículos asociados al taller con la misma capa visual del panel moderno.', 'super-mechanic' ) . '</p>';
+		echo '<h1>' . esc_html__( 'Vehicles', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'View, create, and organize workshop vehicles with the same visual layer as the modern panel.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Add new', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		echo '<div class="sm-card sm-filter-card sm-section">';
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-vehicles" />';
 		wp_nonce_field( 'sm_bulk_delete_vehicles', 'sm_bulk_delete_nonce' );
-		$list_table->search_box( __( 'Buscar vehículos', 'super-mechanic' ), 'sm-vehicles' );
+		$list_table->search_box( __( 'Search vehicles', 'super-mechanic' ), 'sm-vehicles' );
 		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
 		echo '</div>';
@@ -215,7 +215,7 @@ class Vehicle_Admin_Controller {
 		}
 
 		$vehicle = wp_parse_args( $vehicle, $defaults );
-		$title   = $is_edit ? __( 'Editar vehículo', 'super-mechanic' ) : __( 'Nuevo vehículo', 'super-mechanic' );
+		$title   = $is_edit ? __( 'Edit vehicle', 'super-mechanic' ) : __( 'New vehicle', 'super-mechanic' );
 		$clients = $this->service->get_client_options();
 		$return  = $this->get_process_return_context();
 
@@ -223,10 +223,10 @@ class Vehicle_Admin_Controller {
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Mantén la ficha del vehículo organizada sin alterar relaciones, nonces ni acciones existentes.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Keep the vehicle profile organized without altering relationships, nonces, or existing actions.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		echo '<div class="sm-card sm-form-card">';
@@ -241,15 +241,15 @@ class Vehicle_Admin_Controller {
 		echo '<table class="form-table" role="presentation">';
 		$this->render_client_select_field( $vehicle['client_id'], $clients );
 		$this->render_text_field( 'vin', __( 'VIN', 'super-mechanic' ), $vehicle['vin'] );
-		$this->render_text_field( 'plate', __( 'Placa', 'super-mechanic' ), $vehicle['plate'] );
-		$this->render_text_field( 'brand', __( 'Marca', 'super-mechanic' ), $vehicle['brand'], true );
-		$this->render_text_field( 'model', __( 'Modelo', 'super-mechanic' ), $vehicle['model'], true );
-		$this->render_number_field( 'year', __( 'Año', 'super-mechanic' ), $vehicle['year'] );
+		$this->render_text_field( 'plate', __( 'Plate', 'super-mechanic' ), $vehicle['plate'] );
+		$this->render_text_field( 'brand', __( 'Brand', 'super-mechanic' ), $vehicle['brand'], true );
+		$this->render_text_field( 'model', __( 'Model', 'super-mechanic' ), $vehicle['model'], true );
+		$this->render_number_field( 'year', __( 'Year', 'super-mechanic' ), $vehicle['year'] );
 		$this->render_text_field( 'color', __( 'Color', 'super-mechanic' ), $vehicle['color'] );
-		$this->render_textarea_field( 'notes', __( 'Notas', 'super-mechanic' ), $vehicle['notes'] );
+		$this->render_textarea_field( 'notes', __( 'Notes', 'super-mechanic' ), $vehicle['notes'] );
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( $is_edit ? __( 'Actualizar vehículo', 'super-mechanic' ) : __( 'Crear vehículo', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $is_edit ? __( 'Update vehicle', 'super-mechanic' ) : __( 'Create vehicle', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -310,53 +310,60 @@ class Vehicle_Admin_Controller {
 				}
 			}
 		}
+		$vehicle_timeline = $this->build_vehicle_timeline( $processes, $appointments, $maintenance_timeline );
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $this->format_vehicle_label( $vehicle ) ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Detalle del vehículo, cliente principal, procesos relacionados e historial de relaciones disponible en la arquitectura actual.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Vehicle detail, primary client, related processes, and relationship history available in the current architecture.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $vehicle_id ) ) ) . '" class="button button-primary">' . esc_html__( 'Editar vehículo', 'super-mechanic' ) . '</a> ';
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $vehicle_id ) ) ) . '" class="button button-primary">' . esc_html__( 'Edit vehicle', 'super-mechanic' ) . '</a> ';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
 		echo '<div class="sm-grid sm-grid-two sm-section">';
 		echo '<section class="sm-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Ficha del vehículo', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Vehicle profile', 'super-mechanic' ) . '</h2></div>';
 		echo '<table class="sm-table"><tbody>';
 		$this->render_detail_row( __( 'ID', 'super-mechanic' ), (string) $vehicle_id );
-		$this->render_detail_row( __( 'Cliente principal', 'super-mechanic' ), ! empty( $vehicle['client_name'] ) ? (string) $vehicle['client_name'] : __( 'Sin cliente asignado', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'VIN', 'super-mechanic' ), ! empty( $vehicle['vin'] ) ? (string) $vehicle['vin'] : __( 'Sin VIN', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'Placa', 'super-mechanic' ), ! empty( $vehicle['plate'] ) ? (string) $vehicle['plate'] : __( 'Sin placa', 'super-mechanic' ) );
-		$this->render_detail_row( __( 'Marca', 'super-mechanic' ), ! empty( $vehicle['brand'] ) ? (string) $vehicle['brand'] : '-' );
-		$this->render_detail_row( __( 'Modelo', 'super-mechanic' ), ! empty( $vehicle['model'] ) ? (string) $vehicle['model'] : '-' );
-		$this->render_detail_row( __( 'Año', 'super-mechanic' ), ! empty( $vehicle['year'] ) ? (string) $vehicle['year'] : '-' );
+		$this->render_detail_row( __( 'Primary client', 'super-mechanic' ), ! empty( $vehicle['client_name'] ) ? (string) $vehicle['client_name'] : __( 'No assigned client', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'VIN', 'super-mechanic' ), ! empty( $vehicle['vin'] ) ? (string) $vehicle['vin'] : __( 'No VIN', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Plate', 'super-mechanic' ), ! empty( $vehicle['plate'] ) ? (string) $vehicle['plate'] : __( 'No plate', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Brand', 'super-mechanic' ), ! empty( $vehicle['brand'] ) ? (string) $vehicle['brand'] : '-' );
+		$this->render_detail_row( __( 'Model', 'super-mechanic' ), ! empty( $vehicle['model'] ) ? (string) $vehicle['model'] : '-' );
+		$this->render_detail_row( __( 'Year', 'super-mechanic' ), ! empty( $vehicle['year'] ) ? (string) $vehicle['year'] : '-' );
 		$this->render_detail_row( __( 'Color', 'super-mechanic' ), ! empty( $vehicle['color'] ) ? (string) $vehicle['color'] : '-' );
-		$this->render_detail_row( __( 'Notas', 'super-mechanic' ), ! empty( $vehicle['notes'] ) ? (string) $vehicle['notes'] : __( 'Sin notas', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Notes', 'super-mechanic' ), ! empty( $vehicle['notes'] ) ? (string) $vehicle['notes'] : __( 'No notes', 'super-mechanic' ) );
 		echo '</tbody></table>';
 		echo '</section>';
 
 		echo '<section class="sm-card sm-card-muted">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Contexto operativo', 'super-mechanic' ) . '</h2></div>';
-		echo '<p><strong>' . esc_html__( 'Proceso activo actual', 'super-mechanic' ) . ':</strong> ' . esc_html( $this->get_active_process_summary( $active_process ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Estado actual visible', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $active_process ) && ! empty( $active_process['status'] ) ? $this->humanize_key( $active_process['status'] ) : __( 'Sin proceso activo', 'super-mechanic' ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Procesos activos', 'super-mechanic' ) . ':</strong> ' . esc_html( $active_count ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Procesos totales', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $processes ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Citas relacionadas', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $appointments ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Registros maintenance', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $maintenance_timeline ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Historial de relaciones', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $related_clients ) ? count( $related_clients ) : 0 ) . '</p>';
-		echo '<p>' . esc_html__( 'Los campos de vencimiento de seguro, placa e inspección no forman parte del runtime activo actual, así que no se exponen ni se validan en esta subfase.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Operational context', 'super-mechanic' ) . '</h2></div>';
+		echo '<p><strong>' . esc_html__( 'Current active process', 'super-mechanic' ) . ':</strong> ' . esc_html( $this->get_active_process_summary( $active_process ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Current visible status', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $active_process ) && ! empty( $active_process['status'] ) ? $this->humanize_key( $active_process['status'] ) : __( 'No active process', 'super-mechanic' ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Active processes', 'super-mechanic' ) . ':</strong> ' . esc_html( $active_count ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Total processes', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $processes ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Related appointments', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $appointments ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Maintenance records', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $maintenance_timeline ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Relationship history', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $related_clients ) ? count( $related_clients ) : 0 ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Timeline events', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $vehicle_timeline ) ) . '</p>';
+		echo '<p>' . esc_html__( 'Operational view focused on real history of vehicle processes, appointments, and maintenance.', 'super-mechanic' ) . '</p>';
 		echo '</section>';
 		echo '</div>';
 
 		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Procesos relacionados', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Título', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Apertura', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Objetivo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Finalización', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Vehicle operational timeline', 'super-mechanic' ) . '</h2></div>';
+		$this->render_vehicle_timeline_table( $vehicle_timeline );
+		echo '</section>';
+
+		echo '<section class="sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Related processes', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Opened', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Target', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Completed', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $processes ) ) {
-			echo '<tr><td colspan="9">' . esc_html__( 'No hay procesos relacionados para este vehículo.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="9">' . esc_html__( 'No processes related to this vehicle.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $processes as $process ) {
 				$view_url = add_query_arg(
@@ -375,8 +382,8 @@ class Vehicle_Admin_Controller {
 				echo '<td>' . esc_html( ! empty( $process['opened_at'] ) ? $process['opened_at'] : '-' ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $process['due_date'] ) ? $process['due_date'] : '-' ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $process['completed_at'] ) ? $process['completed_at'] : '-' ) . '</td>';
-				echo '<td>' . esc_html( ! empty( $process['client_name'] ) ? $process['client_name'] : __( 'Sin asignar', 'super-mechanic' ) ) . '</td>';
-				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Abrir proceso', 'super-mechanic' ) . '</a></td>';
+				echo '<td>' . esc_html( ! empty( $process['client_name'] ) ? $process['client_name'] : __( 'Unassigned', 'super-mechanic' ) ) . '</td>';
+				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Open process', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -384,17 +391,17 @@ class Vehicle_Admin_Controller {
 		echo '</section>';
 
 		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Citas relacionadas', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notas', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Related appointments', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Notes', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $appointments ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay citas relacionadas para este vehículo.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'No appointments related to this vehicle.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $appointments as $appointment ) {
 				echo '<tr>';
 				echo '<td>#' . esc_html( absint( $appointment['id'] ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $appointment['start_at'] ) ? (string) $appointment['start_at'] : ( ! empty( $appointment['appointment_date'] ) ? (string) $appointment['appointment_date'] : '-' ) ) . '</td>';
 				echo '<td>' . esc_html( $this->humanize_key( isset( $appointment['appointment_status'] ) ? (string) $appointment['appointment_status'] : '' ) ) . '</td>';
-				echo '<td>' . esc_html( ! empty( $appointment['client_name'] ) ? (string) $appointment['client_name'] : __( 'Sin cliente', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $appointment['client_name'] ) ? (string) $appointment['client_name'] : __( 'No client', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $appointment['notes'] ) ? (string) $appointment['notes'] : '-' ) . '</td>';
 				echo '</tr>';
 			}
@@ -404,9 +411,9 @@ class Vehicle_Admin_Controller {
 
 		echo '<section class="sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Timeline maintenance', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Proceso', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Diagnóstico', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Horas estimadas', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actualizado', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Process', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Diagnosis', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estimated time', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Updated', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $maintenance_timeline ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay datos de mantenimiento registrados para este vehículo.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'No maintenance data recorded for this vehicle.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $maintenance_timeline as $maintenance_row ) {
 				echo '<tr>';
@@ -422,10 +429,10 @@ class Vehicle_Admin_Controller {
 		echo '</section>';
 
 		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Historial relacionado', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Cliente', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo de vínculo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Inicio', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Fin', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Related history', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Link type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Start', 'super-mechanic' ) . '</th><th>' . esc_html__( 'End', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( ! is_array( $related_clients ) || empty( $related_clients ) ) {
-			echo '<tr><td colspan="4">' . esc_html__( 'No hay historial de relaciones registrado para este vehículo.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="4">' . esc_html__( 'No relationship history recorded for this vehicle.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $related_clients as $relation ) {
 				$client_label = trim(
@@ -439,16 +446,138 @@ class Vehicle_Admin_Controller {
 					$client_label = (string) $relation['email'];
 				}
 				echo '<tr>';
-				echo '<td>' . esc_html( '' !== $client_label ? $client_label : __( 'Cliente sin identificar', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . esc_html( '' !== $client_label ? $client_label : __( 'Unidentified client', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $relation['ownership_type'] ) ? (string) $relation['ownership_type'] : '-' ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $relation['start_date'] ) ? (string) $relation['start_date'] : '-' ) . '</td>';
-				echo '<td>' . esc_html( ! empty( $relation['end_date'] ) ? (string) $relation['end_date'] : __( 'Activa', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $relation['end_date'] ) ? (string) $relation['end_date'] : __( 'Active', 'super-mechanic' ) ) . '</td>';
 				echo '</tr>';
 			}
 		}
 		echo '</tbody></table></div>';
 		echo '</section>';
 		echo '</div>';
+	}
+
+	/**
+	 * Render merged vehicle timeline table.
+	 *
+	 * @param array<int, array<string, mixed>> $timeline Timeline rows.
+	 * @return void
+	 */
+	protected function render_vehicle_timeline_table( array $timeline ) {
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Detail', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $timeline ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No operational events for this vehicle.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $timeline as $row ) {
+				echo '<tr>';
+				echo '<td>' . esc_html( $this->format_datetime_value( isset( $row['event_at'] ) ? (string) $row['event_at'] : '' ) ) . '</td>';
+				echo '<td>' . esc_html( isset( $row['event_type_label'] ) ? (string) $row['event_type_label'] : '-' ) . '</td>';
+				echo '<td>' . esc_html( isset( $row['detail'] ) ? (string) $row['detail'] : '-' ) . '</td>';
+				echo '<td>' . esc_html( isset( $row['status_label'] ) ? (string) $row['status_label'] : '-' ) . '</td>';
+				echo '<td>' . wp_kses_post( isset( $row['action_link'] ) ? (string) $row['action_link'] : '-' ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * Build one merged timeline for vehicle operation.
+	 *
+	 * @param array<int, array<string, mixed>> $processes Process rows.
+	 * @param array<int, array<string, mixed>> $appointments Appointment rows.
+	 * @param array<int, array<string, mixed>> $maintenance_timeline Maintenance rows.
+	 * @return array<int, array<string, mixed>>
+	 */
+	protected function build_vehicle_timeline( array $processes, array $appointments, array $maintenance_timeline ) {
+		$timeline = array();
+
+		foreach ( $processes as $process ) {
+			$process_id = isset( $process['id'] ) ? absint( $process['id'] ) : 0;
+			$event_at   = ! empty( $process['updated_at'] ) ? (string) $process['updated_at'] : ( ! empty( $process['created_at'] ) ? (string) $process['created_at'] : '' );
+			$process_url = add_query_arg(
+				array(
+					'page'   => 'super-mechanic-processes',
+					'action' => 'edit',
+					'id'     => $process_id,
+				),
+				admin_url( 'admin.php' )
+			);
+
+			$timeline[] = array(
+				'event_at'         => $event_at,
+				'event_type_label' => __( 'Process', 'super-mechanic' ),
+				'detail'           => '#' . $process_id . ' ' . ( isset( $process['title'] ) ? (string) $process['title'] : '' ),
+				'status_label'     => $this->humanize_key( isset( $process['status'] ) ? (string) $process['status'] : '' ),
+				'action_link'      => '<a href="' . esc_url( $process_url ) . '">' . esc_html__( 'Open process', 'super-mechanic' ) . '</a>',
+			);
+		}
+
+		foreach ( $appointments as $appointment ) {
+			$appointment_id = isset( $appointment['id'] ) ? absint( $appointment['id'] ) : 0;
+			$event_at       = ! empty( $appointment['start_at'] ) ? (string) $appointment['start_at'] : ( ! empty( $appointment['appointment_date'] ) ? (string) $appointment['appointment_date'] : '' );
+			$appointment_url = add_query_arg(
+				array(
+					'page'   => 'super-mechanic-appointments',
+					'action' => 'edit',
+					'id'     => $appointment_id,
+				),
+				admin_url( 'admin.php' )
+			);
+
+			$timeline[] = array(
+				'event_at'         => $event_at,
+				'event_type_label' => __( 'Appointment', 'super-mechanic' ),
+				'detail'           => '#' . $appointment_id . ' ' . ( ! empty( $appointment['client_name'] ) ? (string) $appointment['client_name'] : __( 'No client', 'super-mechanic' ) ),
+				'status_label'     => $this->humanize_key( isset( $appointment['appointment_status'] ) ? (string) $appointment['appointment_status'] : '' ),
+				'action_link'      => '<a href="' . esc_url( $appointment_url ) . '">' . esc_html__( 'Open appointment', 'super-mechanic' ) . '</a>',
+			);
+		}
+
+		foreach ( $maintenance_timeline as $maintenance_row ) {
+			$process_id  = isset( $maintenance_row['process_id'] ) ? absint( $maintenance_row['process_id'] ) : 0;
+			$process_url = add_query_arg(
+				array(
+					'page'   => 'super-mechanic-processes',
+					'action' => 'edit',
+					'id'     => $process_id,
+				),
+				admin_url( 'admin.php' )
+			);
+
+			$timeline[] = array(
+				'event_at'         => isset( $maintenance_row['updated_at'] ) ? (string) $maintenance_row['updated_at'] : '',
+				'event_type_label' => __( 'Maintenance', 'super-mechanic' ),
+				'detail'           => '#' . $process_id . ' ' . ( isset( $maintenance_row['process_title'] ) ? (string) $maintenance_row['process_title'] : '' ),
+				'status_label'     => $this->humanize_key( isset( $maintenance_row['status'] ) ? (string) $maintenance_row['status'] : '' ),
+				'action_link'      => '<a href="' . esc_url( $process_url ) . '">' . esc_html__( 'Open maintenance', 'super-mechanic' ) . '</a>',
+			);
+		}
+
+		usort(
+			$timeline,
+			function ( $left, $right ) {
+				$left_time  = isset( $left['event_at'] ) ? strtotime( (string) $left['event_at'] ) : false;
+				$right_time = isset( $right['event_at'] ) ? strtotime( (string) $right['event_at'] ) : false;
+
+				if ( false === $left_time && false === $right_time ) {
+					return 0;
+				}
+
+				if ( false === $left_time ) {
+					return 1;
+				}
+
+				if ( false === $right_time ) {
+					return -1;
+				}
+
+				return $right_time <=> $left_time;
+			}
+		);
+
+		return $timeline;
 	}
 
 	/**
@@ -571,7 +700,7 @@ class Vehicle_Admin_Controller {
 		$ids = array_filter( $ids );
 
 		if ( empty( $ids ) ) {
-			$this->store_errors( new WP_Error( 'sm_no_vehicles_selected', __( 'Selecciona al menos un vehículo para eliminar.', 'super-mechanic' ) ) );
+			$this->store_errors( new WP_Error( 'sm_no_vehicles_selected', __( 'Select at least one vehicle to delete.', 'super-mechanic' ) ) );
 			$this->redirect( array( 'sm_notice' => 'error' ) );
 		}
 
@@ -611,9 +740,9 @@ class Vehicle_Admin_Controller {
 	 */
 	protected function render_client_select_field( $selected_client_id, $clients ) {
 		echo '<tr>';
-		echo '<th scope="row"><label for="client_id">' . esc_html__( 'Cliente principal', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="client_id">' . esc_html__( 'Primary client', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="client_id" id="client_id" required>';
-		echo '<option value="0">' . esc_html__( 'Selecciona un cliente', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Select a client', 'super-mechanic' ) . '</option>';
 
 		foreach ( $clients as $client ) {
 			$label = trim( sprintf( '%s %s', isset( $client['first_name'] ) ? $client['first_name'] : '', isset( $client['last_name'] ) ? $client['last_name'] : '' ) );
@@ -687,7 +816,7 @@ class Vehicle_Admin_Controller {
 
 	protected function get_active_process_summary( $active_process ) {
 		if ( ! is_array( $active_process ) || empty( $active_process['id'] ) ) {
-			return __( 'Sin proceso activo', 'super-mechanic' );
+			return __( 'No active process', 'super-mechanic' );
 		}
 
 		return sprintf(
@@ -709,6 +838,27 @@ class Vehicle_Admin_Controller {
 	}
 
 	/**
+	 * Format one datetime value for detail tables.
+	 *
+	 * @param string $value Datetime value.
+	 * @return string
+	 */
+	protected function format_datetime_value( $value ) {
+		$value = trim( (string) $value );
+
+		if ( '' === $value ) {
+			return '-';
+		}
+
+		$timestamp = strtotime( $value );
+		if ( false === $timestamp ) {
+			return $value;
+		}
+
+		return wp_date( 'Y-m-d H:i', $timestamp );
+	}
+
+	/**
 	 * Format a vehicle label.
 	 *
 	 * @param array<string, mixed> $vehicle Vehicle-like row.
@@ -724,7 +874,7 @@ class Vehicle_Admin_Controller {
 			$label .= ' - ' . $plate;
 		}
 
-		return $label ? $label : __( 'Vehículo sin identificar', 'super-mechanic' );
+		return $label ? $label : __( 'Unidentified vehicle', 'super-mechanic' );
 	}
 
 	/**
@@ -734,7 +884,7 @@ class Vehicle_Admin_Controller {
 	 */
 	protected function ensure_permissions() {
 		if ( ! current_user_can( 'sm_manage_vehicles' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar vehículos.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage vehicles.', 'super-mechanic' ) );
 		}
 	}
 
@@ -874,3 +1024,6 @@ class Vehicle_Admin_Controller {
 		);
 	}
 }
+
+
+

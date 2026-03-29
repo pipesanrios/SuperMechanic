@@ -8,6 +8,7 @@ Fuente de verdad: codigo real (`includes/*`).
 - Plugin: `0.1.0`
 - Schema: `1.15.0`
 - Fase actual: `37A-3` (consistencia operativa y tenancy endurecida)
+- Bloque tecnico post-cierre: `HOTFIX-MEM-1` COMPLETO (fatal memory exhausted por cascadas de servicios)
 - Arquitectura activa: `includes/*`
 - Legacy no activa: `includes/modules/*`
 
@@ -51,6 +52,7 @@ Fuente de verdad: codigo real (`includes/*`).
 - placeholders no activos: `includes/class-rest-api.php`, `includes/class-hooks.php`, `includes/class-post-types.php`
 - no hay CI/CD externo ni E2E runtime automatizado
 - faltan UX/admin dedicadas para API keys/webhooks publicos
+- faltan tests automatizados de regresion para prevenir bucles de inicializacion entre services
 
 ## Docs clave
 

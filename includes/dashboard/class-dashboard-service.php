@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Dashboard;
 
+use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Clients\Client_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
 use Super_Mechanic\Processes\Process_Derived_State_Service;
@@ -55,6 +56,7 @@ class Dashboard_Service {
 	 */
 	protected $access_control_service;
 	protected $process_derived_state_service;
+	protected $appointment_service;
 
 	/**
 	 * Constructor.
@@ -64,13 +66,14 @@ class Dashboard_Service {
 	 * @param Process_Service|null           $process_service           Process service.
 	 * @param Client_Vehicle_Repository|null $client_vehicle_repository Client vehicle repository.
 	 */
-	public function __construct( Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Process_Service $process_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Access_Control_Service $access_control_service = null, Process_Derived_State_Service $process_derived_state_service = null ) {
+	public function __construct( Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Process_Service $process_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Access_Control_Service $access_control_service = null, Process_Derived_State_Service $process_derived_state_service = null, Appointment_Service $appointment_service = null ) {
 		$this->client_service            = $client_service ? $client_service : new Client_Service();
 		$this->vehicle_service           = $vehicle_service ? $vehicle_service : new Vehicle_Service();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
 		$this->client_vehicle_repository = $client_vehicle_repository ? $client_vehicle_repository : new Client_Vehicle_Repository();
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service();
 		$this->process_derived_state_service = $process_derived_state_service ? $process_derived_state_service : new Process_Derived_State_Service( $this->process_service );
+		$this->appointment_service       = $appointment_service ? $appointment_service : new Appointment_Service();
 	}
 
 	/**
@@ -153,6 +156,91 @@ class Dashboard_Service {
 				'order'    => 'DESC',
 			)
 		);
+	}
+
+	/**
+	 * Get appointments scheduled for today.
+	 *
+	 * @param int $limit Limit.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_today_appointments( $limit = 8 ) {
+		$today = wp_date( 'Y-m-d' );
+
+		$appointments = $this->appointment_service->get_appointments(
+			array(
+				'date_from' => $today,
+				'date_to'   => $today,
+				'per_page'  => max( 1, absint( $limit ) ),
+				'page'      => 1,
+				'orderby'   => 'start_at',
+				'order'     => 'ASC',
+			)
+		);
+
+		return $this->filter_appointments_by_status(
+			$appointments,
+			array( 'scheduled', 'confirmed', 'in_progress' )
+		);
+	}
+
+	/**
+	 * Get upcoming appointments in a bounded date range.
+	 *
+	 * @param int $days  Days ahead.
+	 * @param int $limit Limit.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_upcoming_appointments( $days = 7, $limit = 10 ) {
+		$start_date = wp_date( 'Y-m-d', strtotime( '+1 day' ) );
+		$max_days   = max( 1, absint( $days ) );
+		$range_end  = wp_date( 'Y-m-d', strtotime( '+' . ( $max_days + 1 ) . ' days' ) );
+		$raw_results = $this->appointment_service->get_appointments(
+			array(
+				'date_from' => $start_date,
+				'date_to'   => $range_end,
+				'per_page'  => max( 1, absint( $limit ) * 3 ),
+				'page'      => 1,
+				'orderby'   => 'start_at',
+				'order'     => 'ASC',
+			)
+		);
+		$filtered   = $this->filter_appointments_by_status(
+			$raw_results,
+			array( 'scheduled', 'confirmed' )
+		);
+
+		return array_slice( $filtered, 0, max( 1, absint( $limit ) ) );
+	}
+
+	/**
+	 * Get bounded mechanic appointments for daily operation.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $limit   Limit.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_mechanic_upcoming_appointments( $user_id, $limit = 15 ) {
+		$user_id    = absint( $user_id );
+		$today      = wp_date( 'Y-m-d' );
+		$range_end  = wp_date( 'Y-m-d', strtotime( '+14 days' ) );
+		$results    = $this->appointment_service->get_appointments(
+			array(
+				'assigned_to' => $user_id,
+				'date_from'   => $today,
+				'date_to'     => $range_end,
+				'per_page'    => max( 1, absint( $limit ) * 3 ),
+				'page'        => 1,
+				'orderby'     => 'start_at',
+				'order'       => 'ASC',
+			)
+		);
+		$filtered   = $this->filter_appointments_by_status(
+			$results,
+			array( 'scheduled', 'confirmed', 'in_progress' )
+		);
+
+		return array_slice( $filtered, 0, max( 1, absint( $limit ) ) );
 	}
 
 	/**
@@ -401,5 +489,49 @@ class Dashboard_Service {
 	 */
 	protected function get_mechanic_processes( $user_id, $args = array(), $limit = 20 ) {
 		return $this->process_service->get_mechanic_processes( $user_id, $args, $limit );
+	}
+
+	/**
+	 * Filter appointments by allowed statuses and normalize ordering.
+	 *
+	 * @param array<int, array<string, mixed>> $appointments Raw appointments.
+	 * @param array<int, string>               $allowed_statuses Allowed statuses.
+	 * @return array<int, array<string, mixed>>
+	 */
+	protected function filter_appointments_by_status( array $appointments, array $allowed_statuses ) {
+		$filtered = array();
+
+		foreach ( $appointments as $appointment ) {
+			$status = isset( $appointment['appointment_status'] ) ? sanitize_key( (string) $appointment['appointment_status'] ) : '';
+			if ( ! in_array( $status, $allowed_statuses, true ) ) {
+				continue;
+			}
+
+			$filtered[] = $appointment;
+		}
+
+		usort(
+			$filtered,
+			function ( $left, $right ) {
+				$left_time  = isset( $left['start_at'] ) ? strtotime( (string) $left['start_at'] ) : false;
+				$right_time = isset( $right['start_at'] ) ? strtotime( (string) $right['start_at'] ) : false;
+
+				if ( false === $left_time && false === $right_time ) {
+					return 0;
+				}
+
+				if ( false === $left_time ) {
+					return 1;
+				}
+
+				if ( false === $right_time ) {
+					return -1;
+				}
+
+				return $left_time <=> $right_time;
+			}
+		);
+
+		return $filtered;
 	}
 }

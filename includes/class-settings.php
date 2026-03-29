@@ -314,7 +314,7 @@ class Settings {
 			'company_name'          => '',
 			'business_context_key'  => 'default',
 			'business_id'           => 1,
-			'language_locale'       => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
+			'language_locale'       => 'en_US',
 			'default_currency'      => 'USD',
 			'timezone'              => function_exists( 'wp_timezone_string' ) && wp_timezone_string() ? wp_timezone_string() : 'UTC',
 			'date_format'           => 'd/m/Y',
@@ -346,11 +346,17 @@ class Settings {
 
 		$service_settings = $this->settings_service->get_all_settings();
 		$defaults         = $this->get_default_settings();
+		$allowed_locales  = array( 'en_US', 'es_ES', 'it_IT' );
+		$mapped_locale    = isset( $service_settings['business']['locale'] ) ? (string) $service_settings['business']['locale'] : $defaults['language_locale'];
+		if ( ! in_array( $mapped_locale, $allowed_locales, true ) ) {
+			$mapped_locale = 'en_US';
+		}
+
 		$mapped           = array(
 			'company_name'               => isset( $service_settings['business']['business_name'] ) ? $service_settings['business']['business_name'] : $defaults['company_name'],
 			'business_context_key'       => isset( $service_settings['business']['business_context_key'] ) ? $service_settings['business']['business_context_key'] : $defaults['business_context_key'],
 			'business_id'                => isset( $service_settings['business']['business_id'] ) ? absint( $service_settings['business']['business_id'] ) : $defaults['business_id'],
-			'language_locale'            => isset( $service_settings['business']['locale'] ) ? $service_settings['business']['locale'] : $defaults['language_locale'],
+			'language_locale'            => $mapped_locale,
 			'default_currency'           => isset( $service_settings['business']['currency'] ) ? $service_settings['business']['currency'] : $defaults['default_currency'],
 			'timezone'                   => isset( $service_settings['business']['timezone'] ) ? $service_settings['business']['timezone'] : $defaults['timezone'],
 			'date_format'                => isset( $service_settings['business']['date_format'] ) ? $service_settings['business']['date_format'] : $defaults['date_format'],
@@ -427,7 +433,7 @@ class Settings {
 	 */
 	public function render_settings_page() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
 
 		echo '<div class="wrap sm-admin-shell">';
@@ -1108,7 +1114,7 @@ class Settings {
 	 */
 	protected function assert_license_action_permissions() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar la licencia.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage the license.', 'super-mechanic' ) );
 		}
 
 		check_admin_referer( 'sm_license_action', 'sm_license_nonce' );
@@ -1194,7 +1200,7 @@ class Settings {
 	 */
 	public function handle_google_calendar_save_config() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos para gestionar Google Calendar.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have permissions to manage Google Calendar.', 'super-mechanic' ) );
 		}
 
 		check_admin_referer( 'sm_google_calendar_save_config', 'sm_google_calendar_nonce' );
@@ -1228,7 +1234,7 @@ class Settings {
 	 */
 	public function handle_google_calendar_reconcile_now() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos para gestionar Google Calendar.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have permissions to manage Google Calendar.', 'super-mechanic' ) );
 		}
 
 		check_admin_referer( 'sm_google_calendar_reconcile_now', 'sm_google_calendar_reconcile_nonce' );
@@ -1278,7 +1284,7 @@ class Settings {
 	 */
 	public function handle_google_calendar_renew_watch() {
 		if ( ! current_user_can( 'sm_manage_settings' ) ) {
-			wp_die( esc_html__( 'No tienes permisos para gestionar Google Calendar.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have permissions to manage Google Calendar.', 'super-mechanic' ) );
 		}
 
 		check_admin_referer( 'sm_google_calendar_renew_watch', 'sm_google_calendar_renew_watch_nonce' );

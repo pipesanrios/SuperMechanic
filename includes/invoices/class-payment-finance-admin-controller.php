@@ -70,7 +70,7 @@ class Payment_Finance_Admin_Controller {
 		}
 
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar pagos.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage payments.', 'super-mechanic' ) );
 		}
 
 		$operation = isset( $_POST['sm_payment_finance_operation'] ) ? sanitize_key( wp_unslash( $_POST['sm_payment_finance_operation'] ) ) : '';
@@ -114,7 +114,7 @@ class Payment_Finance_Admin_Controller {
 		$notice = isset( $_GET['sm_notice'] ) ? sanitize_key( wp_unslash( $_GET['sm_notice'] ) ) : '';
 
 		if ( 'payment_added' === $notice ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Pago registrado correctamente desde el centro financiero.', 'super-mechanic' ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Payment registered successfully from the finance center.', 'super-mechanic' ) . '</p></div>';
 		}
 
 		if ( 'payment_error' === $notice ) {
@@ -136,7 +136,7 @@ class Payment_Finance_Admin_Controller {
 	 */
 	public function render_page() {
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
 
 		$list_table = new Payment_Finance_List_Table( $this->payment_repository, $this->invoice_service, $this->download_service );
@@ -146,7 +146,7 @@ class Payment_Finance_Admin_Controller {
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Centro financiero - Payments', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Panel dedicado para pagos registrados, trazabilidad invoice ↔ payment y comprobantes seguros.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Dedicated panel for recorded payments, invoice-payment traceability, and secure receipts.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Finance', 'super-mechanic' ) . '</span>';
 		echo '</div>';
@@ -184,7 +184,7 @@ class Payment_Finance_Admin_Controller {
 		wp_nonce_field( 'sm_finance_add_payment', 'sm_finance_add_payment_nonce' );
 		echo '<table class="form-table" role="presentation">';
 		echo '<tr><th scope="row"><label for="sm-finance-invoice-id">' . esc_html__( 'Invoice', 'super-mechanic' ) . '</label></th><td><select id="sm-finance-invoice-id" name="invoice_id" required>';
-		echo '<option value="0">' . esc_html__( 'Selecciona una factura', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Select an invoice', 'super-mechanic' ) . '</option>';
 
 		foreach ( $invoices as $invoice ) {
 			$invoice_id = isset( $invoice['id'] ) ? absint( $invoice['id'] ) : 0;
@@ -193,7 +193,7 @@ class Payment_Finance_Admin_Controller {
 			}
 
 			$invoice_number = ! empty( $invoice['invoice_number'] ) ? (string) $invoice['invoice_number'] : '#' . $invoice_id;
-			$client_name    = ! empty( $invoice['client_name'] ) ? (string) $invoice['client_name'] : __( 'Cliente sin identificar', 'super-mechanic' );
+			$client_name    = ! empty( $invoice['client_name'] ) ? (string) $invoice['client_name'] : __( 'Unidentified client', 'super-mechanic' );
 			$label          = sprintf( '%s — %s', $invoice_number, $client_name );
 
 			echo '<option value="' . esc_attr( $invoice_id ) . '">' . esc_html( $label ) . '</option>';
@@ -202,7 +202,7 @@ class Payment_Finance_Admin_Controller {
 		echo '</select></td></tr>';
 		echo '<tr><th scope="row"><label for="sm-finance-payment-date">' . esc_html__( 'Fecha de pago', 'super-mechanic' ) . '</label></th><td><input type="datetime-local" id="sm-finance-payment-date" name="payment_date" value="' . esc_attr( gmdate( 'Y-m-d\TH:i' ) ) . '" required /></td></tr>';
 		echo '<tr><th scope="row"><label for="sm-finance-payment-amount">' . esc_html__( 'Monto', 'super-mechanic' ) . '</label></th><td><input type="number" step="0.01" min="0.01" id="sm-finance-payment-amount" name="amount" class="small-text" required /></td></tr>';
-		echo '<tr><th scope="row"><label for="sm-finance-payment-method">' . esc_html__( 'Método', 'super-mechanic' ) . '</label></th><td><select id="sm-finance-payment-method" name="payment_method">';
+		echo '<tr><th scope="row"><label for="sm-finance-payment-method">' . esc_html__( 'Method', 'super-mechanic' ) . '</label></th><td><select id="sm-finance-payment-method" name="payment_method">';
 		foreach ( $this->get_payment_method_options() as $method_key => $method_label ) {
 			echo '<option value="' . esc_attr( $method_key ) . '">' . esc_html( $method_label ) . '</option>';
 		}

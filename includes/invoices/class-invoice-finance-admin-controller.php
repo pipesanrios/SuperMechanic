@@ -65,7 +65,7 @@ class Invoice_Finance_Admin_Controller {
 	 */
 	public function render_page() {
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para acceder a esta página.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
 
 		$list_table = new Invoice_Finance_List_Table( $this->service, $this->pdf_service, $this->download_service );
@@ -75,7 +75,7 @@ class Invoice_Finance_Admin_Controller {
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Centro financiero - Invoices', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Panel dedicado para controlar facturación, estado de cobro y acciones financieras por invoice.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Dedicated panel to manage billing, collection status, and financial actions per invoice.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Finance', 'super-mechanic' ) . '</span>';
 		echo '</div>';

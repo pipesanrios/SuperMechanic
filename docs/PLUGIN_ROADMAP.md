@@ -165,6 +165,10 @@ Subfases de cierre operativo:
 - Fase 37A-1 — UX operativa de calendario (drag/drop, estado rapido, rollback): COMPLETA
 - Fase 37A-2 — Hardening y refinamiento UX de calendario: COMPLETA
 - Fase 37A-3 — Bloqueadores de consistencia operativa (cliente-vehiculos, procesos, tenancy): COMPLETA
+- Fase 37A-4 — Consolidacion operativa pre-CRM: COMPLETA
+- Fase 37A-5 — Ajustes operativos de estabilidad UX: COMPLETA
+- Fase 37A-6 — UX operativa general + validacion runtime de timeline unificada por vehiculo: COMPLETA
+- Bloque tecnico post 37A-3 — `HOTFIX-MEM-1` (fatal memory exhausted en cascadas de inicializacion): COMPLETO
 
 Alcance consolidado:
 - menu admin `Super Mechanic -> Calendar`
@@ -178,10 +182,13 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente subfase habilitada es 37A-4 (no cerrada).
+La siguiente continuidad habilitada es el bloque CRM (posterior a 37A-6, no cerrado).
+
+Estado de bloqueo tecnico:
+- `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.
 
 Backlog recomendado para siguiente bloque:
-- 37A-4 consolidacion operativa final pre-CRM
+- inicio del bloque CRM sobre base operativa cerrada en 37A-6
 - UX/admin para API keys y webhooks publicos
 - observabilidad avanzada de webhook deliveries
 - validacion runtime WordPress formal de 36B/36C

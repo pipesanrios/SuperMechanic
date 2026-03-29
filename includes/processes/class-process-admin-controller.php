@@ -74,7 +74,7 @@ class Process_Admin_Controller {
 			$process = $this->service->get_process( $id );
 
 			if ( empty( $process ) ) {
-				wp_die( esc_html__( 'El proceso solicitado no existe.', 'super-mechanic' ) );
+				wp_die( esc_html__( 'The requested process does not exist.', 'super-mechanic' ) );
 			}
 
 			$this->render_form_page( $process, true );
@@ -93,35 +93,35 @@ class Process_Admin_Controller {
 		$count  = isset( $_GET['deleted_count'] ) ? absint( $_GET['deleted_count'] ) : 0;
 
 		if ( 'created' === $notice ) {
-			$this->render_notice( __( 'Proceso creado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Process created successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'updated' === $notice ) {
-			$this->render_notice( __( 'Proceso actualizado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Process updated successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'status_updated' === $notice ) {
-			$this->render_notice( __( 'Estado del proceso actualizado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Process status updated successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'deleted' === $notice ) {
-			$this->render_notice( __( 'Proceso eliminado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Process deleted successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'bulk_deleted' === $notice ) {
-			$this->render_notice( sprintf( __( '%d procesos eliminados correctamente.', 'super-mechanic' ), $count ), 'success' );
+			$this->render_notice( sprintf( __( '%d processes deleted successfully.', 'super-mechanic' ), $count ), 'success' );
 		}
 
 		if ( 'comment_created' === $notice ) {
-			$this->render_notice( __( 'Comentario registrado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Comment saved successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'comment_updated' === $notice ) {
-			$this->render_notice( __( 'Comentario actualizado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Comment updated successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'comment_deleted' === $notice ) {
-			$this->render_notice( __( 'Comentario eliminado correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Comment deleted successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'error' === $notice ) {
@@ -143,11 +143,11 @@ class Process_Admin_Controller {
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Procesos', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Administra el hub operativo del plugin con filtros, estados y acciones mas claras sin tocar la lógica del dominio.', 'super-mechanic' ) . '</p>';
+		echo '<h1>' . esc_html__( 'Processes', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Manage the operational hub with clearer filters, statuses, and actions without changing domain logic.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Añadir nuevo', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Add new', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		$this->render_filter_form( $list_table );
@@ -198,7 +198,7 @@ class Process_Admin_Controller {
 			}
 		}
 
-		$title          = $is_edit ? __( 'Editar proceso', 'super-mechanic' ) : __( 'Nuevo proceso', 'super-mechanic' );
+		$title          = $is_edit ? __( 'Edit process', 'super-mechanic' ) : __( 'New process', 'super-mechanic' );
 		$vehicles       = $this->service->get_vehicle_options();
 		$clients        = $this->service->get_client_options();
 		$relation_map   = $this->build_process_relation_map( $vehicles, $clients );
@@ -210,10 +210,10 @@ class Process_Admin_Controller {
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Conserva el flujo operativo del proceso mientras mejoras claridad visual, navegación y lectura de estados.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Keep the operational process flow while improving visual clarity, navigation, and status readability.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
@@ -273,16 +273,16 @@ class Process_Admin_Controller {
 		$this->render_client_select_field( $process['client_id'], $clients );
 		$this->render_relation_context_row( $process, $relation_map );
 		$this->render_quick_add_context_row( $process, $is_edit );
-		$this->render_select_field( 'process_type', __( 'Tipo de proceso', 'super-mechanic' ), $process['process_type'], $process_types );
-		$this->render_select_field( 'status', __( 'Estado', 'super-mechanic' ), $process['status'], $status_options );
-		$this->render_text_field( 'title', __( 'Titulo', 'super-mechanic' ), $process['title'], true );
-		$this->render_textarea_field( 'internal_notes', __( 'Notas internas', 'super-mechanic' ), $process['internal_notes'] );
-		$this->render_datetime_field( 'opened_at', __( 'Fecha de apertura', 'super-mechanic' ), $process['opened_at'] );
-		$this->render_datetime_field( 'due_date', __( 'Fecha objetivo', 'super-mechanic' ), $process['due_date'] );
-		$this->render_datetime_field( 'completed_at', __( 'Fecha de finalizacion', 'super-mechanic' ), $process['completed_at'] );
+		$this->render_select_field( 'process_type', __( 'Process type', 'super-mechanic' ), $process['process_type'], $process_types );
+		$this->render_select_field( 'status', __( 'Status', 'super-mechanic' ), $process['status'], $status_options );
+		$this->render_text_field( 'title', __( 'Title', 'super-mechanic' ), $process['title'], true );
+		$this->render_textarea_field( 'internal_notes', __( 'Internal notes', 'super-mechanic' ), $process['internal_notes'] );
+		$this->render_datetime_field( 'opened_at', __( 'Open date', 'super-mechanic' ), $process['opened_at'] );
+		$this->render_datetime_field( 'due_date', __( 'Target date', 'super-mechanic' ), $process['due_date'] );
+		$this->render_datetime_field( 'completed_at', __( 'Completion date', 'super-mechanic' ), $process['completed_at'] );
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( $is_edit ? __( 'Actualizar proceso', 'super-mechanic' ) : __( 'Crear proceso', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $is_edit ? __( 'Update process', 'super-mechanic' ) : __( 'Create process', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -396,7 +396,7 @@ class Process_Admin_Controller {
 		$ids = array_filter( $ids );
 
 		if ( empty( $ids ) ) {
-			$this->store_errors( new WP_Error( 'sm_no_processes_selected', __( 'Selecciona al menos un proceso para eliminar.', 'super-mechanic' ) ) );
+			$this->store_errors( new WP_Error( 'sm_no_processes_selected', __( 'Select at least one process to delete.', 'super-mechanic' ) ) );
 			$this->redirect( array( 'sm_notice' => 'error' ) );
 		}
 
@@ -418,7 +418,7 @@ class Process_Admin_Controller {
 		$process    = $this->service->get_process( $process_id );
 
 		if ( ! $process ) {
-			$this->store_errors( new WP_Error( 'sm_invalid_process_comment', __( 'El proceso asociado al comentario no existe.', 'super-mechanic' ) ) );
+			$this->store_errors( new WP_Error( 'sm_invalid_process_comment', __( 'The process associated with the comment does not exist.', 'super-mechanic' ) ) );
 			$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'error' ) );
 		}
 
@@ -455,7 +455,7 @@ class Process_Admin_Controller {
 		$comment    = $this->comment_service->get_comment( $comment_id );
 
 		if ( ! $process || ! $comment || absint( $comment['process_id'] ) !== $process_id ) {
-			$this->store_errors( new WP_Error( 'sm_invalid_process_comment', __( 'El comentario que intentas editar no pertenece al proceso actual.', 'super-mechanic' ) ) );
+			$this->store_errors( new WP_Error( 'sm_invalid_process_comment', __( 'The comment you are trying to edit does not belong to the current process.', 'super-mechanic' ) ) );
 			$this->redirect( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'sm_notice' => 'error' ) );
 		}
 
@@ -503,22 +503,22 @@ class Process_Admin_Controller {
 		echo '<form method="get" class="sm-process-filter-form">';
 		echo '<input type="hidden" name="page" value="super-mechanic-processes" />';
 		echo '<div class="sm-filter-grid">';
-		echo '<div class="sm-filter-field"><label for="filter_process_type">' . esc_html__( 'Tipo de proceso', 'super-mechanic' ) . '</label><select id="filter_process_type" name="filter_process_type">';
-		echo '<option value="">' . esc_html__( 'Todos los tipos', 'super-mechanic' ) . '</option>';
+		echo '<div class="sm-filter-field"><label for="filter_process_type">' . esc_html__( 'Process type', 'super-mechanic' ) . '</label><select id="filter_process_type" name="filter_process_type">';
+		echo '<option value="">' . esc_html__( 'All types', 'super-mechanic' ) . '</option>';
 		foreach ( $process_types as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $process_type, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select></div>';
-		echo '<div class="sm-filter-field"><label for="filter_status">' . esc_html__( 'Estado', 'super-mechanic' ) . '</label><select id="filter_status" name="filter_status">';
-		echo '<option value="">' . esc_html__( 'Todos los estados', 'super-mechanic' ) . '</option>';
+		echo '<div class="sm-filter-field"><label for="filter_status">' . esc_html__( 'Status', 'super-mechanic' ) . '</label><select id="filter_status" name="filter_status">';
+		echo '<option value="">' . esc_html__( 'All statuses', 'super-mechanic' ) . '</option>';
 		foreach ( $statuses as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $status, $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
 		echo '</select></div>';
 		echo '</div>';
 		echo '<div class="sm-form-actions">';
-		submit_button( __( 'Filtrar', 'super-mechanic' ), 'secondary', 'filter_action', false );
-		$list_table->search_box( __( 'Buscar procesos', 'super-mechanic' ), 'sm-processes' );
+		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', 'filter_action', false );
+		$list_table->search_box( __( 'Search processes', 'super-mechanic' ), 'sm-processes' );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -527,14 +527,14 @@ class Process_Admin_Controller {
 	protected function render_tabs( $process_id, $process_type, $current_tab ) {
 		$tabs = array(
 			'general'       => __( 'General', 'super-mechanic' ),
-			'invoice'       => __( 'Facturas', 'super-mechanic' ),
-			'documents'     => __( 'Documentos / Adjuntos', 'super-mechanic' ),
-			'communication' => __( 'Comunicacion', 'super-mechanic' ),
+			'invoice'       => __( 'Invoices', 'super-mechanic' ),
+			'documents'     => __( 'Documents / Attachments', 'super-mechanic' ),
+			'communication' => __( 'Communication', 'super-mechanic' ),
 		);
 
 		if ( 'maintenance' === $process_type ) {
 			$tabs['maintenance'] = __( 'Maintenance', 'super-mechanic' );
-			$tabs['quote']       = __( 'Cotizacion', 'super-mechanic' );
+			$tabs['quote']       = __( 'Quote', 'super-mechanic' );
 		}
 
 		if ( 'pre_delivery' === $process_type ) {
@@ -545,7 +545,7 @@ class Process_Admin_Controller {
 			$tabs['paperwork'] = __( 'Paperwork', 'super-mechanic' );
 		}
 
-		echo '<nav class="nav-tab-wrapper sm-nav-tab-wrapper sm-section" aria-label="' . esc_attr__( 'Navegacion del proceso', 'super-mechanic' ) . '">';
+		echo '<nav class="nav-tab-wrapper sm-nav-tab-wrapper sm-section" aria-label="' . esc_attr__( 'Process navigation', 'super-mechanic' ) . '">';
 		foreach ( $tabs as $tab => $label ) {
 			$class = 'nav-tab';
 			if ( $tab === $current_tab ) {
@@ -592,31 +592,31 @@ class Process_Admin_Controller {
 
 		echo '<div class="sm-grid sm-grid-two sm-section">';
 		echo '<div class="sm-card sm-form-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( $edit_comment ? 'Editar comentario' : 'Comentarios y mensajes', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( $edit_comment ? 'Edit comment' : 'Comments and messages', 'super-mechanic' ) . '</h2></div>';
 		echo '<form method="post" class="sm-process-comment-form">';
 		wp_nonce_field( 'sm_process_comment_action', 'sm_process_comment_nonce' );
 		echo '<input type="hidden" name="sm_process_comment_operation" value="' . esc_attr( $edit_comment ? 'update' : 'create' ) . '" />';
 		echo '<input type="hidden" name="process_id" value="' . esc_attr( $process_id ) . '" />';
 		echo '<input type="hidden" name="comment_id" value="' . esc_attr( $edit_comment ? absint( $edit_comment['id'] ) : 0 ) . '" />';
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th scope="row"><label for="sm_process_comment_type">' . esc_html__( 'Tipo', 'super-mechanic' ) . '</label></th><td><select id="sm_process_comment_type" name="comment_type"><option value="internal_note" ' . selected( $edit_comment ? $edit_comment['comment_type'] : 'internal_note', 'internal_note', false ) . '>' . esc_html__( 'Nota interna', 'super-mechanic' ) . '</option><option value="staff_reply" ' . selected( $edit_comment ? $edit_comment['comment_type'] : '', 'staff_reply', false ) . '>' . esc_html__( 'Respuesta staff', 'super-mechanic' ) . '</option><option value="system_note" ' . selected( $edit_comment ? $edit_comment['comment_type'] : '', 'system_note', false ) . '>' . esc_html__( 'Nota sistema', 'super-mechanic' ) . '</option></select></td></tr>';
-		echo '<tr><th scope="row"><label for="sm_process_comment_content">' . esc_html__( 'Contenido', 'super-mechanic' ) . '</label></th><td><textarea id="sm_process_comment_content" name="content" rows="5" class="large-text" required>' . esc_textarea( $edit_comment ? $edit_comment['content'] : '' ) . '</textarea></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Visibilidad', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_internal" value="1" ' . checked( $edit_comment ? ! empty( $edit_comment['is_internal'] ) : true, true, false ) . ' /> ' . esc_html__( 'Solo uso interno', 'super-mechanic' ) . '</label><br /><label><input type="checkbox" name="is_client_visible" value="1" ' . checked( $edit_comment ? ! empty( $edit_comment['is_client_visible'] ) : false, true, false ) . ' /> ' . esc_html__( 'Visible para el cliente', 'super-mechanic' ) . '</label></td></tr>';
+		echo '<tr><th scope="row"><label for="sm_process_comment_type">' . esc_html__( 'Type', 'super-mechanic' ) . '</label></th><td><select id="sm_process_comment_type" name="comment_type"><option value="internal_note" ' . selected( $edit_comment ? $edit_comment['comment_type'] : 'internal_note', 'internal_note', false ) . '>' . esc_html__( 'Internal note', 'super-mechanic' ) . '</option><option value="staff_reply" ' . selected( $edit_comment ? $edit_comment['comment_type'] : '', 'staff_reply', false ) . '>' . esc_html__( 'Staff reply', 'super-mechanic' ) . '</option><option value="system_note" ' . selected( $edit_comment ? $edit_comment['comment_type'] : '', 'system_note', false ) . '>' . esc_html__( 'System note', 'super-mechanic' ) . '</option></select></td></tr>';
+		echo '<tr><th scope="row"><label for="sm_process_comment_content">' . esc_html__( 'Content', 'super-mechanic' ) . '</label></th><td><textarea id="sm_process_comment_content" name="content" rows="5" class="large-text" required>' . esc_textarea( $edit_comment ? $edit_comment['content'] : '' ) . '</textarea></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Visibility', 'super-mechanic' ) . '</th><td><label><input type="checkbox" name="is_internal" value="1" ' . checked( $edit_comment ? ! empty( $edit_comment['is_internal'] ) : true, true, false ) . ' /> ' . esc_html__( 'Internal use only', 'super-mechanic' ) . '</label><br /><label><input type="checkbox" name="is_client_visible" value="1" ' . checked( $edit_comment ? ! empty( $edit_comment['is_client_visible'] ) : false, true, false ) . ' /> ' . esc_html__( 'Visible to client', 'super-mechanic' ) . '</label></td></tr>';
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( $edit_comment ? __( 'Actualizar comentario', 'super-mechanic' ) : __( 'Guardar comentario', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $edit_comment ? __( 'Update comment', 'super-mechanic' ) : __( 'Save comment', 'super-mechanic' ), 'primary', 'submit', false );
 		if ( $edit_comment ) {
-			echo '<a class="button button-secondary" href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication' ) ) ) . '">' . esc_html__( 'Cancelar edición', 'super-mechanic' ) . '</a>';
+			echo '<a class="button button-secondary" href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication' ) ) ) . '">' . esc_html__( 'Cancel edit', 'super-mechanic' ) . '</a>';
 		}
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
 		echo '<div class="sm-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Historial operativo', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Operational history', 'super-mechanic' ) . '</h2></div>';
 		echo '<div class="sm-table-wrap">';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Contenido', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Visibilidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estado', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Acciones', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Content', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Visibility', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $comments ) ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No hay comentarios para este proceso.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No comments for this process.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $comments as $comment ) {
 				$edit_url   = add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => $process_id, 'tab' => 'communication', 'comment_action' => 'edit', 'comment_id' => absint( $comment['id'] ) ), admin_url( 'admin.php' ) );
@@ -625,9 +625,9 @@ class Process_Admin_Controller {
 				echo '<td>' . esc_html( $comment['created_at'] ) . '</td>';
 				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $comment['comment_type'] ) ) ) . '</td>';
 				echo '<td>' . esc_html( $comment['content'] ) . '</td>';
-				echo '<td>' . esc_html( ! empty( $comment['is_internal'] ) ? __( 'Interno', 'super-mechanic' ) : __( 'Operativo', 'super-mechanic' ) ) . ' / ' . esc_html( ! empty( $comment['is_client_visible'] ) ? __( 'Visible cliente', 'super-mechanic' ) : __( 'Oculto cliente', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . esc_html( ! empty( $comment['is_internal'] ) ? __( 'Internal', 'super-mechanic' ) : __( 'Operational', 'super-mechanic' ) ) . ' / ' . esc_html( ! empty( $comment['is_client_visible'] ) ? __( 'Visible to client', 'super-mechanic' ) : __( 'Hidden from client', 'super-mechanic' ) ) . '</td>';
 				echo '<td>' . esc_html( $comment['status'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( '¿Eliminar este comentario?', 'super-mechanic' ) ) . '\');">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Edit', 'super-mechanic' ) . '</a> | <a href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'' . esc_js( __( 'Delete this comment?', 'super-mechanic' ) ) . '\');">' . esc_html__( 'Delete', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -636,11 +636,11 @@ class Process_Admin_Controller {
 		echo '</div>';
 		echo '</div>';
 		echo '<div class="sm-card sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Feed de notificaciones', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Notification feed', 'super-mechanic' ) . '</h2></div>';
 		echo '<div class="sm-table-wrap">';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Tipo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Titulo', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Mensaje', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Destinatario', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Message', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Recipient', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $notifications ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No hay notificaciones para este proceso.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'No notifications for this process.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $notifications as $notification ) {
 				echo '<tr>';
@@ -663,9 +663,9 @@ class Process_Admin_Controller {
 
 	protected function render_vehicle_select_field( $selected_vehicle_id, $vehicles ) {
 		echo '<tr>';
-		echo '<th scope="row"><label for="vehicle_id">' . esc_html__( 'Vehiculo', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="vehicle_id">' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="vehicle_id" id="vehicle_id" required>';
-		echo '<option value="0">' . esc_html__( 'Selecciona un vehiculo', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Select a vehicle', 'super-mechanic' ) . '</option>';
 
 		foreach ( $vehicles as $vehicle ) {
 			$label = $this->get_vehicle_label( $vehicle );
@@ -678,9 +678,9 @@ class Process_Admin_Controller {
 
 	protected function render_client_select_field( $selected_client_id, $clients ) {
 		echo '<tr>';
-		echo '<th scope="row"><label for="client_id">' . esc_html__( 'Cliente', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="client_id">' . esc_html__( 'Client', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="client_id" id="client_id">';
-		echo '<option value="0">' . esc_html__( 'Sin asignar', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Unassigned', 'super-mechanic' ) . '</option>';
 
 		foreach ( $clients as $client ) {
 			$label = trim( sprintf( '%s %s', isset( $client['first_name'] ) ? $client['first_name'] : '', isset( $client['last_name'] ) ? $client['last_name'] : '' ) );
@@ -705,23 +705,23 @@ class Process_Admin_Controller {
 		$messages             = array();
 
 		if ( $vehicle_id > 0 && '' !== $vehicle_label ) {
-			$messages[] = sprintf( __( 'Vehiculo seleccionado: %s.', 'super-mechanic' ), $vehicle_label );
+			$messages[] = sprintf( __( 'Selected vehicle: %s.', 'super-mechanic' ), $vehicle_label );
 		}
 
 		if ( $client_id > 0 && '' !== $client_label ) {
-			$messages[] = sprintf( _n( 'Cliente vinculado: %1$s (%2$d vehiculo asociado).', 'Cliente vinculado: %1$s (%2$d vehiculos asociados).', $client_vehicle_count, 'super-mechanic' ), $client_label, $client_vehicle_count );
+			$messages[] = sprintf( _n( 'Linked client: %1$s (%2$d associated vehicle).', 'Linked client: %1$s (%2$d associated vehicles).', $client_vehicle_count, 'super-mechanic' ), $client_label, $client_vehicle_count );
 		}
 
 		if ( is_array( $active_process ) && ! empty( $active_process['id'] ) ) {
-			$messages[] = sprintf( __( 'El vehiculo ya tiene un proceso activo: #%1$d (%2$s / %3$s).', 'super-mechanic' ), absint( $active_process['id'] ), $this->humanize_key( $active_process['process_type'] ), $this->humanize_key( $active_process['status'] ) );
+			$messages[] = sprintf( __( 'The vehicle already has an active process: #%1$d (%2$s / %3$s).', 'super-mechanic' ), absint( $active_process['id'] ), $this->humanize_key( $active_process['process_type'] ), $this->humanize_key( $active_process['status'] ) );
 		}
 
 		if ( empty( $messages ) ) {
-			$messages[] = __( 'Selecciona cliente o vehiculo para sincronizar la relacion y limitar las opciones disponibles sin salir del flujo.', 'super-mechanic' );
+			$messages[] = __( 'Select client and vehicle to validate the relationship and continue with consistent data.', 'super-mechanic' );
 		}
 
 		echo '<tr>';
-		echo '<th scope="row">' . esc_html__( 'Relacion operativa', 'super-mechanic' ) . '</th>';
+		echo '<th scope="row">' . esc_html__( 'Operational relationship', 'super-mechanic' ) . '</th>';
 		echo '<td><p id="sm-process-relation-hint" class="description">' . esc_html( implode( ' ', $messages ) ) . '</p></td>';
 		echo '</tr>';
 	}
@@ -772,11 +772,11 @@ class Process_Admin_Controller {
 		);
 
 		echo '<tr>';
-		echo '<th scope="row">' . esc_html__( 'Alta rápida', 'super-mechanic' ) . '</th>';
+		echo '<th scope="row">' . esc_html__( 'Quick add', 'super-mechanic' ) . '</th>';
 		echo '<td>';
-		echo '<a id="sm-quick-add-client" class="button button-secondary" href="' . esc_url( $client_url ) . '">' . esc_html__( 'Agregar cliente', 'super-mechanic' ) . '</a> ';
-		echo '<a id="sm-quick-add-vehicle" class="button button-secondary" href="' . esc_url( $vehicle_url ) . '">' . esc_html__( 'Agregar vehículo', 'super-mechanic' ) . '</a>';
-		echo '<p class="description">' . esc_html__( 'Si falta un cliente o vehículo, puedes crearlo aquí y volver al flujo del proceso sin abrir una UI nueva.', 'super-mechanic' ) . '</p>';
+		echo '<a id="sm-quick-add-client" class="button button-secondary" href="' . esc_url( $client_url ) . '">' . esc_html__( 'Add client', 'super-mechanic' ) . '</a> ';
+		echo '<a id="sm-quick-add-vehicle" class="button button-secondary" href="' . esc_url( $vehicle_url ) . '">' . esc_html__( 'Add vehicle', 'super-mechanic' ) . '</a>';
+		echo '<p class="description">' . esc_html__( 'If a client or vehicle is missing, you can create it here and return to the process flow without opening a new UI.', 'super-mechanic' ) . '</p>';
 		echo '</td>';
 		echo '</tr>';
 	}
@@ -870,7 +870,17 @@ class Process_Admin_Controller {
 			$label .= ' - ' . $vehicle['vin'];
 		}
 
-		return '' !== trim( $label ) ? trim( $label ) : __( 'Vehiculo sin identificar', 'super-mechanic' );
+		return '' !== trim( $label ) ? trim( $label ) : __( 'Unidentified vehicle', 'super-mechanic' );
+	}
+
+	/**
+	 * Humanize an internal key for UI labels.
+	 *
+	 * @param string $value Raw key value.
+	 * @return string
+	 */
+	protected function humanize_key( $value ) {
+		return ucwords( str_replace( '_', ' ', (string) $value ) );
 	}
 
 	protected function format_datetime_for_input( $value ) {
@@ -885,7 +895,7 @@ class Process_Admin_Controller {
 
 	protected function ensure_permissions() {
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar procesos.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage processes.', 'super-mechanic' ) );
 		}
 	}
 
@@ -927,3 +937,7 @@ class Process_Admin_Controller {
 		return 'sm_process_form_' . get_current_user_id();
 	}
 }
+
+
+
+

@@ -92,7 +92,7 @@ class Appointment_Admin_Controller {
 		if ( 'edit' === $action ) {
 			$appointment = $this->service->get_appointment( $id );
 			if ( ! is_array( $appointment ) ) {
-				wp_die( esc_html__( 'La cita solicitada no existe.', 'super-mechanic' ) );
+				wp_die( esc_html__( 'The requested appointment does not exist.', 'super-mechanic' ) );
 			}
 
 			$this->render_form_page( $appointment, true );
@@ -114,26 +114,26 @@ class Appointment_Admin_Controller {
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Calendar', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Gestion operativa visual de citas por dia, semana y mes.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Visual operational appointment management by day, week, and month.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Nueva cita', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'New appointment', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
 		echo '<div class="sm-card sm-section sm-calendar-controls">';
 		echo '<div class="sm-calendar-controls-grid">';
 		echo '<div class="sm-calendar-controls-status">';
-		echo '<label for="sm-calendar-status-select"><strong>' . esc_html__( 'Cambio rapido de estado', 'super-mechanic' ) . '</strong></label>';
+		echo '<label for="sm-calendar-status-select"><strong>' . esc_html__( 'Quick status change', 'super-mechanic' ) . '</strong></label>';
 		echo '<select id="sm-calendar-status-select">';
 		foreach ( $this->service->get_status_options() as $status_key => $status_label ) {
 			echo '<option value="' . esc_attr( $status_key ) . '">' . esc_html( $status_label ) . '</option>';
 		}
 		echo '</select>';
-		echo '<button type="button" class="button button-secondary" id="sm-calendar-status-update" disabled>' . esc_html__( 'Actualizar estado', 'super-mechanic' ) . '</button>';
+		echo '<button type="button" class="button button-secondary" id="sm-calendar-status-update" disabled>' . esc_html__( 'Update status', 'super-mechanic' ) . '</button>';
 		echo '</div>';
 		echo '<div class="sm-calendar-selection">';
-		echo '<p id="sm-calendar-selected-title">' . esc_html__( 'Selecciona una cita en el calendario para actualizar su estado.', 'super-mechanic' ) . '</p>';
+		echo '<p id="sm-calendar-selected-title">' . esc_html__( 'Select an appointment in the calendar to update its status.', 'super-mechanic' ) . '</p>';
 		echo '<p class="description" id="sm-calendar-feedback"></p>';
 		echo '</div>';
 		echo '</div>';
@@ -159,19 +159,19 @@ class Appointment_Admin_Controller {
 		$count  = isset( $_GET['deleted_count'] ) ? absint( $_GET['deleted_count'] ) : 0;
 
 		if ( 'created' === $notice ) {
-			$this->render_notice( __( 'Cita creada correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Appointment created successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'updated' === $notice ) {
-			$this->render_notice( __( 'Cita actualizada correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Appointment updated successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'deleted' === $notice ) {
-			$this->render_notice( __( 'Cita eliminada correctamente.', 'super-mechanic' ), 'success' );
+			$this->render_notice( __( 'Appointment deleted successfully.', 'super-mechanic' ), 'success' );
 		}
 
 		if ( 'bulk_deleted' === $notice ) {
-			$this->render_notice( sprintf( __( '%d citas eliminadas correctamente.', 'super-mechanic' ), $count ), 'success' );
+			$this->render_notice( sprintf( __( '%d appointments deleted successfully.', 'super-mechanic' ), $count ), 'success' );
 		}
 
 		if ( 'error' === $notice ) {
@@ -197,11 +197,11 @@ class Appointment_Admin_Controller {
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Citas', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Administra agenda operativa base del taller con filtro por fecha, mecanico y estado.', 'super-mechanic' ) . '</p>';
+		echo '<h1>' . esc_html__( 'Appointments', 'super-mechanic' ) . '</h1>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Manage the workshop base schedule with filters by date, mechanic, and status.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Nueva cita', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'New appointment', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
@@ -211,7 +211,7 @@ class Appointment_Admin_Controller {
 		echo '<form method="post">';
 		echo '<input type="hidden" name="page" value="super-mechanic-appointments" />';
 		wp_nonce_field( 'sm_bulk_delete_appointments', 'sm_bulk_delete_nonce' );
-		$list_table->search_box( __( 'Buscar citas', 'super-mechanic' ), 'sm-appointments' );
+		$list_table->search_box( __( 'Search appointments', 'super-mechanic' ), 'sm-appointments' );
 		echo '<div class="sm-table-wrap sm-list-table-wrap">';
 		$list_table->display();
 		echo '</div>';
@@ -254,7 +254,7 @@ class Appointment_Admin_Controller {
 		}
 
 		$appointment = wp_parse_args( $appointment, $defaults );
-		$title       = $is_edit ? __( 'Editar cita', 'super-mechanic' ) : __( 'Nueva cita', 'super-mechanic' );
+		$title       = $is_edit ? __( 'Edit appointment', 'super-mechanic' ) : __( 'New appointment', 'super-mechanic' );
 		$clients     = $this->service->get_client_options();
 		$vehicles    = $this->service->get_vehicle_options();
 		$mechanics   = $this->service->get_mechanic_options();
@@ -264,10 +264,10 @@ class Appointment_Admin_Controller {
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html( $title ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Base operativa de citas: cliente, vehiculo, mecanico, estado y horario.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Appointment operational base: client, vehicle, mechanic, status, and schedule.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Volver al listado', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 
@@ -279,15 +279,15 @@ class Appointment_Admin_Controller {
 		echo '<table class="form-table" role="presentation">';
 		$this->render_client_select_field( $appointment['client_id'], $clients );
 		$this->render_vehicle_select_field( $appointment['vehicle_id'], $vehicles );
-		$this->render_number_field( 'process_id', __( 'Proceso (opcional)', 'super-mechanic' ), $appointment['process_id'] );
+		$this->render_number_field( 'process_id', __( 'Process (optional)', 'super-mechanic' ), $appointment['process_id'] );
 		$this->render_mechanic_select_field( $appointment['assigned_to'], $mechanics );
-		$this->render_select_field( 'appointment_status', __( 'Estado', 'super-mechanic' ), $appointment['appointment_status'], $statuses );
-		$this->render_date_field( 'appointment_date', __( 'Fecha de cita', 'super-mechanic' ), $appointment['appointment_date'] );
-		$this->render_datetime_field( 'start_at', __( 'Fecha y hora inicio', 'super-mechanic' ), $appointment['start_at'] );
+		$this->render_select_field( 'appointment_status', __( 'Status', 'super-mechanic' ), $appointment['appointment_status'], $statuses );
+		$this->render_date_field( 'appointment_date', __( 'Appointment date', 'super-mechanic' ), $appointment['appointment_date'] );
+		$this->render_datetime_field( 'start_at', __( 'Start date and time', 'super-mechanic' ), $appointment['start_at'] );
 		$this->render_textarea_field( 'notes', __( 'Notas', 'super-mechanic' ), $appointment['notes'] );
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
-		submit_button( $is_edit ? __( 'Actualizar cita', 'super-mechanic' ) : __( 'Crear cita', 'super-mechanic' ), 'primary', 'submit', false );
+		submit_button( $is_edit ? __( 'Update appointment', 'super-mechanic' ) : __( 'Create appointment', 'super-mechanic' ), 'primary', 'submit', false );
 		echo '</div>';
 		echo '</form>';
 		echo '</div>';
@@ -391,7 +391,7 @@ class Appointment_Admin_Controller {
 		$ids = array_filter( $ids );
 
 		if ( empty( $ids ) ) {
-			$this->store_errors( new WP_Error( 'sm_no_appointments_selected', __( 'Selecciona al menos una cita para eliminar.', 'super-mechanic' ) ) );
+			$this->store_errors( new WP_Error( 'sm_no_appointments_selected', __( 'Select at least one appointment to delete.', 'super-mechanic' ) ) );
 			$this->redirect( array( 'sm_notice' => 'error' ) );
 		}
 
@@ -428,7 +428,7 @@ class Appointment_Admin_Controller {
 		echo '<form method="get" class="sm-inline-filters">';
 		echo '<input type="hidden" name="page" value="super-mechanic-appointments" />';
 
-		echo '<label for="filter_status" class="screen-reader-text">' . esc_html__( 'Filtrar por estado', 'super-mechanic' ) . '</label>';
+		echo '<label for="filter_status" class="screen-reader-text">' . esc_html__( 'Filter by status', 'super-mechanic' ) . '</label>';
 		echo '<select id="filter_status" name="filter_status">';
 		echo '<option value="">' . esc_html__( 'Todos los estados', 'super-mechanic' ) . '</option>';
 		foreach ( $statuses as $status_key => $status_label ) {
@@ -436,7 +436,7 @@ class Appointment_Admin_Controller {
 		}
 		echo '</select>';
 
-		echo '<label for="filter_assigned_to" class="screen-reader-text">' . esc_html__( 'Filtrar por mecanico', 'super-mechanic' ) . '</label>';
+		echo '<label for="filter_assigned_to" class="screen-reader-text">' . esc_html__( 'Filter by mechanic', 'super-mechanic' ) . '</label>';
 		echo '<select id="filter_assigned_to" name="filter_assigned_to">';
 		echo '<option value="0">' . esc_html__( 'Todos los mecanicos', 'super-mechanic' ) . '</option>';
 		foreach ( $mechanics as $mechanic ) {
@@ -444,14 +444,14 @@ class Appointment_Admin_Controller {
 		}
 		echo '</select>';
 
-		echo '<label for="filter_date_from" class="screen-reader-text">' . esc_html__( 'Desde fecha', 'super-mechanic' ) . '</label>';
+		echo '<label for="filter_date_from" class="screen-reader-text">' . esc_html__( 'From date', 'super-mechanic' ) . '</label>';
 		echo '<input type="date" id="filter_date_from" name="filter_date_from" value="' . esc_attr( $date_from ) . '" />';
 
-		echo '<label for="filter_date_to" class="screen-reader-text">' . esc_html__( 'Hasta fecha', 'super-mechanic' ) . '</label>';
+		echo '<label for="filter_date_to" class="screen-reader-text">' . esc_html__( 'To date', 'super-mechanic' ) . '</label>';
 		echo '<input type="date" id="filter_date_to" name="filter_date_to" value="' . esc_attr( $date_to ) . '" />';
 
 		submit_button( __( 'Filtrar', 'super-mechanic' ), 'secondary', 'submit', false );
-		echo '<a class="button button-link" href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Limpiar', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-link" href="' . esc_url( $this->get_page_url() ) . '">' . esc_html__( 'Clear', 'super-mechanic' ) . '</a>';
 		echo '</form>';
 		echo '</div>';
 	}
@@ -530,7 +530,7 @@ class Appointment_Admin_Controller {
 		}
 
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			return new WP_Error( 'sm_rest_forbidden', __( 'No tienes permisos para gestionar citas.', 'super-mechanic' ), array( 'status' => 403 ) );
+			return new WP_Error( 'sm_rest_forbidden', __( 'You do not have permission to manage appointments.', 'super-mechanic' ), array( 'status' => 403 ) );
 		}
 
 		return true;
@@ -569,7 +569,7 @@ class Appointment_Admin_Controller {
 		$status         = sanitize_key( (string) $request->get_param( 'status' ) );
 
 		if ( $appointment_id <= 0 ) {
-			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+			return new WP_Error( 'sm_appointment_not_found', __( 'The appointment does not exist.', 'super-mechanic' ), array( 'status' => 404 ) );
 		}
 
 		$result = $this->service->update_appointment_status_from_calendar( $appointment_id, $status );
@@ -583,7 +583,7 @@ class Appointment_Admin_Controller {
 
 		$appointment = $this->service->get_appointment( $appointment_id );
 		if ( ! is_array( $appointment ) ) {
-			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+			return new WP_Error( 'sm_appointment_not_found', __( 'The appointment does not exist.', 'super-mechanic' ), array( 'status' => 404 ) );
 		}
 
 		return $this->map_calendar_event_payload( $appointment );
@@ -600,7 +600,7 @@ class Appointment_Admin_Controller {
 		$start_at       = sanitize_text_field( (string) $request->get_param( 'start_at' ) );
 
 		if ( $appointment_id <= 0 ) {
-			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+			return new WP_Error( 'sm_appointment_not_found', __( 'The appointment does not exist.', 'super-mechanic' ), array( 'status' => 404 ) );
 		}
 
 		$result = $this->service->update_appointment_schedule_from_calendar( $appointment_id, $start_at );
@@ -614,7 +614,7 @@ class Appointment_Admin_Controller {
 
 		$appointment = $this->service->get_appointment( $appointment_id );
 		if ( ! is_array( $appointment ) ) {
-			return new WP_Error( 'sm_appointment_not_found', __( 'La cita no existe.', 'super-mechanic' ), array( 'status' => 404 ) );
+			return new WP_Error( 'sm_appointment_not_found', __( 'The appointment does not exist.', 'super-mechanic' ), array( 'status' => 404 ) );
 		}
 
 		return $this->map_calendar_event_payload( $appointment );
@@ -750,9 +750,9 @@ class Appointment_Admin_Controller {
 	 */
 	protected function render_client_select_field( $selected, array $clients ) {
 		echo '<tr>';
-		echo '<th scope="row"><label for="client_id">' . esc_html__( 'Cliente', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="client_id">' . esc_html__( 'Client', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="client_id" id="client_id" required>';
-		echo '<option value="0">' . esc_html__( 'Selecciona un cliente', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Select a client', 'super-mechanic' ) . '</option>';
 		foreach ( $clients as $client ) {
 			$label = trim( sprintf( '%s %s', isset( $client['first_name'] ) ? $client['first_name'] : '', isset( $client['last_name'] ) ? $client['last_name'] : '' ) );
 			if ( '' === $label && ! empty( $client['email'] ) ) {
@@ -773,9 +773,9 @@ class Appointment_Admin_Controller {
 	 */
 	protected function render_vehicle_select_field( $selected, array $vehicles ) {
 		echo '<tr>';
-		echo '<th scope="row"><label for="vehicle_id">' . esc_html__( 'Vehiculo', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="vehicle_id">' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="vehicle_id" id="vehicle_id" required>';
-		echo '<option value="0">' . esc_html__( 'Selecciona un vehiculo', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Select a vehicle', 'super-mechanic' ) . '</option>';
 		foreach ( $vehicles as $vehicle ) {
 			$label = trim( sprintf( '%s %s', isset( $vehicle['make'] ) ? $vehicle['make'] : '', isset( $vehicle['model'] ) ? $vehicle['model'] : '' ) );
 			if ( ! empty( $vehicle['plate'] ) ) {
@@ -783,7 +783,7 @@ class Appointment_Admin_Controller {
 			} elseif ( ! empty( $vehicle['vin'] ) ) {
 				$label .= ' - ' . $vehicle['vin'];
 			}
-			echo '<option value="' . esc_attr( absint( $vehicle['id'] ) ) . '" ' . selected( absint( $selected ), absint( $vehicle['id'] ), false ) . '>' . esc_html( '' !== trim( $label ) ? $label : __( 'Vehiculo sin identificar', 'super-mechanic' ) ) . '</option>';
+			echo '<option value="' . esc_attr( absint( $vehicle['id'] ) ) . '" ' . selected( absint( $selected ), absint( $vehicle['id'] ), false ) . '>' . esc_html( '' !== trim( $label ) ? $label : __( 'Unidentified vehicle', 'super-mechanic' ) ) . '</option>';
 		}
 		echo '</select></td>';
 		echo '</tr>';
@@ -798,9 +798,9 @@ class Appointment_Admin_Controller {
 	 */
 	protected function render_mechanic_select_field( $selected, array $mechanics ) {
 		echo '<tr>';
-		echo '<th scope="row"><label for="assigned_to">' . esc_html__( 'Mecanico asignado', 'super-mechanic' ) . '</label></th>';
+		echo '<th scope="row"><label for="assigned_to">' . esc_html__( 'Assigned mechanic', 'super-mechanic' ) . '</label></th>';
 		echo '<td><select name="assigned_to" id="assigned_to" required>';
-		echo '<option value="0">' . esc_html__( 'Selecciona un mecanico', 'super-mechanic' ) . '</option>';
+		echo '<option value="0">' . esc_html__( 'Select a mechanic', 'super-mechanic' ) . '</option>';
 		foreach ( $mechanics as $mechanic ) {
 			echo '<option value="' . esc_attr( absint( $mechanic['id'] ) ) . '" ' . selected( absint( $selected ), absint( $mechanic['id'] ), false ) . '>' . esc_html( $mechanic['display_name'] ) . '</option>';
 		}
@@ -906,7 +906,7 @@ class Appointment_Admin_Controller {
 	 */
 	protected function ensure_permissions() {
 		if ( ! current_user_can( 'sm_manage_processes' ) ) {
-			wp_die( esc_html__( 'No tienes permisos suficientes para gestionar citas.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'You do not have sufficient permissions to manage appointments.', 'super-mechanic' ) );
 		}
 	}
 
@@ -1055,3 +1055,7 @@ class Appointment_Admin_Controller {
 		return gmdate( 'Y-m-d', $timestamp );
 	}
 }
+
+
+
+
