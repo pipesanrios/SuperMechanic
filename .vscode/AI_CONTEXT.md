@@ -78,7 +78,6 @@ CAPAS TRANSVERSALES
 
 No activas todavía:
 
-- API pública / integraciones externas
 - SaaS real
 
 ==================================================
@@ -172,7 +171,7 @@ ESTADO ACTUAL RESUMIDO
 
 Versión real:
 - plugin: `0.1.0`
-- schema: `1.14.0`
+- schema: `1.15.0`
 
 Fases consolidadas:
 - 12A–12E
@@ -214,6 +213,10 @@ Fases consolidadas:
 - 35A
 - 35B
 - 35C
+- 36A
+- 36B
+- 36C-1
+- 36C-2
 
 Resumen de hitos recientes:
 - reports consolidado y avanzado
@@ -245,6 +248,10 @@ Resumen de hitos recientes:
 - FASE 35A activa en código: base multi-business real en núcleo transaccional (`clients`, `vehicles`, `client_vehicles`, `processes`, `quotes`, `invoices`, `payments`) con `business_id`, fallback legacy `1` y backfill idempotente separado
 - FASE 35B activa en código: enforcement tenant-aware transversal en entidades diferidas (`quote_items`, `invoice_items`, `process_step_logs`, `appointments`, `appointment_calendar_sync`, `attachments`, `comments`, `notifications`), hardening `ownership + business_id` en `Access_Control_Service` y filtros de reportes aislados por negocio
 - FASE 35C activa en código: entidad `sm_businesses` + módulo `includes/businesses/*`, negocio default legacy (`id=1`), selector operativo por usuario (`sm_active_business_id`) y resolución de contexto con prioridad `user meta -> sm_settings.business.business_id -> default`
+- FASE 36A activa en código: API pública base separada con namespace `super-mechanic-public/v1`, auth por API key propia del plugin (`sm_settings.public_api` con `key_hash`, `business_id`, `scopes`, `status`, `last_used_at`), resolución tenant-aware desde credencial y endpoints read-only mínimos `business`, `processes`, `appointments` con payload explícito y hardening de filtros/paginación
+- FASE 36B activa en código: base de webhooks outbound por negocio con tablas `sm_webhooks` y `sm_webhook_deliveries`, catálogo público inicial (`process.created`, `process.status_changed`, `appointment.created`, `appointment.status_changed`), entrega asíncrona firmada (`HMAC-SHA256`) y retries básicos controlados con idempotencia por `webhook_id + event_id`
+- FASE 36C-1 activa en código: primera write pública mínima y controlada para citas con endpoint `POST /wp-json/super-mechanic-public/v1/appointments/{id}/cancel`, scope `appointments:cancel`, validación de transición (`scheduled|confirmed|in_progress`), idempotencia por transient (24h) con `idempotency_key` y tenant-safety explícito por `business_id` de credencial en lookup+update
+- FASE 36C-2 activa en código: segunda write pública mínima y controlada para citas con endpoint `POST /wp-json/super-mechanic-public/v1/appointments/{id}/confirm`, scope `appointments:confirm`, confirmación permitida solo desde `scheduled`, respuesta estable si ya está `confirmed`, bloqueo `409` para `cancelled|completed|in_progress` e idempotencia por transient (24h) reutilizando `idempotency_key`
 
 ==================================================
 DEUDA TÉCNICA VIVA
@@ -253,7 +260,7 @@ DEUDA TÉCNICA VIVA
 - `includes/class-rest-api.php`, `includes/class-hooks.php` y `includes/class-post-types.php` siguen como placeholders / no activos
 - rutas admin de PDF de quotes/invoices siguen como excepción controlada
 - `Process_Admin_Controller` y `Report_Service` siguen siendo puntos a vigilar si crecen más
-- no hay todavía API pública productiva (solo API interna autenticada; cliente/admin read-only más dos writes internos admin mínimos en procesos)
+- API pública productiva ya incluye writes mínimas controladas de cita (`cancel` y `confirm`); faltan gestión admin de webhooks/credenciales, observabilidad avanzada y evaluación de próximas expansiones contractuales sin abrir CRUD público amplio
 - no hay CI/CD externo real
 - no hay validación runtime completa en WordPress automatizada
 - invoices PDF sigue pendiente mientras no exista motor PDF activo en entorno

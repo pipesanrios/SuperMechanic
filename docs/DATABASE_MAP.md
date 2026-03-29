@@ -2,7 +2,7 @@
 
 ## Alcance real del schema actual
 
-Este documento refleja el schema real del plugin en la version `1.14.0` definida en `includes/database/class-schema.php`.
+Este documento refleja el schema real del plugin en la version `1.15.0` definida en `includes/database/class-schema.php`.
 
 Aclaraciones importantes:
 
@@ -23,6 +23,7 @@ Aclaraciones importantes:
 - la Fase 32A de citas agrega la tabla `sm_appointments` como cambio minimo indispensable para agenda operativa
 - la Fase 32B-2 agrega la tabla `sm_appointment_calendar_sync` para persistencia desacoplada de sincronizacion 1-way con Google Calendar (sin contaminar `sm_appointments`)
 - la Fase 35C agrega la tabla `sm_businesses` para operación multi-store visible con negocio legacy default
+- la Fase 36B agrega las tablas `sm_webhooks` y `sm_webhook_deliveries` para infraestructura outbound pública con control de entrega e idempotencia
 
 --------------------------------------------------
 
@@ -68,6 +69,74 @@ Indices importantes:
 - `slug` unico
 - `status`
 - `is_default`
+
+--------------------------------------------------
+
+Tabla: sm_webhooks
+
+Proposito:
+Registrar endpoints de webhooks outbound públicos por negocio.
+
+Columnas principales:
+- `id`
+- `business_id`
+- `name`
+- `endpoint_url`
+- `secret_encrypted`
+- `secret_hash`
+- `events_json`
+- `status`
+- `last_used_at`
+- `created_at`
+- `updated_at`
+
+Clave primaria:
+- `id`
+
+Claves foraneas logicas:
+- `business_id` -> `sm_businesses.id`
+- `sm_webhook_deliveries.webhook_id`
+
+Indices importantes:
+- `business_id`
+- `status`
+
+--------------------------------------------------
+
+Tabla: sm_webhook_deliveries
+
+Proposito:
+Persistir cola y estado de entregas outbound de webhooks públicos.
+
+Columnas principales:
+- `id`
+- `business_id`
+- `webhook_id`
+- `event_key`
+- `event_id`
+- `payload_json`
+- `status`
+- `attempts`
+- `next_retry_at`
+- `last_attempt_at`
+- `last_http_code`
+- `last_error`
+- `delivered_at`
+- `created_at`
+- `updated_at`
+
+Clave primaria:
+- `id`
+
+Claves foraneas logicas:
+- `business_id` -> `sm_businesses.id`
+- `webhook_id` -> `sm_webhooks.id`
+
+Indices importantes:
+- `webhook_event (webhook_id,event_id)` unico para idempotencia
+- `business_id`
+- `status_next_retry (status,next_retry_at)`
+- `event_key`
 
 --------------------------------------------------
 
@@ -994,6 +1063,8 @@ Relaciones principales del schema real:
 - `sm_processes` -> `sm_notifications` por `sm_notifications.process_id`
 - `sm_clients` -> `sm_comments` por `sm_comments.client_id`
 - `sm_vehicles` -> `sm_comments` por `sm_comments.vehicle_id`
+- `sm_businesses` -> `sm_webhooks` por `sm_webhooks.business_id`
+- `sm_webhooks` -> `sm_webhook_deliveries` por `sm_webhook_deliveries.webhook_id`
 
 ## Reglas de integridad y acceso relevantes
 
@@ -1349,6 +1420,17 @@ Si el schema cambia en futuras fases, actualizar tambien:
 - Migración/backfill en `Tenancy_Backfill_Migrator`:
   - upsert de negocio default
   - reparación de huérfanos `business_id` a `1` cuando no existe negocio referenciado
+
+## Nota Fase 36B. Webhooks / eventos outbound
+
+- La Fase 36B modifica schema y actualiza versión a `1.15.0`.
+- Se agregan tablas:
+  - `sm_webhooks`
+  - `sm_webhook_deliveries`
+- `sm_webhooks` registra endpoints por negocio con secreto y catálogo de eventos públicos permitidos.
+- `sm_webhook_deliveries` persiste cola asíncrona, estado de entrega, retries y errores.
+- La idempotencia de entrega se asegura con índice único `webhook_event (webhook_id,event_id)`.
+- El alcance 36B no agrega writes públicos funcionales ni altera tablas de procesos/citas existentes.
 
 ## Nota Fase 31A. Base local de licencias
 

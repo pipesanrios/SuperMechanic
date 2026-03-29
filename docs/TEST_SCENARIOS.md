@@ -475,3 +475,77 @@ Resultado esperado:
 - comentarios de proceso editables y eliminables sin sacar lógica de `Comment_Service`
 - adjuntos con acción útil `Abrir`
 - botón copiar funcional en panel de shortcodes
+
+==================================================
+ESCENARIO 22 — API PÚBLICA READ-ONLY (36A)
+==================================================
+
+Estado Fase 36A: OK (validación técnica; sin runtime WordPress formal en este cierre)
+
+Flujo:
+
+Integración externa con API key válida
+→ consulta `/business`, `/processes`, `/appointments`
+
+Resultado esperado:
+
+- namespace público separado de API interna
+- `business_id` resuelto desde credencial
+- payload público mínimo sin datos sensibles
+- paginación y filtros sanitizados
+
+==================================================
+ESCENARIO 23 — WEBHOOKS OUTBOUND PÚBLICOS (36B)
+==================================================
+
+Estado Fase 36B: PARCIAL (validación sintáctica y documental; sin prueba E2E runtime en este cierre)
+
+Flujo:
+
+Evento interno permitido
+→ encolado asíncrono de delivery
+→ envío HTTP firmado al endpoint del negocio
+
+Resultado esperado:
+
+- evento filtrado por `business_id` del recurso interno
+- firma `HMAC-SHA256` con headers `X-SM-*`
+- idempotencia por `webhook_id + event_id`
+- retry solo en red/timeout/429/5xx con backoff definido
+
+==================================================
+ESCENARIO 24 — CANCELACIÓN PÚBLICA CONTROLADA (36C-1)
+==================================================
+
+Estado Fase 36C-1: PARCIAL (validación técnica/documental; sin runtime WordPress formal en este cierre)
+
+Flujo:
+
+Integración externa con API key + scope `appointments:cancel`
+→ `POST /appointments/{id}/cancel`
+
+Resultado esperado:
+
+- lookup/update tenant-safe por `appointment_id + business_id` de credencial
+- cancelación permitida solo en estados definidos
+- si ya está `cancelled`, éxito estable/idempotente
+- idempotencia por `idempotency_key` (body/header) con transient 24h
+
+==================================================
+ESCENARIO 25 — CONFIRMACIÓN PÚBLICA CONTROLADA (36C-2)
+==================================================
+
+Estado Fase 36C-2: PARCIAL (validación sintáctica y documental; sin prueba runtime WordPress formal en este cierre)
+
+Flujo:
+
+Integración externa con API key + scope `appointments:confirm`
+→ `POST /appointments/{id}/confirm`
+
+Resultado esperado:
+
+- lookup/update tenant-safe por `appointment_id + business_id` de credencial
+- transición permitida solo `scheduled -> confirmed`
+- si ya está `confirmed`, éxito estable/idempotente
+- si está `cancelled`, `completed` o `in_progress`, respuesta `409`
+- idempotencia por `idempotency_key` (body/header) con transient 24h

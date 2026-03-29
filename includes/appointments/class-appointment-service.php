@@ -304,6 +304,182 @@ class Appointment_Service {
 	}
 
 	/**
+	 * Cancel one appointment using an explicit business boundary.
+	 *
+	 * @param int    $appointment_id Appointment ID.
+	 * @param int    $business_id    Business ID.
+	 * @param string $reason         Optional reason.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public function cancel_appointment_for_business( $appointment_id, $business_id, $reason = '' ) {
+		$appointment_id = absint( $appointment_id );
+		$business_id    = max( 1, absint( $business_id ) );
+		$reason         = mb_substr( sanitize_text_field( (string) $reason ), 0, 280 );
+
+		if ( $appointment_id <= 0 ) {
+			return new WP_Error(
+				'sm_public_api_invalid_appointment_id',
+				__( 'El identificador de cita no es válido.', 'super-mechanic' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$current = $this->repository->get_by_id_for_business( $appointment_id, $business_id );
+		if ( ! is_array( $current ) ) {
+			return new WP_Error(
+				'sm_public_api_appointment_not_found',
+				__( 'No se encontró la cita solicitada.', 'super-mechanic' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$current_status = sanitize_key( isset( $current['appointment_status'] ) ? (string) $current['appointment_status'] : '' );
+		if ( 'cancelled' === $current_status ) {
+			return array(
+				'appointment'       => $current,
+				'already_cancelled' => true,
+			);
+		}
+
+		$allowed_transitions = array( 'scheduled', 'confirmed', 'in_progress' );
+		if ( ! in_array( $current_status, $allowed_transitions, true ) ) {
+			return new WP_Error(
+				'sm_public_api_appointment_cancel_forbidden_status',
+				__( 'La cita no puede cancelarse desde su estado actual.', 'super-mechanic' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$updated = $this->repository->update_status_for_business( $appointment_id, $business_id, 'cancelled' );
+		if ( ! $updated ) {
+			return new WP_Error(
+				'sm_public_api_appointment_cancel_failed',
+				__( 'No fue posible cancelar la cita.', 'super-mechanic' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$current_after = $this->repository->get_by_id_for_business( $appointment_id, $business_id );
+		if ( ! is_array( $current_after ) ) {
+			return new WP_Error(
+				'sm_public_api_appointment_not_found',
+				__( 'No se encontró la cita solicitada.', 'super-mechanic' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$this->dispatch_event(
+			'appointment_status_changed',
+			array(
+				'appointment_id' => $appointment_id,
+				'appointment'    => $current_after,
+				'old_status'     => $current_status,
+				'new_status'     => 'cancelled',
+				'source'         => 'public_api',
+				'reason'         => $reason,
+			)
+		);
+		$this->dispatch_event(
+			'appointment_cancelled',
+			array(
+				'appointment_id' => $appointment_id,
+				'appointment'    => $current_after,
+				'old_status'     => $current_status,
+				'new_status'     => 'cancelled',
+				'source'         => 'public_api',
+				'reason'         => $reason,
+			)
+		);
+
+		return array(
+			'appointment'       => $current_after,
+			'already_cancelled' => false,
+		);
+	}
+
+	/**
+	 * Confirm one appointment using an explicit business boundary.
+	 *
+	 * @param int    $appointment_id Appointment ID.
+	 * @param int    $business_id    Business ID.
+	 * @param string $reason         Optional reason.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public function confirm_appointment_for_business( $appointment_id, $business_id, $reason = '' ) {
+		$appointment_id = absint( $appointment_id );
+		$business_id    = max( 1, absint( $business_id ) );
+		$reason         = mb_substr( sanitize_text_field( (string) $reason ), 0, 280 );
+
+		if ( $appointment_id <= 0 ) {
+			return new WP_Error(
+				'sm_public_api_invalid_appointment_id',
+				__( 'El identificador de cita no es válido.', 'super-mechanic' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$current = $this->repository->get_by_id_for_business( $appointment_id, $business_id );
+		if ( ! is_array( $current ) ) {
+			return new WP_Error(
+				'sm_public_api_appointment_not_found',
+				__( 'No se encontró la cita solicitada.', 'super-mechanic' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$current_status = sanitize_key( isset( $current['appointment_status'] ) ? (string) $current['appointment_status'] : '' );
+		if ( 'confirmed' === $current_status ) {
+			return array(
+				'appointment'       => $current,
+				'already_confirmed' => true,
+			);
+		}
+
+		if ( 'scheduled' !== $current_status ) {
+			return new WP_Error(
+				'sm_public_api_appointment_confirm_forbidden_status',
+				__( 'La cita no puede confirmarse desde su estado actual.', 'super-mechanic' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$updated = $this->repository->update_status_for_business( $appointment_id, $business_id, 'confirmed' );
+		if ( ! $updated ) {
+			return new WP_Error(
+				'sm_public_api_appointment_confirm_failed',
+				__( 'No fue posible confirmar la cita.', 'super-mechanic' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$current_after = $this->repository->get_by_id_for_business( $appointment_id, $business_id );
+		if ( ! is_array( $current_after ) ) {
+			return new WP_Error(
+				'sm_public_api_appointment_not_found',
+				__( 'No se encontró la cita solicitada.', 'super-mechanic' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$this->dispatch_event(
+			'appointment_status_changed',
+			array(
+				'appointment_id' => $appointment_id,
+				'appointment'    => $current_after,
+				'old_status'     => $current_status,
+				'new_status'     => 'confirmed',
+				'source'         => 'public_api',
+				'reason'         => $reason,
+			)
+		);
+
+		return array(
+			'appointment'       => $current_after,
+			'already_confirmed' => false,
+		);
+	}
+
+	/**
 	 * Override event dispatcher after bootstrap wiring.
 	 *
 	 * @param Event_Dispatcher $event_dispatcher Event dispatcher.

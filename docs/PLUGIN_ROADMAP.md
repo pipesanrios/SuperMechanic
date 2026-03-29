@@ -328,10 +328,118 @@ Restricciones mantenidas en Fase 35:
 - no alterar numeradores globales `quote_number`/`invoice_number` en 35A/35B/35C
 
 ==================================================
+FASE 36 — API PÚBLICA / INTEGRACIONES EXTERNAS
+==================================================
+
+36A (completada):
+
+- API pública separada de API interna con namespace propio:
+  - `super-mechanic-public/v1`
+- autenticación externa por API key propia del plugin (no Application Password como auth principal)
+- persistencia de credenciales en `sm_settings.public_api.api_keys` con:
+  - `key_hash`
+  - `business_id`
+  - `scopes`
+  - `status`
+  - `last_used_at`
+- resolución tenant-aware por credencial (no por usuario actual)
+- endpoints públicos read-only mínimos:
+  - `GET /business` (resumen de negocio)
+  - `GET /processes` (listado operativo acotado)
+  - `GET /appointments` (listado operativo acotado)
+- hardening aplicado:
+  - payload público explícito/minimalista
+  - sanitización de filtros
+  - paginación/límites
+  - errores REST estables
+
+Restricciones mantenidas en 36A:
+
+- sin writes públicos
+- sin pagos
+- sin documentos/descargas
+- sin comentarios internos
+- sin exposición de `file_url`/`file_path`/notas internas/secrets
+- sin cambios de schema
+- sin reutilizar endpoints internos `admin/client`
+
+36B (completada):
+
+- infraestructura outbound pública base por negocio con persistencia operativa en:
+  - `sm_webhooks`
+  - `sm_webhook_deliveries`
+- catálogo público inicial:
+  - `process.created`
+  - `process.status_changed`
+  - `appointment.created`
+  - `appointment.status_changed`
+- entrega asíncrona firmada (`HMAC-SHA256`) con headers:
+  - `X-SM-Signature`
+  - `X-SM-Timestamp`
+  - `X-SM-Delivery-Id`
+  - `X-SM-Event`
+- retries básicos:
+  - hasta 3 reintentos (`1m / 5m / 15m`)
+  - solo para red/timeout/`429`/`5xx`
+  - sin retry para `4xx` funcional
+- idempotencia de entrega por `UNIQUE (webhook_id, event_id)` para evitar duplicados
+- aislamiento tenant-aware estricto por `business_id` resuelto desde evento interno
+
+Restricciones mantenidas en 36B:
+
+- sin writes públicos nuevos
+- sin pagos/documentos/descargas
+- sin exposición de payloads internos completos
+- sin exposición de `file_url`/`file_path`/notas internas/secrets
+- separación mantenida entre API interna y superficie pública outbound
+
+36C-1 (completada):
+
+- write pública mínima habilitada:
+  - `POST /appointments/{id}/cancel`
+- scope nuevo:
+  - `appointments:cancel`
+- validaciones contractuales estrictas:
+  - API key activa + scope requerido
+  - tenant boundary por credencial (`business_id`)
+  - cancelación permitida solo desde `scheduled`, `confirmed`, `in_progress`
+  - estado `cancelled` responde éxito estable/idempotente
+- idempotencia:
+  - `idempotency_key` en body o `X-Idempotency-Key`
+  - clave: `business_id + appointment_id + action + idempotency_key`
+  - transient con TTL 24h
+- restricciones mantenidas:
+  - sin create/confirm públicos
+  - sin CRUD público amplio
+  - sin pagos/documentos/comentarios internos
+  - sin cambios de schema
+
+36C-2 (completada):
+
+- segunda write pública mínima habilitada:
+  - `POST /appointments/{id}/confirm`
+- scope nuevo:
+  - `appointments:confirm`
+- validaciones contractuales estrictas:
+  - API key activa + scope requerido
+  - tenant boundary por credencial (`business_id`)
+  - confirmación permitida solo desde `scheduled`
+  - estado `confirmed` responde éxito estable/idempotente
+  - estados `cancelled`, `completed` e `in_progress` responden `409`
+- idempotencia:
+  - `idempotency_key` en body o `X-Idempotency-Key`
+  - clave: `business_id + appointment_id + action + idempotency_key`
+  - transient con TTL 24h
+- restricciones mantenidas:
+  - sin create/reprogramación públicos
+  - sin CRUD público amplio
+  - sin pagos/documentos/comentarios internos
+  - sin cambios de schema
+
+==================================================
 PRÓXIMAS FASES
 ==================================================
 
-- REST API real
 - WooCommerce completo
 - sistema documental avanzado (PDF engine)
 - auditoría avanzada

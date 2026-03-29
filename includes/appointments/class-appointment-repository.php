@@ -55,6 +55,34 @@ class Appointment_Repository {
 	}
 
 	/**
+	 * Get one appointment by explicit tenant boundary.
+	 *
+	 * @param int $id          Appointment ID.
+	 * @param int $business_id Business ID.
+	 * @return array<string,mixed>|null
+	 */
+	public function get_by_id_for_business( $id, $business_id ) {
+		global $wpdb;
+
+		$query = $wpdb->prepare(
+			"SELECT a.*, CONCAT_WS(' ', c.first_name, c.last_name) AS client_name, v.make AS vehicle_make, v.model AS vehicle_model, v.plate AS vehicle_plate, v.vin AS vehicle_vin, p.title AS process_title, u.display_name AS mechanic_name
+			FROM {$this->get_table_name()} a
+			LEFT JOIN {$this->get_clients_table_name()} c ON c.id = a.client_id
+			LEFT JOIN {$this->get_vehicles_table_name()} v ON v.id = a.vehicle_id
+			LEFT JOIN {$this->get_processes_table_name()} p ON p.id = a.process_id
+			LEFT JOIN {$this->get_users_table_name()} u ON u.ID = a.assigned_to
+			WHERE a.id = %d
+			AND a.business_id = %d
+			LIMIT 1",
+			absint( $id ),
+			max( 1, absint( $business_id ) )
+		);
+		$row   = $wpdb->get_row( $query, ARRAY_A );
+
+		return is_array( $row ) ? $row : null;
+	}
+
+	/**
 	 * Get appointments list.
 	 *
 	 * @param array<string,mixed> $args Query args.
@@ -258,6 +286,34 @@ class Appointment_Repository {
 				'business_id' => $this->resolve_business_id(),
 			),
 			$this->get_formats_for_data( $data ),
+			array( '%d', '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
+	 * Update appointment status by explicit tenant boundary.
+	 *
+	 * @param int    $id                 Appointment ID.
+	 * @param int    $business_id        Business ID.
+	 * @param string $appointment_status Next status.
+	 * @return bool
+	 */
+	public function update_status_for_business( $id, $business_id, $appointment_status ) {
+		global $wpdb;
+
+		$result = $wpdb->update(
+			$this->get_table_name(),
+			array(
+				'appointment_status' => sanitize_key( (string) $appointment_status ),
+				'updated_at'         => current_time( 'mysql' ),
+			),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => max( 1, absint( $business_id ) ),
+			),
+			array( '%s', '%s' ),
 			array( '%d', '%d' )
 		);
 

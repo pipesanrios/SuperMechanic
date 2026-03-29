@@ -204,6 +204,13 @@ class Settings_Service {
 		$settings['google_calendar']['watch_last_message_number'] = isset( $settings['google_calendar']['watch_last_message_number'] ) ? absint( $settings['google_calendar']['watch_last_message_number'] ) : 0;
 		$settings['google_calendar']['watch_last_webhook_at'] = isset( $settings['google_calendar']['watch_last_webhook_at'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_last_webhook_at'] ) : '';
 		$settings['google_calendar']['watch_next_sync_token'] = isset( $settings['google_calendar']['watch_next_sync_token'] ) ? sanitize_text_field( (string) $settings['google_calendar']['watch_next_sync_token'] ) : '';
+		$settings['public_api']['enabled']                    = ! empty( $settings['public_api']['enabled'] );
+		$settings['public_api']['webhooks_enabled']           = ! empty( $settings['public_api']['webhooks_enabled'] );
+		$settings['public_api']['api_keys']                   = $this->normalize_public_api_keys(
+			isset( $settings['public_api']['api_keys'] ) && is_array( $settings['public_api']['api_keys'] )
+				? $settings['public_api']['api_keys']
+				: array()
+		);
 
 		if ( empty( $settings['process']['enabled_process_types'] ) ) {
 			$settings['process']['enabled_process_types'] = $defaults['process']['enabled_process_types'];
@@ -309,6 +316,95 @@ class Settings_Service {
 				'watch_last_webhook_at'  => '',
 				'watch_next_sync_token'  => '',
 			),
+			'public_api' => array(
+				'enabled'          => false,
+				'webhooks_enabled' => true,
+				'api_keys'         => array(),
+			),
 		);
+	}
+
+	/**
+	 * Normalize public API key records.
+	 *
+	 * @param array<int,mixed> $keys Raw keys.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function normalize_public_api_keys( array $keys ) {
+		$normalized = array();
+
+		foreach ( $keys as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$key_hash = isset( $row['key_hash'] ) ? sanitize_text_field( (string) $row['key_hash'] ) : '';
+			$raw_key  = isset( $row['key'] ) ? trim( sanitize_text_field( (string) $row['key'] ) ) : '';
+
+			if ( '' === $key_hash && '' !== $raw_key ) {
+				$key_hash = $this->hash_public_api_key( $raw_key );
+			}
+
+			if ( '' === $key_hash ) {
+				continue;
+			}
+
+			$key_id = isset( $row['key_id'] ) ? sanitize_key( (string) $row['key_id'] ) : '';
+			if ( '' === $key_id ) {
+				$key_id = 'key_' . substr( $key_hash, 0, 12 );
+			}
+
+			$status = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'inactive';
+			if ( ! in_array( $status, array( 'active', 'inactive', 'revoked' ), true ) ) {
+				$status = 'inactive';
+			}
+
+			$scopes = isset( $row['scopes'] ) && is_array( $row['scopes'] )
+				? array_values( array_unique( array_filter( array_map( array( $this, 'normalize_public_api_scope' ), $row['scopes'] ) ) ) )
+				: array();
+
+			$normalized[] = array(
+				'key_id'       => $key_id,
+				'label'        => isset( $row['label'] ) ? sanitize_text_field( (string) $row['label'] ) : '',
+				'key_hash'     => $key_hash,
+				'business_id'  => max( 1, absint( isset( $row['business_id'] ) ? $row['business_id'] : 1 ) ),
+				'scopes'       => $scopes,
+				'status'       => $status,
+				'last_used_at' => isset( $row['last_used_at'] ) ? sanitize_text_field( (string) $row['last_used_at'] ) : '',
+				'created_at'   => isset( $row['created_at'] ) ? sanitize_text_field( (string) $row['created_at'] ) : '',
+			);
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Hash a raw public API key.
+	 *
+	 * @param string $raw_key Raw key.
+	 * @return string
+	 */
+	protected function hash_public_api_key( $raw_key ) {
+		return hash_hmac( 'sha256', (string) $raw_key, wp_salt( 'sm_public_api_keys' ) );
+	}
+
+	/**
+	 * Normalize one public API scope while preserving `:` semantics.
+	 *
+	 * @param mixed $scope Raw scope.
+	 * @return string
+	 */
+	protected function normalize_public_api_scope( $scope ) {
+		$scope = strtolower( trim( sanitize_text_field( (string) $scope ) ) );
+
+		if ( '*' === $scope ) {
+			return '*';
+		}
+
+		if ( '' === $scope || ! preg_match( '/^[a-z0-9_:-]+$/', $scope ) ) {
+			return '';
+		}
+
+		return $scope;
 	}
 }

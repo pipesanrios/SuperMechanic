@@ -1139,6 +1139,63 @@ Actualización Fase 27A:
   - sin `sm_public_tracking`
   - sin endpoint de comentarios cliente en API
 
+Actualización Fase 27B/27C:
+- integración real adicional:
+  - `includes/dashboard/class-admin-rest-controller.php`
+- alcance:
+  - API interna admin activa (read-only + acciones internas mínimas controladas en 27C-B)
+
+Actualización Fase 36A:
+- integración real adicional (API pública separada):
+  - `includes/integrations/public-api/class-public-rest-controller.php`
+  - `includes/integrations/public-api/class-public-api-auth-service.php`
+  - `includes/integrations/public-api/class-public-api-service.php`
+- namespace:
+  - `super-mechanic-public/v1`
+- endpoints read-only públicos:
+  - `GET /business`
+  - `GET /processes`
+  - `GET /appointments`
+- seguridad:
+  - API key propia del plugin con `business_id` por credencial y scopes
+
+Actualización Fase 36B:
+- integración real adicional (webhooks outbound públicos):
+  - `includes/integrations/public-api/class-public-webhook-event-catalog.php`
+  - `includes/integrations/public-api/class-public-webhook-repository.php`
+  - `includes/integrations/public-api/class-public-webhook-delivery-repository.php`
+  - `includes/integrations/public-api/class-public-webhook-service.php`
+  - `includes/integrations/public-api/class-public-webhook-delivery-service.php`
+- tablas operativas:
+  - `sm_webhooks`
+  - `sm_webhook_deliveries`
+- hardening:
+  - firma `HMAC-SHA256`
+  - delivery asíncrona
+  - idempotencia por `webhook_id + event_id`
+  - retries acotados
+
+Actualización Fase 36C-1:
+- integración real adicional (write pública mínima de cita):
+  - `POST /appointments/{id}/cancel`
+- scope:
+  - `appointments:cancel`
+- hardening:
+  - tenant boundary explícito por `appointment_id + business_id` de credencial
+  - idempotencia por transient (24h) con `idempotency_key`
+  - idempotencia natural por estado cuando no hay key
+
+Actualización Fase 36C-2:
+- integración real adicional (segunda write pública mínima de cita):
+  - `POST /appointments/{id}/confirm`
+- scope:
+  - `appointments:confirm`
+- hardening:
+  - tenant boundary explícito por `appointment_id + business_id` de credencial
+  - confirmación solo desde `scheduled`
+  - bloqueo `409` para `cancelled`, `completed` e `in_progress`
+  - idempotencia por transient (24h) con `idempotency_key`
+
 --------------------------------------------------
 
 ## WooCommerce Integration

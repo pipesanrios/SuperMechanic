@@ -49,6 +49,7 @@
 - Communication / Notifications
 - Automation
 - Businesses
+- Integrations / Public API
 - Documents / PDF / Secure Downloads
 - Client Portal por shortcodes
 - Scripts locales de validacion tecnica en `scripts/`
@@ -58,6 +59,29 @@
 - `includes/class-rest-api.php`: placeholder vacio.
 - `includes/modules/*`: arbol paralelo no conectado.
 - `includes/integrations/woocommerce/*`: scaffold tecnico no integrado.
+
+## API pública activa (36A/36B/36C)
+
+- Namespace público separado:
+  - `super-mechanic-public/v1`
+- Endpoints read-only activos:
+  - `GET /wp-json/super-mechanic-public/v1/business`
+  - `GET /wp-json/super-mechanic-public/v1/processes`
+  - `GET /wp-json/super-mechanic-public/v1/appointments`
+- Endpoints write mínimos activos:
+  - `POST /wp-json/super-mechanic-public/v1/appointments/{id}/cancel`
+  - `POST /wp-json/super-mechanic-public/v1/appointments/{id}/confirm`
+- Scopes públicos activos:
+  - `business:read`
+  - `processes:read`
+  - `appointments:read`
+  - `appointments:cancel`
+  - `appointments:confirm`
+- Webhooks outbound activos:
+  - catálogo: `process.created`, `process.status_changed`, `appointment.created`, `appointment.status_changed`
+  - entrega asíncrona: `sm_public_webhook_process_delivery`
+  - firma: `HMAC-SHA256` sobre `timestamp.delivery_id.raw_body`
+  - headers: `X-SM-Signature`, `X-SM-Timestamp`, `X-SM-Delivery-Id`, `X-SM-Event`
 
 ## Dependencias entre modulos
 

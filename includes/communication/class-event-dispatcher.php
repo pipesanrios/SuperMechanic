@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Communication;
 
 use Super_Mechanic\Helpers\Document_Service;
+use Super_Mechanic\Integrations\Public_API\Public_Webhook_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -18,10 +19,11 @@ class Event_Dispatcher {
 	protected static $instance = null;
 	protected $notification_service;
 	protected $document_service;
+	protected $public_webhook_service;
 
-	public static function get_instance( Notification_Service $notification_service = null, Document_Service $document_service = null ) {
+	public static function get_instance( Notification_Service $notification_service = null, Document_Service $document_service = null, Public_Webhook_Service $public_webhook_service = null ) {
 		if ( null === self::$instance ) {
-			self::$instance = new self( $notification_service, $document_service );
+			self::$instance = new self( $notification_service, $document_service, $public_webhook_service );
 		} elseif ( $notification_service ) {
 			self::$instance->notification_service = $notification_service;
 		}
@@ -30,12 +32,17 @@ class Event_Dispatcher {
 			self::$instance->document_service = $document_service;
 		}
 
+		if ( null !== self::$instance && $public_webhook_service ) {
+			self::$instance->public_webhook_service = $public_webhook_service;
+		}
+
 		return self::$instance;
 	}
 
-	protected function __construct( Notification_Service $notification_service = null, Document_Service $document_service = null ) {
+	protected function __construct( Notification_Service $notification_service = null, Document_Service $document_service = null, Public_Webhook_Service $public_webhook_service = null ) {
 		$this->notification_service = $notification_service;
 		$this->document_service     = $document_service;
+		$this->public_webhook_service = $public_webhook_service;
 	}
 
 	public function register_hooks() {
@@ -67,7 +74,9 @@ class Event_Dispatcher {
 	}
 
 	public function handle_process_created( $payload ) {
-		$this->get_notification_service()->notify_process_created( is_array( $payload ) ? $payload : array() );
+		$payload = is_array( $payload ) ? $payload : array();
+		$this->get_notification_service()->notify_process_created( $payload );
+		$this->dispatch_public_webhook_event( 'process_created', $payload );
 	}
 
 	public function handle_process_step_changed( $payload ) {
@@ -75,7 +84,9 @@ class Event_Dispatcher {
 	}
 
 	public function handle_process_status_changed( $payload ) {
-		$this->get_notification_service()->notify_process_status_changed( is_array( $payload ) ? $payload : array() );
+		$payload = is_array( $payload ) ? $payload : array();
+		$this->get_notification_service()->notify_process_status_changed( $payload );
+		$this->dispatch_public_webhook_event( 'process_status_changed', $payload );
 	}
 
 	public function handle_process_finalized( $payload ) {
@@ -135,7 +146,9 @@ class Event_Dispatcher {
 	}
 
 	public function handle_appointment_created( $payload ) {
-		$this->get_notification_service()->notify_appointment_created( is_array( $payload ) ? $payload : array() );
+		$payload = is_array( $payload ) ? $payload : array();
+		$this->get_notification_service()->notify_appointment_created( $payload );
+		$this->dispatch_public_webhook_event( 'appointment_created', $payload );
 	}
 
 	public function handle_appointment_updated( $payload ) {
@@ -143,7 +156,9 @@ class Event_Dispatcher {
 	}
 
 	public function handle_appointment_status_changed( $payload ) {
-		$this->get_notification_service()->notify_appointment_status_changed( is_array( $payload ) ? $payload : array() );
+		$payload = is_array( $payload ) ? $payload : array();
+		$this->get_notification_service()->notify_appointment_status_changed( $payload );
+		$this->dispatch_public_webhook_event( 'appointment_status_changed', $payload );
 	}
 
 	public function handle_appointment_cancelled( $payload ) {
@@ -194,5 +209,29 @@ class Event_Dispatcher {
 		}
 
 		return $this->document_service;
+	}
+
+	/**
+	 * Lazily resolve public webhook service.
+	 *
+	 * @return Public_Webhook_Service
+	 */
+	protected function get_public_webhook_service() {
+		if ( null === $this->public_webhook_service ) {
+			$this->public_webhook_service = new Public_Webhook_Service();
+		}
+
+		return $this->public_webhook_service;
+	}
+
+	/**
+	 * Dispatch an internal event into public outbound webhook pipeline.
+	 *
+	 * @param string               $internal_event Internal event key.
+	 * @param array<string, mixed> $payload        Event payload.
+	 * @return void
+	 */
+	protected function dispatch_public_webhook_event( $internal_event, array $payload ) {
+		$this->get_public_webhook_service()->queue_from_internal_event( $internal_event, $payload );
 	}
 }

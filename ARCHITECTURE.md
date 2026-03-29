@@ -211,7 +211,7 @@ Reglas:
 
 ### Versiones
 - plugin: `0.1.0`
-- schema: `1.14.0`
+- schema: `1.15.0`
 
 ### Fases consolidadas
 - 12A–12E
@@ -253,6 +253,10 @@ Reglas:
 - 35A
 - 35B
 - 35C
+- 36A
+- 36B
+- 36C-1
+- 36C-2
 
 ### Hitos recientes
 - reports consolidado
@@ -265,6 +269,9 @@ Reglas:
 - watch channels / webhook REST dedicado con idempotencia y renovación preventiva
 - notificaciones multicanal base (in-app + email desacoplado)
 - recordatorios automáticos de citas con `wp_cron` y deduplicación
+- API pública separada `super-mechanic-public/v1` con auth por API key tenant-aware
+- webhooks outbound públicos por negocio con firma `HMAC-SHA256`, idempotencia y retries básicos
+- write pública mínima de citas (`cancel` + `confirm`) con scopes dedicados e idempotencia por transient
 - `payment_receipt` lógico por `payment_id`
 - panel admin de shortcodes
 - scripts locales de validación técnica

@@ -55,6 +55,13 @@ use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Repository;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Webhook_Controller;
+use Super_Mechanic\Integrations\Public_API\Public_API_Auth_Service;
+use Super_Mechanic\Integrations\Public_API\Public_API_Service;
+use Super_Mechanic\Integrations\Public_API\Public_Webhook_Delivery_Service;
+use Super_Mechanic\Integrations\Public_API\Public_Webhook_Event_Catalog;
+use Super_Mechanic\Integrations\Public_API\Public_Webhook_Repository;
+use Super_Mechanic\Integrations\Public_API\Public_Webhook_Service;
+use Super_Mechanic\Integrations\Public_API\Public_REST_Controller;
 use Super_Mechanic\Maintenance\Maintenance_Admin_Controller;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Paperwork\Paperwork_Admin_Controller;
@@ -127,6 +134,13 @@ class Plugin {
 	protected $client_process_view_service;
 	protected $client_rest_controller;
 	protected $admin_rest_controller;
+	protected $public_api_auth_service;
+	protected $public_api_service;
+	protected $public_rest_controller;
+	protected $public_webhook_repository;
+	protected $public_webhook_event_catalog;
+	protected $public_webhook_delivery_service;
+	protected $public_webhook_service;
 	protected $update_service;
 	protected $appointment_service;
 	protected $appointment_admin_controller;
@@ -180,7 +194,11 @@ class Plugin {
 		$this->document_service              = new Document_Service( $this->pdf_service, $this->attachment_service, $this->invoice_service, $this->quote_service );
 		$this->download_service              = new Download_Service( $this->document_service );
 		$this->notification_service          = new Notification_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service );
-		$this->event_dispatcher              = Event_Dispatcher::get_instance( $this->notification_service, $this->document_service );
+		$this->public_webhook_repository     = new Public_Webhook_Repository();
+		$this->public_webhook_event_catalog  = new Public_Webhook_Event_Catalog();
+		$this->public_webhook_delivery_service = new Public_Webhook_Delivery_Service();
+		$this->public_webhook_service        = new Public_Webhook_Service( $this->settings_service, $this->public_webhook_repository, $this->public_webhook_delivery_service, $this->public_webhook_event_catalog );
+		$this->event_dispatcher              = Event_Dispatcher::get_instance( $this->notification_service, $this->document_service, $this->public_webhook_service );
 		$this->appointment_service->set_event_dispatcher( $this->event_dispatcher );
 		$this->appointment_reminder_scheduler = new Appointment_Reminder_Scheduler( $this->appointment_service, $this->notification_service, $this->event_dispatcher, $this->settings_service );
 		$this->automation_rule_engine       = new Automation_Rule_Engine( $this->settings_service );
@@ -189,6 +207,9 @@ class Plugin {
 		$this->client_process_view_service   = new Client_Process_View_Service( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->comment_service );
 		$this->client_rest_controller        = new Client_REST_Controller( $this->dashboard_service, $this->client_process_view_service, null, $this->quote_service, $this->process_service, $this->invoice_service );
 		$this->admin_rest_controller         = new Admin_REST_Controller( $this->process_service, null, null, $this->quote_service, $this->invoice_service, $this->comment_service );
+		$this->public_api_auth_service       = new Public_API_Auth_Service( $this->settings_service, $this->business_service );
+		$this->public_api_service            = new Public_API_Service( $this->business_service, $this->process_service, $this->appointment_service );
+		$this->public_rest_controller        = new Public_REST_Controller( $this->public_api_auth_service, $this->public_api_service );
 		$this->process_timeline_service      = new Process_Timeline_Service( $this->process_service, $this->attachment_service, $this->quote_service, $this->invoice_service, $this->comment_service, $this->notification_service );
 		$this->maintenance_admin_controller  = new Maintenance_Admin_Controller( $this->maintenance_service );
 		$this->pre_delivery_admin_controller = new Pre_Delivery_Admin_Controller( $this->pre_delivery_service );
@@ -245,6 +266,7 @@ class Plugin {
 	public function register_hooks() {
 		$this->assets->register_hooks();
 		$this->event_dispatcher->register_hooks();
+		$this->public_webhook_service->register_hooks();
 		$this->download_service->register_hooks();
 		$this->update_service->register_hooks();
 		$this->google_calendar_service->register_hooks();
@@ -282,6 +304,7 @@ class Plugin {
 		$this->client_comment_shortcodes->register_hooks();
 		$this->client_rest_controller->register_hooks();
 		$this->admin_rest_controller->register_hooks();
+		$this->public_rest_controller->register_hooks();
 		$this->appointment_ical_feed_controller->register_hooks();
 		$this->google_calendar_webhook_controller->register_hooks();
 	}

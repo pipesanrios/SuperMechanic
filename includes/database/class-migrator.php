@@ -36,6 +36,10 @@ class Migrator {
 
 		$results['tenancy_backfill'] = Tenancy_Backfill_Migrator::run();
 		$results['tenancy_business_backfill'] = $results['tenancy_backfill'];
+		$results['public_webhooks_schema'] = array(
+			'webhooks'           => 'sm_webhooks',
+			'webhook_deliveries' => 'sm_webhook_deliveries',
+		);
 
 		return $results;
 	}

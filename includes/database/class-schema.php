@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.14.0';
+		return '1.15.0';
 	}
 
 	/**
@@ -57,6 +57,8 @@ class Schema {
 			'attachments'       => $wpdb->prefix . 'sm_attachments',
 			'comments'          => $wpdb->prefix . 'sm_comments',
 			'notifications'     => $wpdb->prefix . 'sm_notifications',
+			'webhooks'          => $wpdb->prefix . 'sm_webhooks',
+			'webhook_deliveries' => $wpdb->prefix . 'sm_webhook_deliveries',
 		);
 	}
 
@@ -96,6 +98,8 @@ class Schema {
 		$attachments_table     = $tables['attachments'];
 		$comments_table        = $tables['comments'];
 		$notifications_table   = $tables['notifications'];
+		$webhooks_table        = $tables['webhooks'];
+		$webhook_deliveries_table = $tables['webhook_deliveries'];
 
 		return array(
 			"CREATE TABLE {$businesses_table} (
@@ -643,6 +647,44 @@ class Schema {
                 KEY is_read (is_read),
                 KEY is_system (is_system)
             ) {$charset_collate};",
+			"CREATE TABLE {$webhooks_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				name varchar(190) NOT NULL,
+				endpoint_url varchar(255) NOT NULL,
+				secret_encrypted longtext NOT NULL,
+				secret_hash varchar(191) NOT NULL,
+				events_json longtext NOT NULL,
+				status varchar(20) NOT NULL default 'inactive',
+				last_used_at datetime DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY (id),
+				KEY business_id (business_id),
+				KEY status (status)
+			) {$charset_collate};",
+			"CREATE TABLE {$webhook_deliveries_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				webhook_id bigint(20) unsigned NOT NULL,
+				event_key varchar(120) NOT NULL,
+				event_id varchar(191) NOT NULL,
+				payload_json longtext NOT NULL,
+				status varchar(20) NOT NULL default 'pending',
+				attempts smallint(5) unsigned NOT NULL default 0,
+				next_retry_at datetime DEFAULT NULL,
+				last_attempt_at datetime DEFAULT NULL,
+				last_http_code smallint(5) unsigned NOT NULL default 0,
+				last_error text DEFAULT NULL,
+				delivered_at datetime DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY (id),
+				UNIQUE KEY webhook_event (webhook_id,event_id),
+				KEY business_id (business_id),
+				KEY status_next_retry (status,next_retry_at),
+				KEY event_key (event_key)
+			) {$charset_collate};",
 		);
 	}
 }

@@ -1,7 +1,7 @@
 # CURRENT STATE — SUPER MECHANIC
 
 Version: 0.1.0
-Schema: 1.14.0
+Schema: 1.15.0
 
 Estado:
 Arquitectura estable con riesgos controlados
@@ -796,3 +796,194 @@ Deuda técnica abierta para FASE 36:
 
 Siguiente fase:
 - Se puede pasar a FASE 36 con 35A+35B+35C cerradas y operación multi-store visible estable.
+
+Actualización FASE 36A (API pública base / integraciones externas):
+- Fecha de implementación: 2026-03-28
+- Estado FASE 36A: COMPLETO
+- API pública separada de la API interna con namespace dedicado:
+  - `super-mechanic-public/v1`
+- Módulo activo incorporado en arquitectura real `includes/*`:
+  - `includes/integrations/public-api/class-public-api-auth-service.php`
+  - `includes/integrations/public-api/class-public-api-service.php`
+  - `includes/integrations/public-api/class-public-rest-controller.php`
+- Estrategia de autenticación externa aplicada:
+  - API key propia del plugin (Bearer / `X-SM-API-Key`)
+  - hash persistido en `sm_settings.public_api.api_keys[*].key_hash`
+  - contexto por credencial con:
+    - `business_id`
+    - `scopes`
+    - `status`
+    - `last_used_at`
+  - resolución tenant-aware desde credencial (no desde usuario actual)
+- Endpoints públicos read-only mínimos implementados:
+  - `GET /wp-json/super-mechanic-public/v1/business`
+  - `GET /wp-json/super-mechanic-public/v1/processes`
+  - `GET /wp-json/super-mechanic-public/v1/appointments`
+- Scopes públicos definidos:
+  - `business:read`
+  - `processes:read`
+  - `appointments:read`
+  - `*` (compatibilidad para credenciales con alcance global)
+- Hardening aplicado:
+  - payload público explícito/minimalista (sin reutilizar payload interno completo)
+  - sanitización de inputs REST
+  - límites y paginación (`page`, `per_page`, `max=100`)
+  - filtros acotados (`status`, `type`, rangos de fecha, ordenamiento controlado)
+  - errores REST estables por código/estado (`401/403/404`)
+- Seguridad y restricciones mantenidas:
+  - sin cambios de schema (`1.14.0`)
+  - sin writes públicos
+  - sin pagos/documentos/descargas/comentarios internos
+  - sin exposición de `file_url`, `file_path`, notas internas ni secretos
+  - sin reutilizar endpoints internos `admin/client`
+
+Exclusiones deliberadas 36A:
+- sin webhooks outbound públicos
+- sin acciones write (create/update/delete/status transitions)
+- sin endpoints de quotes/invoices/payments/documents
+- sin Application Passwords como auth principal
+- sin nueva tabla para API keys (persistencia en `sm_settings.public_api`)
+
+Deuda técnica abierta para 36B:
+- panel/admin UX de gestión de API keys (alta/rotación/revocación)
+- observabilidad y rate-limit avanzado por credencial
+- diseño de conectores/webhooks públicos con contratos versionados
+- evaluación de expansión read-only adicional con scopes más finos
+
+Siguiente fase:
+- Se puede pasar a FASE 36B con base pública segura read-only ya operativa.
+
+Actualización FASE 36B (Webhooks / eventos outbound):
+- Fecha de implementación: 2026-03-29
+- Estado FASE 36B: COMPLETO
+- Infraestructura outbound pública incorporada en arquitectura activa `includes/*`:
+  - `includes/integrations/public-api/class-public-webhook-event-catalog.php`
+  - `includes/integrations/public-api/class-public-webhook-repository.php`
+  - `includes/integrations/public-api/class-public-webhook-delivery-repository.php`
+  - `includes/integrations/public-api/class-public-webhook-service.php`
+  - `includes/integrations/public-api/class-public-webhook-delivery-service.php`
+- Persistencia operativa agregada con schema `1.15.0`:
+  - `sm_webhooks`
+  - `sm_webhook_deliveries`
+- Catálogo público inicial implementado:
+  - `process.created`
+  - `process.status_changed`
+  - `appointment.created`
+  - `appointment.status_changed`
+- Entrega outbound aplicada:
+  - asíncrona por `wp_cron` (`sm_public_webhook_process_delivery`)
+  - firma `HMAC-SHA256` sobre `timestamp.delivery_id.raw_body`
+  - headers públicos:
+    - `X-SM-Signature`
+    - `X-SM-Timestamp`
+    - `X-SM-Delivery-Id`
+    - `X-SM-Event`
+- Multi-tenant y seguridad:
+  - filtro estricto por `business_id` resuelto desde evento interno
+  - payload público explícito/minimalista (sin payload interno completo)
+  - sin exposición de `file_url`, `file_path`, notas internas o secretos
+- Retries e idempotencia:
+  - retry sólo para red/timeout/`429`/`5xx`
+  - hasta 3 reintentos con backoff `1m/5m/15m`
+  - sin retry para errores funcionales `4xx`
+  - idempotencia por `UNIQUE (webhook_id, event_id)` en `sm_webhook_deliveries`
+- Restricciones mantenidas:
+  - sin writes públicos nuevos
+  - sin pagos/documentos/descargas
+  - sin comentarios internos
+  - separación mantenida entre API interna y API pública
+
+Exclusiones deliberadas 36B:
+- sin endpoint público de registro/gestión de webhooks (base runtime solamente)
+- sin panel admin dedicado de webhooks en esta fase
+- sin DLQ/telemetría avanzada de entregas
+- sin rotación automática de secretos
+
+Deuda técnica abierta para 36C:
+- API/admin UX de alta/edición/rotación/revocación de webhooks
+- observabilidad avanzada (DLQ, métricas y alertas de entrega)
+- controles avanzados de rate-limit/cuotas por webhook
+
+Siguiente fase:
+- Se puede pasar a FASE 36C con base outbound segura y tenant-aware ya operativa.
+
+Actualización FASE 36C-1 (Write pública mínima: cancelación de cita):
+- Fecha de implementación: 2026-03-29
+- Estado FASE 36C-1: COMPLETO
+- Acción write pública habilitada (única en 36C-1):
+  - `POST /wp-json/super-mechanic-public/v1/appointments/{id}/cancel`
+- Scope público nuevo:
+  - `appointments:cancel`
+- Idempotencia aplicada (transient, 24h):
+  - clave por `business_id + appointment_id + action(cancel) + idempotency_key`
+  - `idempotency_key` aceptado por body o header `X-Idempotency-Key`
+  - sin `idempotency_key`: idempotencia natural por estado (`cancelled` estable)
+- Tenant-safety explícito en write pública:
+  - lookup y update de cita por `appointment_id + business_id` de la credencial API key
+  - sin depender del `Business_Context_Service` de runtime interno para esta operación
+- Validaciones aplicadas:
+  - API key activa
+  - scope `appointments:cancel`
+  - cita perteneciente al `business_id` de la credencial
+  - transición permitida solo desde:
+    - `scheduled`
+    - `confirmed`
+    - `in_progress`
+  - si ya está `cancelled`: éxito estable/idempotente
+- Restricciones mantenidas:
+  - sin crear cita pública
+  - sin confirmar cita pública
+  - sin otras acciones write públicas
+  - sin CRUD público amplio
+  - sin pagos/documentos/comentarios internos
+  - sin cambios de schema
+  - separación mantenida entre API interna y API pública
+
+Exclusiones deliberadas 36C-1:
+- no se habilita `create appointment` público
+- no se habilita `confirm appointment` público
+- no se agregan writes sobre procesos, quotes, invoices, payments o documentos
+- no se agrega tabla de idempotencia (se usa transient)
+
+Siguiente fase:
+- Se puede pasar a FASE 36C-2 para evaluar una segunda write pública mínima, manteniendo el mismo enfoque contractual y tenant-aware.
+
+Actualización FASE 36C-2 (Write pública mínima: confirmación de cita):
+- Fecha de implementación: 2026-03-29
+- Estado FASE 36C-2: COMPLETO
+- Acción write pública habilitada (única en 36C-2):
+  - `POST /wp-json/super-mechanic-public/v1/appointments/{id}/confirm`
+- Scope público nuevo:
+  - `appointments:confirm`
+- Idempotencia aplicada (transient, 24h):
+  - clave por `business_id + appointment_id + action(confirm) + idempotency_key`
+  - `idempotency_key` aceptado por body o header `X-Idempotency-Key`
+  - sin `idempotency_key`: idempotencia natural por estado (`confirmed` estable)
+- Tenant-safety explícito en write pública:
+  - lookup y update de cita por `appointment_id + business_id` de la credencial API key
+  - sin depender del `Business_Context_Service` de runtime interno para esta operación
+- Validaciones aplicadas:
+  - API key activa
+  - scope `appointments:confirm`
+  - cita perteneciente al `business_id` de la credencial
+  - transición permitida solo desde:
+    - `scheduled`
+  - si ya está `confirmed`: éxito estable/idempotente
+  - si está `cancelled`, `completed` o `in_progress`: respuesta `409`
+- Restricciones mantenidas:
+  - sin crear cita pública
+  - sin reprogramación pública
+  - sin otras acciones write públicas
+  - sin CRUD público amplio
+  - sin pagos/documentos/comentarios internos
+  - sin cambios de schema
+  - separación mantenida entre API interna y API pública
+
+Exclusiones deliberadas 36C-2:
+- no se habilita `create appointment` público
+- no se habilita reprogramación pública
+- no se agregan writes sobre procesos, quotes, invoices, payments o documentos
+- no se agrega tabla de idempotencia (se reutiliza transient)
+
+Siguiente fase:
+- Se puede pasar a la siguiente fase del roadmap con base pública write mínima dual (`cancel` + `confirm`) ya controlada.
