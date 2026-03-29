@@ -19,6 +19,7 @@ Fecha de consolidacion: 2026-03-30
   - `38A-3B`: COMPLETA (export/import operativo)
 - Subfases 38B:
   - `38B-1`: COMPLETA (vinculacion comercial base WooCommerce con snapshot en quotes/invoices y autofill manual en maintenance)
+  - `38B-2`: COMPLETA (totales comerciales consistentes para items manuales y Woo con snapshot-only y saneamiento legacy controlado)
 - Bloque tecnico post-cierre: `HOTFIX-MEM-1` COMPLETO (fatal `Allowed memory size exhausted` en cascadas de servicios)
 - Runtime WordPress real para 37A-6: confirmado (validacion manual UI real + runtime backend, incluyendo timeline unificada de vehiculo con proceso+cita+mantenimiento)
 - Runtime tecnico para 38A-1: validacion de cierre ejecutada (barrido dirigido final en list tables/flujo de facturacion + smoke backend `tmp-runtime-check.php` + `php-lint` global limpio)
@@ -26,6 +27,7 @@ Fecha de consolidacion: 2026-03-30
 - Runtime tecnico para 38A-3: validacion base de seguridad DB ejecutada (master password + export JSON protegido + reset protegido). Pendiente validacion formal de envio email admin y se mantiene registro de inestabilidad externa.
 - Runtime tecnico para 38A-3B: validacion tecnica y runtime manual dirigidas ejecutadas (export JSON/CSV ZIP/Excel XML + import JSON seguro con validacion previa y rollback transaccional).
 - Runtime WordPress real para 38B-1: validacion ejecutada en modo Woo activo e inactivo (selector condicional, snapshot `reference_id/label/unit_price` en quote/invoice, autofill manual en maintenance, sin regresion de totales y sin dependencia forzada de Woo).
+- Runtime WordPress real para 38B-2: validacion ejecutada en modo Woo activo e inactivo (normalizacion `line_total = quantity * unit_price`, `recalculate_totals()` por formula coherente por item, mapeo `manual -> custom`, sin recalculo de precios desde Woo y sin regresiones en totales).
 
 ## Arquitectura activa real
 
@@ -105,11 +107,11 @@ Fecha de consolidacion: 2026-03-30
 
 ## Siguiente fase real
 
-- Siguiente fase habilitada: `38B-2 — Comercial / WooCommerce (continuidad)`.
+- Siguiente fase habilitada: `38B-3 — Comercial / WooCommerce (continuidad)`.
 - Condicion de continuidad: el bloqueante `HOTFIX-MEM-1` queda cerrado y no bloquea retomar roadmap.
 - Backlog inmediato recomendado:
   - cierre formal pendiente de 38A-2/38A-3 (validaciones manuales restantes)
-  - continuidad funcional de 38B-2 sobre base 38B-1 ya cerrada
+  - continuidad funcional de 38B-3 sobre base 38B-1/38B-2 ya cerradas
   - UX/admin de API keys y webhooks publicos
   - observabilidad avanzada de entregas webhook
   - consolidacion final de checklist runtime 36B/36C

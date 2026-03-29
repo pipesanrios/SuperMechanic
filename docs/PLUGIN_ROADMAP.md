@@ -214,6 +214,20 @@ Fase 38B-1 — Vinculacion comercial base (WooCommerce como fuente de productos)
   - no regresion de totales: OK
   - sin dependencia forzada de Woo: OK
 
+Fase 38B-2 — Totales automaticos y consistencia comercial
+- Estado: COMPLETA
+- Alcance consolidado:
+  - `line_total` normalizado en quotes/invoices con formula unica: `quantity * unit_price`
+  - `recalculate_totals()` usa calculo coherente por item como fuente de verdad
+  - saneamiento controlado de registros legacy con `line_total` inconsistente
+  - normalizacion de tipo de item: `manual` se mapea a `custom`
+  - Woo se mantiene snapshot-only (sin recalculo de precio en tiempo real)
+- Validacion de cierre:
+  - runtime WordPress real con Woo activo: OK
+  - runtime WordPress real con Woo inactivo: OK
+  - sin regresion de totales en quotes/invoices: OK
+  - sin cambios de schema ni dependencia forzada de Woo: OK
+
 Alcance consolidado:
 - menu admin `Super Mechanic -> Calendar`
 - FullCalendar local (sin CDN)
@@ -226,7 +240,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es `FASE 38B-2 — Comercial / WooCommerce`.
+La siguiente continuidad habilitada es `FASE 38B-3 — Comercial / WooCommerce`.
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

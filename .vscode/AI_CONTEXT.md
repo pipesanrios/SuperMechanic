@@ -15,7 +15,8 @@ Fuente de verdad: código real (`includes/*`).
   - `38A-3B` — COMPLETA (export/import operativo JSON/CSV ZIP/Excel XML)
 - Estado de subfases 38B:
   - `38B-1` — COMPLETA (vinculacion comercial base Woo con snapshot en quote/invoice y autofill manual en maintenance)
-- Siguiente fase habilitada: `38B-2 — Comercial / WooCommerce`
+  - `38B-2` — COMPLETA (totales consistentes por formula por item, saneamiento legacy controlado y snapshot-only en Woo)
+- Siguiente fase habilitada: `38B-3 — Comercial / WooCommerce`
 - Últimas subfases completas:
   - `38A-3B` — export/import operativo (JSON canónico + CSV ZIP + Excel XML)
   - `37A-3` — consistencia operativa y tenancy endurecida
@@ -114,6 +115,13 @@ Fuente de verdad: código real (`includes/*`).
   - quote/invoice: `reference_id` persiste `woo_product_id` + snapshot obligatorio (`label`, `unit_price`)
   - maintenance: Woo solo autofill manual de nombre/precio (sin cambio de schema)
   - sin regresion de totales y sin dependencia forzada de Woo
+- `38B-2`:
+  - `line_total` normalizado por formula: `quantity * unit_price`
+  - `recalculate_totals()` usa calculo por item como fuente de verdad
+  - mapeo de compatibilidad: `manual -> custom`
+  - saneamiento controlado de `line_total` legacy inconsistente
+  - Woo snapshot-only: no recalculo dinamico de precios desde catalogo Woo
+  - validacion runtime WordPress real en Woo activo/inactivo: OK
 
 ## Deuda técnica viva
 

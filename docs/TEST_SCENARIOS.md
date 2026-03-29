@@ -733,3 +733,26 @@ Resultado esperado:
 - no regresion:
   - totales de quote/invoice permanecen consistentes
   - sin cambios de schema
+
+==================================================
+ESCENARIO 33 — TOTALES AUTOMATICOS Y CONSISTENCIA COMERCIAL (38B-2)
+==================================================
+
+Estado 38B-2: COMPLETA (validacion runtime WordPress real en Woo ON/OFF)
+
+Flujo:
+
+Administrador
+-> crea/edita quotes e invoices con items `custom` y `woo_product`
+-> fuerza recálculo de totales
+-> valida casos legacy con `line_total` inconsistente
+-> repite validacion con Woo inactivo
+
+Resultado esperado:
+
+- `line_total` queda normalizado por formula: `quantity * unit_price`
+- `recalculate_totals()` calcula por item y no depende de `line_total` legacy sin validacion
+- entradas con `item_type=manual` se normalizan a `custom` sin romper compatibilidad
+- precios Woo no se recalculan en tiempo real; se usa solo snapshot persistido
+- si hay correccion de registros legacy, se registra como saneamiento controlado
+- con Woo activo e inactivo, el calculo final mantiene consistencia y no hay regresion de totales

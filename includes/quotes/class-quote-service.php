@@ -279,7 +279,27 @@ class Quote_Service {
 
 		$subtotal = 0.0;
 		foreach ( $this->item_repository->get_by_quote_id( $quote_id ) as $item ) {
-			$subtotal += (float) $item['line_total'];
+			$item_id             = isset( $item['id'] ) ? absint( $item['id'] ) : 0;
+			$quantity            = isset( $item['quantity'] ) ? $this->normalize_decimal( $item['quantity'] ) : 0;
+			$unit_price          = isset( $item['unit_price'] ) ? $this->normalize_decimal( $item['unit_price'] ) : 0;
+			$computed_line_total = round( $quantity * $unit_price, 2 );
+			$stored_line_total   = isset( $item['line_total'] ) ? $this->normalize_decimal( $item['line_total'] ) : 0;
+			$item_type           = isset( $item['item_type'] ) ? $this->normalize_item_type( $item['item_type'] ) : 'custom';
+			$needs_sync          = abs( $computed_line_total - $stored_line_total ) >= 0.01;
+			$needs_type_sync     = isset( $item['item_type'] ) && $item_type !== sanitize_key( (string) $item['item_type'] );
+
+			if ( $item_id > 0 && ( $needs_sync || $needs_type_sync ) ) {
+				$item_update = array();
+				if ( $needs_sync ) {
+					$item_update['line_total'] = $computed_line_total;
+				}
+				if ( $needs_type_sync ) {
+					$item_update['item_type'] = $item_type;
+				}
+				$this->item_repository->update( $item_id, $item_update );
+			}
+
+			$subtotal += $computed_line_total;
 		}
 
 		$tax_total      = (float) $quote['tax_total'];
@@ -726,6 +746,8 @@ class Quote_Service {
 	}
 
 	protected function prepare_item_data( array $data ) {
+		$data['item_type'] = $this->normalize_item_type( isset( $data['item_type'] ) ? $data['item_type'] : 'custom' );
+
 		$woo_product_id = isset( $data['woo_product_id'] ) ? absint( $data['woo_product_id'] ) : 0;
 		if ( $woo_product_id > 0 ) {
 			$snapshot = $this->woo_product_service->get_product_snapshot( $woo_product_id );
@@ -745,10 +767,21 @@ class Quote_Service {
 		$quantity   = isset( $data['quantity'] ) ? $this->normalize_decimal( $data['quantity'] ) : 0;
 		$unit_price = isset( $data['unit_price'] ) ? $this->normalize_decimal( $data['unit_price'] ) : 0;
 
+		// If legacy/incomplete Woo payload arrives without a valid snapshot shape,
+		// fallback to custom to preserve integrity without dynamic Woo recalculation.
+		if ( 'woo_product' === $data['item_type'] ) {
+			$reference_id = isset( $data['reference_id'] ) ? absint( $data['reference_id'] ) : 0;
+			$label        = isset( $data['label'] ) ? sanitize_text_field( $data['label'] ) : '';
+			if ( $reference_id <= 0 || '' === $label ) {
+				$data['item_type']    = 'custom';
+				$data['reference_id'] = 0;
+			}
+		}
+
 		return array(
 			'business_id' => isset( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id(),
 			'quote_id'     => isset( $data['quote_id'] ) ? absint( $data['quote_id'] ) : 0,
-			'item_type'    => isset( $data['item_type'] ) ? sanitize_key( $data['item_type'] ) : 'custom',
+			'item_type'    => $this->normalize_item_type( isset( $data['item_type'] ) ? $data['item_type'] : 'custom' ),
 			'reference_id' => isset( $data['reference_id'] ) ? absint( $data['reference_id'] ) : 0,
 			'label'        => isset( $data['label'] ) ? sanitize_text_field( $data['label'] ) : '',
 			'description'  => isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '',
@@ -761,6 +794,22 @@ class Quote_Service {
 
 	protected function normalize_decimal( $value ) {
 		return round( (float) str_replace( ',', '.', (string) $value ), 2 );
+	}
+
+	/**
+	 * Normalize item type aliases to active canonical types.
+	 *
+	 * @param mixed $item_type Raw item type.
+	 * @return string
+	 */
+	protected function normalize_item_type( $item_type ) {
+		$item_type = sanitize_key( (string) $item_type );
+
+		if ( 'manual' === $item_type ) {
+			return 'custom';
+		}
+
+		return $item_type;
 	}
 
 	protected function get_default_currency() {
