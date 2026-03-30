@@ -17,6 +17,13 @@ defined( 'ABSPATH' ) || exit;
  */
 class Client_Service {
 	/**
+	 * Allowed CRM statuses.
+	 *
+	 * @var array<int, string>
+	 */
+	const CRM_STATUSES = array( 'lead', 'prospect', 'active', 'inactive' );
+
+	/**
 	 * Client repository.
 	 *
 	 * @var Client_Repository
@@ -46,17 +53,28 @@ class Client_Service {
 	 * @return int|WP_Error
 	 */
 	public function create_client( array $data ) {
-		$data = $this->normalize_client_data( $data );
-		$valid = $this->validate_client_data( $data, false );
+		$client_data = $this->normalize_client_data( $data );
+		$crm_data    = $this->normalize_crm_data( $data );
+		$valid       = $this->validate_client_data( $client_data, false );
 
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
 		}
 
-		$inserted = $this->repository->insert( $data );
+		$crm_valid = $this->validate_crm_data( $crm_data );
+
+		if ( is_wp_error( $crm_valid ) ) {
+			return $crm_valid;
+		}
+
+		$inserted = $this->repository->insert( $client_data );
 
 		if ( false === $inserted ) {
 			return new WP_Error( 'sm_client_insert_failed', __( 'No fue posible crear el cliente.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->repository->upsert_crm_meta( $inserted, $crm_data ) ) {
+			return new WP_Error( 'sm_client_crm_insert_failed', __( 'Client created, but CRM data could not be saved.', 'super-mechanic' ) );
 		}
 
 		return $inserted;
@@ -75,17 +93,28 @@ class Client_Service {
 			return new WP_Error( 'sm_client_not_found', __( 'El cliente no existe.', 'super-mechanic' ) );
 		}
 
-		$data = $this->normalize_client_data( $data );
-		$valid = $this->validate_client_data( $data, true, $id );
+		$client_data = $this->normalize_client_data( $data );
+		$crm_data    = $this->normalize_crm_data( $data );
+		$valid       = $this->validate_client_data( $client_data, true, $id );
 
 		if ( is_wp_error( $valid ) ) {
 			return $valid;
 		}
 
-		$updated = $this->repository->update( $id, $data );
+		$crm_valid = $this->validate_crm_data( $crm_data );
+
+		if ( is_wp_error( $crm_valid ) ) {
+			return $crm_valid;
+		}
+
+		$updated = $this->repository->update( $id, $client_data );
 
 		if ( ! $updated ) {
 			return new WP_Error( 'sm_client_update_failed', __( 'No fue posible actualizar el cliente.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->repository->upsert_crm_meta( $id, $crm_data ) ) {
+			return new WP_Error( 'sm_client_crm_update_failed', __( 'Client updated, but CRM data could not be saved.', 'super-mechanic' ) );
 		}
 
 		return true;
@@ -107,6 +136,8 @@ class Client_Service {
 		if ( ! $this->repository->delete( $id ) ) {
 			return new WP_Error( 'sm_client_delete_failed', __( 'No fue posible eliminar el cliente.', 'super-mechanic' ) );
 		}
+
+		$this->repository->delete_crm_meta( $id );
 
 		return true;
 	}
@@ -192,6 +223,30 @@ class Client_Service {
 	}
 
 	/**
+	 * Validate CRM data.
+	 *
+	 * @param array<string, mixed> $data CRM data.
+	 * @return true|WP_Error
+	 */
+	public function validate_crm_data( array $data ) {
+		$errors = new WP_Error();
+
+		if ( empty( $data['crm_status'] ) || ! in_array( $data['crm_status'], self::CRM_STATUSES, true ) ) {
+			$errors->add( 'invalid_crm_status', __( 'CRM status is not valid.', 'super-mechanic' ) );
+		}
+
+		if ( ! empty( $data['last_contact_at'] ) && ! $this->is_valid_datetime( $data['last_contact_at'] ) ) {
+			$errors->add( 'invalid_last_contact_at', __( 'Last contact date is not valid.', 'super-mechanic' ) );
+		}
+
+		if ( ! empty( $data['next_follow_up_at'] ) && ! $this->is_valid_datetime( $data['next_follow_up_at'] ) ) {
+			$errors->add( 'invalid_next_follow_up_at', __( 'Next follow-up date is not valid.', 'super-mechanic' ) );
+		}
+
+		return $errors->has_errors() ? $errors : true;
+	}
+
+	/**
 	 * Normalize client input.
 	 *
 	 * @param array<string, mixed> $data Raw client data.
@@ -209,6 +264,28 @@ class Client_Service {
 			'document_id' => isset( $data['document_id'] ) ? sanitize_text_field( $data['document_id'] ) : '',
 			'notes'       => isset( $data['notes'] ) ? sanitize_textarea_field( $data['notes'] ) : '',
 			'status'      => 'active',
+		);
+	}
+
+	/**
+	 * Normalize CRM input.
+	 *
+	 * @param array<string, mixed> $data Raw CRM data.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_crm_data( array $data ) {
+		$crm_status = isset( $data['crm_status'] ) ? sanitize_key( (string) $data['crm_status'] ) : 'lead';
+
+		if ( ! in_array( $crm_status, self::CRM_STATUSES, true ) ) {
+			$crm_status = 'lead';
+		}
+
+		return array(
+			'crm_status'        => $crm_status,
+			'assigned_user_id'  => isset( $data['assigned_user_id'] ) ? absint( $data['assigned_user_id'] ) : 0,
+			'last_contact_at'   => $this->normalize_datetime_value( isset( $data['last_contact_at'] ) ? (string) $data['last_contact_at'] : '' ),
+			'next_follow_up_at' => $this->normalize_datetime_value( isset( $data['next_follow_up_at'] ) ? (string) $data['next_follow_up_at'] : '' ),
+			'commercial_notes'  => isset( $data['commercial_notes'] ) ? sanitize_textarea_field( $data['commercial_notes'] ) : '',
 		);
 	}
 
@@ -293,5 +370,45 @@ class Client_Service {
 		);
 
 		return ! empty( $matches );
+	}
+
+	/**
+	 * Normalize datetime values coming from forms.
+	 *
+	 * @param string $value Datetime value.
+	 * @return string
+	 */
+	protected function normalize_datetime_value( $value ) {
+		$value = trim( (string) $value );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		$value = str_replace( 'T', ' ', $value );
+
+		if ( 16 === strlen( $value ) ) {
+			$value .= ':00';
+		}
+
+		return sanitize_text_field( $value );
+	}
+
+	/**
+	 * Check datetime format.
+	 *
+	 * @param string $datetime Datetime value.
+	 * @return bool
+	 */
+	protected function is_valid_datetime( $datetime ) {
+		$datetime = trim( (string) $datetime );
+
+		if ( '' === $datetime ) {
+			return true;
+		}
+
+		$parsed = \DateTime::createFromFormat( 'Y-m-d H:i:s', $datetime );
+
+		return $parsed && $parsed->format( 'Y-m-d H:i:s' ) === $datetime;
 	}
 }

@@ -370,7 +370,7 @@ Justificacion de continuidad:
 - SaaS independiente queda como evolucion arquitectonica mayor final
 
 Fase 39 — CRM y automatizacion comercial
-- Estado: PLANIFICADA
+- Estado: EN CURSO
 - Objetivo:
   - evolucion funcional del producto hacia seguimiento comercial/cliente
 - Incluye:
@@ -379,6 +379,20 @@ Fase 39 — CRM y automatizacion comercial
   - pipeline comercial
   - tareas/estados de seguimiento
   - automatizaciones simples comerciales
+
+Subfases de Fase 39:
+- Fase 39A — CRM base (tracking de clientes): COMPLETA
+  - Alcance consolidado:
+    - bloque CRM en create/edit de cliente
+    - campos CRM: `crm_status`, `assigned_user_id`, `last_contact_at`, `next_follow_up_at`
+    - notas comerciales separadas de notas tecnicas
+    - persistencia en tabla auxiliar `sm_client_crm_meta`
+    - sin cambios estructurales en `sm_clients`
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - create/edit cliente con CRM: OK
+    - persistencia CRM: OK
+    - sin regresiones reportadas: OK
 
 Fase 40 — Hosting gestionado / WordPress dedicado
 - Estado: PLANIFICADA
@@ -412,7 +426,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es `Fase 39 — CRM y automatizacion comercial`.
+La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39A` (subfases CRM siguientes).
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

@@ -44,6 +44,17 @@ class Client_Repository {
 	}
 
 	/**
+	 * Get the client CRM meta table name.
+	 *
+	 * @return string
+	 */
+	public function get_client_crm_meta_table_name() {
+		$tables = Schema::get_tables();
+
+		return $tables['client_crm_meta'];
+	}
+
+	/**
 	 * Get a client by ID.
 	 *
 	 * @param int $id Client ID.
@@ -60,7 +71,15 @@ class Client_Repository {
 
 		$result = $wpdb->get_row( $query, ARRAY_A );
 
-		return is_array( $result ) ? $result : null;
+		if ( ! is_array( $result ) ) {
+			return null;
+		}
+
+		return array_merge(
+			$result,
+			$this->get_crm_defaults(),
+			$this->get_crm_meta( absint( $result['id'] ) )
+		);
 	}
 
 	/**
@@ -204,6 +223,112 @@ class Client_Repository {
 			$this->get_table_name(),
 			array(
 				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
+	 * Get CRM metadata by client ID.
+	 *
+	 * @param int $client_id Client ID.
+	 * @return array<string, mixed>
+	 */
+	public function get_crm_meta( $client_id ) {
+		global $wpdb;
+
+		$query = $wpdb->prepare(
+			"SELECT crm_status, assigned_user_id, last_contact_at, next_follow_up_at, commercial_notes
+			FROM {$this->get_client_crm_meta_table_name()}
+			WHERE client_id = %d AND business_id = %d
+			LIMIT 1",
+			absint( $client_id ),
+			$this->resolve_business_id()
+		);
+
+		$result = $wpdb->get_row( $query, ARRAY_A );
+
+		if ( ! is_array( $result ) ) {
+			return $this->get_crm_defaults();
+		}
+
+		return array_merge( $this->get_crm_defaults(), $result );
+	}
+
+	/**
+	 * Upsert CRM metadata by client ID.
+	 *
+	 * @param int                 $client_id Client ID.
+	 * @param array<string, mixed> $data CRM data.
+	 * @return bool
+	 */
+	public function upsert_crm_meta( $client_id, $data ) {
+		global $wpdb;
+
+		$client_id   = absint( $client_id );
+		$business_id = $this->resolve_business_id();
+		$now         = current_time( 'mysql' );
+		$payload     = array(
+			'business_id'       => $business_id,
+			'client_id'         => $client_id,
+			'crm_status'        => isset( $data['crm_status'] ) ? (string) $data['crm_status'] : 'lead',
+			'assigned_user_id'  => ! empty( $data['assigned_user_id'] ) ? absint( $data['assigned_user_id'] ) : null,
+			'last_contact_at'   => ! empty( $data['last_contact_at'] ) ? (string) $data['last_contact_at'] : null,
+			'next_follow_up_at' => ! empty( $data['next_follow_up_at'] ) ? (string) $data['next_follow_up_at'] : null,
+			'commercial_notes'  => isset( $data['commercial_notes'] ) ? (string) $data['commercial_notes'] : '',
+			'updated_at'        => $now,
+		);
+
+		$existing_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$this->get_client_crm_meta_table_name()} WHERE client_id = %d AND business_id = %d LIMIT 1",
+				$client_id,
+				$business_id
+			)
+		);
+
+		if ( $existing_id > 0 ) {
+			$result = $wpdb->update(
+				$this->get_client_crm_meta_table_name(),
+				$payload,
+				array(
+					'id'          => $existing_id,
+					'business_id' => $business_id,
+				),
+				array( '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s' ),
+				array( '%d', '%d' )
+			);
+
+			return false !== $result;
+		}
+
+		$payload['created_at'] = $now;
+
+		$result = $wpdb->insert(
+			$this->get_client_crm_meta_table_name(),
+			$payload,
+			array( '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
+	 * Delete CRM metadata by client ID.
+	 *
+	 * @param int $client_id Client ID.
+	 * @return bool
+	 */
+	public function delete_crm_meta( $client_id ) {
+		global $wpdb;
+
+		$result = $wpdb->delete(
+			$this->get_client_crm_meta_table_name(),
+			array(
+				'client_id'   => absint( $client_id ),
 				'business_id' => $this->resolve_business_id(),
 			),
 			array( '%d', '%d' )
@@ -394,6 +519,21 @@ class Client_Repository {
 		}
 
 		return absint( $this->business_context_service->resolve_business_id() );
+	}
+
+	/**
+	 * Get default CRM metadata payload.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_crm_defaults() {
+		return array(
+			'crm_status'        => 'lead',
+			'assigned_user_id'  => 0,
+			'last_contact_at'   => '',
+			'next_follow_up_at' => '',
+			'commercial_notes'  => '',
+		);
 	}
 }
 

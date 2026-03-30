@@ -936,3 +936,31 @@ Condicion tecnica consolidada:
 
 - sin cambios de schema
 - sin cambios de arquitectura base
+
+==================================================
+ESCENARIO 40 — CRM BASE EN CLIENTES (39A)
+==================================================
+
+Estado 39A: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> Clients`
+-> crea cliente nuevo con bloque CRM
+-> edita cliente existente actualizando estado CRM, usuario asignado y fechas
+-> guarda cambios y reabre detalle de cliente
+
+Resultado esperado:
+
+- bloque CRM visible y operativo en create/edit de cliente
+- campos CRM persistidos correctamente:
+  - `crm_status`
+  - `assigned_user_id`
+  - `last_contact_at`
+  - `next_follow_up_at`
+  - `commercial_notes`
+- notas comerciales separadas de notas tecnicas existentes
+- persistencia en tabla auxiliar `sm_client_crm_meta`
+- sin cambios estructurales en `sm_clients`
+- sin regresiones visuales/funcionales reportadas en flujo de clientes

@@ -6,8 +6,8 @@ Fuente de verdad: código real (`includes/*`).
 ## Estado real
 
 - Plugin: `0.1.0`
-- Schema: `1.15.0`
-- Bloque actual: `38D (Reportes base financieros y operativos)` (continuidad activa)
+- Schema: `1.16.0`
+- Bloque actual: `Fase 39 (CRM y automatizacion comercial)` (continuidad activa)
 - Estado de subfases 38A:
   - `38A-1` — COMPLETA (idioma / i18n base)
   - `38A-2` — PARCIAL (validacion manual final pendiente o confirmacion explicita)
@@ -25,6 +25,8 @@ Fuente de verdad: código real (`includes/*`).
   - `38D-2` — COMPLETA (export CSV por vista en reports, consistencia vista/export y filtros activos compartidos)
   - `38D-3` — COMPLETA (KPIs accionables y bloques de control en reports con filtros activos consistentes)
 - Estado de bloque 38D: COMPLETO (reportes y control consolidados)
+- Estado de subfases 39:
+  - `39A` — COMPLETA (CRM base sobre clientes con bloque CRM, tabla auxiliar `sm_client_crm_meta` y persistencia validada en runtime manual)
 - Siguiente fase habilitada: `Fase 39 — CRM y automatizacion comercial`
 - Continuidad oficial post-38:
   - `Fase 39` — CRM y automatizacion comercial
@@ -34,6 +36,7 @@ Fuente de verdad: código real (`includes/*`).
   - el bloque `38` ya fue consumido en ejecucion real (`38A` a `38D`)
   - CRM no se mantiene como `37B`; se renumera oficialmente a `Fase 39`
 - Últimas subfases completas:
+  - `39A` — CRM base (tracking de clientes)
   - `38A-3B` — export/import operativo (JSON canónico + CSV ZIP + Excel XML)
   - `37A-3` — consistencia operativa y tenancy endurecida
   - `37A-4` — multi-store operativo completo

@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.15.0';
+		return '1.16.0';
 	}
 
 	/**
@@ -33,6 +33,7 @@ class Schema {
 		return array(
 			'businesses'        => $wpdb->prefix . 'sm_businesses',
 			'clients'           => $wpdb->prefix . 'sm_clients',
+			'client_crm_meta'   => $wpdb->prefix . 'sm_client_crm_meta',
 			'vehicles'          => $wpdb->prefix . 'sm_vehicles',
 			'client_vehicles'   => $wpdb->prefix . 'sm_client_vehicles',
 			'flows'             => $wpdb->prefix . 'sm_flows',
@@ -74,6 +75,7 @@ class Schema {
 		$charset_collate       = $wpdb->get_charset_collate();
 		$businesses_table      = $tables['businesses'];
 		$clients_table         = $tables['clients'];
+		$client_crm_meta_table = $tables['client_crm_meta'];
 		$vehicles_table        = $tables['vehicles'];
 		$client_vehicles_table = $tables['client_vehicles'];
 		$flows_table           = $tables['flows'];
@@ -136,6 +138,25 @@ class Schema {
 				KEY email (email),
 				KEY phone (phone),
 				KEY status (status)
+			) {$charset_collate};",
+			"CREATE TABLE {$client_crm_meta_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				client_id bigint(20) unsigned NOT NULL,
+				crm_status varchar(30) NOT NULL default 'lead',
+				assigned_user_id bigint(20) unsigned DEFAULT NULL,
+				last_contact_at datetime DEFAULT NULL,
+				next_follow_up_at datetime DEFAULT NULL,
+				commercial_notes longtext DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY business_client (business_id,client_id),
+				KEY business_id (business_id),
+				KEY client_id (client_id),
+				KEY crm_status (crm_status),
+				KEY assigned_user_id (assigned_user_id),
+				KEY next_follow_up_at (next_follow_up_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$vehicles_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,

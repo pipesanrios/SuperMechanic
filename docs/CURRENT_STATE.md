@@ -5,12 +5,12 @@ Fecha de consolidacion: 2026-03-30
 ## Versiones reales
 
 - Plugin: `0.1.0` (`super-mechanic.php`)
-- Schema: `1.15.0` (`includes/database/class-schema.php`)
+- Schema: `1.16.0` (`includes/database/class-schema.php`)
 
 ## Estado general
 
 - Estado: ESTABLE CON RIESGOS CONTROLADOS
-- Bloque actual real: `38D (Reportes base financieros y operativos)` en continuidad activa
+- Bloque actual real: `Fase 39 (CRM y automatizacion comercial)` en continuidad activa
 - Estado de bloque 38D: COMPLETO
 - Estado de bloque 38A: COMPLETA CON OBSERVACIONES
 - Subfases 38A:
@@ -44,6 +44,9 @@ Fecha de consolidacion: 2026-03-30
 - Runtime WordPress real para 38D-2: confirmado por usuario (validacion manual de export CSV por vista: `financial_base`, `operational_base`, `client_summary`, `vehicle_summary`, `recent_*`, con coherencia vista/export y filtros activos).
 - Runtime WordPress real para 38D-3: confirmado por usuario (validacion manual de KPIs accionables: open/closed processes, overdue invoices, outstanding by currency, recent payments, average ticket, top clients/vehicles, operational load y filtros activos funcionando).
 - Runtime WordPress real de bloque 38D: confirmado (subfases 38D-1, 38D-2 y 38D-3 validadas manualmente por usuario).
+- Runtime WordPress real para 39A: confirmado por usuario (create/edit cliente con bloque CRM, persistencia en `sm_client_crm_meta`, sin regresiones reportadas).
+- Subfases 39:
+  - `39A`: COMPLETA (CRM base sobre clientes con `crm_status`, `assigned_user_id`, `last_contact_at`, `next_follow_up_at` y `commercial_notes` separadas de notas tecnicas).
 
 ## Arquitectura activa real
 
@@ -134,7 +137,7 @@ Fecha de consolidacion: 2026-03-30
 - Condicion de continuidad: el bloqueante `HOTFIX-MEM-1` queda cerrado y no bloquea retomar roadmap.
 - Backlog inmediato recomendado:
   - cierre formal pendiente de 38A-2/38A-3 (validaciones manuales restantes)
-  - preparacion de alcance para `Fase 39` (CRM y automatizacion comercial)
+  - continuidad del bloque `Fase 39` con subfases CRM posteriores a `39A`
   - UX/admin de API keys y webhooks publicos
   - observabilidad avanzada de entregas webhook
   - consolidacion final de checklist runtime 36B/36C

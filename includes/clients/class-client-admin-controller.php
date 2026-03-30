@@ -203,6 +203,11 @@ class Client_Admin_Controller {
 			'phone'       => '',
 			'document_id' => '',
 			'notes'       => '',
+			'crm_status'  => 'lead',
+			'assigned_user_id' => 0,
+			'last_contact_at' => '',
+			'next_follow_up_at' => '',
+			'commercial_notes' => '',
 		);
 
 		$stored = get_transient( $this->get_form_transient_key() );
@@ -241,6 +246,12 @@ class Client_Admin_Controller {
 		$this->render_text_field( 'phone', __( 'Phone', 'super-mechanic' ), $client['phone'], true );
 		$this->render_text_field( 'document_id', __( 'Document ID', 'super-mechanic' ), $client['document_id'], true );
 		$this->render_textarea_field( 'notes', __( 'Notes', 'super-mechanic' ), $client['notes'] );
+		$this->render_section_row( __( 'CRM', 'super-mechanic' ) );
+		$this->render_select_field( 'crm_status', __( 'CRM status', 'super-mechanic' ), (string) $client['crm_status'], $this->get_crm_status_options() );
+		$this->render_user_select_field( 'assigned_user_id', __( 'Assigned user', 'super-mechanic' ), absint( $client['assigned_user_id'] ) );
+		$this->render_datetime_field( 'last_contact_at', __( 'Last contact', 'super-mechanic' ), (string) $client['last_contact_at'] );
+		$this->render_datetime_field( 'next_follow_up_at', __( 'Next follow-up', 'super-mechanic' ), (string) $client['next_follow_up_at'] );
+		$this->render_textarea_field( 'commercial_notes', __( 'Commercial notes', 'super-mechanic' ), (string) $client['commercial_notes'] );
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
 		submit_button( $is_edit ? __( 'Update client', 'super-mechanic' ) : __( 'Create client', 'super-mechanic' ), 'primary', 'submit', false );
@@ -310,8 +321,13 @@ class Client_Admin_Controller {
 		$this->render_detail_row( __( 'Phone', 'super-mechanic' ), ! empty( $client['phone'] ) ? (string) $client['phone'] : __( 'No phone recorded', 'super-mechanic' ) );
 		$this->render_detail_row( __( 'Document ID', 'super-mechanic' ), ! empty( $client['document_id'] ) ? (string) $client['document_id'] : __( 'No document recorded', 'super-mechanic' ) );
 		$this->render_detail_row( __( 'Status', 'super-mechanic' ), ! empty( $client['status'] ) ? (string) $client['status'] : __( 'No status', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'CRM status', 'super-mechanic' ), ! empty( $client['crm_status'] ) ? $this->humanize_key( (string) $client['crm_status'] ) : __( 'Lead', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Assigned user', 'super-mechanic' ), $this->get_user_display_name( ! empty( $client['assigned_user_id'] ) ? absint( $client['assigned_user_id'] ) : 0 ) );
+		$this->render_detail_row( __( 'Last contact', 'super-mechanic' ), ! empty( $client['last_contact_at'] ) ? (string) $client['last_contact_at'] : __( 'Not recorded', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Next follow-up', 'super-mechanic' ), ! empty( $client['next_follow_up_at'] ) ? (string) $client['next_follow_up_at'] : __( 'Not scheduled', 'super-mechanic' ) );
 		$this->render_detail_row( __( 'Created', 'super-mechanic' ), ! empty( $client['created_at'] ) ? (string) $client['created_at'] : '-' );
 		$this->render_detail_row( __( 'Notes', 'super-mechanic' ), ! empty( $client['notes'] ) ? (string) $client['notes'] : __( 'No notes', 'super-mechanic' ) );
+		$this->render_detail_row( __( 'Commercial notes', 'super-mechanic' ), ! empty( $client['commercial_notes'] ) ? (string) $client['commercial_notes'] : __( 'No commercial notes', 'super-mechanic' ) );
 		echo '</tbody></table>';
 		echo '</section>';
 
@@ -453,6 +469,11 @@ class Client_Admin_Controller {
 			'phone'       => isset( $_POST['phone'] ) ? wp_unslash( $_POST['phone'] ) : '',
 			'document_id' => isset( $_POST['document_id'] ) ? wp_unslash( $_POST['document_id'] ) : '',
 			'notes'       => isset( $_POST['notes'] ) ? wp_unslash( $_POST['notes'] ) : '',
+			'crm_status'  => isset( $_POST['crm_status'] ) ? wp_unslash( $_POST['crm_status'] ) : '',
+			'assigned_user_id' => isset( $_POST['assigned_user_id'] ) ? wp_unslash( $_POST['assigned_user_id'] ) : 0,
+			'last_contact_at' => isset( $_POST['last_contact_at'] ) ? wp_unslash( $_POST['last_contact_at'] ) : '',
+			'next_follow_up_at' => isset( $_POST['next_follow_up_at'] ) ? wp_unslash( $_POST['next_follow_up_at'] ) : '',
+			'commercial_notes' => isset( $_POST['commercial_notes'] ) ? wp_unslash( $_POST['commercial_notes'] ) : '',
 		);
 
 		$result = $is_update
@@ -608,6 +629,79 @@ class Client_Admin_Controller {
 	}
 
 	/**
+	 * Render a visual section row inside the form table.
+	 *
+	 * @param string $label Section label.
+	 * @return void
+	 */
+	protected function render_section_row( $label ) {
+		echo '<tr><th colspan="2"><h2 class="sm-subsection-title">' . esc_html( $label ) . '</h2></th></tr>';
+	}
+
+	/**
+	 * Render select field.
+	 *
+	 * @param string               $name Field name.
+	 * @param string               $label Field label.
+	 * @param string               $value Selected value.
+	 * @param array<string, string> $options Select options.
+	 * @return void
+	 */
+	protected function render_select_field( $name, $label, $value, array $options ) {
+		echo '<tr>';
+		echo '<th scope="row"><label for="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label></th>';
+		echo '<td><select name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" class="regular-text">';
+		foreach ( $options as $option_value => $option_label ) {
+			echo '<option value="' . esc_attr( $option_value ) . '"' . selected( $value, $option_value, false ) . '>' . esc_html( $option_label ) . '</option>';
+		}
+		echo '</select></td>';
+		echo '</tr>';
+	}
+
+	/**
+	 * Render assigned user field.
+	 *
+	 * @param string $name Field name.
+	 * @param string $label Field label.
+	 * @param int    $selected_user_id Selected user ID.
+	 * @return void
+	 */
+	protected function render_user_select_field( $name, $label, $selected_user_id ) {
+		$users = get_users(
+			array(
+				'fields' => array( 'ID', 'display_name' ),
+				'orderby' => 'display_name',
+				'order' => 'ASC',
+			)
+		);
+
+		echo '<tr>';
+		echo '<th scope="row"><label for="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label></th>';
+		echo '<td><select name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" class="regular-text">';
+		echo '<option value="0">' . esc_html__( 'Unassigned', 'super-mechanic' ) . '</option>';
+		foreach ( $users as $user ) {
+			echo '<option value="' . esc_attr( absint( $user->ID ) ) . '"' . selected( absint( $selected_user_id ), absint( $user->ID ), false ) . '>' . esc_html( $user->display_name ) . '</option>';
+		}
+		echo '</select></td>';
+		echo '</tr>';
+	}
+
+	/**
+	 * Render datetime-local field.
+	 *
+	 * @param string $name Field name.
+	 * @param string $label Field label.
+	 * @param string $value Field value.
+	 * @return void
+	 */
+	protected function render_datetime_field( $name, $label, $value ) {
+		echo '<tr>';
+		echo '<th scope="row"><label for="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label></th>';
+		echo '<td><input name="' . esc_attr( $name ) . '" type="datetime-local" id="' . esc_attr( $name ) . '" value="' . esc_attr( $this->format_datetime_for_input( $value ) ) . '" class="regular-text" /></td>';
+		echo '</tr>';
+	}
+
+	/**
 	 * Render detail row markup.
 	 *
 	 * @param string $label Detail label.
@@ -645,6 +739,64 @@ class Client_Admin_Controller {
 	 */
 	protected function humanize_key( $value ) {
 		return ucwords( str_replace( '_', ' ', (string) $value ) );
+	}
+
+	/**
+	 * Get CRM status options.
+	 *
+	 * @return array<string, string>
+	 */
+	protected function get_crm_status_options() {
+		return array(
+			'lead'     => __( 'Lead', 'super-mechanic' ),
+			'prospect' => __( 'Prospect', 'super-mechanic' ),
+			'active'   => __( 'Active', 'super-mechanic' ),
+			'inactive' => __( 'Inactive', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	 * Format datetime for datetime-local input.
+	 *
+	 * @param string $value Datetime value.
+	 * @return string
+	 */
+	protected function format_datetime_for_input( $value ) {
+		$value = trim( (string) $value );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		$timestamp = strtotime( $value );
+
+		if ( false === $timestamp ) {
+			return '';
+		}
+
+		return wp_date( 'Y-m-d\TH:i', $timestamp );
+	}
+
+	/**
+	 * Resolve user display name.
+	 *
+	 * @param int $user_id User ID.
+	 * @return string
+	 */
+	protected function get_user_display_name( $user_id ) {
+		$user_id = absint( $user_id );
+
+		if ( $user_id <= 0 ) {
+			return __( 'Unassigned', 'super-mechanic' );
+		}
+
+		$user = get_userdata( $user_id );
+
+		if ( ! $user || empty( $user->display_name ) ) {
+			return __( 'Unknown user', 'super-mechanic' );
+		}
+
+		return (string) $user->display_name;
 	}
 
 	/**
