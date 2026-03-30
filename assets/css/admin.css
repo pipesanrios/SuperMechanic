@@ -381,6 +381,36 @@
 	padding: 12px;
 }
 
+.sm-crm-priority-normal {
+}
+
+.sm-table tbody tr.sm-crm-priority-attention td,
+.sm-crm-kanban-card.sm-crm-priority-attention {
+	background: #fffaf0;
+}
+
+.sm-table tbody tr.sm-crm-priority-critical td,
+.sm-crm-kanban-card.sm-crm-priority-critical {
+	background: #fff1f2;
+}
+
+.sm-table tbody tr.sm-crm-priority-attention td:first-child,
+.sm-crm-kanban-card.sm-crm-priority-attention {
+	box-shadow: inset 4px 0 0 #b7791f;
+}
+
+.sm-table tbody tr.sm-crm-priority-critical td:first-child,
+.sm-crm-kanban-card.sm-crm-priority-critical {
+	box-shadow: inset 4px 0 0 #bf3f4a;
+}
+
+.sm-crm-automation-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+
 .sm-crm-kanban-title {
 	margin: 0 0 8px;
 	font-size: 14px;

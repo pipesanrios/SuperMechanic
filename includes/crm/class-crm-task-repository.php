@@ -66,6 +66,105 @@ class Crm_Task_Repository {
 	}
 
 	/**
+	 * Count pending tasks grouped by CRM opportunity ids.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,int> Map pipeline_id => pending_count.
+	 */
+	public function count_pending_by_pipeline_ids( array $pipeline_ids ) {
+		return $this->count_by_pipeline_ids_and_status( $pipeline_ids, 'pending' );
+	}
+
+	/**
+	 * Count overdue pending tasks grouped by CRM opportunity ids.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @param string         $now_mysql    Current datetime in mysql format.
+	 * @return array<int,int> Map pipeline_id => overdue_count.
+	 */
+	public function count_overdue_by_pipeline_ids( array $pipeline_ids, $now_mysql ) {
+		global $wpdb;
+
+		$pipeline_ids = $this->sanitize_pipeline_ids( $pipeline_ids );
+		if ( empty( $pipeline_ids ) ) {
+			return array();
+		}
+
+		$business_id      = $this->resolve_business_id();
+		$id_placeholders  = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
+		$sql              = "SELECT crm_pipeline_id, COUNT(id) AS task_count
+			FROM {$this->get_table_name()}
+			WHERE business_id = %d
+				AND status = %s
+				AND due_at IS NOT NULL
+				AND due_at < %s
+				AND crm_pipeline_id IN ({$id_placeholders})
+			GROUP BY crm_pipeline_id";
+		$params           = array_merge(
+			array(
+				$business_id,
+				'pending',
+				sanitize_text_field( (string) $now_mysql ),
+			),
+			$pipeline_ids
+		);
+		$query            = $wpdb->prepare( $sql, $params );
+		$rows             = $wpdb->get_results( $query, ARRAY_A );
+		$counts_by_id     = array_fill_keys( $pipeline_ids, 0 );
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$pipeline_id = isset( $row['crm_pipeline_id'] ) ? absint( $row['crm_pipeline_id'] ) : 0;
+				if ( $pipeline_id > 0 ) {
+					$counts_by_id[ $pipeline_id ] = isset( $row['task_count'] ) ? absint( $row['task_count'] ) : 0;
+				}
+			}
+		}
+
+		return $counts_by_id;
+	}
+
+	/**
+	 * Get latest task activity grouped by CRM opportunity ids.
+	 *
+	 * Activity is the max between updated_at and created_at.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,string> Map pipeline_id => latest mysql datetime.
+	 */
+	public function get_last_activity_by_pipeline_ids( array $pipeline_ids ) {
+		global $wpdb;
+
+		$pipeline_ids = $this->sanitize_pipeline_ids( $pipeline_ids );
+		if ( empty( $pipeline_ids ) ) {
+			return array();
+		}
+
+		$business_id     = $this->resolve_business_id();
+		$id_placeholders = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
+		$sql             = "SELECT crm_pipeline_id, MAX(COALESCE(updated_at, created_at)) AS last_activity_at
+			FROM {$this->get_table_name()}
+			WHERE business_id = %d
+				AND crm_pipeline_id IN ({$id_placeholders})
+			GROUP BY crm_pipeline_id";
+		$params          = array_merge( array( $business_id ), $pipeline_ids );
+		$query           = $wpdb->prepare( $sql, $params );
+		$rows            = $wpdb->get_results( $query, ARRAY_A );
+		$activity_by_id  = array();
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$pipeline_id = isset( $row['crm_pipeline_id'] ) ? absint( $row['crm_pipeline_id'] ) : 0;
+				if ( $pipeline_id > 0 && ! empty( $row['last_activity_at'] ) ) {
+					$activity_by_id[ $pipeline_id ] = sanitize_text_field( (string) $row['last_activity_at'] );
+				}
+			}
+		}
+
+		return $activity_by_id;
+	}
+
+	/**
 	 * Insert task.
 	 *
 	 * @param array<string, mixed> $data Task payload.
@@ -405,5 +504,63 @@ class Crm_Task_Repository {
 		}
 
 		return $formats;
+	}
+
+	/**
+	 * Count tasks by pipeline ids and one status.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @param string         $status       Status key.
+	 * @return array<int,int> Map pipeline_id => count.
+	 */
+	protected function count_by_pipeline_ids_and_status( array $pipeline_ids, $status ) {
+		global $wpdb;
+
+		$pipeline_ids = $this->sanitize_pipeline_ids( $pipeline_ids );
+		if ( empty( $pipeline_ids ) ) {
+			return array();
+		}
+
+		$business_id     = $this->resolve_business_id();
+		$id_placeholders = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
+		$sql             = "SELECT crm_pipeline_id, COUNT(id) AS task_count
+			FROM {$this->get_table_name()}
+			WHERE business_id = %d
+				AND status = %s
+				AND crm_pipeline_id IN ({$id_placeholders})
+			GROUP BY crm_pipeline_id";
+		$params          = array_merge(
+			array(
+				$business_id,
+				sanitize_key( (string) $status ),
+			),
+			$pipeline_ids
+		);
+		$query           = $wpdb->prepare( $sql, $params );
+		$rows            = $wpdb->get_results( $query, ARRAY_A );
+		$counts_by_id    = array_fill_keys( $pipeline_ids, 0 );
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$pipeline_id = isset( $row['crm_pipeline_id'] ) ? absint( $row['crm_pipeline_id'] ) : 0;
+				if ( $pipeline_id > 0 ) {
+					$counts_by_id[ $pipeline_id ] = isset( $row['task_count'] ) ? absint( $row['task_count'] ) : 0;
+				}
+			}
+		}
+
+		return $counts_by_id;
+	}
+
+	/**
+	 * Sanitize and de-duplicate opportunity ids.
+	 *
+	 * @param array<int,int> $pipeline_ids Raw IDs.
+	 * @return array<int,int>
+	 */
+	protected function sanitize_pipeline_ids( array $pipeline_ids ) {
+		$pipeline_ids = array_values( array_unique( array_filter( array_map( 'absint', $pipeline_ids ) ) ) );
+
+		return $pipeline_ids;
 	}
 }

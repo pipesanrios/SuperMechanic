@@ -53,11 +53,15 @@ Fecha de consolidacion: 2026-03-30
   - `39C-1`: COMPLETA (tareas y recordatorios CRM base en `sm_crm_tasks`, create/edit/complete por oportunidad CRM, validaciones de `status` y `task_type`, tenancy por `business_id`).
   - `39C-2`: COMPLETA (vistas operativas de tareas `pending`/`overdue`/`upcoming` en CRM, con clasificacion por `due_at` + `status`, tenancy por `business_id` y tareas sin `due_at` solo en `pending`).
   - `39C-3`: COMPLETA (integracion CRM ↔ Calendar con feed unificado tipado `appointment|crm_task`, click por tipo funcional y `eventDrop` bloqueado/revertido para `crm_task`).
+  - `39D-1`: COMPLETA (automatizacion comercial basica interna y controlada: auto-tarea inicial idempotente en alta, sugerencias en `contacted/quoted` sin auto-creacion extra, señal de conversion pendiente en `won` sin `process_id`, y señales de overdue/inactividad en UI sin cron/email).
+  - `39D-2`: COMPLETA (refinamiento operativo CRM en filtros y control visual: filtro SQL real por `assigned_user_id`, filtros combinables `stage`/`search`/`requires_attention`/`overdue`, jerarquia visual con `Overdue` critico y `Attention` warning, y preservacion de contexto/filtros en quick stage).
 - Estado de bloque 39B: COMPLETO (pipeline CRM consolidado)
 - Runtime WordPress real de bloque 39B: confirmado por usuario (39B-1/39B-2/39B-3).
 - Runtime WordPress real para 39C-1: confirmado por usuario (create/edit/complete de tareas CRM, tenancy correcta y sin regresion del modulo CRM).
 - Runtime WordPress real para 39C-2: confirmado por usuario (bloques operativos `pending`/`overdue`/`upcoming`, enlaces/contexto tenant-aware y no regresion de CRM tasks/pipeline/kanban).
 - Runtime WordPress real para 39C-3: confirmado por usuario (calendario unificado con `appointments` + `crm_tasks`, click funcional por tipo y bloqueo de `eventDrop` para `crm_task`).
+- Runtime WordPress real para 39D-1: confirmado por usuario (alta de oportunidad con auto-tarea inicial idempotente, sugerencias en `contacted/quoted`, señal de conversion pendiente en `won` sin `process_id`, señales overdue/inactividad y no regresion de CRM/pipeline/tasks/kanban/calendar/conversion).
+- Runtime WordPress real para 39D-2: confirmado por usuario (filtros operativos por `assigned_user_id`/`stage`/`search`/`requires_attention`/`overdue`, priorizacion visual `Overdue` critico sobre `Attention`, preservacion de contexto en quick stage y no regresion general).
 - Restricciones consolidadas 39B:
   - sin cambios de schema adicionales fuera de `sm_crm_pipeline`
   - sin automatizaciones ni sincronizacion automatica CRM/proceso
@@ -71,6 +75,15 @@ Fecha de consolidacion: 2026-03-30
   - sin cron
   - sin email automatico
   - sin automatizacion compleja
+- Restricciones consolidadas 39D-1:
+  - sin cron
+  - sin email automatico
+  - sin automatizacion externa/agresiva (solo interna y controlada)
+- Restricciones consolidadas 39D-2:
+  - sin cron
+  - sin email automatico
+  - sin cambios de schema
+  - sin regresion de CRUD pipeline/tasks/kanban/calendar/conversion
 
 ## Arquitectura activa real
 
@@ -152,7 +165,7 @@ Fecha de consolidacion: 2026-03-30
 ## Siguiente fase real
 
 - Siguiente fase habilitada: `Fase 39 — CRM y automatizacion comercial`.
-- Siguiente fase recomendada: continuidad de `Fase 39` posterior a 39C (profundizacion CRM comercial sin romper arquitectura ni tenancy; ejemplo: automatizaciones CRM controladas en bloque siguiente).
+- Siguiente fase recomendada: continuidad de `Fase 39` posterior a 39D-2 (profundizacion CRM comercial sobre la base de automatizacion interna y refinamiento UX ya validados, sin romper arquitectura ni tenancy).
 - Continuidad oficial post-38:
   - `Fase 39` — CRM y automatizacion comercial
   - `Fase 40` — Hosting gestionado / WordPress dedicado

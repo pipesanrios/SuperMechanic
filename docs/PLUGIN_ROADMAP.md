@@ -488,6 +488,57 @@ Subfases de Fase 39:
     - bloqueo de drag/drop para `crm_task`: OK
     - sin regresion de calendario operativo de citas: OK
 
+- Fase 39D-1 — Automatizacion comercial basica (interna y controlada): COMPLETA
+  - Alcance consolidado:
+    - auto-tarea inicial idempotente en alta de oportunidad:
+      - solo en creacion
+      - solo si no existe ninguna tarea asociada
+    - stages `contacted`/`quoted`:
+      - sin auto-creacion de tareas extra
+      - sugerencia visual cuando no hay tareas `pending`
+    - stage `won`:
+      - señal clara de conversion pendiente cuando falta `process_id`
+      - sin creacion automatica de proceso
+    - señales operativas en UI para:
+      - overdue tasks
+      - inactividad basica
+    - calculo en service + visualizacion en UI sin persistencia de alertas
+    - agregacion por multiples `crm_pipeline_id` en repository para evitar N+1 en list/kanban
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - auto-tarea inicial idempotente: OK
+    - sugerencias en `contacted/quoted`: OK
+    - conversion pendiente en `won` sin `process_id`: OK
+    - overdue/inactividad en UI: OK
+    - no regresion de pipeline/tasks/kanban/calendar/conversion: OK
+
+- Fase 39D-2 — Refinamiento operativo CRM (UX y control): COMPLETA
+  - Alcance consolidado:
+    - filtros operativos combinables en CRM list/kanban:
+      - `assigned_user_id` (filtro SQL real en repository)
+      - `stage`
+      - `search`
+      - `requires_attention`
+      - `overdue`
+    - priorizacion visual consolidada y consistente:
+      - `Overdue` como prioridad critica
+      - `Attention` como prioridad media (warning)
+      - sin duplicacion innecesaria de badges/mensajes
+    - preservacion de contexto en quick stage:
+      - `view_mode`
+      - `search`
+      - `stage`
+      - `assigned_user_id`
+      - `requires_attention`
+      - `overdue`
+    - consistencia visual/operativa entre list, kanban y view
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - filtros operativos: OK
+    - priorizacion visual: OK
+    - quick stage preserva contexto/filtros: OK
+    - no regresion de pipeline/tasks/kanban/calendar/conversion: OK
+
 Consolidado del bloque 39B (Pipeline CRM):
 - Cobertura funcional del bloque:
   - entidad independiente `sm_crm_pipeline`
@@ -551,7 +602,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39C` (subfases CRM siguientes).
+La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39D-2` (subfases CRM siguientes).
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

@@ -174,6 +174,15 @@ class Crm_Pipeline_Admin_Controller {
 			}
 		}
 
+		$hint = isset( $_GET['sm_hint'] ) ? sanitize_key( wp_unslash( $_GET['sm_hint'] ) ) : '';
+		if ( 'follow_up_missing' === $hint ) {
+			$this->render_notice( __( 'Suggestion: this stage has no pending follow-up task. Consider creating one.', 'super-mechanic' ), 'warning' );
+		}
+
+		if ( 'conversion_pending' === $hint ) {
+			$this->render_notice( __( 'Conversion pending: this won opportunity is not linked to a process yet.', 'super-mechanic' ), 'warning' );
+		}
+
 		if ( 'process_created' === $notice ) {
 			$this->render_notice( __( 'Process created and linked successfully.', 'super-mechanic' ), 'success' );
 		}
@@ -211,26 +220,40 @@ class Crm_Pipeline_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_list_page() {
-		$search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
-		$stage  = isset( $_GET['stage'] ) ? sanitize_key( wp_unslash( $_GET['stage'] ) ) : '';
+		$search            = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$stage             = isset( $_GET['stage'] ) ? sanitize_key( wp_unslash( $_GET['stage'] ) ) : '';
+		$assigned_user_id  = isset( $_GET['assigned_user_id'] ) ? absint( $_GET['assigned_user_id'] ) : 0;
+		$requires_attention = isset( $_GET['requires_attention'] ) && '1' === sanitize_key( wp_unslash( $_GET['requires_attention'] ) );
+		$overdue            = isset( $_GET['overdue'] ) && '1' === sanitize_key( wp_unslash( $_GET['overdue'] ) );
 		$view_mode = $this->get_current_view_mode();
 		$items  = $this->service->get_opportunities(
 			array(
-				'search'   => $search,
-				'stage'    => $stage,
-				'per_page' => 100,
-				'orderby'  => 'position',
-				'order'    => 'ASC',
+				'search'             => $search,
+				'stage'              => $stage,
+				'assigned_user_id'   => $assigned_user_id,
+				'requires_attention' => $requires_attention ? '1' : '',
+				'overdue'            => $overdue ? '1' : '',
+				'per_page'           => 200,
+				'orderby'            => 'position',
+				'order'              => 'ASC',
 			)
 		);
+		$signals_by_id = $this->service->get_automation_signals_for_opportunities( $items );
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header"><div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'CRM Pipeline', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Independent commercial opportunities linked to client, with optional vehicle/process references.', 'super-mechanic' ) . '</p>';
 		echo '</div><div class="sm-page-actions">';
-		echo '<a class="button button-secondary' . ( 'list' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array( 'view_mode' => 'list', 's' => $search, 'stage' => $stage ) ) ) . '">' . esc_html__( 'List view', 'super-mechanic' ) . '</a>';
-		echo '<a class="button button-secondary' . ( 'kanban' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array( 'view_mode' => 'kanban', 's' => $search, 'stage' => $stage ) ) ) . '">' . esc_html__( 'Kanban view', 'super-mechanic' ) . '</a>';
+		$shared_filters = array(
+			's'                 => $search,
+			'stage'             => $stage,
+			'assigned_user_id'  => $assigned_user_id > 0 ? $assigned_user_id : '',
+			'requires_attention' => $requires_attention ? '1' : '',
+			'overdue'            => $overdue ? '1' : '',
+		);
+		echo '<a class="button button-secondary' . ( 'list' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array_merge( $shared_filters, array( 'view_mode' => 'list' ) ) ) ) . '">' . esc_html__( 'List view', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-secondary' . ( 'kanban' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array_merge( $shared_filters, array( 'view_mode' => 'kanban' ) ) ) ) . '">' . esc_html__( 'Kanban view', 'super-mechanic' ) . '</a>';
 		echo '<a class="button button-primary" href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '">' . esc_html__( 'Create opportunity', 'super-mechanic' ) . '</a>';
 		echo '</div></div>';
 
@@ -247,6 +270,19 @@ class Crm_Pipeline_Admin_Controller {
 			echo '<option value="' . esc_attr( $stage_key ) . '"' . selected( $stage, $stage_key, false ) . '>' . esc_html( $this->humanize_stage( $stage_key ) ) . '</option>';
 		}
 		echo '</select> ';
+		echo '<select name="assigned_user_id"><option value="0">' . esc_html__( 'All assignees', 'super-mechanic' ) . '</option>';
+		foreach ( $this->get_assignable_users() as $user ) {
+			echo '<option value="' . esc_attr( absint( $user->ID ) ) . '"' . selected( $assigned_user_id, absint( $user->ID ), false ) . '>' . esc_html( (string) $user->display_name ) . '</option>';
+		}
+		echo '</select> ';
+		echo '<select name="requires_attention">';
+		echo '<option value="">' . esc_html__( 'Attention: all', 'super-mechanic' ) . '</option>';
+		echo '<option value="1"' . selected( $requires_attention, true, false ) . '>' . esc_html__( 'Requires attention', 'super-mechanic' ) . '</option>';
+		echo '</select> ';
+		echo '<select name="overdue">';
+		echo '<option value="">' . esc_html__( 'Overdue: all', 'super-mechanic' ) . '</option>';
+		echo '<option value="1"' . selected( $overdue, true, false ) . '>' . esc_html__( 'Overdue only', 'super-mechanic' ) . '</option>';
+		echo '</select> ';
 		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', '', false );
 		echo '</p>';
 		echo '</form>';
@@ -261,10 +297,12 @@ class Crm_Pipeline_Admin_Controller {
 				$view_url   = $this->get_page_url( array( 'action' => 'view', 'id' => absint( $item['id'] ) ) );
 				$edit_url   = $this->get_page_url( array( 'action' => 'edit', 'id' => absint( $item['id'] ) ) );
 				$delete_url = wp_nonce_url( $this->get_page_url( array( 'action' => 'delete', 'id' => absint( $item['id'] ) ) ), 'sm_delete_crm_pipeline_' . absint( $item['id'] ) );
-				echo '<tr>';
+				$item_signals = isset( $signals_by_id[ absint( $item['id'] ) ] ) ? $signals_by_id[ absint( $item['id'] ) ] : array();
+				$row_class    = $this->get_priority_row_class( $item_signals );
+				echo '<tr class="' . esc_attr( $row_class ) . '">';
 				echo '<td>#' . esc_html( absint( $item['id'] ) ) . '</td>';
-				echo '<td>' . $this->render_stage_cell( $item ) . '</td>';
-				echo '<td>' . esc_html( (string) $item['title'] ) . '</td>';
+				echo '<td>' . $this->render_stage_cell( $item, $item_signals ) . '</td>';
+				echo '<td>' . esc_html( (string) $item['title'] ) . $this->render_automation_badges( $item_signals, 'list' ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $item['client_name'] ) ? (string) $item['client_name'] : '#' . absint( $item['client_id'] ) ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $item['client_phone'] ) ? (string) $item['client_phone'] : '-' ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $item['client_email'] ) ? (string) $item['client_email'] : '-' ) . '</td>';
@@ -284,19 +322,26 @@ class Crm_Pipeline_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_kanban_page() {
-		$search    = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
-		$stage     = isset( $_GET['stage'] ) ? sanitize_key( wp_unslash( $_GET['stage'] ) ) : '';
+		$search             = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$stage              = isset( $_GET['stage'] ) ? sanitize_key( wp_unslash( $_GET['stage'] ) ) : '';
+		$assigned_user_id   = isset( $_GET['assigned_user_id'] ) ? absint( $_GET['assigned_user_id'] ) : 0;
+		$requires_attention = isset( $_GET['requires_attention'] ) && '1' === sanitize_key( wp_unslash( $_GET['requires_attention'] ) );
+		$overdue            = isset( $_GET['overdue'] ) && '1' === sanitize_key( wp_unslash( $_GET['overdue'] ) );
 		$view_mode = $this->get_current_view_mode();
 		$catalog   = $this->service->get_stage_catalog();
 		$items     = $this->service->get_opportunities(
 			array(
-				'search'   => $search,
-				'stage'    => $stage,
-				'per_page' => 300,
-				'orderby'  => 'position',
-				'order'    => 'ASC',
+				'search'             => $search,
+				'stage'              => $stage,
+				'assigned_user_id'   => $assigned_user_id,
+				'requires_attention' => $requires_attention ? '1' : '',
+				'overdue'            => $overdue ? '1' : '',
+				'per_page'           => 300,
+				'orderby'            => 'position',
+				'order'              => 'ASC',
 			)
 		);
+		$signals_by_id = $this->service->get_automation_signals_for_opportunities( $items );
 
 		$stages = $catalog;
 		if ( '' !== $stage && in_array( $stage, $catalog, true ) ) {
@@ -320,8 +365,15 @@ class Crm_Pipeline_Admin_Controller {
 		echo '<h1>' . esc_html__( 'CRM Pipeline', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Kanban view by stage. Pipeline remains independent from process workflows.', 'super-mechanic' ) . '</p>';
 		echo '</div><div class="sm-page-actions">';
-		echo '<a class="button button-secondary' . ( 'list' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array( 'view_mode' => 'list', 's' => $search, 'stage' => $stage ) ) ) . '">' . esc_html__( 'List view', 'super-mechanic' ) . '</a>';
-		echo '<a class="button button-secondary' . ( 'kanban' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array( 'view_mode' => 'kanban', 's' => $search, 'stage' => $stage ) ) ) . '">' . esc_html__( 'Kanban view', 'super-mechanic' ) . '</a>';
+		$shared_filters = array(
+			's'                  => $search,
+			'stage'              => $stage,
+			'assigned_user_id'   => $assigned_user_id > 0 ? $assigned_user_id : '',
+			'requires_attention' => $requires_attention ? '1' : '',
+			'overdue'            => $overdue ? '1' : '',
+		);
+		echo '<a class="button button-secondary' . ( 'list' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array_merge( $shared_filters, array( 'view_mode' => 'list' ) ) ) ) . '">' . esc_html__( 'List view', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-secondary' . ( 'kanban' === $view_mode ? ' disabled' : '' ) . '" href="' . esc_url( $this->get_page_url( array_merge( $shared_filters, array( 'view_mode' => 'kanban' ) ) ) ) . '">' . esc_html__( 'Kanban view', 'super-mechanic' ) . '</a>';
 		echo '<a class="button button-primary" href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '">' . esc_html__( 'Create opportunity', 'super-mechanic' ) . '</a>';
 		echo '</div></div>';
 
@@ -337,6 +389,19 @@ class Crm_Pipeline_Admin_Controller {
 		foreach ( $catalog as $stage_key ) {
 			echo '<option value="' . esc_attr( $stage_key ) . '"' . selected( $stage, $stage_key, false ) . '>' . esc_html( $this->humanize_stage( $stage_key ) ) . '</option>';
 		}
+		echo '</select> ';
+		echo '<select name="assigned_user_id"><option value="0">' . esc_html__( 'All assignees', 'super-mechanic' ) . '</option>';
+		foreach ( $this->get_assignable_users() as $user ) {
+			echo '<option value="' . esc_attr( absint( $user->ID ) ) . '"' . selected( $assigned_user_id, absint( $user->ID ), false ) . '>' . esc_html( (string) $user->display_name ) . '</option>';
+		}
+		echo '</select> ';
+		echo '<select name="requires_attention">';
+		echo '<option value="">' . esc_html__( 'Attention: all', 'super-mechanic' ) . '</option>';
+		echo '<option value="1"' . selected( $requires_attention, true, false ) . '>' . esc_html__( 'Requires attention', 'super-mechanic' ) . '</option>';
+		echo '</select> ';
+		echo '<select name="overdue">';
+		echo '<option value="">' . esc_html__( 'Overdue: all', 'super-mechanic' ) . '</option>';
+		echo '<option value="1"' . selected( $overdue, true, false ) . '>' . esc_html__( 'Overdue only', 'super-mechanic' ) . '</option>';
 		echo '</select> ';
 		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', '', false );
 		echo '</p>';
@@ -358,7 +423,18 @@ class Crm_Pipeline_Admin_Controller {
 			} else {
 				echo '<div class="sm-crm-kanban-cards">';
 				foreach ( $stage_items as $item ) {
-					echo $this->render_kanban_card( $item, $search, $stage );
+					$item_signals = isset( $signals_by_id[ absint( $item['id'] ) ] ) ? $signals_by_id[ absint( $item['id'] ) ] : array();
+					echo $this->render_kanban_card(
+						$item,
+						$search,
+						$stage,
+						$item_signals,
+						array(
+							'assigned_user_id'   => $assigned_user_id,
+							'requires_attention' => $requires_attention,
+							'overdue'            => $overdue,
+						)
+					);
 				}
 				echo '</div>';
 			}
@@ -376,9 +452,11 @@ class Crm_Pipeline_Admin_Controller {
 	 * @param array<string, mixed> $item Opportunity data.
 	 * @param string               $search Active search.
 	 * @param string               $stage Active stage filter.
+	 * @param array<string,mixed>  $signals Automation signals.
+	 * @param array<string,mixed>  $active_filters Active list/kanban filters.
 	 * @return string
 	 */
-	protected function render_kanban_card( array $item, $search, $stage ) {
+	protected function render_kanban_card( array $item, $search, $stage, array $signals = array(), array $active_filters = array() ) {
 		$id          = absint( $item['id'] );
 		$current     = isset( $item['stage'] ) ? (string) $item['stage'] : 'new_lead';
 		$client_name = ! empty( $item['client_name'] ) ? (string) $item['client_name'] : '#' . absint( $item['client_id'] );
@@ -408,11 +486,15 @@ class Crm_Pipeline_Admin_Controller {
 				'view_mode'    => 'kanban',
 				's'            => $search,
 				'filter_stage' => $stage,
+				'assigned_user_id'   => ! empty( $active_filters['assigned_user_id'] ) ? absint( $active_filters['assigned_user_id'] ) : '',
+				'requires_attention' => ! empty( $active_filters['requires_attention'] ) ? '1' : '',
+				'overdue'            => ! empty( $active_filters['overdue'] ) ? '1' : '',
 			)
 		);
 
-		$html  = '<article class="sm-crm-kanban-card">';
+		$html  = '<article class="sm-crm-kanban-card ' . esc_attr( $this->get_priority_row_class( $signals ) ) . '">';
 		$html .= '<h4 class="sm-crm-kanban-title">' . esc_html( (string) $item['title'] ) . '</h4>';
+		$html .= $this->render_automation_badges( $signals, 'kanban' );
 		$html .= '<p class="sm-crm-kanban-line"><strong>' . esc_html__( 'Client:', 'super-mechanic' ) . '</strong> ' . esc_html( $client_name ) . '</p>';
 		$html .= '<p class="sm-crm-kanban-line"><strong>' . esc_html__( 'Estimated:', 'super-mechanic' ) . '</strong> ' . esc_html( $amount ) . '</p>';
 		$html .= '<p class="sm-crm-kanban-line"><strong>' . esc_html__( 'Assigned:', 'super-mechanic' ) . '</strong> ' . esc_html( $assigned ) . '</p>';
@@ -449,6 +531,7 @@ class Crm_Pipeline_Admin_Controller {
 		$opportunity_id = absint( $item['id'] );
 		$has_process    = ! empty( $item['process_id'] );
 		$can_convert    = ( ! $has_process ) && ( 'won' === (string) $item['stage'] || 'view' === ( isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '' ) );
+		$signals        = $this->service->get_opportunity_automation_signals( $item );
 
 		$vehicle_text = '-';
 		if ( ! empty( $item['vehicle_id'] ) ) {
@@ -475,6 +558,19 @@ class Crm_Pipeline_Admin_Controller {
 		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => absint( $item['id'] ) ) ) ) . '" class="button button-primary">' . esc_html__( 'Edit opportunity', 'super-mechanic' ) . '</a> ';
 		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to pipeline', 'super-mechanic' ) . '</a>';
 		echo '</div></div>';
+
+		if ( ! empty( $signals['conversion_pending'] ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Conversion pending: this won opportunity is not linked to a process yet.', 'super-mechanic' ) . '</p></div>';
+		}
+		if ( ! empty( $signals['suggest_follow_up'] ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Suggestion: this stage has no pending follow-up task.', 'super-mechanic' ) . '</p></div>';
+		}
+		if ( ! empty( $signals['overdue_task_count'] ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Attention required: %d overdue CRM task(s).', 'super-mechanic' ), absint( $signals['overdue_task_count'] ) ) ) . '</p></div>';
+		}
+		if ( ! empty( $signals['inactive_attention'] ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Attention required: inactive opportunity without recent CRM activity.', 'super-mechanic' ) . '</p></div>';
+		}
 
 		echo '<div class="sm-card sm-section">';
 		echo '<table class="sm-table"><tbody>';
@@ -1080,6 +1176,9 @@ class Crm_Pipeline_Admin_Controller {
 		$view_mode    = isset( $_GET['view_mode'] ) ? sanitize_key( wp_unslash( $_GET['view_mode'] ) ) : '';
 		$search       = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 		$filter_stage = isset( $_GET['filter_stage'] ) ? sanitize_key( wp_unslash( $_GET['filter_stage'] ) ) : '';
+		$assigned_user_id   = isset( $_GET['assigned_user_id'] ) ? absint( $_GET['assigned_user_id'] ) : 0;
+		$requires_attention = isset( $_GET['requires_attention'] ) && '1' === sanitize_key( wp_unslash( $_GET['requires_attention'] ) );
+		$overdue            = isset( $_GET['overdue'] ) && '1' === sanitize_key( wp_unslash( $_GET['overdue'] ) );
 
 		check_admin_referer( 'sm_quick_crm_pipeline_stage_' . $id . '_' . $stage );
 
@@ -1096,6 +1195,32 @@ class Crm_Pipeline_Admin_Controller {
 				if ( '' !== $filter_stage ) {
 					$redirect_args['stage'] = $filter_stage;
 				}
+				if ( $assigned_user_id > 0 ) {
+					$redirect_args['assigned_user_id'] = $assigned_user_id;
+				}
+				if ( $requires_attention ) {
+					$redirect_args['requires_attention'] = '1';
+				}
+				if ( $overdue ) {
+					$redirect_args['overdue'] = '1';
+				}
+			}
+			if ( 'kanban' !== $view_mode ) {
+				if ( '' !== $search ) {
+					$redirect_args['s'] = $search;
+				}
+				if ( '' !== $filter_stage ) {
+					$redirect_args['stage'] = $filter_stage;
+				}
+				if ( $assigned_user_id > 0 ) {
+					$redirect_args['assigned_user_id'] = $assigned_user_id;
+				}
+				if ( $requires_attention ) {
+					$redirect_args['requires_attention'] = '1';
+				}
+				if ( $overdue ) {
+					$redirect_args['overdue'] = '1';
+				}
 			}
 			$this->redirect( $redirect_args );
 		}
@@ -1104,6 +1229,15 @@ class Crm_Pipeline_Admin_Controller {
 			'sm_notice'   => 'stage_updated',
 			'stage_label' => rawurlencode( $this->humanize_stage( $stage ) ),
 		);
+		$updated_item = $this->service->get_opportunity( $id );
+		if ( is_array( $updated_item ) ) {
+			$signals = $this->service->get_opportunity_automation_signals( $updated_item );
+			if ( ! empty( $signals['conversion_pending'] ) ) {
+				$redirect_args['sm_hint'] = 'conversion_pending';
+			} elseif ( ! empty( $signals['suggest_follow_up'] ) ) {
+				$redirect_args['sm_hint'] = 'follow_up_missing';
+			}
+		}
 		if ( 'kanban' === $view_mode ) {
 			$redirect_args['view_mode'] = 'kanban';
 			if ( '' !== $search ) {
@@ -1111,6 +1245,32 @@ class Crm_Pipeline_Admin_Controller {
 			}
 			if ( '' !== $filter_stage ) {
 				$redirect_args['stage'] = $filter_stage;
+			}
+			if ( $assigned_user_id > 0 ) {
+				$redirect_args['assigned_user_id'] = $assigned_user_id;
+			}
+			if ( $requires_attention ) {
+				$redirect_args['requires_attention'] = '1';
+			}
+			if ( $overdue ) {
+				$redirect_args['overdue'] = '1';
+			}
+		}
+		if ( 'kanban' !== $view_mode ) {
+			if ( '' !== $search ) {
+				$redirect_args['s'] = $search;
+			}
+			if ( '' !== $filter_stage ) {
+				$redirect_args['stage'] = $filter_stage;
+			}
+			if ( $assigned_user_id > 0 ) {
+				$redirect_args['assigned_user_id'] = $assigned_user_id;
+			}
+			if ( $requires_attention ) {
+				$redirect_args['requires_attention'] = '1';
+			}
+			if ( $overdue ) {
+				$redirect_args['overdue'] = '1';
 			}
 		}
 		$this->redirect( $redirect_args );
@@ -1161,12 +1321,18 @@ class Crm_Pipeline_Admin_Controller {
 	 * Render stage badge cell with quick actions.
 	 *
 	 * @param array<string, mixed> $item Row.
+	 * @param array<string, mixed> $signals Automation signals.
 	 * @return string
 	 */
-	protected function render_stage_cell( array $item ) {
+	protected function render_stage_cell( array $item, array $signals = array() ) {
 		$current_stage = isset( $item['stage'] ) ? (string) $item['stage'] : 'new_lead';
 		$badge         = '<span class="sm-badge sm-badge-' . esc_attr( $this->get_stage_tone( $current_stage ) ) . '">' . esc_html( $this->humanize_stage( $current_stage ) ) . '</span>';
-		$actions       = $this->build_quick_stage_actions( absint( $item['id'] ), $current_stage );
+		if ( ! empty( $signals['overdue_task_count'] ) ) {
+			$badge .= ' <span class="sm-badge sm-badge-danger">' . esc_html__( 'Critical', 'super-mechanic' ) . '</span>';
+		} elseif ( ! empty( $signals['requires_attention'] ) ) {
+			$badge .= ' <span class="sm-badge sm-badge-warning">' . esc_html__( 'Attention', 'super-mechanic' ) . '</span>';
+		}
+		$actions       = $this->build_quick_stage_actions( absint( $item['id'] ), $current_stage, $this->get_active_filter_args() );
 
 		if ( empty( $actions ) ) {
 			return $badge;
@@ -1238,6 +1404,105 @@ class Crm_Pipeline_Admin_Controller {
 	 */
 	protected function render_detail_row( $label, $value ) {
 		echo '<tr><th>' . esc_html( $label ) . '</th><td>' . esc_html( $value ) . '</td></tr>';
+	}
+
+	/**
+	 * Render compact automation badges for list/kanban.
+	 *
+	 * @param array<string,mixed> $signals Signal payload.
+	 * @param string              $context Render context.
+	 * @return string
+	 */
+	protected function render_automation_badges( array $signals, $context = 'default' ) {
+		$badges = array();
+		$has_overdue = ! empty( $signals['overdue_task_count'] );
+
+		if ( $has_overdue && 'list' !== $context ) {
+			$badges[] = '<span class="sm-badge sm-badge-danger">' . esc_html( sprintf( __( 'Overdue: %d', 'super-mechanic' ), absint( $signals['overdue_task_count'] ) ) ) . '</span>';
+		}
+		if ( ! $has_overdue && ! empty( $signals['suggest_follow_up'] ) ) {
+			$badges[] = '<span class="sm-badge sm-badge-warning">' . esc_html__( 'Follow-up suggested', 'super-mechanic' ) . '</span>';
+		}
+		if ( ! $has_overdue && ! empty( $signals['conversion_pending'] ) ) {
+			$badges[] = '<span class="sm-badge sm-badge-warning">' . esc_html__( 'Conversion pending', 'super-mechanic' ) . '</span>';
+		}
+		if ( ! $has_overdue && ! empty( $signals['inactive_attention'] ) ) {
+			$badges[] = '<span class="sm-badge sm-badge-warning">' . esc_html__( 'Inactive', 'super-mechanic' ) . '</span>';
+		}
+
+		if ( empty( $badges ) ) {
+			return '';
+		}
+
+		return '<div class="sm-crm-automation-badges">' . implode( ' ', $badges ) . '</div>';
+	}
+
+	/**
+	 * Resolve row/card priority CSS class from automation signals.
+	 *
+	 * @param array<string,mixed> $signals Signal payload.
+	 * @return string
+	 */
+	protected function get_priority_row_class( array $signals ) {
+		if ( ! empty( $signals['overdue_task_count'] ) ) {
+			return 'sm-crm-priority-critical';
+		}
+
+		if ( ! empty( $signals['requires_attention'] ) ) {
+			return 'sm-crm-priority-attention';
+		}
+
+		return 'sm-crm-priority-normal';
+	}
+
+	/**
+	 * Get active filter args for action links.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_active_filter_args() {
+		$args = array();
+
+		if ( isset( $_GET['s'] ) ) {
+			$args['s'] = sanitize_text_field( wp_unslash( $_GET['s'] ) );
+		}
+		if ( isset( $_GET['stage'] ) ) {
+			$args['filter_stage'] = sanitize_key( wp_unslash( $_GET['stage'] ) );
+		}
+		if ( isset( $_GET['view_mode'] ) ) {
+			$args['view_mode'] = $this->get_current_view_mode();
+		}
+		if ( isset( $_GET['assigned_user_id'] ) ) {
+			$assigned_user_id = absint( $_GET['assigned_user_id'] );
+			if ( $assigned_user_id > 0 ) {
+				$args['assigned_user_id'] = $assigned_user_id;
+			}
+		}
+		if ( isset( $_GET['requires_attention'] ) && '1' === sanitize_key( wp_unslash( $_GET['requires_attention'] ) ) ) {
+			$args['requires_attention'] = '1';
+		}
+		if ( isset( $_GET['overdue'] ) && '1' === sanitize_key( wp_unslash( $_GET['overdue'] ) ) ) {
+			$args['overdue'] = '1';
+		}
+
+		return $args;
+	}
+
+	/**
+	 * Get users for assigned-user filter.
+	 *
+	 * @return array<int,\WP_User>
+	 */
+	protected function get_assignable_users() {
+		$users = get_users(
+			array(
+				'orderby' => 'display_name',
+				'order'   => 'ASC',
+				'fields'  => array( 'ID', 'display_name' ),
+			)
+		);
+
+		return is_array( $users ) ? $users : array();
 	}
 
 	/**

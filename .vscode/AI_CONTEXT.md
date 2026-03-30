@@ -298,3 +298,60 @@ Si docs/prompts difieren del código: manda el código y corrige la documentaci�
   - sin automatizacion compleja
 - Siguiente continuidad recomendada:
   - continuidad de `Fase 39` posterior a `39C` (automatizaciones CRM controladas y/o agenda comercial progresiva, sin romper tenancy ni arquitectura actual)
+
+## ACTUALIZACION 39D-1 (CIERRE DOCUMENTAL)
+
+- `39D-1` - COMPLETA
+- Alcance validado:
+  - auto-tarea inicial idempotente en alta de oportunidad (solo si no existen tareas)
+  - sugerencias en `contacted`/`quoted` cuando no hay `pending` (sin auto-creacion extra)
+  - señal de conversion pendiente en `won` sin `process_id`
+  - señales de overdue/inactividad en UI
+  - agregacion por multiples oportunidades para evitar N+1 en list/kanban
+- Validacion runtime WordPress manual real: CONFIRMADA POR USUARIO
+- No regresion confirmada por usuario:
+  - CRUD pipeline
+  - tareas CRM
+  - kanban
+  - calendar
+  - conversion operativa
+- Restricciones preservadas:
+  - sin cron
+  - sin email automatico
+  - sin automatizacion externa/agresiva
+- Siguiente continuidad recomendada:
+  - continuidad de `Fase 39` posterior a `39D-1` (siguiente subfase CRM comercial)
+
+## ACTUALIZACION 39D-2 (CIERRE DOCUMENTAL)
+
+- `39D-2` - COMPLETA
+- Alcance validado:
+  - filtros operativos combinables en CRM:
+    - `assigned_user_id`
+    - `stage`
+    - `search`
+    - `requires_attention`
+    - `overdue`
+  - priorizacion visual:
+    - `Overdue` critico
+    - `Attention` warning
+  - quick stage preserva contexto/filtros:
+    - `view_mode`
+    - `search`
+    - `stage`
+    - `assigned_user_id`
+    - `requires_attention`
+    - `overdue`
+- Validacion runtime WordPress manual real: CONFIRMADA POR USUARIO
+- No regresion confirmada por usuario:
+  - CRUD pipeline
+  - tasks CRM
+  - kanban
+  - calendar
+  - conversion operativa
+- Restricciones preservadas:
+  - sin cron
+  - sin email automatico
+  - sin cambios de schema
+- Siguiente continuidad recomendada:
+  - continuidad de `Fase 39` posterior a `39D-2` (siguiente subfase CRM comercial)

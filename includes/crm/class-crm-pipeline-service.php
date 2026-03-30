@@ -27,6 +27,20 @@ class Crm_Pipeline_Service {
 	const STAGES = array( 'new_lead', 'contacted', 'quoted', 'negotiating', 'won', 'lost' );
 
 	/**
+	 * Stages where follow-up suggestion should appear when no pending task exists.
+	 *
+	 * @var array<int,string>
+	 */
+	const FOLLOW_UP_SUGGESTION_STAGES = array( 'contacted', 'quoted' );
+
+	/**
+	 * Days threshold to mark an opportunity as inactive in UI signals.
+	 *
+	 * @var int
+	 */
+	const INACTIVITY_DAYS = 7;
+
+	/**
 	 * Repository.
 	 *
 	 * @var Crm_Pipeline_Repository
@@ -106,6 +120,8 @@ class Crm_Pipeline_Service {
 			return new WP_Error( 'sm_crm_pipeline_insert_failed', __( 'Could not create CRM opportunity.', 'super-mechanic' ) );
 		}
 
+		$this->maybe_create_initial_follow_up_task( (int) $inserted, $normalized );
+
 		return $inserted;
 	}
 
@@ -183,7 +199,30 @@ class Crm_Pipeline_Service {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_opportunities( array $args = array() ) {
-		return $this->repository->get_all( $args );
+		$requires_attention = $this->normalize_boolean_filter( isset( $args['requires_attention'] ) ? $args['requires_attention'] : false );
+		$overdue_only       = $this->normalize_boolean_filter( isset( $args['overdue'] ) ? $args['overdue'] : false );
+		$rows               = $this->repository->get_all( $args );
+
+		if ( empty( $rows ) || ( ! $requires_attention && ! $overdue_only ) ) {
+			return $rows;
+		}
+
+		$signals_by_id = $this->get_automation_signals_for_opportunities( $rows );
+		$filtered      = array();
+
+		foreach ( $rows as $row ) {
+			$id      = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			$signals = ( $id > 0 && isset( $signals_by_id[ $id ] ) ) ? $signals_by_id[ $id ] : $this->get_default_automation_signal_payload();
+
+			$matches_requires_attention = ! $requires_attention || ! empty( $signals['requires_attention'] );
+			$matches_overdue           = ! $overdue_only || ! empty( $signals['overdue_task_count'] );
+
+			if ( $matches_requires_attention && $matches_overdue ) {
+				$filtered[] = $row;
+			}
+		}
+
+		return $filtered;
 	}
 
 	/**
@@ -193,6 +232,17 @@ class Crm_Pipeline_Service {
 	 * @return int
 	 */
 	public function count_opportunities( array $args = array() ) {
+		$requires_attention = $this->normalize_boolean_filter( isset( $args['requires_attention'] ) ? $args['requires_attention'] : false );
+		$overdue_only       = $this->normalize_boolean_filter( isset( $args['overdue'] ) ? $args['overdue'] : false );
+
+		if ( $requires_attention || $overdue_only ) {
+			$count_args = $args;
+			$count_args['page']     = 1;
+			$count_args['per_page'] = 500;
+
+			return count( $this->get_opportunities( $count_args ) );
+		}
+
 		return $this->repository->count_all( $args );
 	}
 
@@ -319,6 +369,98 @@ class Crm_Pipeline_Service {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Get automation signals for one opportunity.
+	 *
+	 * Signals are computed at runtime only (not persisted).
+	 *
+	 * @param array<string,mixed> $opportunity Opportunity row.
+	 * @return array<string,mixed>
+	 */
+	public function get_opportunity_automation_signals( array $opportunity ) {
+		$signals_map = $this->get_automation_signals_for_opportunities( array( $opportunity ) );
+		$id          = isset( $opportunity['id'] ) ? absint( $opportunity['id'] ) : 0;
+
+		return ( $id > 0 && isset( $signals_map[ $id ] ) ) ? $signals_map[ $id ] : $this->get_default_automation_signal_payload();
+	}
+
+	/**
+	 * Get automation signals for list/kanban with aggregate task queries.
+	 *
+	 * @param array<int,array<string,mixed>> $opportunities Opportunity rows.
+	 * @return array<int,array<string,mixed>> Map opportunity_id => signals.
+	 */
+	public function get_automation_signals_for_opportunities( array $opportunities ) {
+		$signals_by_id = array();
+		$pipeline_ids  = array();
+
+		foreach ( $opportunities as $row ) {
+			$id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			if ( $id > 0 ) {
+				$pipeline_ids[] = $id;
+			}
+		}
+
+		$pipeline_ids = array_values( array_unique( array_filter( $pipeline_ids ) ) );
+		if ( empty( $pipeline_ids ) ) {
+			return $signals_by_id;
+		}
+
+		$now_mysql         = current_time( 'mysql' );
+		$now_ts            = strtotime( $now_mysql );
+		$pending_count_map = $this->task_service->get_pending_counts_by_pipeline_ids( $pipeline_ids );
+		$overdue_count_map = $this->task_service->get_overdue_counts_by_pipeline_ids( $pipeline_ids, $now_mysql );
+		$task_activity_map = $this->task_service->get_last_activity_by_pipeline_ids( $pipeline_ids );
+
+		foreach ( $opportunities as $row ) {
+			$id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			if ( $id <= 0 ) {
+				continue;
+			}
+
+			$pending_count = isset( $pending_count_map[ $id ] ) ? absint( $pending_count_map[ $id ] ) : 0;
+			$overdue_count = isset( $overdue_count_map[ $id ] ) ? absint( $overdue_count_map[ $id ] ) : 0;
+			$stage         = isset( $row['stage'] ) ? sanitize_key( (string) $row['stage'] ) : '';
+			$has_process   = ! empty( $row['process_id'] );
+
+			$base_activity_at = '';
+			if ( ! empty( $row['updated_at'] ) ) {
+				$base_activity_at = sanitize_text_field( (string) $row['updated_at'] );
+			} elseif ( ! empty( $row['created_at'] ) ) {
+				$base_activity_at = sanitize_text_field( (string) $row['created_at'] );
+			}
+
+			$last_activity_at = $base_activity_at;
+			if ( isset( $task_activity_map[ $id ] ) && $this->is_datetime_more_recent( $task_activity_map[ $id ], $last_activity_at ) ) {
+				$last_activity_at = $task_activity_map[ $id ];
+			}
+
+			$inactive_attention = false;
+			if ( ! empty( $last_activity_at ) && false !== $now_ts ) {
+				$last_activity_ts = strtotime( (string) $last_activity_at );
+				if ( false !== $last_activity_ts ) {
+					$inactive_attention = ( $now_ts - $last_activity_ts ) > ( self::INACTIVITY_DAYS * DAY_IN_SECONDS );
+				}
+			}
+
+			$suggest_follow_up = in_array( $stage, self::FOLLOW_UP_SUGGESTION_STAGES, true ) && 0 === $pending_count;
+			$conversion_pending = ( 'won' === $stage ) && ! $has_process;
+			$requires_attention = $suggest_follow_up || $conversion_pending || ( $overdue_count > 0 ) || $inactive_attention;
+
+			$signals_by_id[ $id ] = array(
+				'pending_task_count' => $pending_count,
+				'overdue_task_count' => $overdue_count,
+				'suggest_follow_up'  => $suggest_follow_up,
+				'conversion_pending' => $conversion_pending,
+				'inactive_attention' => $inactive_attention,
+				'requires_attention' => $requires_attention,
+				'last_activity_at'   => $last_activity_at,
+			);
+		}
+
+		return $signals_by_id;
 	}
 
 	/**
@@ -482,5 +624,103 @@ class Crm_Pipeline_Service {
 		}
 
 		return $errors->has_errors() ? $errors : true;
+	}
+
+	/**
+	 * Create one initial follow-up task on opportunity creation, idempotent.
+	 *
+	 * Auto-creation is intentionally limited to opportunity creation only.
+	 *
+	 * @param int                 $opportunity_id Opportunity ID.
+	 * @param array<string,mixed> $opportunity    Normalized opportunity payload.
+	 * @return void
+	 */
+	protected function maybe_create_initial_follow_up_task( $opportunity_id, array $opportunity ) {
+		$opportunity_id = absint( $opportunity_id );
+		if ( $opportunity_id <= 0 ) {
+			return;
+		}
+
+		// Idempotent guard: if any task already exists, do not auto-create.
+		if ( $this->task_service->has_any_task_for_pipeline( $opportunity_id ) ) {
+			return;
+		}
+
+		$due_at = gmdate( 'Y-m-d H:i:s', strtotime( '+1 day', current_time( 'timestamp', true ) ) );
+		$title  = __( 'Initial follow-up', 'super-mechanic' );
+		if ( ! empty( $opportunity['title'] ) ) {
+			$title = sprintf(
+				/* translators: %s opportunity title */
+				__( 'Initial follow-up: %s', 'super-mechanic' ),
+				sanitize_text_field( (string) $opportunity['title'] )
+			);
+		}
+
+		$this->task_service->create_task(
+			array(
+				'crm_pipeline_id'  => $opportunity_id,
+				'title'            => $title,
+				'task_type'        => 'follow_up',
+				'assigned_user_id' => isset( $opportunity['assigned_user_id'] ) ? absint( $opportunity['assigned_user_id'] ) : 0,
+				'due_at'           => $due_at,
+				'status'           => 'pending',
+				'notes'            => __( 'Auto-created on opportunity creation (39D-1).', 'super-mechanic' ),
+			)
+		);
+	}
+
+	/**
+	 * Return default automation signal payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_default_automation_signal_payload() {
+		return array(
+			'pending_task_count' => 0,
+			'overdue_task_count' => 0,
+			'suggest_follow_up'  => false,
+			'conversion_pending' => false,
+			'inactive_attention' => false,
+			'requires_attention' => false,
+			'last_activity_at'   => '',
+		);
+	}
+
+	/**
+	 * Compare two mysql datetime values and report if A is more recent than B.
+	 *
+	 * @param string $candidate Candidate datetime.
+	 * @param string $baseline  Baseline datetime.
+	 * @return bool
+	 */
+	protected function is_datetime_more_recent( $candidate, $baseline ) {
+		$candidate_ts = strtotime( (string) $candidate );
+		$baseline_ts  = strtotime( (string) $baseline );
+
+		if ( false === $candidate_ts ) {
+			return false;
+		}
+
+		if ( false === $baseline_ts ) {
+			return true;
+		}
+
+		return $candidate_ts > $baseline_ts;
+	}
+
+	/**
+	 * Normalize boolean-like filter values from query args.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return bool
+	 */
+	protected function normalize_boolean_filter( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+
+		$value = sanitize_key( (string) $value );
+
+		return in_array( $value, array( '1', 'yes', 'true', 'on' ), true );
 	}
 }

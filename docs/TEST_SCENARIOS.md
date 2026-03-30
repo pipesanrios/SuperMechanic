@@ -1162,3 +1162,83 @@ Condicion tecnica consolidada:
 - sin cron
 - sin email automatico
 - sin automatizacion compleja
+
+==================================================
+ESCENARIO 47 — AUTOMATIZACION COMERCIAL BASICA INTERNA (39D-1)
+==================================================
+
+Estado 39D-1: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> crea oportunidad CRM nueva
+-> valida auto-tarea inicial
+-> cambia stage a `contacted`/`quoted`
+-> cambia stage a `won` con y sin `process_id`
+-> revisa list/kanban/view con oportunidades overdue e inactivas
+
+Resultado esperado:
+
+- alta de oportunidad:
+  - oportunidad creada correctamente
+  - auto-tarea inicial creada una sola vez
+  - sin duplicacion en recarga/edicion (idempotencia)
+- `contacted`/`quoted`:
+  - sugerencia visual cuando no hay tareas `pending`
+  - sin auto-creacion de tareas extra
+- `won`:
+  - sin `process_id` muestra señal de conversion pendiente
+  - con `process_id` la señal deja de mostrarse
+- overdue/inactividad:
+  - señales visibles y coherentes en list/kanban/view
+  - sin saturacion visual fuerte
+- no regresion:
+  - CRUD pipeline OK
+  - tareas CRM OK
+  - kanban OK
+  - calendar OK
+  - conversion operativa OK
+
+==================================================
+ESCENARIO 48 — REFINAMIENTO OPERATIVO CRM (39D-2)
+==================================================
+
+Estado 39D-2: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> CRM Pipeline` en list y kanban
+-> aplica filtros operativos individuales y combinados
+-> valida jerarquia visual de prioridades
+-> ejecuta quick stage en contexto filtrado
+
+Resultado esperado:
+
+- filtros operativos funcionales y combinables:
+  - `assigned_user_id`
+  - `stage`
+  - `search`
+  - `requires_attention`
+  - `overdue`
+- filtros combinados no rompen listado ni kanban
+- priorizacion visual consistente:
+  - `Overdue` como prioridad critica
+  - `Attention` como prioridad warning/media
+  - sin badges duplicados innecesarios
+- quick stage:
+  - funciona sin regresion
+  - preserva contexto y filtros activos:
+    - `view_mode`
+    - `search`
+    - `stage`
+    - `assigned_user_id`
+    - `requires_attention`
+    - `overdue`
+- no regresion:
+  - CRUD pipeline OK
+  - tasks CRM OK
+  - kanban OK
+  - calendar OK
+  - conversion operativa OK

@@ -111,6 +111,7 @@ class Crm_Pipeline_Repository {
 			array(
 				'search'      => '',
 				'stage'       => '',
+				'assigned_user_id' => 0,
 				'client_id'   => 0,
 				'business_id' => $this->resolve_business_id(),
 				'page'        => 1,
@@ -169,6 +170,7 @@ class Crm_Pipeline_Repository {
 			array(
 				'search'      => '',
 				'stage'       => '',
+				'assigned_user_id' => 0,
 				'client_id'   => 0,
 				'business_id' => $this->resolve_business_id(),
 			)
@@ -374,6 +376,10 @@ class Crm_Pipeline_Repository {
 			$clauses[] = 'p.client_id = %d';
 		}
 
+		if ( ! empty( $args['assigned_user_id'] ) ) {
+			$clauses[] = 'p.assigned_user_id = %d';
+		}
+
 		if ( empty( $clauses ) ) {
 			return '';
 		}
@@ -410,6 +416,10 @@ class Crm_Pipeline_Repository {
 
 		if ( ! empty( $args['client_id'] ) ) {
 			$params[] = absint( $args['client_id'] );
+		}
+
+		if ( ! empty( $args['assigned_user_id'] ) ) {
+			$params[] = absint( $args['assigned_user_id'] );
 		}
 
 		return $params;

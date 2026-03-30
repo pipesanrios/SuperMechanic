@@ -183,6 +183,53 @@ class Crm_Task_Service {
 	}
 
 	/**
+	 * Check if one opportunity already has tasks.
+	 *
+	 * @param int $crm_pipeline_id Opportunity ID.
+	 * @return bool
+	 */
+	public function has_any_task_for_pipeline( $crm_pipeline_id ) {
+		$tasks = $this->get_tasks_by_pipeline_id( $crm_pipeline_id );
+
+		return is_array( $tasks ) && ! empty( $tasks );
+	}
+
+	/**
+	 * Count pending tasks by opportunity ids.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,int> Map pipeline_id => pending_count.
+	 */
+	public function get_pending_counts_by_pipeline_ids( array $pipeline_ids ) {
+		return $this->repository->count_pending_by_pipeline_ids( $pipeline_ids );
+	}
+
+	/**
+	 * Count overdue pending tasks by opportunity ids.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @param string|null    $now_mysql    Optional current datetime.
+	 * @return array<int,int> Map pipeline_id => overdue_count.
+	 */
+	public function get_overdue_counts_by_pipeline_ids( array $pipeline_ids, $now_mysql = null ) {
+		if ( empty( $now_mysql ) ) {
+			$now_mysql = current_time( 'mysql' );
+		}
+
+		return $this->repository->count_overdue_by_pipeline_ids( $pipeline_ids, (string) $now_mysql );
+	}
+
+	/**
+	 * Get latest task activity by opportunity ids.
+	 *
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,string> Map pipeline_id => mysql datetime.
+	 */
+	public function get_last_activity_by_pipeline_ids( array $pipeline_ids ) {
+		return $this->repository->get_last_activity_by_pipeline_ids( $pipeline_ids );
+	}
+
+	/**
 	 * Get status catalog.
 	 *
 	 * @return array<int, string>
