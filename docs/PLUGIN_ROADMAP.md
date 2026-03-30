@@ -255,6 +255,151 @@ Consolidado del bloque 38B (Comercial / WooCommerce):
   - sin sync de precios Woo en tiempo real
   - sin cambios de schema
 
+Fase 38C-1 — Optimizacion operativa real (UX + flujos)
+- Estado: COMPLETA
+- Alcance consolidado:
+  - quick actions operativas en dashboard (`Create process`, `Open maintenance`, `Create quote`, `Create invoice`)
+  - atajos `Create process` en filas de clientes y vehiculos con contexto (`client_id`, `vehicle_id`) preservado
+  - atajos de proceso a `maintenance`, `quote`, `invoice` y acciones rapidas de estado con feedback visual
+  - refinamiento de finanzas con busqueda/labels/notices mas claros en invoices/payments
+  - hotfix de cierre: `Create quote` en dashboard deja de compartir destino con `Open maintenance`
+- Validacion de cierre:
+  - php lint global: OK
+  - structure-check: OK
+  - technical-checklist: OK
+  - sin cambios de schema ni arquitectura base
+
+Fase 38C-2 — Estabilidad operativa y pulido fino
+- Estado: COMPLETA
+- Alcance consolidado:
+  - unificacion de labels y acciones operativas en clientes/vehiculos/procesos para reducir ambiguedad
+  - correccion de retorno de contexto en flujos de alta contextual:
+    - `return_vehicle_id` en clientes
+    - `return_client_id` en vehiculos
+  - consistencia de columnas/acciones en procesos para navegacion mas clara
+  - estandarizacion de labels en finanzas/pagos (`Amount`, `Reference`, `Notes`) sin tocar logica financiera
+- Validacion de cierre:
+  - php lint global: OK
+  - validacion runtime manual WordPress real: CONFIRMADA POR USUARIO
+  - sin cambios de schema ni arquitectura base
+
+Fase 38D-1 — Reportes base (financieros y operativos)
+- Estado: COMPLETA
+- Alcance consolidado:
+  - reportes financieros base (`total billed`, `total paid`, `pending`, `invoices`, `average ticket`)
+  - reportes operativos base de procesos (`total`, por tipo, por estado, abiertos vs cerrados)
+  - resumen por cliente (`total procesos`, `total facturado`, `total pagado`)
+  - resumen por vehiculo (`total procesos`, `gasto acumulado`)
+  - filtros globales simples por negocio y rango de fechas
+- Validacion de cierre:
+  - php lint global: OK
+  - validacion runtime manual WordPress real: CONFIRMADA POR USUARIO
+  - sin cambios de schema ni arquitectura base
+
+Fase 38D-2 — Exportacion / presentacion de reportes
+- Estado: COMPLETA
+- Alcance consolidado:
+  - export CSV por vista sobre el modulo `reports` existente
+  - vistas de export operativas:
+    - `financial_base`
+    - `operational_base`
+    - `client_summary`
+    - `vehicle_summary`
+    - `recent_*` existentes
+  - consistencia entre UI y export desde la misma capa (`Report_Service`)
+  - filtros activos compartidos entre vista y export (`business_id`, `date_from`, `date_to`)
+  - pulido de labels/typos en reports dentro del alcance
+- Validacion de cierre:
+  - php lint global: OK
+  - validacion runtime manual WordPress real: CONFIRMADA POR USUARIO
+  - sin cambios de schema ni arquitectura base
+
+Fase 38D-3 — KPIs y dashboards mas accionables
+- Estado: COMPLETA
+- Alcance consolidado:
+  - KPIs accionables en `reports` para control rapido operativo/financiero:
+    - open/closed processes
+    - overdue invoices
+    - outstanding by currency
+    - recent payments
+    - average ticket
+    - top clients
+    - top vehicles
+    - operational load (por estado/tipo)
+  - bloques de lectura rapida orientados a accion:
+    - requiere atencion
+    - pendiente de cobro
+    - mas actividad / mas facturacion
+    - estados criticos
+  - filtros activos preservados y aplicados de forma consistente:
+    - `business_id`
+    - `date_from`
+    - `date_to`
+- Validacion de cierre:
+  - php lint global: OK
+  - validacion runtime manual WordPress real: CONFIRMADA POR USUARIO
+  - sin cambios de schema ni arquitectura base
+
+Consolidado del bloque 38D (Reportes y control):
+- Cobertura funcional del bloque:
+  - reportes financieros
+  - reportes operativos
+  - reportes por cliente
+  - reportes por vehiculo
+  - export CSV por vista
+  - KPIs accionables
+  - dashboards de control
+- Estado global del bloque: COMPLETO
+- Validacion global del bloque: runtime manual WordPress real confirmada por usuario en 38D-1/38D-2/38D-3
+- Restricciones preservadas: sin cambios de schema ni arquitectura
+
+==================================================
+CONTINUIDAD POST 38 (RENumeracion OFICIAL)
+==================================================
+
+Justificacion de continuidad:
+- el bloque `38` ya fue consumido por ejecucion real (`38A`, `38B`, `38C`, `38D`) y queda consolidado como historico cerrado
+- CRM no debe quedar como `37B` porque rompe continuidad cronologica y funcional
+- la evolucion natural posterior al bloque 38 consolidado es:
+  - plataforma
+  - comercial
+  - operacion
+  - reportes/control
+  - luego CRM y automatizacion comercial
+- hosting gestionado / WordPress dedicado corresponde a fase comercial/de despliegue posterior
+- SaaS independiente queda como evolucion arquitectonica mayor final
+
+Fase 39 — CRM y automatizacion comercial
+- Estado: PLANIFICADA
+- Objetivo:
+  - evolucion funcional del producto hacia seguimiento comercial/cliente
+- Incluye:
+  - seguimiento de clientes
+  - recordatorios
+  - pipeline comercial
+  - tareas/estados de seguimiento
+  - automatizaciones simples comerciales
+
+Fase 40 — Hosting gestionado / WordPress dedicado
+- Estado: PLANIFICADA
+- Objetivo:
+  - modelo comercial completo para clientes sin infraestructura propia
+- Incluye:
+  - WordPress dedicado por cliente
+  - despliegue estandar
+  - gestion de hosting
+  - soporte centralizado
+
+Fase 41 — SaaS independiente
+- Estado: PLANIFICADA
+- Objetivo:
+  - version desacoplada de WordPress
+- Incluye:
+  - backend central
+  - frontend propio
+  - WordPress opcional o accesorio
+  - migracion progresiva desde plugin
+
 Alcance consolidado:
 - menu admin `Super Mechanic -> Calendar`
 - FullCalendar local (sin CDN)
@@ -267,7 +412,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es `FASE 38C — Comercial / continuidad post-Woo base`.
+La siguiente continuidad habilitada es `Fase 39 — CRM y automatizacion comercial`.
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

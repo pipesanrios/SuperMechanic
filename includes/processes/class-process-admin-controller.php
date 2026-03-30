@@ -101,7 +101,19 @@ class Process_Admin_Controller {
 		}
 
 		if ( 'status_updated' === $notice ) {
-			$this->render_notice( __( 'Process status updated successfully.', 'super-mechanic' ), 'success' );
+			$next_status = isset( $_GET['sm_status'] ) ? sanitize_key( wp_unslash( $_GET['sm_status'] ) ) : '';
+			if ( '' !== $next_status ) {
+				$this->render_notice(
+					sprintf(
+						/* translators: %s: process status label. */
+						__( 'Process status updated to %s.', 'super-mechanic' ),
+						ucwords( str_replace( '_', ' ', $next_status ) )
+					),
+					'success'
+				);
+			} else {
+				$this->render_notice( __( 'Process status updated successfully.', 'super-mechanic' ), 'success' );
+			}
 		}
 
 		if ( 'deleted' === $notice ) {
@@ -147,7 +159,9 @@ class Process_Admin_Controller {
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Manage the operational hub with clearer filters, statuses, and actions without changing domain logic.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Add new', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'filter_process_type' => 'maintenance' ) ) ) . '" class="button button-secondary">' . esc_html__( 'Open maintenance', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-financial-invoices' ), admin_url( 'admin.php' ) ) ) . '" class="button button-secondary">' . esc_html__( 'Invoices center', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		$this->render_filter_form( $list_table );
@@ -386,7 +400,12 @@ class Process_Admin_Controller {
 			$this->redirect( array( 'sm_notice' => 'error' ) );
 		}
 
-		$this->redirect( array( 'sm_notice' => 'status_updated' ) );
+		$this->redirect(
+			array(
+				'sm_notice' => 'status_updated',
+				'sm_status' => $status,
+			)
+		);
 	}
 
 	protected function handle_bulk_delete_action() {

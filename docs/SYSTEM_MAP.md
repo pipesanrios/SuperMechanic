@@ -58,7 +58,7 @@
 
 - `includes/class-rest-api.php`: placeholder vacio.
 - `includes/modules/*`: arbol paralelo no conectado.
-- `includes/integrations/woocommerce/*`: scaffold tecnico no integrado.
+- `includes/modules/billing/*`: arbol legacy no conectado.
 
 ## API pública activa (36A/36B/36C)
 
@@ -328,6 +328,7 @@
   - KPIs generales
   - procesos por estado
   - procesos por tipo
+  - quick actions operativas (`Create process`, `Open maintenance`, `Create quote`, `Create invoice`)
   - ultimos procesos
   - ultimos vehiculos
   - ultimos clientes
@@ -504,7 +505,8 @@
 - Quotes e invoices no tienen menu admin propio; dependen del contexto del proceso.
 - Existen dos arboles arquitectonicos (`includes/*` y `includes/modules/*`) y solo uno esta activo.
 - `class-rest-api.php` puede inducir a error si se asume una API REST funcional.
-- WooCommerce existe solo como scaffolding tecnico.
+- la integracion Woo de 38B es acotada: catalogo comercial para quotes/invoices (snapshot) y autofill manual en maintenance; no incluye orders/checkout/pagos Woo.
+- en 38C-1 se optimiza UX operativa (atajos y labels) sin modificar arquitectura ni logica financiera core; cualquier continuidad debe preservar este alcance.
 - La capa documental depende de mantener ownership estricto y de no reintroducir `file_url` publico en renders cliente fuera de `Download_Service`.
 - La deuda transaccional principal ya no esta en `processes`, pero sigue abierta en `relations` y `flows`, donde no existe aun un repository transaccional dedicado.
 - aunque las transacciones de invoices y quotes desde maintenance ya se encapsulan fuera de sus services principales, el flujo quote -> invoice -> payment sigue siendo sensible por compatibilidad y consistencia documental

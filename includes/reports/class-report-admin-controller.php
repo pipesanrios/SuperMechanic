@@ -70,21 +70,87 @@ class Report_Admin_Controller {
 		$operational_data = $this->service->get_operational_report_data( $filters );
 		$financial_data   = $this->service->get_financial_report_data( $filters );
 		$advanced_data    = $this->service->get_advanced_report_data( $filters );
+		$actionable_data  = $this->service->get_actionable_kpis_data( $filters );
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
-		echo '<h1>' . esc_html__( 'Reportes', 'super-mechanic' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Reports', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Base operational, financial, and advanced reports for internal administration.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Internal analytics', 'super-mechanic' ) . '</span>';
 		echo '</div>';
 
 		$this->render_filters_form( $filters );
+		$this->render_actionable_kpis_section( $actionable_data );
 		$this->render_financial_reports_section( $financial_data, $filters );
 		$this->render_operational_reports_section( $operational_data, $filters );
 		$this->render_advanced_reports_section( $advanced_data );
 		echo '</div>';
+	}
+
+	/**
+	 * Render actionable KPI section.
+	 *
+	 * @param array<string, mixed> $data Actionable data.
+	 * @return void
+	 */
+	protected function render_actionable_kpis_section( array $data ) {
+		$kpis              = isset( $data['kpis'] ) && is_array( $data['kpis'] ) ? $data['kpis'] : array();
+		$blocks            = isset( $data['blocks'] ) && is_array( $data['blocks'] ) ? $data['blocks'] : array();
+		$operational_load  = isset( $data['operational_load'] ) && is_array( $data['operational_load'] ) ? $data['operational_load'] : array();
+		$outstanding       = isset( $kpis['total_outstanding'] ) && is_array( $kpis['total_outstanding'] ) ? $kpis['total_outstanding'] : array();
+		$average_ticket    = isset( $kpis['average_ticket'] ) && is_array( $kpis['average_ticket'] ) ? $kpis['average_ticket'] : array();
+		$recent_payments   = isset( $kpis['recent_payments'] ) && is_array( $kpis['recent_payments'] ) ? $kpis['recent_payments'] : array();
+		$requires_attention = isset( $blocks['requires_attention'] ) && is_array( $blocks['requires_attention'] ) ? $blocks['requires_attention'] : array();
+		$top_billing       = isset( $blocks['top_billing'] ) && is_array( $blocks['top_billing'] ) ? $blocks['top_billing'] : array();
+		$most_activity     = isset( $blocks['most_activity'] ) && is_array( $blocks['most_activity'] ) ? $blocks['most_activity'] : array();
+
+		echo '<hr style="margin:24px 0;" />';
+		echo '<section style="margin:24px 0;">';
+		echo '<h2>' . esc_html__( 'Actionable KPIs', 'super-mechanic' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Quick operational and financial control blocks using the active filters.', 'super-mechanic' ) . '</p>';
+
+		echo '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 18px;">';
+		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px;min-width:180px;"><div style="font-size:12px;color:#50575e;">' . esc_html__( 'Open processes', 'super-mechanic' ) . '</div><div style="font-size:22px;font-weight:600;">' . esc_html( number_format_i18n( isset( $kpis['open_processes'] ) ? absint( $kpis['open_processes'] ) : 0 ) ) . '</div></div>';
+		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px;min-width:180px;"><div style="font-size:12px;color:#50575e;">' . esc_html__( 'Closed processes', 'super-mechanic' ) . '</div><div style="font-size:22px;font-weight:600;">' . esc_html( number_format_i18n( isset( $kpis['closed_processes'] ) ? absint( $kpis['closed_processes'] ) : 0 ) ) . '</div></div>';
+		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px;min-width:180px;"><div style="font-size:12px;color:#50575e;">' . esc_html__( 'Overdue invoices', 'super-mechanic' ) . '</div><div style="font-size:22px;font-weight:600;">' . esc_html( number_format_i18n( isset( $kpis['overdue_invoices'] ) ? absint( $kpis['overdue_invoices'] ) : 0 ) ) . '</div></div>';
+		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:12px;min-width:220px;"><div style="font-size:12px;color:#50575e;">' . esc_html__( 'Recent payments', 'super-mechanic' ) . '</div><div style="font-size:22px;font-weight:600;">' . esc_html( number_format_i18n( isset( $recent_payments['count'] ) ? absint( $recent_payments['count'] ) : 0 ) ) . '</div></div>';
+		echo '</div>';
+
+		echo '<div class="sm-grid sm-grid-two">';
+		echo '<div>';
+		echo '<h3>' . esc_html__( 'Requires attention', 'super-mechanic' ) . '</h3>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Indicator', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<tr><td>' . esc_html__( 'Overdue invoices', 'super-mechanic' ) . '</td><td>' . esc_html( number_format_i18n( isset( $requires_attention['overdue_invoices'] ) ? absint( $requires_attention['overdue_invoices'] ) : 0 ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Open processes', 'super-mechanic' ) . '</td><td>' . esc_html( number_format_i18n( isset( $requires_attention['open_processes'] ) ? absint( $requires_attention['open_processes'] ) : 0 ) ) . '</td></tr>';
+		echo '</tbody></table>';
+
+		echo '<h3>' . esc_html__( 'Pending collection', 'super-mechanic' ) . '</h3>';
+		$this->render_currency_totals_table( $outstanding, __( 'Outstanding total', 'super-mechanic' ) );
+
+		echo '<h3>' . esc_html__( 'Average ticket', 'super-mechanic' ) . '</h3>';
+		$this->render_currency_totals_table( $average_ticket, __( 'Average ticket', 'super-mechanic' ) );
+		echo '</div>';
+
+		echo '<div>';
+		echo '<h3>' . esc_html__( 'Top billing', 'super-mechanic' ) . '</h3>';
+		$this->render_top_clients_table( array_slice( $top_billing, 0, 5 ) );
+
+		echo '<h3>' . esc_html__( 'Most activity', 'super-mechanic' ) . '</h3>';
+		$this->render_top_clients_table( array_slice( isset( $most_activity['top_clients'] ) ? $most_activity['top_clients'] : array(), 0, 5 ) );
+
+		echo '<h3>' . esc_html__( 'Top vehicles', 'super-mechanic' ) . '</h3>';
+		$this->render_vehicle_summary_table( array_slice( isset( $most_activity['top_vehicles'] ) ? $most_activity['top_vehicles'] : array(), 0, 5 ) );
+
+		echo '<h3>' . esc_html__( 'Operational load by status', 'super-mechanic' ) . '</h3>';
+		$this->render_summary_table( isset( $operational_load['by_status'] ) ? $operational_load['by_status'] : array(), __( 'Status', 'super-mechanic' ) );
+
+		echo '<h3>' . esc_html__( 'Operational load by type', 'super-mechanic' ) . '</h3>';
+		$this->render_summary_table( isset( $operational_load['by_type'] ) ? $operational_load['by_type'] : array(), __( 'Type', 'super-mechanic' ) );
+		echo '</div>';
+		echo '</div>';
+		echo '</section>';
 	}
 
 	/**
@@ -118,7 +184,7 @@ class Report_Admin_Controller {
 		$output = fopen( 'php://output', 'w' );
 
 		if ( false === $output ) {
-			wp_die( esc_html__( 'No se pudo generar el archivo CSV.', 'super-mechanic' ) );
+			wp_die( esc_html__( 'Could not generate the CSV file.', 'super-mechanic' ) );
 		}
 
 		fputcsv( $output, $export['headers'] );
@@ -143,12 +209,21 @@ class Report_Admin_Controller {
 		echo '<section style="margin:24px 0;">';
 		echo '<h2>' . esc_html__( 'Financial reports', 'super-mechanic' ) . '</h2>';
 		echo '<p>' . esc_html__( 'Base financial summary by date range and status.', 'super-mechanic' ) . '</p>';
-		$this->render_financial_totals( $data['total_invoiced'], $data['total_paid'], $data['total_outstanding'] );
+		$this->render_csv_export_form( 'financial_base', $filters );
+		$this->render_financial_totals( $data['total_invoiced'], $data['total_paid'], $data['total_outstanding'], $data['invoice_kpis'] );
+
+		echo '<h3>' . esc_html__( 'Client financial summary', 'super-mechanic' ) . '</h3>';
+		$this->render_csv_export_form( 'client_summary', $filters );
+		$this->render_client_summary_table( $data['client_summary'] );
+
+		echo '<h3>' . esc_html__( 'Vehicle cost summary', 'super-mechanic' ) . '</h3>';
+		$this->render_csv_export_form( 'vehicle_summary', $filters );
+		$this->render_vehicle_summary_table( $data['vehicle_summary'] );
 
 		echo '<h3>' . esc_html__( 'Quotes by status', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['quote_status'], __( 'Status', 'super-mechanic' ) );
 
-		echo '<h3>' . esc_html__( 'uuotes recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Recent quotes', 'super-mechanic' ) . '</h3>';
 		$this->render_csv_export_form( 'recent_quotes', $filters );
 		$this->render_recent_quotes_table( $data['recent_quotes'] );
 
@@ -156,7 +231,7 @@ class Report_Admin_Controller {
 		$this->render_summary_table( $data['invoice_status'], __( 'Status', 'super-mechanic' ) );
 
 		echo '<h3>' . esc_html__( 'Invoice payment status', 'super-mechanic' ) . '</h3>';
-		$this->render_summary_table( $data['invoice_collection_status'], __( 'Cobranza', 'super-mechanic' ) );
+		$this->render_summary_table( $data['invoice_collection_status'], __( 'Collection', 'super-mechanic' ) );
 
 		echo '<h3>' . esc_html__( 'Invoice monetary aggregates', 'super-mechanic' ) . '</h3>';
 		$this->render_invoice_component_totals_table( $data['invoice_amount_components'] );
@@ -164,7 +239,7 @@ class Report_Admin_Controller {
 		echo '<h3>' . esc_html__( 'Simple invoice aging', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['invoice_aging'], __( 'Aging', 'super-mechanic' ) );
 
-		echo '<h3>' . esc_html__( 'Invoices recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Recent invoices', 'super-mechanic' ) . '</h3>';
 		$this->render_csv_export_form( 'recent_invoices', $filters );
 		$this->render_recent_invoices_table( $data['recent_invoices'] );
 
@@ -198,9 +273,13 @@ class Report_Admin_Controller {
 		echo '<section style="margin:24px 0;">';
 		echo '<h2>' . esc_html__( 'Operational reports', 'super-mechanic' ) . '</h2>';
 		echo '<p>' . esc_html__( 'Base operational view with explicit limits for recent lists.', 'super-mechanic' ) . '</p>';
+		$this->render_csv_export_form( 'operational_base', $filters );
 
 		echo '<h3>' . esc_html__( 'Processes by status', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['process_status'], __( 'Status', 'super-mechanic' ) );
+
+		echo '<h3>' . esc_html__( 'Processes open vs closed', 'super-mechanic' ) . '</h3>';
+		$this->render_open_closed_process_table( $data['open_closed_processes'], $data['closed_statuses'] );
 
 		echo '<h3>' . esc_html__( 'Processes by type', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['process_types'], __( 'Type', 'super-mechanic' ) );
@@ -215,13 +294,13 @@ class Report_Admin_Controller {
 		echo '<h3>' . esc_html__( 'Processes by vehicle', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['process_vehicles'], __( 'Vehicle', 'super-mechanic' ) );
 
-		echo '<h3>' . esc_html__( 'Processes by status derivado', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Processes by derived status', 'super-mechanic' ) . '</h3>';
 		$this->render_summary_table( $data['derived_status'], __( 'Derived status', 'super-mechanic' ) );
 
 		echo '<h3>' . esc_html__( 'Process cross-tab by type and status', 'super-mechanic' ) . '</h3>';
 		$this->render_process_type_status_matrix_table( $data['process_type_status'] );
 
-		echo '<h3>' . esc_html__( 'Indicadores operativos avanzados', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Advanced operational indicators', 'super-mechanic' ) . '</h3>';
 		$this->render_operational_kpi_cards( $data['completed_processes'], $data['ready_for_delivery'] );
 
 		echo '<h3>' . esc_html__( 'Basic timing by operational flow', 'super-mechanic' ) . '</h3>';
@@ -234,13 +313,13 @@ class Report_Admin_Controller {
 		$this->render_csv_export_form( 'recent_processes', $filters );
 		$this->render_recent_processes_table( $data['recent_processes'] );
 
-		echo '<h3>' . esc_html__( 'Mantenimientos recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Recent maintenance', 'super-mechanic' ) . '</h3>';
 		$this->render_recent_maintenance_table( $data['recent_maintenance'] );
 
-		echo '<h3>' . esc_html__( 'Clients recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Recent clients', 'super-mechanic' ) . '</h3>';
 		$this->render_recent_clients_table( $data['recent_clients'] );
 
-		echo '<h3>' . esc_html__( 'Vehicles recientes', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Recent vehicles', 'super-mechanic' ) . '</h3>';
 		$this->render_recent_vehicles_table( $data['recent_vehicles'] );
 		echo '</section>';
 	}
@@ -262,7 +341,7 @@ class Report_Admin_Controller {
 		echo '<p>' . esc_html__( 'Simple comparisons between the current period and the equivalent previous period, without charts or complex BI.', 'super-mechanic' ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Current period:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_period_label( $current_period ) ) . ' | <strong>' . esc_html__( 'Previous period:', 'super-mechanic' ) . '</strong> ' . esc_html( $has_previous ? $this->format_period_label( $previous_period ) : __( 'N/A', 'super-mechanic' ) ) . '</p>';
 
-		echo '<h3>' . esc_html__( 'Resumen ejecutivo base', 'super-mechanic' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Base executive summary', 'super-mechanic' ) . '</h3>';
 		$this->render_executive_summary( $data['executive_summary'] );
 
 		echo '<h3>' . esc_html__( 'Range comparisons', 'super-mechanic' ) . '</h3>';
@@ -273,7 +352,7 @@ class Report_Admin_Controller {
 					'data'  => $data['process_comparison'],
 				),
 				'quotes' => array(
-					'label' => __( 'uuotes', 'super-mechanic' ),
+					'label' => __( 'Quotes', 'super-mechanic' ),
 					'data'  => $data['quote_comparison'],
 				),
 				'invoices' => array(
@@ -329,17 +408,22 @@ class Report_Admin_Controller {
 		echo '<input type="hidden" name="page" value="super-mechanic-reports" />';
 		echo '<div class="sm-grid sm-grid-two sm-report-filter-columns">';
 		echo '<div class="sm-report-filter-column">';
-		echo '<h3 class="sm-card-title">' . esc_html__( 'Filtros financieros', 'super-mechanic' ) . '</h3>';
+		echo '<h3 class="sm-card-title">' . esc_html__( 'Financial filters', 'super-mechanic' ) . '</h3>';
 		echo '<div class="sm-filter-grid">';
 
 		echo '<div class="sm-filter-field">';
-		echo '<label for="sm-report-date-from"><strong>' . esc_html__( 'Desde', 'super-mechanic' ) . '</strong></label><br />';
+		echo '<label for="sm-report-date-from"><strong>' . esc_html__( 'From', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<input id="sm-report-date-from" type="date" name="date_from" value="' . esc_attr( $filters['date_from'] ) . '" />';
 		echo '</div>';
 
 		echo '<div class="sm-filter-field">';
-		echo '<label for="sm-report-date-to"><strong>' . esc_html__( 'Hasta', 'super-mechanic' ) . '</strong></label><br />';
+		echo '<label for="sm-report-date-to"><strong>' . esc_html__( 'To', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<input id="sm-report-date-to" type="date" name="date_to" value="' . esc_attr( $filters['date_to'] ) . '" />';
+		echo '</div>';
+
+		echo '<div class="sm-filter-field">';
+		echo '<label for="sm-report-business-id"><strong>' . esc_html__( 'Business', 'super-mechanic' ) . '</strong></label><br />';
+		echo '<input id="sm-report-business-id" type="number" min="1" name="business_id" value="' . esc_attr( absint( $filters['business_id'] ) ) . '" />';
 		echo '</div>';
 
 		echo '<div class="sm-filter-field">';
@@ -350,7 +434,7 @@ class Report_Admin_Controller {
 		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-quote-status"><strong>' . esc_html__( 'Quote status', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-quote-status" name="quote_status">';
-		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All', 'super-mechanic' ) . '</option>';
 		foreach ( $quote_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['quote_status'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -360,7 +444,7 @@ class Report_Admin_Controller {
 		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-invoice-status"><strong>' . esc_html__( 'Invoice status', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-invoice-status" name="invoice_status">';
-		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All', 'super-mechanic' ) . '</option>';
 		foreach ( $invoice_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['invoice_status'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -370,7 +454,7 @@ class Report_Admin_Controller {
 		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-currency"><strong>' . esc_html__( 'Currency', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-currency" name="currency">';
-		echo '<option value="">' . esc_html__( 'Todas', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All', 'super-mechanic' ) . '</option>';
 		foreach ( $currency_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['currency'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -380,7 +464,7 @@ class Report_Admin_Controller {
 		echo '<div class="sm-report-filter-column">';
 		echo '<label for="sm-report-payment-method"><strong>' . esc_html__( 'Payment method', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-payment-method" name="payment_method">';
-		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All', 'super-mechanic' ) . '</option>';
 		foreach ( $payment_method_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['payment_method'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -390,13 +474,13 @@ class Report_Admin_Controller {
 		echo '</div>';
 
 		echo '<div>';
-		echo '<h3 class="sm-card-title">' . esc_html__( 'Filtros operativos', 'super-mechanic' ) . '</h3>';
+		echo '<h3 class="sm-card-title">' . esc_html__( 'Operational filters', 'super-mechanic' ) . '</h3>';
 		echo '<div class="sm-filter-grid">';
 
 		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-process-status"><strong>' . esc_html__( 'Process status', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-process-status" name="process_status">';
-		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All', 'super-mechanic' ) . '</option>';
 		foreach ( $status_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['process_status'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -406,7 +490,7 @@ class Report_Admin_Controller {
 		echo '<div class="sm-filter-field">';
 		echo '<label for="sm-report-process-type"><strong>' . esc_html__( 'Process type', 'super-mechanic' ) . '</strong></label><br />';
 		echo '<select id="sm-report-process-type" name="process_type">';
-		echo '<option value="">' . esc_html__( 'Todos', 'super-mechanic' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All', 'super-mechanic' ) . '</option>';
 		foreach ( $type_options as $value => $label ) {
 			echo '<option value="' . esc_attr( $value ) . '" ' . selected( $filters['process_type'], $value, false ) . '>' . esc_html( $label ) . '</option>';
 		}
@@ -506,16 +590,51 @@ class Report_Admin_Controller {
 	 *
 	 * @param array<string, float> $total_invoiced    Total invoiced.
 	 * @param array<string, float> $total_paid        Total paid.
-	 * @param array<string, float> $total_outstanding Total outstanding.
+	 * @param array<string, float>            $total_outstanding Total outstanding.
+	 * @param array<string, array<string, float|int>> $invoice_kpis Invoice KPIs by currency.
 	 * @return void
 	 */
-	protected function render_financial_totals( $total_invoiced, $total_paid, $total_outstanding ) {
+	protected function render_financial_totals( $total_invoiced, $total_paid, $total_outstanding, array $invoice_kpis = array() ) {
 		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:16px;margin:16px 0;">';
 		echo '<p style="margin-top:0;">' . esc_html__( 'Financial totals grouped by currency. In 12B, "total invoiced" uses the invoice creation date as the operational criterion. "invoice status" and "payment status" are shown separately.', 'super-mechanic' ) . '</p>';
 		echo '<div style="display:flex;gap:16px;flex-wrap:wrap;">';
 		$this->render_total_card( __( 'Total invoiced', 'super-mechanic' ), $total_invoiced );
 		$this->render_total_card( __( 'Total paid', 'super-mechanic' ), $total_paid );
 		$this->render_total_card( __( 'Outstanding balance', 'super-mechanic' ), $total_outstanding );
+		$this->render_invoice_kpi_card( __( 'Invoice count', 'super-mechanic' ), $invoice_kpis, 'invoice_count' );
+		$this->render_invoice_kpi_card( __( 'Average ticket', 'super-mechanic' ), $invoice_kpis, 'average_ticket' );
+		echo '</div>';
+		echo '</div>';
+	}
+
+	/**
+	 * Render invoice KPI card grouped by currency.
+	 *
+	 * @param string                                  $label KPI label.
+	 * @param array<string, array<string, float|int>> $kpis  KPI values.
+	 * @param string                                  $key   KPI key.
+	 * @return void
+	 */
+	protected function render_invoice_kpi_card( $label, array $kpis, $key ) {
+		echo '<div style="background:#fff;border:1px solid #ccd0d4;padding:16px;min-width:220px;">';
+		echo '<div style="color:#50575e;font-size:12px;text-transform:uppercase;letter-spacing:.04em;">' . esc_html( $label ) . '</div>';
+		echo '<div style="margin-top:8px;">';
+
+		if ( empty( $kpis ) ) {
+			echo '<div style="font-size:24px;font-weight:600;">0</div>';
+		} else {
+			foreach ( $kpis as $currency => $values ) {
+				$currency = strtoupper( (string) $currency );
+				if ( 'average_ticket' === $key ) {
+					$amount = isset( $values['average_ticket'] ) ? (float) $values['average_ticket'] : 0.0;
+					echo '<div style="font-size:24px;font-weight:600;">' . esc_html( $this->format_money_value( $amount, $currency ) ) . '</div>';
+				} else {
+					$count = isset( $values['invoice_count'] ) ? absint( $values['invoice_count'] ) : 0;
+					echo '<div style="font-size:24px;font-weight:600;">' . esc_html( number_format_i18n( $count ) ) . ' <span style="font-size:12px;color:#50575e;">' . esc_html( $currency ) . '</span></div>';
+				}
+			}
+		}
+
 		echo '</div>';
 		echo '</div>';
 	}
@@ -901,8 +1020,8 @@ class Report_Admin_Controller {
 	protected function humanize_key( $value ) {
 		$labels = array(
 			'pending' => __( 'Pending', 'super-mechanic' ),
-			'partial' => __( 'Parcial', 'super-mechanic' ),
-			'paid'    => __( 'Pagado', 'super-mechanic' ),
+			'partial' => __( 'Partial', 'super-mechanic' ),
+			'paid'    => __( 'Paid', 'super-mechanic' ),
 		);
 
 		if ( isset( $labels[ $value ] ) ) {
@@ -1086,6 +1205,98 @@ class Report_Admin_Controller {
 	}
 
 	/**
+	 * Render open/closed process totals.
+	 *
+	 * @param array<string, int> $totals          Open/closed totals.
+	 * @param array<int, string> $closed_statuses Closed status keys.
+	 * @return void
+	 */
+	protected function render_open_closed_process_table( array $totals, array $closed_statuses ) {
+		echo '<p>' . esc_html__( 'Closed statuses follow current process service mapping.', 'super-mechanic' ) . ': <code>' . esc_html( implode( ', ', $closed_statuses ) ) . '</code></p>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Scope', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<tr><td>' . esc_html__( 'Open processes', 'super-mechanic' ) . '</td><td>' . esc_html( number_format_i18n( isset( $totals['open'] ) ? absint( $totals['open'] ) : 0 ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Closed processes', 'super-mechanic' ) . '</td><td>' . esc_html( number_format_i18n( isset( $totals['closed'] ) ? absint( $totals['closed'] ) : 0 ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Total processes', 'super-mechanic' ) . '</td><td>' . esc_html( number_format_i18n( isset( $totals['total'] ) ? absint( $totals['total'] ) : 0 ) ) . '</td></tr>';
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Render client summary table.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Rows.
+	 * @return void
+	 */
+	protected function render_client_summary_table( array $rows ) {
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Processes', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Billed', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Paid', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+
+		if ( empty( $rows ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No client summary data for current filters.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $rows as $row ) {
+				$currency = ! empty( $row['currency'] ) ? (string) $row['currency'] : 'USD';
+				echo '<tr>';
+				echo '<td>' . esc_html( isset( $row['label'] ) ? (string) $row['label'] : '' ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( isset( $row['total_processes'] ) ? absint( $row['total_processes'] ) : 0 ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( isset( $row['total_billed'] ) ? (float) $row['total_billed'] : 0, $currency ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( isset( $row['total_paid'] ) ? (float) $row['total_paid'] : 0, $currency ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Render vehicle summary table.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Rows.
+	 * @return void
+	 */
+	protected function render_vehicle_summary_table( array $rows ) {
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Processes', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Accumulated cost', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+
+		if ( empty( $rows ) ) {
+			echo '<tr><td colspan="3">' . esc_html__( 'No vehicle summary data for current filters.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $rows as $row ) {
+				$currency = ! empty( $row['currency'] ) ? (string) $row['currency'] : 'USD';
+				echo '<tr>';
+				echo '<td>' . esc_html( isset( $row['label'] ) ? (string) $row['label'] : '' ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( isset( $row['total_processes'] ) ? absint( $row['total_processes'] ) : 0 ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( isset( $row['accumulated_cost'] ) ? (float) $row['accumulated_cost'] : 0, $currency ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Render compact currency totals table.
+	 *
+	 * @param array<string, mixed> $totals Totals keyed by currency.
+	 * @param string               $label  Metric label.
+	 * @return void
+	 */
+	protected function render_currency_totals_table( array $totals, $label ) {
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Currency', 'super-mechanic' ) . '</th><th>' . esc_html( $label ) . '</th></tr></thead><tbody>';
+
+		if ( empty( $totals ) ) {
+			echo '<tr><td colspan="2">' . esc_html__( 'No totals for current filters.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $totals as $currency => $value ) {
+				$currency = strtoupper( (string) $currency );
+				echo '<tr>';
+				echo '<td>' . esc_html( $currency ) . '</td>';
+				echo '<td>' . esc_html( $this->format_money_value( (float) $value, $currency ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+
+		echo '</tbody></table>';
+	}
+
+	/**
 	 * Format a vehicle label from report rows.
 	 *
 	 * @param array<string, mixed> $row Row.
@@ -1162,11 +1373,11 @@ class Report_Admin_Controller {
 		}
 
 		if ( '' !== $date_from ) {
-			return sprintf( __( 'Desde %s', 'super-mechanic' ), $date_from );
+			return sprintf( __( 'From %s', 'super-mechanic' ), $date_from );
 		}
 
 		if ( '' !== $date_to ) {
-			return sprintf( __( 'Hasta %s', 'super-mechanic' ), $date_to );
+			return sprintf( __( 'To %s', 'super-mechanic' ), $date_to );
 		}
 
 		return __( 'No date range', 'super-mechanic' );

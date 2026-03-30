@@ -17,6 +17,16 @@ defined( 'ABSPATH' ) || exit;
  */
 class Report_Repository {
 	/**
+	 * Invoice statuses considered financially valid for billed metrics.
+	 */
+	const VALID_BILLED_INVOICE_STATUSES = array(
+		'issued',
+		'partially_paid',
+		'paid',
+		'overdue',
+	);
+
+	/**
 	 * Default limit for recent report lists.
 	 */
 	const DEFAULT_RECENT_LIMIT = 20;
@@ -722,6 +732,7 @@ class Report_Repository {
 		$filters = $this->normalize_filters( $filters );
 		$params  = array();
 		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$where   = $this->append_valid_billed_invoice_filter_to_where( $where, 'i', $params );
 		$sql     = "SELECT i.currency, COALESCE(SUM(i.grand_total), 0) AS total
 			FROM {$this->get_invoices_table_name()} i
 			{$where}
@@ -808,6 +819,7 @@ class Report_Repository {
 		$filters = $this->normalize_filters( $filters );
 		$params  = array();
 		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$where   = $this->append_valid_billed_invoice_filter_to_where( $where, 'i', $params );
 		$payment_totals_sql = $this->get_payment_totals_subquery( $filters['business_id'] );
 		$sql     = "SELECT i.currency, COALESCE(SUM(GREATEST(i.grand_total - COALESCE(payment_totals.total_paid, 0), 0)), 0) AS total
 			FROM {$this->get_invoices_table_name()} i
@@ -819,6 +831,312 @@ class Report_Repository {
 		$rows    = $wpdb->get_results( $query, ARRAY_A );
 
 		return $this->extract_currency_totals( is_array( $rows ) ? $rows : array() );
+	}
+
+	/**
+	 * Get invoice KPI metrics by currency.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<string, array<string, float|int>>
+	 */
+	public function get_invoice_kpis_by_currency( array $filters = array() ) {
+		global $wpdb;
+
+		$filters = $this->normalize_filters( $filters );
+		$params  = array();
+		$where   = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$where   = $this->append_valid_billed_invoice_filter_to_where( $where, 'i', $params );
+		$sql     = "SELECT i.currency,
+				COUNT(i.id) AS invoice_count,
+				COALESCE(AVG(i.grand_total), 0) AS average_ticket
+			FROM {$this->get_invoices_table_name()} i
+			{$where}
+			GROUP BY i.currency
+			ORDER BY i.currency ASC";
+		$query   = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$rows    = $wpdb->get_results( $query, ARRAY_A );
+		$rows    = is_array( $rows ) ? $rows : array();
+		$result  = array();
+
+		foreach ( $rows as $row ) {
+			$currency             = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$result[ $currency ] = array(
+				'invoice_count'   => absint( $row['invoice_count'] ),
+				'average_ticket'  => round( (float) $row['average_ticket'], 2 ),
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Get process open vs closed totals.
+	 *
+	 * @param array<string, mixed> $filters         Report filters.
+	 * @param array<int, string>   $closed_statuses Closed status keys.
+	 * @return array<string, int>
+	 */
+	public function get_open_closed_process_totals( array $filters = array(), array $closed_statuses = array() ) {
+		global $wpdb;
+
+		$filters          = $this->normalize_filters( $filters );
+		$closed_statuses  = array_filter( array_map( 'sanitize_key', $closed_statuses ) );
+		$where_params     = array();
+		$where            = $this->build_process_where_clause( $filters, $where_params, 'p' );
+		$closed_case_sql  = '0';
+		$closed_params    = array();
+
+		if ( ! empty( $closed_statuses ) ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $closed_statuses ), '%s' ) );
+			$closed_case_sql = "CASE WHEN p.status IN ({$placeholders}) THEN 1 ELSE 0 END";
+			$closed_params = array_values( $closed_statuses );
+		}
+
+		$sql   = "SELECT COUNT(p.id) AS total_processes,
+				COALESCE(SUM({$closed_case_sql}), 0) AS closed_processes
+			FROM {$this->get_processes_table_name()} p
+			{$where}";
+		$params = array_merge( $closed_params, $where_params );
+		$query = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$row   = $wpdb->get_row( $query, ARRAY_A );
+		$row   = is_array( $row ) ? $row : array();
+		$total = isset( $row['total_processes'] ) ? absint( $row['total_processes'] ) : 0;
+		$closed = isset( $row['closed_processes'] ) ? absint( $row['closed_processes'] ) : 0;
+
+		return array(
+			'total'  => $total,
+			'closed' => min( $closed, $total ),
+			'open'   => max( $total - $closed, 0 ),
+		);
+	}
+
+	/**
+	 * Get client totals for processes, billed amount, and paid amount.
+	 * Metrics are aggregated in isolated subqueries to avoid double counting.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_client_summary_rows( array $filters = array() ) {
+		global $wpdb;
+
+		$filters       = $this->normalize_filters( $filters );
+		$process_rows  = $this->get_process_counts_by_client( $filters );
+		$inv_params    = array();
+		$inv_where     = $this->build_invoice_where_clause( $filters, $inv_params, 'i' );
+		$inv_where     = $this->append_valid_billed_invoice_filter_to_where( $inv_where, 'i', $inv_params );
+		$inv_sql       = "SELECT i.client_id, i.currency, COALESCE(SUM(i.grand_total), 0) AS amount_total
+			FROM {$this->get_invoices_table_name()} i
+			{$inv_where}
+			GROUP BY i.client_id, i.currency";
+		$inv_query     = empty( $inv_params ) ? $inv_sql : $wpdb->prepare( $inv_sql, $inv_params );
+		$invoiced_rows = $wpdb->get_results( $inv_query, ARRAY_A );
+		$invoiced_rows = is_array( $invoiced_rows ) ? $invoiced_rows : array();
+
+		$pay_params = array();
+		$pay_where  = $this->build_payment_where_clause( $filters, $pay_params, 'pay', 'i' );
+		$pay_where  = $this->append_valid_billed_invoice_filter_to_where( $pay_where, 'i', $pay_params );
+		$pay_sql    = "SELECT i.client_id, i.currency, COALESCE(SUM(pay.amount), 0) AS amount_total
+			FROM {$this->get_payments_table_name()} pay
+			INNER JOIN {$this->get_invoices_table_name()} i ON i.id = pay.invoice_id
+			{$pay_where}
+			GROUP BY i.client_id, i.currency";
+		$pay_query  = empty( $pay_params ) ? $pay_sql : $wpdb->prepare( $pay_sql, $pay_params );
+		$paid_rows  = $wpdb->get_results( $pay_query, ARRAY_A );
+		$paid_rows  = is_array( $paid_rows ) ? $paid_rows : array();
+		$clients_sql   = "SELECT c.id, CONCAT_WS(' ', c.first_name, c.last_name) AS client_name
+			FROM {$this->get_clients_table_name()} c
+			WHERE c.business_id = %d";
+		$client_params = array( absint( $filters['business_id'] ) );
+
+		if ( ! empty( $filters['client_id'] ) ) {
+			$clients_sql    .= ' AND c.id = %d';
+			$client_params[] = absint( $filters['client_id'] );
+		}
+
+		$clients_sql .= ' ORDER BY c.first_name ASC, c.last_name ASC, c.id ASC';
+		$client_rows = $wpdb->get_results( $wpdb->prepare( $clients_sql, $client_params ), ARRAY_A );
+		$client_rows = is_array( $client_rows ) ? $client_rows : array();
+		$labels      = array();
+		$index       = array();
+		$process_map = array();
+
+		foreach ( $client_rows as $row ) {
+			$client_id = absint( $row['id'] );
+			if ( $client_id <= 0 ) {
+				continue;
+			}
+			$label               = trim( (string) $row['client_name'] );
+			$labels[ $client_id ] = '' !== $label ? $label . ' (#' . $client_id . ')' : '#' . $client_id;
+		}
+
+		foreach ( $process_rows as $row ) {
+			$client_id = isset( $row['client_id'] ) ? absint( $row['client_id'] ) : 0;
+			if ( $client_id <= 0 ) {
+				continue;
+			}
+			$process_map[ $client_id ] = absint( $row['total'] );
+			if ( ! isset( $labels[ $client_id ] ) ) {
+				$labels[ $client_id ] = isset( $row['label'] ) ? (string) $row['label'] : '#' . $client_id;
+			}
+		}
+
+		foreach ( $invoiced_rows as $row ) {
+			$client_id = isset( $row['client_id'] ) ? absint( $row['client_id'] ) : 0;
+			if ( $client_id <= 0 ) {
+				continue;
+			}
+			$currency = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$key      = $client_id . '|' . $currency;
+			if ( ! isset( $index[ $key ] ) ) {
+				$index[ $key ] = array(
+					'client_id'       => $client_id,
+					'label'           => isset( $labels[ $client_id ] ) ? $labels[ $client_id ] : '#' . $client_id,
+					'total_processes' => isset( $process_map[ $client_id ] ) ? $process_map[ $client_id ] : 0,
+					'currency'        => $currency,
+					'total_billed'    => 0.0,
+					'total_paid'      => 0.0,
+				);
+			}
+			$index[ $key ]['total_billed'] = round( (float) $row['amount_total'], 2 );
+		}
+
+		foreach ( $paid_rows as $row ) {
+			$client_id = isset( $row['client_id'] ) ? absint( $row['client_id'] ) : 0;
+			if ( $client_id <= 0 ) {
+				continue;
+			}
+			$currency = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$key      = $client_id . '|' . $currency;
+			if ( ! isset( $index[ $key ] ) ) {
+				$index[ $key ] = array(
+					'client_id'       => $client_id,
+					'label'           => isset( $labels[ $client_id ] ) ? $labels[ $client_id ] : '#' . $client_id,
+					'total_processes' => isset( $process_map[ $client_id ] ) ? $process_map[ $client_id ] : 0,
+					'currency'        => $currency,
+					'total_billed'    => 0.0,
+					'total_paid'      => 0.0,
+				);
+			}
+			$index[ $key ]['total_paid'] = round( (float) $row['amount_total'], 2 );
+		}
+
+		if ( empty( $index ) ) {
+			foreach ( $process_map as $client_id => $total_processes ) {
+				$key = $client_id . '|USD';
+				$index[ $key ] = array(
+					'client_id'       => $client_id,
+					'label'           => isset( $labels[ $client_id ] ) ? $labels[ $client_id ] : '#' . $client_id,
+					'total_processes' => absint( $total_processes ),
+					'currency'        => 'USD',
+					'total_billed'    => 0.0,
+					'total_paid'      => 0.0,
+				);
+			}
+		}
+
+		$rows = array_values( $index );
+		usort(
+			$rows,
+			function ( $left, $right ) {
+				if ( $left['total_billed'] === $right['total_billed'] ) {
+					return strcmp( (string) $left['label'], (string) $right['label'] );
+				}
+				return $right['total_billed'] <=> $left['total_billed'];
+			}
+		);
+
+		return $rows;
+	}
+
+	/**
+	 * Get vehicle totals for process count and accumulated billed cost.
+	 * Uses invoice-process join to keep aggregation controlled per base entity.
+	 *
+	 * @param array<string, mixed> $filters Report filters.
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_vehicle_summary_rows( array $filters = array() ) {
+		global $wpdb;
+
+		$filters       = $this->normalize_filters( $filters );
+		$process_rows  = $this->get_process_counts_by_vehicle( $filters );
+		$params        = array();
+		$where         = $this->build_invoice_where_clause( $filters, $params, 'i' );
+		$where         = $this->append_valid_billed_invoice_filter_to_where( $where, 'i', $params );
+		$sql           = "SELECT COALESCE(NULLIF(p.vehicle_id, 0), 0) AS vehicle_id,
+				v.make AS vehicle_make,
+				v.model AS vehicle_model,
+				v.plate AS vehicle_plate,
+				i.currency,
+				COALESCE(SUM(i.grand_total), 0) AS total_billed
+			FROM {$this->get_invoices_table_name()} i
+			INNER JOIN {$this->get_processes_table_name()} p ON p.id = i.process_id
+			LEFT JOIN {$this->get_vehicles_table_name()} v ON v.id = p.vehicle_id
+			{$where}
+			GROUP BY COALESCE(NULLIF(p.vehicle_id, 0), 0), v.make, v.model, v.plate, i.currency
+			ORDER BY total_billed DESC, vehicle_id ASC";
+		$query         = empty( $params ) ? $sql : $wpdb->prepare( $sql, $params );
+		$billed_rows   = $wpdb->get_results( $query, ARRAY_A );
+		$billed_rows   = is_array( $billed_rows ) ? $billed_rows : array();
+		$index         = array();
+		$process_map   = array();
+		$label_map     = array();
+
+		foreach ( $process_rows as $row ) {
+			$vehicle_id = isset( $row['vehicle_id'] ) ? absint( $row['vehicle_id'] ) : 0;
+			if ( $vehicle_id <= 0 ) {
+				continue;
+			}
+			$process_map[ $vehicle_id ] = absint( $row['total'] );
+			$label_map[ $vehicle_id ]   = isset( $row['label'] ) ? (string) $row['label'] : '#' . $vehicle_id;
+		}
+
+		foreach ( $billed_rows as $row ) {
+			$vehicle_id = isset( $row['vehicle_id'] ) ? absint( $row['vehicle_id'] ) : 0;
+			if ( $vehicle_id <= 0 ) {
+				continue;
+			}
+			$currency = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$key      = $vehicle_id . '|' . $currency;
+			if ( ! isset( $index[ $key ] ) ) {
+				$vehicle_label = $this->build_vehicle_group_label( $row );
+				$index[ $key ] = array(
+					'vehicle_id'      => $vehicle_id,
+					'label'           => isset( $label_map[ $vehicle_id ] ) ? $label_map[ $vehicle_id ] : ( '' !== $vehicle_label ? $vehicle_label . ' (#' . $vehicle_id . ')' : '#' . $vehicle_id ),
+					'total_processes' => isset( $process_map[ $vehicle_id ] ) ? $process_map[ $vehicle_id ] : 0,
+					'currency'        => $currency,
+					'accumulated_cost' => 0.0,
+				);
+			}
+			$index[ $key ]['accumulated_cost'] = round( (float) $row['total_billed'], 2 );
+		}
+
+		if ( empty( $index ) ) {
+			foreach ( $process_map as $vehicle_id => $process_total ) {
+				$key = $vehicle_id . '|USD';
+				$index[ $key ] = array(
+					'vehicle_id'      => $vehicle_id,
+					'label'           => isset( $label_map[ $vehicle_id ] ) ? $label_map[ $vehicle_id ] : '#' . $vehicle_id,
+					'total_processes' => absint( $process_total ),
+					'currency'        => 'USD',
+					'accumulated_cost' => 0.0,
+				);
+			}
+		}
+
+		$rows = array_values( $index );
+		usort(
+			$rows,
+			function ( $left, $right ) {
+				if ( $left['accumulated_cost'] === $right['accumulated_cost'] ) {
+					return strcmp( (string) $left['label'], (string) $right['label'] );
+				}
+				return $right['accumulated_cost'] <=> $left['accumulated_cost'];
+			}
+		);
+
+		return $rows;
 	}
 
 	/**
@@ -1033,6 +1351,31 @@ class Report_Repository {
 		}
 
 		return 'WHERE ' . implode( ' AND ', $clauses );
+	}
+
+	/**
+	 * Append valid billed invoice statuses to an existing invoice WHERE clause.
+	 *
+	 * @param string            $where  Existing WHERE clause.
+	 * @param string            $alias  Invoice table alias.
+	 * @param array<int, mixed> $params Query params.
+	 * @return string
+	 */
+	protected function append_valid_billed_invoice_filter_to_where( $where, $alias, array &$params ) {
+		$statuses = self::VALID_BILLED_INVOICE_STATUSES;
+		if ( empty( $statuses ) ) {
+			return $where;
+		}
+
+		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+		$clause       = $alias . '.status IN (' . $placeholders . ')';
+		$params       = array_merge( $params, $statuses );
+
+		if ( '' === trim( (string) $where ) ) {
+			return 'WHERE ' . $clause;
+		}
+
+		return $where . ' AND ' . $clause;
 	}
 
 	/**

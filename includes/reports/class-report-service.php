@@ -23,6 +23,10 @@ class Report_Service {
 	 * @var array<int, string>
 	 */
 	const CSV_EXPORT_VIEWS = array(
+		'financial_base',
+		'operational_base',
+		'client_summary',
+		'vehicle_summary',
 		'recent_processes',
 		'recent_quotes',
 		'recent_invoices',
@@ -399,6 +403,7 @@ class Report_Service {
 	 */
 	public function get_operational_report_data( array $filters = array() ) {
 		$filters = $this->get_operational_filters( $filters );
+		$closed_statuses = $this->get_closed_process_statuses();
 
 		return array(
 			'filters'              => $filters,
@@ -407,6 +412,8 @@ class Report_Service {
 			'process_mechanics'    => $this->repository->get_process_counts_by_mechanic( $filters ),
 			'process_clients'      => $this->repository->get_process_counts_by_client( $filters ),
 			'process_vehicles'     => $this->repository->get_process_counts_by_vehicle( $filters ),
+			'open_closed_processes' => $this->repository->get_open_closed_process_totals( $filters, $closed_statuses ),
+			'closed_statuses'      => $closed_statuses,
 			'derived_status'       => $this->repository->get_process_counts_by_derived_status( $filters ),
 			'process_type_status'  => $this->build_process_type_status_matrix_rows( $this->repository->get_process_type_status_matrix( $filters ) ),
 			'completed_processes'  => $this->repository->get_completed_process_count( $filters ),
@@ -417,6 +424,64 @@ class Report_Service {
 			'recent_maintenance'   => $this->repository->get_recent_maintenance( $filters ),
 			'recent_clients'       => $this->repository->get_recent_clients( $filters ),
 			'recent_vehicles'      => $this->repository->get_recent_vehicles( $filters ),
+		);
+	}
+
+	/**
+	 * Build actionable KPI and control-block data.
+	 *
+	 * @param array<string, mixed> $filters Raw filters.
+	 * @return array<string, mixed>
+	 */
+	public function get_actionable_kpis_data( array $filters = array() ) {
+		$operational_filters = $this->get_operational_filters( $filters );
+		$financial_filters   = $this->get_financial_filters( $filters );
+		$closed_statuses     = $this->get_closed_process_statuses();
+		$open_closed         = $this->repository->get_open_closed_process_totals( $operational_filters, $closed_statuses );
+		$invoice_aging       = $this->repository->get_invoice_aging_summary( $financial_filters );
+		$outstanding         = $this->repository->get_outstanding_balances_by_currency( $financial_filters );
+		$recent_payments     = $this->repository->get_recent_payments( $financial_filters );
+		$invoice_kpis        = $this->repository->get_invoice_kpis_by_currency( $financial_filters );
+		$top_clients         = $this->repository->get_top_clients_by_invoiced_amount( $financial_filters );
+		$top_vehicles        = $this->repository->get_vehicle_summary_rows( $financial_filters );
+		$process_status      = $this->repository->get_process_counts_by_status( $operational_filters );
+		$process_types       = $this->repository->get_process_counts_by_type( $operational_filters );
+
+		return array(
+			'filters'             => array(
+				'business_id' => $financial_filters['business_id'],
+				'date_from'   => $financial_filters['date_from'],
+				'date_to'     => $financial_filters['date_to'],
+			),
+			'kpis'                => array(
+				'open_processes'      => isset( $open_closed['open'] ) ? absint( $open_closed['open'] ) : 0,
+				'closed_processes'    => isset( $open_closed['closed'] ) ? absint( $open_closed['closed'] ) : 0,
+				'overdue_invoices'    => $this->extract_total_by_label( $invoice_aging, 'overdue' ),
+				'total_outstanding'   => $outstanding,
+				'recent_payments'     => $this->summarize_recent_payments( $recent_payments ),
+				'average_ticket'      => $this->extract_average_ticket_by_currency( $invoice_kpis ),
+			),
+			'blocks'              => array(
+				'requires_attention' => array(
+					'overdue_invoices' => $this->extract_total_by_label( $invoice_aging, 'overdue' ),
+					'open_processes'   => isset( $open_closed['open'] ) ? absint( $open_closed['open'] ) : 0,
+				),
+				'pending_collection' => $outstanding,
+				'most_activity'      => array(
+					'top_clients'  => array_slice( is_array( $top_clients ) ? $top_clients : array(), 0, 5 ),
+					'top_vehicles' => array_slice( is_array( $top_vehicles ) ? $top_vehicles : array(), 0, 5 ),
+				),
+				'top_billing'        => array_slice( is_array( $top_clients ) ? $top_clients : array(), 0, 5 ),
+				'critical_states'    => array(
+					'process_status' => array_slice( is_array( $process_status ) ? $process_status : array(), 0, 6 ),
+					'process_types'  => array_slice( is_array( $process_types ) ? $process_types : array(), 0, 6 ),
+				),
+			),
+			'operational_load'    => array(
+				'by_status' => array_slice( is_array( $process_status ) ? $process_status : array(), 0, 8 ),
+				'by_type'   => array_slice( is_array( $process_types ) ? $process_types : array(), 0, 8 ),
+			),
+			'closed_statuses'     => $closed_statuses,
 		);
 	}
 
@@ -445,6 +510,9 @@ class Report_Service {
 			'total_invoiced'           => $this->repository->get_invoiced_amounts_by_currency( $filters ),
 			'total_paid'               => $this->repository->get_paid_amounts_by_currency( $filters ),
 			'total_outstanding'        => $this->repository->get_outstanding_balances_by_currency( $filters ),
+			'invoice_kpis'             => $this->repository->get_invoice_kpis_by_currency( $filters ),
+			'client_summary'           => $this->repository->get_client_summary_rows( $filters ),
+			'vehicle_summary'          => $this->repository->get_vehicle_summary_rows( $filters ),
 			'invoice_amount_components' => $this->repository->get_invoice_amount_components_by_currency( $filters ),
 		);
 	}
@@ -505,10 +573,14 @@ class Report_Service {
 	 */
 	public function get_csv_export_views() {
 		return array(
+			'financial_base'  => __( 'Financial base', 'super-mechanic' ),
+			'operational_base' => __( 'Operational base', 'super-mechanic' ),
+			'client_summary'  => __( 'Client summary', 'super-mechanic' ),
+			'vehicle_summary' => __( 'Vehicle summary', 'super-mechanic' ),
 			'recent_processes' => __( 'Recent processes', 'super-mechanic' ),
-			'recent_quotes'    => __( 'Quotes recientes', 'super-mechanic' ),
-			'recent_invoices'  => __( 'Invoices recientes', 'super-mechanic' ),
-			'recent_payments'  => __( 'Payments recientes', 'super-mechanic' ),
+			'recent_quotes'    => __( 'Recent quotes', 'super-mechanic' ),
+			'recent_invoices'  => __( 'Recent invoices', 'super-mechanic' ),
+			'recent_payments'  => __( 'Recent payments', 'super-mechanic' ),
 		);
 	}
 
@@ -529,6 +601,42 @@ class Report_Service {
 		$filters = $this->get_normalized_filters( $filters );
 
 		switch ( $view ) {
+			case 'financial_base':
+				$financial_data = $this->get_financial_report_data( $this->get_financial_filters( $filters ) );
+
+				return array(
+					'filename' => $this->build_csv_filename( $view ),
+					'headers'  => array( 'Metric', 'Currency', 'Value' ),
+					'rows'     => $this->map_financial_base_export_rows( $financial_data ),
+				);
+
+			case 'operational_base':
+				$operational_data = $this->get_operational_report_data( $this->get_operational_filters( $filters ) );
+
+				return array(
+					'filename' => $this->build_csv_filename( $view ),
+					'headers'  => array( 'Section', 'Label', 'Total' ),
+					'rows'     => $this->map_operational_base_export_rows( $operational_data ),
+				);
+
+			case 'client_summary':
+				$financial_data = $this->get_financial_report_data( $this->get_financial_filters( $filters ) );
+
+				return array(
+					'filename' => $this->build_csv_filename( $view ),
+					'headers'  => array( 'Client', 'Processes', 'Currency', 'Billed', 'Paid' ),
+					'rows'     => $this->map_client_summary_export_rows( isset( $financial_data['client_summary'] ) ? $financial_data['client_summary'] : array() ),
+				);
+
+			case 'vehicle_summary':
+				$financial_data = $this->get_financial_report_data( $this->get_financial_filters( $filters ) );
+
+				return array(
+					'filename' => $this->build_csv_filename( $view ),
+					'headers'  => array( 'Vehicle', 'Processes', 'Currency', 'Accumulated Cost' ),
+					'rows'     => $this->map_vehicle_summary_export_rows( isset( $financial_data['vehicle_summary'] ) ? $financial_data['vehicle_summary'] : array() ),
+				);
+
 			case 'recent_processes':
 				$rows = $this->repository->get_recent_processes( $this->get_operational_filters( $filters ) );
 
@@ -567,6 +675,128 @@ class Report_Service {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Convert financial base data into CSV rows.
+	 *
+	 * @param array<string, mixed> $data Financial report data.
+	 * @return array<int, array<int, string>>
+	 */
+	protected function map_financial_base_export_rows( array $data ) {
+		$rows       = array();
+		$currencies = array_unique(
+			array_merge(
+				array_keys( isset( $data['total_invoiced'] ) && is_array( $data['total_invoiced'] ) ? $data['total_invoiced'] : array() ),
+				array_keys( isset( $data['total_paid'] ) && is_array( $data['total_paid'] ) ? $data['total_paid'] : array() ),
+				array_keys( isset( $data['total_outstanding'] ) && is_array( $data['total_outstanding'] ) ? $data['total_outstanding'] : array() ),
+				array_keys( isset( $data['invoice_kpis'] ) && is_array( $data['invoice_kpis'] ) ? $data['invoice_kpis'] : array() )
+			)
+		);
+
+		if ( empty( $currencies ) ) {
+			$currencies = array( 'USD' );
+		}
+
+		sort( $currencies );
+
+		foreach ( $currencies as $currency ) {
+			$currency_code = strtoupper( (string) $currency );
+			$kpi_row       = isset( $data['invoice_kpis'][ $currency ] ) && is_array( $data['invoice_kpis'][ $currency ] ) ? $data['invoice_kpis'][ $currency ] : array();
+			$invoice_count = isset( $kpi_row['invoice_count'] ) ? absint( $kpi_row['invoice_count'] ) : 0;
+			$avg_ticket    = isset( $kpi_row['average_ticket'] ) ? (float) $kpi_row['average_ticket'] : 0.0;
+
+			$rows[] = array( 'Total billed', $currency_code, $this->format_decimal_for_export( isset( $data['total_invoiced'][ $currency ] ) ? $data['total_invoiced'][ $currency ] : 0 ) );
+			$rows[] = array( 'Total paid', $currency_code, $this->format_decimal_for_export( isset( $data['total_paid'][ $currency ] ) ? $data['total_paid'][ $currency ] : 0 ) );
+			$rows[] = array( 'Pending', $currency_code, $this->format_decimal_for_export( isset( $data['total_outstanding'][ $currency ] ) ? $data['total_outstanding'][ $currency ] : 0 ) );
+			$rows[] = array( 'Invoices', $currency_code, (string) $invoice_count );
+			$rows[] = array( 'Average ticket', $currency_code, $this->format_decimal_for_export( $avg_ticket ) );
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Convert operational base data into CSV rows.
+	 *
+	 * @param array<string, mixed> $data Operational report data.
+	 * @return array<int, array<int, string>>
+	 */
+	protected function map_operational_base_export_rows( array $data ) {
+		$rows = array();
+
+		if ( isset( $data['open_closed_processes'] ) && is_array( $data['open_closed_processes'] ) ) {
+			$rows[] = array( 'Open vs closed', 'Open', (string) absint( isset( $data['open_closed_processes']['open'] ) ? $data['open_closed_processes']['open'] : 0 ) );
+			$rows[] = array( 'Open vs closed', 'Closed', (string) absint( isset( $data['open_closed_processes']['closed'] ) ? $data['open_closed_processes']['closed'] : 0 ) );
+			$rows[] = array( 'Open vs closed', 'Total', (string) absint( isset( $data['open_closed_processes']['total'] ) ? $data['open_closed_processes']['total'] : 0 ) );
+		}
+
+		if ( isset( $data['process_status'] ) && is_array( $data['process_status'] ) ) {
+			foreach ( $data['process_status'] as $row ) {
+				$rows[] = array(
+					'Processes by status',
+					isset( $row['label'] ) ? (string) $row['label'] : '',
+					(string) absint( isset( $row['total'] ) ? $row['total'] : 0 ),
+				);
+			}
+		}
+
+		if ( isset( $data['process_types'] ) && is_array( $data['process_types'] ) ) {
+			foreach ( $data['process_types'] as $row ) {
+				$rows[] = array(
+					'Processes by type',
+					isset( $row['label'] ) ? (string) $row['label'] : '',
+					(string) absint( isset( $row['total'] ) ? $row['total'] : 0 ),
+				);
+			}
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Convert client summary rows into CSV rows.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Summary rows.
+	 * @return array<int, array<int, string>>
+	 */
+	protected function map_client_summary_export_rows( array $rows ) {
+		$export_rows = array();
+
+		foreach ( $rows as $row ) {
+			$currency      = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$export_rows[] = array(
+				isset( $row['label'] ) ? (string) $row['label'] : '',
+				(string) absint( isset( $row['total_processes'] ) ? $row['total_processes'] : 0 ),
+				$currency,
+				$this->format_decimal_for_export( isset( $row['total_billed'] ) ? $row['total_billed'] : 0 ),
+				$this->format_decimal_for_export( isset( $row['total_paid'] ) ? $row['total_paid'] : 0 ),
+			);
+		}
+
+		return $export_rows;
+	}
+
+	/**
+	 * Convert vehicle summary rows into CSV rows.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Summary rows.
+	 * @return array<int, array<int, string>>
+	 */
+	protected function map_vehicle_summary_export_rows( array $rows ) {
+		$export_rows = array();
+
+		foreach ( $rows as $row ) {
+			$currency      = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$export_rows[] = array(
+				isset( $row['label'] ) ? (string) $row['label'] : '',
+				(string) absint( isset( $row['total_processes'] ) ? $row['total_processes'] : 0 ),
+				$currency,
+				$this->format_decimal_for_export( isset( $row['accumulated_cost'] ) ? $row['accumulated_cost'] : 0 ),
+			);
+		}
+
+		return $export_rows;
 	}
 
 	/**
@@ -721,6 +951,89 @@ class Report_Service {
 			'previous'     => $previous,
 			'has_previous' => $has_previous,
 		);
+	}
+
+	/**
+	 * Resolve closed process statuses using stable service mapping.
+	 *
+	 * @return array<int, string>
+	 */
+	protected function get_closed_process_statuses() {
+		$closed_statuses = array();
+
+		foreach ( array_keys( $this->get_process_status_options() ) as $status_key ) {
+			if ( ! $this->process_service->is_active_status( $status_key ) ) {
+				$closed_statuses[] = $status_key;
+			}
+		}
+
+		return $closed_statuses;
+	}
+
+	/**
+	 * Extract grouped total from summary rows by label.
+	 *
+	 * @param array<int, array<string, mixed>> $rows  Summary rows.
+	 * @param string                            $label Target label.
+	 * @return int
+	 */
+	protected function extract_total_by_label( array $rows, $label ) {
+		$target = strtolower( (string) $label );
+
+		foreach ( $rows as $row ) {
+			if ( strtolower( (string) ( isset( $row['label'] ) ? $row['label'] : '' ) ) === $target ) {
+				return absint( isset( $row['total'] ) ? $row['total'] : 0 );
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Summarize recent payments rows by currency.
+	 *
+	 * @param array<int, array<string, mixed>> $rows Payment rows.
+	 * @return array<string, mixed>
+	 */
+	protected function summarize_recent_payments( array $rows ) {
+		$totals = array();
+
+		foreach ( $rows as $row ) {
+			$currency = ! empty( $row['currency'] ) ? strtoupper( (string) $row['currency'] ) : 'USD';
+			$amount   = isset( $row['amount'] ) ? (float) $row['amount'] : 0.0;
+
+			if ( ! isset( $totals[ $currency ] ) ) {
+				$totals[ $currency ] = 0.0;
+			}
+
+			$totals[ $currency ] += $amount;
+		}
+
+		foreach ( $totals as $currency => $total ) {
+			$totals[ $currency ] = round( (float) $total, 2 );
+		}
+
+		return array(
+			'count'  => count( $rows ),
+			'totals' => $totals,
+			'rows'   => array_slice( $rows, 0, 5 ),
+		);
+	}
+
+	/**
+	 * Extract average ticket per currency.
+	 *
+	 * @param array<string, array<string, mixed>> $invoice_kpis KPI rows keyed by currency.
+	 * @return array<string, float>
+	 */
+	protected function extract_average_ticket_by_currency( array $invoice_kpis ) {
+		$result = array();
+
+		foreach ( $invoice_kpis as $currency => $row ) {
+			$result[ strtoupper( (string) $currency ) ] = isset( $row['average_ticket'] ) ? round( (float) $row['average_ticket'], 2 ) : 0.0;
+		}
+
+		return $result;
 	}
 
 	/**

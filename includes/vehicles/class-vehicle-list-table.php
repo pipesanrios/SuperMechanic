@@ -52,14 +52,14 @@ class Vehicle_List_Table extends \WP_List_Table {
 		return array(
 			'cb'         => '<input type="checkbox" />',
 			'id'         => __( 'ID', 'super-mechanic' ),
-			'client'     => __( 'Cliente', 'super-mechanic' ),
+			'client'     => __( 'Client', 'super-mechanic' ),
 			'vin'        => __( 'VIN', 'super-mechanic' ),
-			'plate'      => __( 'Placa', 'super-mechanic' ),
-			'brand'      => __( 'Marca', 'super-mechanic' ),
-			'model'      => __( 'Modelo', 'super-mechanic' ),
+			'plate'      => __( 'Plate', 'super-mechanic' ),
+			'brand'      => __( 'Brand', 'super-mechanic' ),
+			'model'      => __( 'Model', 'super-mechanic' ),
 			'year'       => __( 'Year', 'super-mechanic' ),
 			'color'      => __( 'Color', 'super-mechanic' ),
-			'created_at' => __( 'Creado', 'super-mechanic' ),
+			'created_at' => __( 'Created', 'super-mechanic' ),
 		);
 	}
 
@@ -89,7 +89,7 @@ class Vehicle_List_Table extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'bulk-delete' => __( 'Eliminar', 'super-mechanic' ),
+			'bulk-delete' => __( 'Delete', 'super-mechanic' ),
 		);
 	}
 
@@ -113,7 +113,7 @@ class Vehicle_List_Table extends \WP_List_Table {
 		$client_name = isset( $item['client_name'] ) ? trim( (string) $item['client_name'] ) : '';
 
 		if ( '' === $client_name || 0 === absint( $item['client_id'] ) ) {
-			return esc_html__( 'Sin asignar', 'super-mechanic' );
+			return esc_html__( 'Unassigned', 'super-mechanic' );
 		}
 
 		return esc_html( $client_name );
@@ -157,9 +157,20 @@ class Vehicle_List_Table extends \WP_List_Table {
 		);
 
 		$actions = array(
-			'view'   => '<a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Ver', 'super-mechanic' ) . '</a>',
-			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a>',
-			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
+			'view'   => '<a href="' . esc_url( $view_url ) . '">' . esc_html__( 'View', 'super-mechanic' ) . '</a>',
+			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Edit', 'super-mechanic' ) . '</a>',
+			'process' => '<a href="' . esc_url(
+				add_query_arg(
+					array(
+						'page'       => 'super-mechanic-processes',
+						'action'     => 'new',
+						'vehicle_id' => absint( $item['id'] ),
+						'client_id'  => isset( $item['client_id'] ) ? absint( $item['client_id'] ) : 0,
+					),
+					admin_url( 'admin.php' )
+				)
+			) . '">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a>',
+			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Delete', 'super-mechanic' ) . '</a>',
 		);
 
 		$model  = isset( $item['model'] ) ? trim( (string) $item['model'] ) : '';

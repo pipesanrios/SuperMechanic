@@ -59,6 +59,17 @@ class Admin_Dashboard_Controller {
 
 		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Metrics are calculated from current operations without altering existing flows.', 'super-mechanic' ) . '</p></div>';
 
+		echo '<section class="sm-card sm-section sm-quick-actions-card">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Quick actions', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Operational shortcuts', 'super-mechanic' ) . '</span></div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a class="button button-primary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'new' ) ) ) . '">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'filter_process_type' => 'maintenance' ) ) ) . '">' . esc_html__( 'Open maintenance', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'new', 'process_type' => 'maintenance' ) ) ) . '">' . esc_html__( 'Create quote', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-financial-invoices' ) ) . '">' . esc_html__( 'Create invoice', 'super-mechanic' ) . '</a>';
+		echo '</div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Quote and invoice actions open the fastest operational route in current architecture (process tab or finance center).', 'super-mechanic' ) . '</p>';
+		echo '</section>';
+
 		echo '<div class="sm-grid sm-grid-cards">';
 		$this->render_kpi_card( __( 'Clients', 'super-mechanic' ), $kpis['total_clients'], __( 'Total registered base', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-clients' ) );
 		$this->render_kpi_card( __( 'Vehicles', 'super-mechanic' ), $kpis['total_vehicles'], __( 'Active in tracking', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-vehicles' ) );
@@ -80,18 +91,20 @@ class Admin_Dashboard_Controller {
 
 		echo '<section class="sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest processes', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'High priority', 'super-mechanic' ) . '</span></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $recent_processes ) ) {
-			echo '<tr><td colspan="6">' . esc_html__( 'No recent processes found.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="7">' . esc_html__( 'No recent processes found.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $recent_processes as $process ) {
+				$process_id = absint( $process['id'] );
 				echo '<tr>';
-				echo '<td>' . esc_html( $process['id'] ) . '</td>';
-				echo '<td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'edit', 'id' => absint( $process['id'] ) ) ) ) . '">' . esc_html( $process['title'] ) . '</a></td>';
+				echo '<td>' . esc_html( $process_id ) . '</td>';
+				echo '<td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'edit', 'id' => $process_id ) ) ) . '">' . esc_html( $process['title'] ) . '</a></td>';
 				echo '<td>' . esc_html( $this->humanize_key( $process['process_type'] ) ) . '</td>';
 				echo '<td>' . wp_kses_post( $this->render_status_badge( $process['status'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_vehicle_label( $process ) ) . '</td>';
 				echo '<td>' . esc_html( $process['client_name'] ? $process['client_name'] : __( 'Unassigned', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_process_quick_links( $process_id, isset( $process['process_type'] ) ? (string) $process['process_type'] : '' ) ) . '</td>';
 				echo '</tr>';
 			}
 		}
@@ -241,6 +254,44 @@ class Admin_Dashboard_Controller {
 			}
 		}
 		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * Render quick links for a process row.
+	 *
+	 * @param int    $process_id Process ID.
+	 * @param string $process_type Process type.
+	 * @return string
+	 */
+	protected function render_process_quick_links( $process_id, $process_type ) {
+		$links = array();
+
+		if ( 'maintenance' === $process_type ) {
+			$links[] = '<a href="' . esc_url( $this->get_process_tab_url( $process_id, 'maintenance' ) ) . '">' . esc_html__( 'Maintenance', 'super-mechanic' ) . '</a>';
+			$links[] = '<a href="' . esc_url( $this->get_process_tab_url( $process_id, 'quote' ) ) . '">' . esc_html__( 'Quote', 'super-mechanic' ) . '</a>';
+		}
+
+		$links[] = '<a href="' . esc_url( $this->get_process_tab_url( $process_id, 'invoice' ) ) . '">' . esc_html__( 'Invoice', 'super-mechanic' ) . '</a>';
+
+		return implode( ' | ', $links );
+	}
+
+	/**
+	 * Build process edit URL for a specific tab.
+	 *
+	 * @param int    $process_id Process ID.
+	 * @param string $tab Process tab.
+	 * @return string
+	 */
+	protected function get_process_tab_url( $process_id, $tab ) {
+		return $this->get_admin_page_url(
+			'super-mechanic-processes',
+			array(
+				'action' => 'edit',
+				'id'     => absint( $process_id ),
+				'tab'    => sanitize_key( $tab ),
+			)
+		);
 	}
 
 	/**

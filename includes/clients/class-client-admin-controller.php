@@ -169,7 +169,9 @@ class Client_Admin_Controller {
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Manage the workshop client base with a clearer and more consistent admin flow.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
-		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Add new', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'new' ) ) ) . '" class="button button-primary">' . esc_html__( 'Create client', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-vehicles' ), admin_url( 'admin.php' ) ) ) . '" class="button button-secondary">' . esc_html__( 'Open vehicles', 'super-mechanic' ) . '</a>';
+		echo '<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes' ), admin_url( 'admin.php' ) ) ) . '" class="button button-secondary">' . esc_html__( 'Open processes', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
 		echo '<div class="sm-card sm-filter-card sm-section">';
@@ -210,7 +212,7 @@ class Client_Admin_Controller {
 		}
 
 		$client = wp_parse_args( $client, $defaults );
-		$title  = $is_edit ? __( 'Edit client', 'super-mechanic' ) : __( 'New client', 'super-mechanic' );
+		$title  = $is_edit ? __( 'Edit client', 'super-mechanic' ) : __( 'Create client', 'super-mechanic' );
 		$return = $this->get_process_return_context();
 
 		echo '<div class="wrap sm-admin-shell">';
@@ -293,6 +295,7 @@ class Client_Admin_Controller {
 		echo '</div>';
 		echo '<div class="sm-page-actions">';
 		echo '<a href="' . esc_url( $this->get_page_url( array( 'action' => 'edit', 'id' => $client_id ) ) ) . '" class="button button-primary">' . esc_html__( 'Edit client', 'super-mechanic' ) . '</a> ';
+		echo '<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'new', 'client_id' => $client_id ), admin_url( 'admin.php' ) ) ) . '" class="button button-secondary">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a> ';
 		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to list', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</div>';
@@ -313,7 +316,7 @@ class Client_Admin_Controller {
 		echo '</section>';
 
 		echo '<section class="sm-card sm-card-muted">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Contexto operativo', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Operational context', 'super-mechanic' ) . '</h2></div>';
 		echo '<p><strong>' . esc_html__( 'Linked vehicles', 'super-mechanic' ) . ':</strong> ' . esc_html( is_array( $vehicles ) ? count( $vehicles ) : 0 ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Related processes', 'super-mechanic' ) . ':</strong> ' . esc_html( count( $processes ) ) . '</p>';
 		echo '<p>' . esc_html__( 'The link to WordPress users in the active runtime depends on the `sm_client_id` meta. This phase does not add a new admin flow to link users if one is not already operational.', 'super-mechanic' ) . '</p>';
@@ -343,7 +346,7 @@ class Client_Admin_Controller {
 				echo '<td>' . esc_html( $label ) . '</td>';
 				echo '<td>' . esc_html( $identifier ) . '</td>';
 				echo '<td>' . esc_html( ! empty( $vehicle['ownership_type'] ) ? (string) $vehicle['ownership_type'] : __( 'Active link', 'super-mechanic' ) ) . '</td>';
-				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'View', 'super-mechanic' ) . '</a></td>';
+				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'View', 'super-mechanic' ) . '</a> | <a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'new', 'vehicle_id' => $vehicle_id, 'client_id' => $client_id ), admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a></td>';
 				echo '</tr>';
 			}
 		}
@@ -371,7 +374,15 @@ class Client_Admin_Controller {
 				echo '<td>' . esc_html( $this->humanize_key( $process['process_type'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->humanize_key( $process['status'] ) ) . '</td>';
 				echo '<td>' . esc_html( $this->format_vehicle_label( $process ) ) . '</td>';
-				echo '<td><a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Open process', 'super-mechanic' ) . '</a></td>';
+				$actions = array(
+					'<a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Open process', 'super-mechanic' ) . '</a>',
+					'<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => absint( $process['id'] ), 'tab' => 'invoice' ), admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Open invoice', 'super-mechanic' ) . '</a>',
+				);
+				if ( isset( $process['process_type'] ) && 'maintenance' === (string) $process['process_type'] ) {
+					$actions[] = '<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => absint( $process['id'] ), 'tab' => 'maintenance' ), admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Open maintenance', 'super-mechanic' ) . '</a>';
+					$actions[] = '<a href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'edit', 'id' => absint( $process['id'] ), 'tab' => 'quote' ), admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Open quote', 'super-mechanic' ) . '</a>';
+				}
+				echo '<td>' . wp_kses_post( implode( ' | ', $actions ) ) . '</td>';
 				echo '</tr>';
 			}
 		}
@@ -768,7 +779,7 @@ class Client_Admin_Controller {
 		$page      = isset( $_GET['return_page'] ) ? sanitize_key( wp_unslash( $_GET['return_page'] ) ) : ( isset( $_POST['return_page'] ) ? sanitize_key( wp_unslash( $_POST['return_page'] ) ) : '' );
 		$action    = isset( $_GET['return_action'] ) ? sanitize_key( wp_unslash( $_GET['return_action'] ) ) : ( isset( $_POST['return_action'] ) ? sanitize_key( wp_unslash( $_POST['return_action'] ) ) : '' );
 		$process_id = isset( $_GET['return_process_id'] ) ? absint( wp_unslash( $_GET['return_process_id'] ) ) : ( isset( $_POST['return_process_id'] ) ? absint( wp_unslash( $_POST['return_process_id'] ) ) : 0 );
-		$vehicle_id = isset( $_GET['vehicle_id'] ) ? absint( wp_unslash( $_GET['vehicle_id'] ) ) : ( isset( $_POST['return_vehicle_id'] ) ? absint( wp_unslash( $_POST['return_vehicle_id'] ) ) : 0 );
+		$vehicle_id = isset( $_GET['return_vehicle_id'] ) ? absint( wp_unslash( $_GET['return_vehicle_id'] ) ) : ( isset( $_POST['return_vehicle_id'] ) ? absint( wp_unslash( $_POST['return_vehicle_id'] ) ) : 0 );
 
 		return array(
 			'page'       => 'super-mechanic-processes' === $page ? $page : '',

@@ -422,6 +422,7 @@ Riesgos o puntos sensibles:
 Cambios tecnicos recientes confirmados:
 - en Fase 24B, `Client_Admin_Controller` y `Client_List_Table` modernizan listado, formulario, CTA y mensajes con la capa `sm-*` sin tocar handlers ni queries
 - en `HOTFIX-MEM-1`, `Client_Service` adopta resolucion lazy de `Business_Context_Service` para evitar cascadas de inicializacion durante bootstrap/runtime admin
+- en Fase 38C-1, `Client_List_Table` agrega atajo contextual `Create process` por fila (`client_id`) para reducir friccion operativa
 
 --------------------------------------------------
 
@@ -457,6 +458,7 @@ Riesgos o puntos sensibles:
 
 Cambios tecnicos recientes confirmados:
 - en Fase 24B, `Vehicle_Admin_Controller` y `Vehicle_List_Table` modernizan listado, formulario y jerarquia visual sin alterar acciones, relaciones ni wiring
+- en Fase 38C-1, `Vehicle_List_Table` agrega atajo contextual `Create process` por fila (`vehicle_id` + `client_id`)
 
 --------------------------------------------------
 
@@ -587,6 +589,8 @@ Cambios tecnicos recientes confirmados:
 - en Fase 21, `Process_Service` reutiliza `Settings_Service` para permitir o bloquear `allow_step_back`
 - en Fase 21, la auto-finalizacion sobre paso final pasa a depender de `auto_complete_on_final_step`
 - en Fase 24B, `Process_Admin_Controller` y `Process_List_Table` modernizan listado, filtros, formulario general, tabs y panel `communication` sin alterar services, nonces ni tabs hijas del modulo
+- en Fase 38C-1, `Process_List_Table` añade accesos directos `Open maintenance`, `Open quote`, `Open invoice` y acciones rapidas de estado con nonce
+- en Fase 38C-1, `Process_Admin_Controller` refuerza feedback visual por `sm_notice` para cambios rapidos de estado y acciones operativas frecuentes
 
 --------------------------------------------------
 
@@ -742,6 +746,8 @@ Cambios tecnicos recientes confirmados:
 - en Fase 24, `Admin_Dashboard_Controller`, `Client_Dashboard_Controller` y `Mechanic_Dashboard_Controller` modernizan markup y jerarquia visual sin tocar logica de negocio
 - en Fase 24, la capa visual pasa a depender del wiring comun de `Assets` en lugar de assets sueltos no registrados
 - en Fase 26B, `Client_Process_View_Service` extrae agregacion de lectura del Client Portal sin mover SQL fuera de repositories ni duplicar ownership
+- en Fase 38C-1, `Admin_Dashboard_Controller` incorpora bloque `Quick actions` para flujos operativos de proceso/maintenance/quote/invoice
+- en hotfix 38C-1, el acceso rapido `Create quote` deja de compartir destino con `Open maintenance`
 
 --------------------------------------------------
 
@@ -837,6 +843,7 @@ Cambios tecnicos recientes confirmados:
 - en Fase 21, `Invoice_Service` reutiliza `Settings_Service` para moneda, nombre del negocio y `allow_partial_payments`
 - en Fase 28, el módulo incorpora un panel admin dedicado de invoices (`Finanzas: Invoices`) sin romper el tab invoice del proceso
 - en Fase 28, la UI dedicada de invoices expone explícitamente `subtotal`, `tax_total`, `discount_total` y `grand_total`
+- en Fase 38C-1, `Invoice_Finance_Admin_Controller` mejora claridad operativa con labels/filtros de estado y busqueda orientada a flujo diario
 
 --------------------------------------------------
 
@@ -881,6 +888,7 @@ Cambios tecnicos recientes confirmados:
 - en Fase 20B, cada pago puede resolverse documentalmente como `payment_receipt` unico por `payment_id`, sin persistencia de archivos ni attachments nuevos
 - en Fase 28, `Payment_Repository` agrega listados paginados/filtrados para panel admin dedicado manteniendo SQL solo en repository
 - en Fase 28, el panel admin `Finanzas: Payments` consolida relación invoice ↔ payments y acción segura de `payment_receipt`
+- en Fase 38C-1, `Payment_Finance_Admin_Controller` refuerza feedback visual (`notice-success` / `notice-error`) y claridad de acciones financieras frecuentes
 
 --------------------------------------------------
 
@@ -1231,33 +1239,36 @@ Actualización Fase 37A:
 
 Carpeta:
 - `includes/integrations/woocommerce/`
-- `includes/modules/billing/`
+- `includes/helpers/`
+- `includes/quotes/`
+- `includes/invoices/`
+- `includes/maintenance/`
 
 Proposito:
-Scaffolding para integracion comercial con WooCommerce.
+Integracion comercial base con WooCommerce como catalogo de productos.
 
 Tablas:
 - sin tablas propias activas del plugin
-- potencial uso de tablas WooCommerce en el futuro
+- uso de `reference_id` en `sm_quote_items` y `sm_invoice_items` para `woo_product_id` (snapshot en datos del plugin)
 
 Clases principales:
-- `class-woocommerce-check.php`
-- `class-product-sync.php`
-- `class-order-sync.php`
-- `modules/billing/class-woocommerce-bridge.php`
-- `modules/billing/class-billing-service.php`
+- `Woo_Product_Service`
+- `Quote_Service`
+- `Invoice_Service`
+- `Maintenance_Service`
 
 Dependencias:
 - quotes
 - invoices
-- billing futuro
+- maintenance
 
 Estado:
-- parcial
-- no integrado al flujo principal
+- implementado (alcance 38B consolidado)
 
 Riesgos o puntos sensibles:
-- activarlo sin consolidar arquitectura puede crear duplicidad funcional
+- no abrir integracion de orders/checkout/pagos/taxes Woo fuera del alcance comercial actual
+- mantener `snapshot-only` (`reference_id`, `label`, `unit_price`) sin recalculo dinamico de precio desde Woo
+- en Woo inactivo, preservar flujo manual sin dependencia forzada
 
 --------------------------------------------------
 

@@ -10,7 +10,8 @@ Fecha de consolidacion: 2026-03-30
 ## Estado general
 
 - Estado: ESTABLE CON RIESGOS CONTROLADOS
-- Bloque actual real: `38B (Comercial / WooCommerce)` consolidado
+- Bloque actual real: `38D (Reportes base financieros y operativos)` en continuidad activa
+- Estado de bloque 38D: COMPLETO
 - Estado de bloque 38A: COMPLETA CON OBSERVACIONES
 - Subfases 38A:
   - `38A-1`: COMPLETA (i18n/idioma base)
@@ -21,6 +22,13 @@ Fecha de consolidacion: 2026-03-30
   - `38B-1`: COMPLETA (vinculacion comercial base WooCommerce con snapshot en quotes/invoices y autofill manual en maintenance)
   - `38B-2`: COMPLETA (totales comerciales consistentes para items manuales y Woo con snapshot-only y saneamiento legacy controlado)
   - `38B-3`: COMPLETA (hardening comercial Woo en quotes/invoices con validaciones de integridad equivalentes, saneamiento legacy y mensajes claros de Woo no disponible)
+- Subfases 38C:
+  - `38C-1`: COMPLETA (optimizacion operativa UX en dashboard/clientes/vehiculos/procesos/finanzas con atajos, labels y feedback visual sin cambios de schema)
+  - `38C-2`: COMPLETA (estabilidad operativa y pulido fino con labels/acciones unificadas, retorno de contexto corregido y consistencia en procesos/finanzas)
+- Subfases 38D:
+  - `38D-1`: COMPLETA (reportes base financieros y operativos con resumen por cliente/vehiculo, filtros globales por negocio/fecha y agregaciones controladas sin doble conteo)
+  - `38D-2`: COMPLETA (exportacion/presentacion operativa de reportes con CSV por vista, coherencia vista/export y filtros activos compartidos)
+  - `38D-3`: COMPLETA (KPIs y bloques accionables en reports con lectura rapida, tablas cortas y carga operativa/financiera filtrada por negocio/fechas)
 - Bloque tecnico post-cierre: `HOTFIX-MEM-1` COMPLETO (fatal `Allowed memory size exhausted` en cascadas de servicios)
 - Runtime WordPress real para 37A-6: confirmado (validacion manual UI real + runtime backend, incluyendo timeline unificada de vehiculo con proceso+cita+mantenimiento)
 - Runtime tecnico para 38A-1: validacion de cierre ejecutada (barrido dirigido final en list tables/flujo de facturacion + smoke backend `tmp-runtime-check.php` + `php-lint` global limpio)
@@ -30,6 +38,12 @@ Fecha de consolidacion: 2026-03-30
 - Runtime WordPress real para 38B-1: validacion ejecutada en modo Woo activo e inactivo (selector condicional, snapshot `reference_id/label/unit_price` en quote/invoice, autofill manual en maintenance, sin regresion de totales y sin dependencia forzada de Woo).
 - Runtime WordPress real para 38B-2: validacion ejecutada en modo Woo activo e inactivo (normalizacion `line_total = quantity * unit_price`, `recalculate_totals()` por formula coherente por item, mapeo `manual -> custom`, sin recalculo de precios desde Woo y sin regresiones en totales).
 - Runtime WordPress real para 38B-3: validacion ejecutada sobre hardening comercial Woo (manual/Woo valido/Woo invalido, saneamiento legacy a `custom`, mensaje especifico `WooCommerce not available` en indisponibilidad de catalogo, sin regresion de snapshot/totales).
+- Runtime tecnico para 38C-1: validacion ejecutada con checklist operativo por codigo + lint global + structure-check + technical-checklist y hotfix puntual de quick action `Create quote`.
+- Runtime WordPress real para 38C-2: confirmado por usuario (checklist runtime manual real completado en clientes/vehiculos/procesos/finanzas y no regresion operacional).
+- Runtime WordPress real para 38D-1: confirmado por usuario (validacion manual de reportes base financieros/operativos, cliente/vehiculo, filtros por negocio/fechas y coherencia de datos).
+- Runtime WordPress real para 38D-2: confirmado por usuario (validacion manual de export CSV por vista: `financial_base`, `operational_base`, `client_summary`, `vehicle_summary`, `recent_*`, con coherencia vista/export y filtros activos).
+- Runtime WordPress real para 38D-3: confirmado por usuario (validacion manual de KPIs accionables: open/closed processes, overdue invoices, outstanding by currency, recent payments, average ticket, top clients/vehicles, operational load y filtros activos funcionando).
+- Runtime WordPress real de bloque 38D: confirmado (subfases 38D-1, 38D-2 y 38D-3 validadas manualmente por usuario).
 
 ## Arquitectura activa real
 
@@ -109,11 +123,18 @@ Fecha de consolidacion: 2026-03-30
 
 ## Siguiente fase real
 
-- Siguiente fase habilitada: `38C — Comercial / continuidad post-Woo base`.
+- Siguiente fase habilitada: `Fase 39 — CRM y automatizacion comercial`.
+- Continuidad oficial post-38:
+  - `Fase 39` — CRM y automatizacion comercial
+  - `Fase 40` — Hosting gestionado / WordPress dedicado
+  - `Fase 41` — SaaS independiente
+- Justificacion de renumeracion:
+  - el bloque `38` ya fue consumido y consolidado (`38A` a `38D`)
+  - CRM deja de referenciarse como `37B` para mantener continuidad historica y funcional
 - Condicion de continuidad: el bloqueante `HOTFIX-MEM-1` queda cerrado y no bloquea retomar roadmap.
 - Backlog inmediato recomendado:
   - cierre formal pendiente de 38A-2/38A-3 (validaciones manuales restantes)
-  - continuidad funcional del bloque comercial post 38B consolidado
+  - preparacion de alcance para `Fase 39` (CRM y automatizacion comercial)
   - UX/admin de API keys y webhooks publicos
   - observabilidad avanzada de entregas webhook
   - consolidacion final de checklist runtime 36B/36C

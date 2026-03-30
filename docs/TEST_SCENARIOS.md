@@ -778,3 +778,161 @@ Resultado esperado:
 - en inconsistencia legacy ya persistida (`woo_product` roto), se aplica saneamiento controlado a `custom`
 - snapshot comercial valido (`reference_id`, `label`, `unit_price`) sigue funcionando sin recalculo dinamico
 - totales de quote/invoice se mantienen consistentes con formula por item
+
+==================================================
+ESCENARIO 35 — OPTIMIZACION OPERATIVA REAL (38C-1)
+==================================================
+
+Estado 38C-1: COMPLETA (validacion tecnica + hotfix de cierre aplicado)
+
+Flujo:
+
+Administrador
+-> abre dashboard y valida bloque `Quick actions`
+-> valida atajos `Create process` en filas de clientes y vehiculos
+-> valida atajos operativos en listado de procesos (`Open maintenance`, `Open quote`, `Open invoice`)
+-> ejecuta cambio rapido de estado en procesos y verifica feedback visual
+-> abre finanzas (invoices/payments) y valida busqueda + notices
+
+Resultado esperado:
+
+- dashboard muestra acciones rapidas diferenciadas y funcionales
+- `Create quote` en dashboard no comparte destino con `Open maintenance`
+- clientes/vehiculos abren `Create process` con contexto correcto (`client_id`, `vehicle_id`)
+- procesos preservan tabs/contexto y muestran feedback claro al cambiar estado
+- finanzas mantienen busqueda operativa y notices de exito/error visibles
+- sin cambios de schema ni regresion funcional core
+
+==================================================
+ESCENARIO 36 — ESTABILIDAD OPERATIVA Y PULIDO FINO (38C-2)
+==================================================
+
+Estado 38C-2: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> revisa clientes y vehiculos para consistencia de labels/acciones
+-> crea cliente/vehiculo desde flujo contextual y retorna a procesos
+-> valida listado de procesos con columnas y acciones consistentes
+-> abre finanzas/pagos y confirma labels en ingles + notices
+-> recorre navegacion base verificando no regresion ni perdida de contexto
+
+Resultado esperado:
+
+- labels y acciones coherentes entre clientes/vehiculos/procesos
+- altas contextuales preservan retorno correcto a procesos:
+  - clientes: `return_vehicle_id`
+  - vehiculos: `return_client_id`
+- procesos mantienen columnas/acciones claras y navegacion estable
+- finanzas/pagos muestran labels operativos en ingles y notices correctos
+- sin errores PHP/JS visibles en runtime manual validado por usuario
+- sin impacto negativo reportado en operacion multi-store
+
+==================================================
+ESCENARIO 37 — REPORTES BASE FINANCIEROS Y OPERATIVOS (38D-1)
+==================================================
+
+Estado 38D-1: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> Reports`
+-> aplica filtros globales por negocio y rango de fechas
+-> valida resumen financiero base
+-> valida resumen operativo de procesos
+-> valida tablas resumidas por cliente y por vehiculo
+
+Resultado esperado:
+
+- financiero base coherente:
+  - `total billed`
+  - `total paid`
+  - `pending`
+  - `invoices`
+  - `average ticket`
+- operativo base coherente:
+  - total de procesos
+  - distribucion por tipo
+  - distribucion por estado
+  - abiertos vs cerrados segun mapping estable del sistema
+- resumen por cliente sin doble conteo (procesos/facturacion/pagos)
+- resumen por vehiculo sin doble conteo (procesos/gasto acumulado)
+- filtros por negocio y fechas aplican de forma consistente en todas las secciones
+- sin cambios de schema ni regresion funcional en flujos core
+
+==================================================
+ESCENARIO 38 — EXPORTACION / PRESENTACION DE REPORTES (38D-2)
+==================================================
+
+Estado 38D-2: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> Reports`
+-> valida labels/headings y botones de export por vista
+-> aplica filtros activos (`business_id`, `date_from`, `date_to`)
+-> ejecuta export CSV por cada vista soportada
+-> compara datos de pantalla contra archivo exportado
+
+Resultado esperado:
+
+- export CSV operativo por vista:
+  - `financial_base`
+  - `operational_base`
+  - `client_summary`
+  - `vehicle_summary`
+  - `recent_*` existentes
+- vista y export comparten la misma logica base (sin divergencia funcional)
+- filtros activos se respetan igual en pantalla y CSV exportado
+- no regresion en seguridad de export (nonce + capability)
+- sin errores PHP visibles ni ruptura del modulo `reports`
+
+==================================================
+ESCENARIO 39 — KPIS Y BLOQUES ACCIONABLES EN REPORTS (38D-3)
+==================================================
+
+Estado 38D-3: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> Reports`
+-> valida bloque de KPIs accionables y secciones compactas
+-> aplica filtros activos (`business_id`, `date_from`, `date_to`)
+-> verifica coherencia de KPIs/tablas contra datos esperados
+
+Resultado esperado:
+
+- KPIs accionables operativos/financieros visibles y coherentes:
+  - open processes
+  - closed processes
+  - overdue invoices
+  - outstanding by currency
+  - recent payments
+  - average ticket
+  - top clients
+  - top vehicles
+  - operational load
+- bloques accionables claros y sin saturacion visual evidente
+- filtros activos afectan de forma consistente KPIs y tablas
+- sin errores PHP visibles ni regresion del modulo `reports`
+
+==================================================
+CONSOLIDADO BLOQUE 38D — REPORTES Y CONTROL
+==================================================
+
+Estado bloque 38D: COMPLETO
+
+Cobertura validada en runtime manual WordPress real:
+
+- 38D-1: reportes base financieros/operativos + cliente/vehiculo
+- 38D-2: export CSV por vista + coherencia vista/export
+- 38D-3: KPIs accionables + bloques de control
+
+Condicion tecnica consolidada:
+
+- sin cambios de schema
+- sin cambios de arquitectura base

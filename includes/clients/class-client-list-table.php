@@ -53,10 +53,10 @@ class Client_List_Table extends \WP_List_Table {
 			'cb'          => '<input type="checkbox" />',
 			'id'          => __( 'ID', 'super-mechanic' ),
 			'first_name'  => __( 'Name', 'super-mechanic' ),
-			'last_name'   => __( 'Apellido', 'super-mechanic' ),
+			'last_name'   => __( 'Last name', 'super-mechanic' ),
 			'email'       => __( 'Email', 'super-mechanic' ),
 			'phone'       => __( 'Phone', 'super-mechanic' ),
-			'document_id' => __( 'Documento', 'super-mechanic' ),
+			'document_id' => __( 'Document ID', 'super-mechanic' ),
 			'created_at'  => __( 'Created', 'super-mechanic' ),
 		);
 	}
@@ -85,7 +85,7 @@ class Client_List_Table extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'bulk-delete' => __( 'Eliminar', 'super-mechanic' ),
+			'bulk-delete' => __( 'Delete', 'super-mechanic' ),
 		);
 	}
 
@@ -150,9 +150,19 @@ class Client_List_Table extends \WP_List_Table {
 		);
 
 		$actions = array(
-			'view'   => '<a href="' . esc_url( $view_url ) . '">' . esc_html__( 'Ver', 'super-mechanic' ) . '</a>',
-			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a>',
-			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
+			'view'   => '<a href="' . esc_url( $view_url ) . '">' . esc_html__( 'View', 'super-mechanic' ) . '</a>',
+			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Edit', 'super-mechanic' ) . '</a>',
+			'process' => '<a href="' . esc_url(
+				add_query_arg(
+					array(
+						'page'      => 'super-mechanic-processes',
+						'action'    => 'new',
+						'client_id' => absint( $item['id'] ),
+					),
+					admin_url( 'admin.php' )
+				)
+			) . '">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a>',
+			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Delete', 'super-mechanic' ) . '</a>',
 		);
 
 		$email = isset( $item['email'] ) ? trim( (string) $item['email'] ) : '';

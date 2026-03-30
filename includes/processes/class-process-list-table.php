@@ -53,13 +53,13 @@ class Process_List_Table extends \WP_List_Table {
 			'cb'           => '<input type="checkbox" />',
 			'id'           => __( 'ID', 'super-mechanic' ),
 			'title'        => __( 'Title', 'super-mechanic' ),
-			'process_type' => __( 'Tipo', 'super-mechanic' ),
-			'status'       => __( 'Estado', 'super-mechanic' ),
+			'process_type' => __( 'Type', 'super-mechanic' ),
+			'status'       => __( 'Status', 'super-mechanic' ),
 			'vehicle'      => __( 'Vehicle', 'super-mechanic' ),
-			'client'       => __( 'Cliente', 'super-mechanic' ),
-			'opened_at'    => __( 'Apertura', 'super-mechanic' ),
-			'due_date'     => __( 'Objetivo', 'super-mechanic' ),
-			'created_at'   => __( 'Creado', 'super-mechanic' ),
+			'client'       => __( 'Client', 'super-mechanic' ),
+			'opened_at'    => __( 'Opened', 'super-mechanic' ),
+			'due_date'     => __( 'Target', 'super-mechanic' ),
+			'created_at'   => __( 'Created', 'super-mechanic' ),
 		);
 	}
 
@@ -89,7 +89,7 @@ class Process_List_Table extends \WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'bulk-delete' => __( 'Eliminar', 'super-mechanic' ),
+			'bulk-delete' => __( 'Delete', 'super-mechanic' ),
 		);
 	}
 
@@ -132,9 +132,45 @@ class Process_List_Table extends \WP_List_Table {
 		);
 
 		$actions = array(
-			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Editar', 'super-mechanic' ) . '</a>',
-			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Eliminar', 'super-mechanic' ) . '</a>',
+			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . esc_html__( 'Edit', 'super-mechanic' ) . '</a>',
+			'invoice' => '<a href="' . esc_url(
+				add_query_arg(
+					array(
+						'page'   => 'super-mechanic-processes',
+						'action' => 'edit',
+						'id'     => absint( $item['id'] ),
+						'tab'    => 'invoice',
+					),
+					admin_url( 'admin.php' )
+				)
+			) . '">' . esc_html__( 'Open invoice', 'super-mechanic' ) . '</a>',
+			'delete' => '<a href="' . esc_url( $delete_url ) . '">' . esc_html__( 'Delete', 'super-mechanic' ) . '</a>',
 		);
+
+		if ( isset( $item['process_type'] ) && 'maintenance' === (string) $item['process_type'] ) {
+			$actions['maintenance'] = '<a href="' . esc_url(
+				add_query_arg(
+					array(
+						'page'   => 'super-mechanic-processes',
+						'action' => 'edit',
+						'id'     => absint( $item['id'] ),
+						'tab'    => 'maintenance',
+					),
+					admin_url( 'admin.php' )
+				)
+			) . '">' . esc_html__( 'Open maintenance', 'super-mechanic' ) . '</a>';
+			$actions['quote']       = '<a href="' . esc_url(
+				add_query_arg(
+					array(
+						'page'   => 'super-mechanic-processes',
+						'action' => 'edit',
+						'id'     => absint( $item['id'] ),
+						'tab'    => 'quote',
+					),
+					admin_url( 'admin.php' )
+				)
+			) . '">' . esc_html__( 'Open quote', 'super-mechanic' ) . '</a>';
+		}
 
 		$output  = '<strong>' . esc_html( (string) $item['title'] ) . '</strong>';
 		$output .= '<div class="sm-list-meta">#' . esc_html( (string) $item['id'] ) . '</div>';
@@ -211,7 +247,7 @@ class Process_List_Table extends \WP_List_Table {
 	protected function column_client( $item ) {
 		$client_name = isset( $item['client_name'] ) ? trim( (string) $item['client_name'] ) : '';
 
-		return esc_html( '' !== $client_name ? $client_name : __( 'Sin asignar', 'super-mechanic' ) );
+		return esc_html( '' !== $client_name ? $client_name : __( 'Unassigned', 'super-mechanic' ) );
 	}
 
 	/**
@@ -274,7 +310,7 @@ class Process_List_Table extends \WP_List_Table {
 				'sm_quick_process_status_' . $process_id . '_' . $status_key
 			);
 
-			$actions[ 'status_' . $status_key ] = '<a href="' . esc_url( $target_url ) . '">' . esc_html( sprintf( __( 'Marcar: %s', 'super-mechanic' ), $status_options[ $status_key ] ) ) . '</a>';
+			$actions[ 'status_' . $status_key ] = '<a href="' . esc_url( $target_url ) . '">' . esc_html( sprintf( __( 'Set status: %s', 'super-mechanic' ), $status_options[ $status_key ] ) ) . '</a>';
 		}
 
 		return $actions;

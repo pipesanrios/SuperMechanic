@@ -49,6 +49,10 @@
 	align-items: center;
 }
 
+.sm-quick-actions-card .sm-page-actions {
+	margin-bottom: 10px;
+}
+
 .sm-admin-title h1,
 .sm-admin-title h2 {
 	margin: 0 0 6px;

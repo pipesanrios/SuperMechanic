@@ -263,7 +263,22 @@ Reglas:
 - 36C-2
 - 37A
 - 38A-1
-- 38A-2 (en cierre)
+- 38A-2 (PARCIAL)
+- 38A-3 (PARCIAL)
+- 38A-3B
+- 38B-1
+- 38B-2
+- 38B-3
+- 38C-1
+- 38C-2
+- 38D-1
+- 38D-2
+- 38D-3
+
+### Continuidad oficial post-38
+- Fase 39 — CRM y automatizacion comercial
+- Fase 40 — Hosting gestionado / WordPress dedicado
+- Fase 41 — SaaS independiente
 
 ### Hitos recientes
 - reports consolidado
@@ -284,6 +299,8 @@ Reglas:
 - panel admin de shortcodes
 - scripts locales de validación técnica
 - hardening pre-SaaS en dashboard cliente, transacciones y descargas admin
+- bloque comercial Woo 38B consolidado (snapshot en quotes/invoices, consistencia de totales y hardening operativo)
+- optimizacion operativa 38C-1 consolidada (quick actions, atajos contextuales y feedback visual sin cambio de schema)
 
 ---
 

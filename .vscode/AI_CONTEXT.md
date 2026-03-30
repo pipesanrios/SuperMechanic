@@ -7,7 +7,7 @@ Fuente de verdad: código real (`includes/*`).
 
 - Plugin: `0.1.0`
 - Schema: `1.15.0`
-- Bloque actual: `38B (Comercial / WooCommerce)` (continuidad activa)
+- Bloque actual: `38D (Reportes base financieros y operativos)` (continuidad activa)
 - Estado de subfases 38A:
   - `38A-1` — COMPLETA (idioma / i18n base)
   - `38A-2` — PARCIAL (validacion manual final pendiente o confirmacion explicita)
@@ -17,7 +17,22 @@ Fuente de verdad: código real (`includes/*`).
   - `38B-1` — COMPLETA (vinculacion comercial base Woo con snapshot en quote/invoice y autofill manual en maintenance)
   - `38B-2` — COMPLETA (totales consistentes por formula por item, saneamiento legacy controlado y snapshot-only en Woo)
   - `38B-3` — COMPLETA (hardening comercial Woo en quotes/invoices con saneamiento legacy y mensajes de validacion claros)
-- Siguiente fase habilitada: `38C — Comercial / continuidad post-Woo base`
+- Estado de subfases 38C:
+  - `38C-1` — COMPLETA (optimizacion operativa UX en dashboard/clientes/vehiculos/procesos/finanzas + hotfix de quick action `Create quote`)
+  - `38C-2` — COMPLETA (estabilidad operativa y pulido fino: labels/acciones unificadas, retorno de contexto corregido y consistencia en procesos/finanzas/pagos)
+- Estado de subfases 38D:
+  - `38D-1` — COMPLETA (reportes base financieros y operativos con agregaciones controladas por entidad y filtros simples por negocio/fechas)
+  - `38D-2` — COMPLETA (export CSV por vista en reports, consistencia vista/export y filtros activos compartidos)
+  - `38D-3` — COMPLETA (KPIs accionables y bloques de control en reports con filtros activos consistentes)
+- Estado de bloque 38D: COMPLETO (reportes y control consolidados)
+- Siguiente fase habilitada: `Fase 39 — CRM y automatizacion comercial`
+- Continuidad oficial post-38:
+  - `Fase 39` — CRM y automatizacion comercial
+  - `Fase 40` — Hosting gestionado / WordPress dedicado
+  - `Fase 41` — SaaS independiente
+- Nota de continuidad:
+  - el bloque `38` ya fue consumido en ejecucion real (`38A` a `38D`)
+  - CRM no se mantiene como `37B`; se renumera oficialmente a `Fase 39`
 - Últimas subfases completas:
   - `38A-3B` — export/import operativo (JSON canónico + CSV ZIP + Excel XML)
   - `37A-3` — consistencia operativa y tenancy endurecida
@@ -129,6 +144,57 @@ Fuente de verdad: código real (`includes/*`).
   - saneamiento controlado `woo_product` legacy inconsistente a `custom`
   - mensaje priorizado de indisponibilidad: `WooCommerce not available`
   - validacion runtime WordPress real de cierre/hotfix: OK
+- `38C-1`:
+  - dashboard con quick actions operativas diferenciadas y ruta corregida para `Create quote`
+  - listados de clientes/vehiculos con atajo `Create process` contextual
+  - procesos con atajos directos a tabs operativas y feedback de estado
+  - finanzas con busqueda y notices visuales mas claros
+  - sin cambios de schema ni logica financiera core
+- `38C-2`:
+  - unificacion de labels/acciones en clientes, vehiculos y procesos
+  - fix de retorno de contexto:
+    - `return_vehicle_id` en flujo de clientes
+    - `return_client_id` en flujo de vehiculos
+  - procesos con columnas/acciones consistentes para reducir ambiguedad
+  - finanzas/pagos con labels coherentes en ingles (`Amount`, `Reference`, `Notes`)
+  - validacion runtime manual WordPress real confirmada por usuario
+  - sin cambios de schema ni arquitectura
+- `38D-1`:
+  - reportes financieros base con metricas: facturado, cobrado, pendiente, invoices y ticket promedio
+  - reportes operativos de procesos por tipo/estado y abiertos vs cerrados
+  - reportes por cliente y por vehiculo sin doble conteo (agregacion controlada)
+  - filtros globales simples por negocio y fechas
+  - validacion runtime manual WordPress real confirmada por usuario
+  - sin cambios de schema ni arquitectura
+- `38D-2`:
+  - export CSV por vista completado en reports:
+    - `financial_base`
+    - `operational_base`
+    - `client_summary`
+    - `vehicle_summary`
+    - `recent_*`
+  - coherencia vista/export confirmada en runtime manual real
+  - filtros activos compartidos entre UI/export: `business_id`, `date_from`, `date_to`
+  - sin cambios de schema ni arquitectura
+- `38D-3`:
+  - KPIs accionables completados en reports:
+    - open/closed processes
+    - overdue invoices
+    - outstanding by currency
+    - recent payments
+    - average ticket
+    - top clients
+    - top vehicles
+    - operational load
+  - bloques accionables compactos para control rapido operativo/financiero
+  - filtros activos funcionando correctamente (`business_id`, `date_from`, `date_to`)
+  - validacion runtime manual WordPress real confirmada por usuario
+  - sin cambios de schema ni arquitectura
+- Consolidado 38D:
+  - cobertura completa de reportes financieros/operativos + cliente/vehiculo
+  - export CSV por vista consolidado
+  - KPIs accionables y dashboards de control consolidados
+  - bloque validado en runtime manual WordPress real (38D-1/38D-2/38D-3)
 
 ## Deuda técnica viva
 

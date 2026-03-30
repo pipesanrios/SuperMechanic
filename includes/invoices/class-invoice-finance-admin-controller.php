@@ -77,7 +77,11 @@ class Invoice_Finance_Admin_Controller {
 		echo '<h1>' . esc_html__( 'Centro financiero - Invoices', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Dedicated panel to manage billing, collection status, and financial actions per invoice.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
+		echo '<div class="sm-page-actions">';
+		echo '<a class="button button-primary" href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-processes', 'action' => 'new' ), admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a>';
+		echo '<a class="button button-secondary" href="' . esc_url( add_query_arg( array( 'page' => 'super-mechanic-financial-payments' ), admin_url( 'admin.php' ) ) ) . '">' . esc_html__( 'Open payments', 'super-mechanic' ) . '</a>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Finance', 'super-mechanic' ) . '</span>';
+		echo '</div>';
 		echo '</div>';
 
 		$this->render_filter_form( $list_table );
@@ -122,7 +126,7 @@ class Invoice_Finance_Admin_Controller {
 		echo '</select>';
 		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', 'filter_action', false );
 		echo '</div>';
-		$list_table->search_box( __( 'Buscar invoices', 'super-mechanic' ), 'sm-finance-invoices' );
+		$list_table->search_box( __( 'Search invoices', 'super-mechanic' ), 'sm-finance-invoices' );
 		echo '</form>';
 	}
 }
