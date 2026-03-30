@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	var config = window.smAdminCalendar;
 	var selectedEventId = null;
+	var selectedEventType = '';
 	var isBusy = false;
 	var selectedTitleEl = document.getElementById('sm-calendar-selected-title');
 	var feedbackEl = document.getElementById('sm-calendar-feedback');
@@ -32,26 +33,30 @@ document.addEventListener('DOMContentLoaded', function () {
 	function setBusyState(busy) {
 		isBusy = !!busy;
 		calendarEl.classList.toggle('is-loading', isBusy);
+		var canUpdateStatus = !!selectedEventId && selectedEventType !== 'crm_task';
 		if (statusSelectEl) {
-			statusSelectEl.disabled = isBusy || !selectedEventId;
+			statusSelectEl.disabled = isBusy || !canUpdateStatus;
 		}
 		if (updateButtonEl) {
-			updateButtonEl.disabled = isBusy || !selectedEventId;
+			updateButtonEl.disabled = isBusy || !canUpdateStatus;
 		}
 	}
 
 	function setSelectedEvent(event) {
 		selectedEventId = event ? event.id : null;
+		selectedEventType = event && event.extendedProps && event.extendedProps.event_type ? event.extendedProps.event_type : '';
 
 		if (selectedTitleEl) {
 			if (!event) {
 				selectedTitleEl.textContent = 'Selecciona una cita en el calendario para actualizar su estado.';
+			} else if (selectedEventType === 'crm_task') {
+				selectedTitleEl.textContent = (event.title || ('CRM task #' + event.id)) + ' (solo lectura en calendario)';
 			} else {
 				selectedTitleEl.textContent = event.title || ('Cita #' + event.id);
 			}
 		}
 
-		if (statusSelectEl && event && event.extendedProps) {
+		if (statusSelectEl && event && event.extendedProps && selectedEventType !== 'crm_task') {
 			statusSelectEl.value = event.extendedProps.appointment_status || 'scheduled';
 		}
 
@@ -60,6 +65,30 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 
 		setBusyState(isBusy);
+	}
+
+	function resolveEventDetailsUrl(event) {
+		if (!event) {
+			return '';
+		}
+
+		if (event.url) {
+			return event.url;
+		}
+
+		var eventType = event.extendedProps && event.extendedProps.event_type ? event.extendedProps.event_type : '';
+		if (eventType === 'crm_task') {
+			if (event.extendedProps && event.extendedProps.crm_pipeline_id && config.crmTaskDetailsBaseUrl) {
+				return config.crmTaskDetailsBaseUrl + encodeURIComponent(String(event.extendedProps.crm_pipeline_id));
+			}
+			return '';
+		}
+
+		if (!event.id || !config.detailsBaseUrl) {
+			return '';
+		}
+
+		return config.detailsBaseUrl + encodeURIComponent(String(event.id));
 	}
 
 	function normalizeDateTimeForPrefill(dateObj) {
@@ -177,12 +206,32 @@ document.addEventListener('DOMContentLoaded', function () {
 			info.jsEvent.preventDefault();
 			setSelectedEvent(info.event);
 			setFeedback('', '');
-			if ((info.jsEvent.ctrlKey || info.jsEvent.metaKey) && info.event.url) {
-				window.open(info.event.url, '_blank', 'noopener');
+			var eventType = info.event && info.event.extendedProps ? info.event.extendedProps.event_type : '';
+			var detailsUrl = resolveEventDetailsUrl(info.event);
+			if (detailsUrl) {
+				if (info.jsEvent.ctrlKey || info.jsEvent.metaKey) {
+					window.open(detailsUrl, '_blank', 'noopener');
+					return;
+				}
+
+				if (eventType === 'appointment' || eventType === 'crm_task' || eventType === '') {
+					window.location.href = detailsUrl;
+					return;
+				}
+
+				window.location.href = detailsUrl;
 			}
 		},
 		eventDrop: function (info) {
 			var eventId = info.event && info.event.id ? info.event.id : null;
+			var eventType = info.event && info.event.extendedProps ? info.event.extendedProps.event_type : '';
+
+			if (eventType === 'crm_task') {
+				info.revert();
+				setFeedback(config.crmTaskMoveBlockedLabel || 'CRM tasks cannot be moved from calendar in this phase.', 'error');
+				return;
+			}
+
 			if (!eventId || !info.event.start) {
 				info.revert();
 				return;

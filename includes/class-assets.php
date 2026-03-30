@@ -75,7 +75,7 @@ class Assets {
 			self::CALENDAR_SCRIPT,
 			SM_PLUGIN_URL . 'assets/js/admin-calendar.js',
 			array( self::CALENDAR_VENDOR_SCRIPT ),
-			SM_PLUGIN_VERSION,
+			file_exists( SM_PLUGIN_PATH . 'assets/js/admin-calendar.js' ) ? (string) filemtime( SM_PLUGIN_PATH . 'assets/js/admin-calendar.js' ) : SM_PLUGIN_VERSION,
 			true
 		);
 
@@ -100,11 +100,13 @@ class Assets {
 					'restUrl'           => esc_url_raw( rest_url( 'super-mechanic/v1/admin/appointments/' ) ),
 					'nonce'             => wp_create_nonce( 'wp_rest' ),
 					'detailsBaseUrl'    => admin_url( 'admin.php?page=super-mechanic-appointments&action=edit&id=' ),
+					'crmTaskDetailsBaseUrl' => admin_url( 'admin.php?page=super-mechanic-crm-pipeline&action=view&id=' ),
 					'createBaseUrl'     => admin_url( 'admin.php?page=super-mechanic-appointments&action=new' ),
 					'statusUpdateLabel' => __( 'Estado actualizado.', 'super-mechanic' ),
 					'statusUpdateError' => __( 'No fue posible actualizar el estado.', 'super-mechanic' ),
 					'moveUpdateLabel'   => __( 'Cita reprogramada.', 'super-mechanic' ),
 					'moveUpdateError'   => __( 'No fue posible reprogramar la cita.', 'super-mechanic' ),
+					'crmTaskMoveBlockedLabel' => __( 'Las tareas CRM no se reprograman desde el calendario en esta fase.', 'super-mechanic' ),
 					'calendarLoadError' => __( 'No fue posible cargar el calendario.', 'super-mechanic' ),
 					'statusOptions'     => array(
 						'scheduled'   => __( 'Scheduled', 'super-mechanic' ),

@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Appointments;
 
+use Super_Mechanic\CRM\Crm_Task_Service;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Server;
@@ -32,12 +33,20 @@ class Appointment_Admin_Controller {
 	protected $service;
 
 	/**
+	 * CRM task service.
+	 *
+	 * @var Crm_Task_Service
+	 */
+	protected $crm_task_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Appointment_Service|null $service Service.
 	 */
-	public function __construct( Appointment_Service $service = null ) {
-		$this->service = $service ? $service : new Appointment_Service();
+	public function __construct( Appointment_Service $service = null, Crm_Task_Service $crm_task_service = null ) {
+		$this->service          = $service ? $service : new Appointment_Service();
+		$this->crm_task_service = $crm_task_service ? $crm_task_service : new Crm_Task_Service();
 	}
 
 	/**
@@ -546,6 +555,7 @@ class Appointment_Admin_Controller {
 		$start        = sanitize_text_field( (string) $request->get_param( 'start' ) );
 		$end          = sanitize_text_field( (string) $request->get_param( 'end' ) );
 		$appointments = $this->service->get_appointments_for_calendar( $start, $end );
+		$crm_tasks    = $this->crm_task_service->get_tasks_for_calendar( $start, $end, array( 'pending' ), 1000 );
 		$events       = array();
 
 		foreach ( $appointments as $appointment ) {
@@ -554,6 +564,23 @@ class Appointment_Admin_Controller {
 				$events[] = $event;
 			}
 		}
+
+		foreach ( $crm_tasks as $task ) {
+			$event = $this->map_crm_task_calendar_event_payload( $task );
+			if ( ! empty( $event ) ) {
+				$events[] = $event;
+			}
+		}
+
+		usort(
+			$events,
+			function ( $a, $b ) {
+				$a_start = isset( $a['start'] ) ? strtotime( (string) $a['start'] ) : 0;
+				$b_start = isset( $b['start'] ) ? strtotime( (string) $b['start'] ) : 0;
+
+				return (int) $a_start <=> (int) $b_start;
+			}
+		);
 
 		return $events;
 	}
@@ -658,21 +685,68 @@ class Appointment_Admin_Controller {
 			'title'         => '' !== $title ? $title : '#' . $appointment_id,
 			'start'         => gmdate( 'c', $start_ts ),
 			'end'           => gmdate( 'c', false !== $end_ts ? $end_ts : $start_ts ),
+			'event_type'    => 'appointment',
 			'url'           => $this->get_page_url(
 				array(
 					'action' => 'edit',
 					'id'     => $appointment_id,
 				)
 			),
+			'className'       => 'sm-calendar-event-appointment',
 			'backgroundColor' => $colors['background'],
 			'borderColor'     => $colors['border'],
 			'textColor'       => $colors['text'],
 			'extendedProps' => array(
+				'event_type'         => 'appointment',
 				'appointment_status' => $status,
 				'client_name'        => $client,
 				'vehicle_label'      => $vehicle,
 				'mechanic_name'      => isset( $appointment['mechanic_name'] ) ? sanitize_text_field( (string) $appointment['mechanic_name'] ) : '',
 				'process_id'         => isset( $appointment['process_id'] ) ? absint( $appointment['process_id'] ) : 0,
+			),
+		);
+	}
+
+	/**
+	 * Build FullCalendar payload for one CRM task.
+	 *
+	 * @param array<string,mixed> $task CRM task row.
+	 * @return array<string,mixed>
+	 */
+	protected function map_crm_task_calendar_event_payload( array $task ) {
+		$task_id         = isset( $task['id'] ) ? absint( $task['id'] ) : 0;
+		$crm_pipeline_id = isset( $task['crm_pipeline_id'] ) ? absint( $task['crm_pipeline_id'] ) : 0;
+		$due_at          = isset( $task['due_at'] ) ? sanitize_text_field( (string) $task['due_at'] ) : '';
+
+		if ( $task_id <= 0 || $crm_pipeline_id <= 0 || '' === $due_at ) {
+			return array();
+		}
+
+		$start_ts = strtotime( $due_at );
+		if ( false === $start_ts ) {
+			return array();
+		}
+
+		$end_ts = strtotime( '+30 minutes', $start_ts );
+
+		return array(
+			'id'              => 'crm_task_' . $task_id,
+			'title'           => '[CRM] ' . ( '' !== trim( (string) $task['title'] ) ? (string) $task['title'] : '#' . $task_id ),
+			'start'           => gmdate( 'c', $start_ts ),
+			'end'             => gmdate( 'c', false !== $end_ts ? $end_ts : $start_ts ),
+			'event_type'      => 'crm_task',
+			'url'             => admin_url( 'admin.php?page=super-mechanic-crm-pipeline&action=view&id=' . $crm_pipeline_id ),
+			'className'       => 'sm-calendar-event-crm-task',
+			'backgroundColor' => '#fff5df',
+			'borderColor'     => '#f0db9f',
+			'textColor'       => '#7a5a13',
+			'extendedProps'   => array(
+				'event_type'       => 'crm_task',
+				'crm_pipeline_id'  => $crm_pipeline_id,
+				'task_id'          => $task_id,
+				'task_status'      => isset( $task['status'] ) ? sanitize_key( (string) $task['status'] ) : '',
+				'task_type'        => isset( $task['task_type'] ) ? sanitize_key( (string) $task['task_type'] ) : '',
+				'assigned_user_id' => isset( $task['assigned_user_id'] ) ? absint( $task['assigned_user_id'] ) : 0,
 			),
 		);
 	}

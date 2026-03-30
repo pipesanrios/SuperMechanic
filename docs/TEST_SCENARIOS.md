@@ -964,3 +964,201 @@ Resultado esperado:
 - persistencia en tabla auxiliar `sm_client_crm_meta`
 - sin cambios estructurales en `sm_clients`
 - sin regresiones visuales/funcionales reportadas en flujo de clientes
+
+==================================================
+ESCENARIO 41 — PIPELINE CRM USABLE (39B-1)
+==================================================
+
+Estado 39B-1: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> CRM Pipeline`
+-> crea/edita oportunidad con cliente obligatorio
+-> usa `View` para detalle de oportunidad
+-> valida quick create client desde CRM
+-> cambia stage con quick stage
+
+Resultado esperado:
+
+- oportunidad persistida en `sm_crm_pipeline`
+- relacion estructural vigente:
+  - `client_id` obligatorio
+  - `vehicle_id` opcional
+  - `process_id` opcional
+- `phone` y `email` se obtienen desde cliente relacionado (sin duplicacion en pipeline)
+- quick create client operativo y vinculacion correcta a oportunidad
+- quick stage operativo con capability/nonce y tenancy por `business_id`
+
+==================================================
+ESCENARIO 42 — KANBAN CRM POR COLUMNAS (39B-2)
+==================================================
+
+Estado 39B-2: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre CRM Pipeline en `view_mode=kanban`
+-> valida columnas por stage y cards por oportunidad
+-> ejecuta cambio de stage desde card
+
+Resultado esperado:
+
+- kanban renderiza en columnas por stage (no en filas)
+- cards permanecen dentro de su columna correspondiente
+- cambio de stage desde card funciona con feedback claro
+- sin regresion de CRUD ni vista lista
+
+==================================================
+ESCENARIO 43 — CONVERSION OPERATIVA CRM -> PROCESO (39B-3)
+==================================================
+
+Estado 39B-3: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre oportunidad en `stage=won`
+-> ejecuta `Create process` seleccionando tipo de proceso
+-> o ejecuta `Link existing process`
+
+Resultado esperado:
+
+- conversion siempre explicita por accion de usuario
+- reglas por tipo:
+  - `maintenance`: requiere `vehicle_id`
+  - `pre_delivery`: permite `vehicle_id` nulo
+  - `paperwork`: permite `vehicle_id` nulo
+- `process_id` queda vinculado a la oportunidad al crear o vincular
+- `link_existing_process` valida:
+  - mismo `business_id`
+  - mismo `client_id`
+  - mismo `vehicle_id` si la oportunidad tiene vehiculo
+- sin sync automatica CRM/proceso y sin cambio automatico de stage CRM
+
+==================================================
+CONSOLIDADO BLOQUE 39B — PIPELINE CRM
+==================================================
+
+Estado bloque 39B: COMPLETO
+
+Cobertura validada en runtime manual WordPress real:
+
+- 39B-1: pipeline independiente + CRUD usable + view + quick create + quick stage
+- 39B-2: kanban por columnas funcional
+- 39B-3: conversion operativa controlada a proceso
+
+Condicion tecnica consolidada:
+
+- sin cambios de schema adicionales fuera de `sm_crm_pipeline`
+- sin automatizaciones ni sincronizacion automatica CRM/proceso
+
+==================================================
+ESCENARIO 44 — TAREAS CRM BASE (39C-1)
+==================================================
+
+Estado 39C-1: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre detalle de oportunidad CRM
+-> crea tarea CRM
+-> edita tarea CRM existente
+-> marca tarea como completada
+
+Resultado esperado:
+
+- tareas CRM persistidas en `sm_crm_tasks`
+- operacion tenant-aware correcta por `business_id` en:
+  - create
+  - edit
+  - complete
+  - list por oportunidad
+- validaciones estrictas vigentes:
+  - `status`: `pending`, `completed`, `cancelled`
+  - `task_type`: `call`, `follow_up`, `meeting`, `quote`, `reminder`
+  - `crm_pipeline_id` valido del negocio activo
+- sin regresion del pipeline CRM (CRUD, kanban, quick stage, conversion operativa)
+
+==================================================
+ESCENARIO 45 — VISTAS OPERATIVAS DE TAREAS CRM (39C-2)
+==================================================
+
+Estado 39C-2: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre CRM (list/kanban) con bloque operativo de tareas
+-> valida buckets:
+  - `pending`
+  - `overdue`
+  - `upcoming`
+-> revisa tareas con/sin `due_at`
+-> valida enlaces a oportunidad/tarea dentro del negocio activo
+
+Resultado esperado:
+
+- bloque operativo visible y legible sin errores visuales
+- definiciones operativas correctas:
+  - `pending` = `status='pending'`
+  - `overdue` = `status='pending'` y `due_at < now`
+  - `upcoming` = `status='pending'` y `due_at` entre `now` y `now + 7 dias`
+- `overdue` y `upcoming` se comportan como subconjuntos de `pending`
+- tareas sin `due_at` aparecen solo en `pending`
+- tenancy por `business_id` preservada en buckets/enlaces/contexto
+- sin regresion de CRUD tasks/pipeline/kanban/quick stage
+
+==================================================
+ESCENARIO 46 — INTEGRACION CRM ↔ CALENDAR (39C-3)
+==================================================
+
+Estado 39C-3: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre `Super Mechanic -> Calendar`
+-> valida feed unificado con citas + tareas CRM con fecha
+-> hace click en evento `appointment`
+-> hace click en evento `crm_task`
+-> intenta mover evento de tarea CRM en calendario
+
+Resultado esperado:
+
+- feed unico de calendario (sin endpoint adicional) mostrando:
+  - `event_type=appointment`
+  - `event_type=crm_task`
+- tareas CRM en calendario con:
+  - `url` valida
+  - `className` diferenciada
+  - `extendedProps` utiles (`crm_pipeline_id`, `task_status`, `task_type`, `assigned_user_id`)
+- click por tipo funcional:
+  - cita abre detalle/edicion de cita
+  - tarea CRM abre detalle de oportunidad CRM
+- `eventDrop`:
+  - permitido para `appointment`
+  - bloqueado/revertido para `crm_task`
+- tenancy por `business_id` y rango visible preservados
+- sin regresion del calendario operativo de citas
+
+==================================================
+CONSOLIDADO BLOQUE 39C — TAREAS Y SEGUIMIENTO CRM
+==================================================
+
+Estado bloque 39C: COMPLETO
+
+Cobertura validada en runtime manual WordPress real:
+
+- 39C-1: tareas CRM base (`sm_crm_tasks`) con CRUD `create/edit/complete`
+- 39C-2: vistas operativas `pending`/`overdue`/`upcoming`
+- 39C-3: integracion CRM ↔ Calendar en feed unificado tipado por evento
+
+Condicion tecnica consolidada:
+
+- sin cron
+- sin email automatico
+- sin automatizacion compleja

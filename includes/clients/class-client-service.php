@@ -81,6 +81,36 @@ class Client_Service {
 	}
 
 	/**
+	 * Quick-create a client from CRM flow.
+	 *
+	 * This keeps `create_client()` unchanged and resolves required internal fields
+	 * with controlled defaults for CRM onboarding.
+	 *
+	 * @param array<string, mixed> $data Quick-create payload.
+	 * @return int|WP_Error
+	 */
+	public function create_client_from_crm_quick( array $data ) {
+		$full_name = isset( $data['name'] ) ? sanitize_text_field( (string) $data['name'] ) : '';
+		$phone     = isset( $data['phone'] ) ? sanitize_text_field( (string) $data['phone'] ) : '';
+		$email     = isset( $data['email'] ) ? sanitize_email( (string) $data['email'] ) : '';
+
+		$name_parts = preg_split( '/\s+/', trim( $full_name ) );
+		$first_name = ! empty( $name_parts[0] ) ? $name_parts[0] : '';
+		$last_name  = count( $name_parts ) > 1 ? trim( implode( ' ', array_slice( $name_parts, 1 ) ) ) : '';
+
+		$payload = array(
+			'first_name'  => $first_name,
+			'last_name'   => $last_name,
+			'phone'       => $phone,
+			'email'       => $email,
+			'document_id' => $this->generate_crm_quick_document_id(),
+			'notes'       => __( 'Created from CRM quick-create flow.', 'super-mechanic' ),
+		);
+
+		return $this->create_client( $payload );
+	}
+
+	/**
 	 * Update a client.
 	 *
 	 * @param int                 $id   Client ID.
@@ -410,5 +440,18 @@ class Client_Service {
 		$parsed = \DateTime::createFromFormat( 'Y-m-d H:i:s', $datetime );
 
 		return $parsed && $parsed->format( 'Y-m-d H:i:s' ) === $datetime;
+	}
+
+	/**
+	 * Generate a controlled internal document identifier for CRM quick-create.
+	 *
+	 * @return string
+	 */
+	protected function generate_crm_quick_document_id() {
+		return sprintf(
+			'CRM-%s-%04d',
+			gmdate( 'YmdHis' ),
+			wp_rand( 0, 9999 )
+		);
 	}
 }

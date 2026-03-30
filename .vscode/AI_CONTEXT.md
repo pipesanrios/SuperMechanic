@@ -6,7 +6,7 @@ Fuente de verdad: código real (`includes/*`).
 ## Estado real
 
 - Plugin: `0.1.0`
-- Schema: `1.16.0`
+- Schema: `1.18.0`
 - Bloque actual: `Fase 39 (CRM y automatizacion comercial)` (continuidad activa)
 - Estado de subfases 38A:
   - `38A-1` — COMPLETA (idioma / i18n base)
@@ -227,3 +227,74 @@ Fuente de verdad: código real (`includes/*`).
 ## Regla final
 
 Si docs/prompts difieren del código: manda el código y corrige la documentación.
+
+## ACTUALIZACION 39B (CONSOLIDADO)
+
+- Estado de subfases 39:
+  - `39A` - COMPLETA
+  - `39B-1` - COMPLETA
+  - `39B-2` - COMPLETA
+  - `39B-3` - COMPLETA
+- Estado de bloque 39B: COMPLETO
+- Cobertura consolidada 39B:
+  - `sm_crm_pipeline` independiente
+  - `client_id` obligatorio, `vehicle_id` opcional, `process_id` opcional
+  - CRUD usable, `View`, quick create client, quick stage
+  - kanban funcional por columnas
+  - conversion operativa: `create process` y `link existing process`
+  - reglas por tipo:
+    - `maintenance` requiere vehiculo
+    - `pre_delivery` permite sin vehiculo
+    - `paperwork` permite sin vehiculo
+- Runtime WordPress manual real de 39B: CONFIRMADO POR USUARIO
+- Restricciones preservadas:
+  - sin cambios de schema adicionales fuera de `sm_crm_pipeline`
+  - sin automatizaciones ni sync automatica CRM/proceso
+- Siguiente fase recomendada:
+  - continuidad de `Fase 39` (subfases CRM posteriores a 39B)
+
+## ACTUALIZACION 39C-1 (CIERRE DOCUMENTAL)
+
+- `39C-1` - COMPLETA
+- Alcance validado:
+  - tareas CRM base en `sm_crm_tasks`
+  - create/edit/complete desde detalle de oportunidad CRM
+  - tenancy por `business_id` en operaciones de tareas
+- Validacion runtime WordPress manual real: CONFIRMADA POR USUARIO
+- Restricciones vigentes en 39C-1:
+  - sin cron
+  - sin email
+  - sin recordatorios automaticos
+  - sin dashboard de vencidas
+  - sin borrado en cascada automatica
+- Siguiente continuidad recomendada:
+  - `39C-2` (recordatorios CRM simples y operativos, aun sin automatizacion por cron/email)
+
+## ACTUALIZACION 39C (CIERRE CONSOLIDADO)
+
+- Estado de subfases 39C:
+  - `39C-1` - COMPLETA
+  - `39C-2` - COMPLETA
+  - `39C-3` - COMPLETA
+- Estado de bloque 39C: COMPLETO
+- Cobertura consolidada 39C:
+  - tareas CRM en `sm_crm_tasks`
+  - CRUD base de tareas (`create`, `edit`, `complete`)
+  - estados/tipos base de tareas validados
+  - vistas operativas:
+    - `pending`
+    - `overdue`
+    - `upcoming`
+  - integracion con detalle de oportunidad CRM
+  - integracion CRM ↔ Calendar con feed unificado:
+    - `event_type=appointment`
+    - `event_type=crm_task`
+  - click funcional por tipo en calendario
+  - `eventDrop` bloqueado/revertido para `crm_task`
+- Runtime WordPress manual real de 39C: CONFIRMADO POR USUARIO
+- Restricciones preservadas:
+  - sin cron
+  - sin email automatico
+  - sin automatizacion compleja
+- Siguiente continuidad recomendada:
+  - continuidad de `Fase 39` posterior a `39C` (automatizaciones CRM controladas y/o agenda comercial progresiva, sin romper tenancy ni arquitectura actual)

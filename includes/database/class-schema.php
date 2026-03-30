@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.16.0';
+		return '1.18.0';
 	}
 
 	/**
@@ -34,6 +34,8 @@ class Schema {
 			'businesses'        => $wpdb->prefix . 'sm_businesses',
 			'clients'           => $wpdb->prefix . 'sm_clients',
 			'client_crm_meta'   => $wpdb->prefix . 'sm_client_crm_meta',
+			'crm_pipeline'      => $wpdb->prefix . 'sm_crm_pipeline',
+			'crm_tasks'         => $wpdb->prefix . 'sm_crm_tasks',
 			'vehicles'          => $wpdb->prefix . 'sm_vehicles',
 			'client_vehicles'   => $wpdb->prefix . 'sm_client_vehicles',
 			'flows'             => $wpdb->prefix . 'sm_flows',
@@ -76,6 +78,8 @@ class Schema {
 		$businesses_table      = $tables['businesses'];
 		$clients_table         = $tables['clients'];
 		$client_crm_meta_table = $tables['client_crm_meta'];
+		$crm_pipeline_table   = $tables['crm_pipeline'];
+		$crm_tasks_table      = $tables['crm_tasks'];
 		$vehicles_table        = $tables['vehicles'];
 		$client_vehicles_table = $tables['client_vehicles'];
 		$flows_table           = $tables['flows'];
@@ -157,6 +161,51 @@ class Schema {
 				KEY crm_status (crm_status),
 				KEY assigned_user_id (assigned_user_id),
 				KEY next_follow_up_at (next_follow_up_at)
+			) {$charset_collate};",
+			"CREATE TABLE {$crm_pipeline_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				client_id bigint(20) unsigned NOT NULL,
+				vehicle_id bigint(20) unsigned DEFAULT NULL,
+				process_id bigint(20) unsigned DEFAULT NULL,
+				stage varchar(30) NOT NULL default 'new_lead',
+				title varchar(190) NOT NULL,
+				estimated_value decimal(12,2) NOT NULL default 0.00,
+				currency varchar(10) NOT NULL default 'USD',
+				assigned_user_id bigint(20) unsigned DEFAULT NULL,
+				notes longtext DEFAULT NULL,
+				position int(10) unsigned NOT NULL default 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY business_id (business_id),
+				KEY client_id (client_id),
+				KEY vehicle_id (vehicle_id),
+				KEY process_id (process_id),
+				KEY stage (stage),
+				KEY assigned_user_id (assigned_user_id),
+				KEY business_stage_position (business_id,stage,position)
+			) {$charset_collate};",
+			"CREATE TABLE {$crm_tasks_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				crm_pipeline_id bigint(20) unsigned NOT NULL,
+				title varchar(190) NOT NULL,
+				task_type varchar(30) NOT NULL default 'follow_up',
+				assigned_user_id bigint(20) unsigned DEFAULT NULL,
+				due_at datetime DEFAULT NULL,
+				status varchar(20) NOT NULL default 'pending',
+				notes longtext DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY business_id (business_id),
+				KEY crm_pipeline_id (crm_pipeline_id),
+				KEY task_type (task_type),
+				KEY assigned_user_id (assigned_user_id),
+				KEY due_at (due_at),
+				KEY status (status),
+				KEY business_status_due (business_id,status,due_at)
 			) {$charset_collate};",
 			"CREATE TABLE {$vehicles_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,

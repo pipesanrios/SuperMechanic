@@ -37,6 +37,15 @@ class Process_Service {
 		'paperwork',
 	);
 
+	/**
+	 * Process types that require vehicle.
+	 *
+	 * @var array<int, string>
+	 */
+	protected $vehicle_required_process_types = array(
+		'maintenance',
+	);
+
 	protected $allowed_statuses = array(
 		'draft',
 		'pending',
@@ -269,9 +278,13 @@ class Process_Service {
 	public function validate_process_data( array $data, $is_update = false ) {
 		$errors = new WP_Error();
 
-		$vehicle = ! empty( $data['vehicle_id'] ) ? $this->vehicle_service->get_vehicle( $data['vehicle_id'] ) : null;
+		$process_type     = isset( $data['process_type'] ) ? sanitize_key( (string) $data['process_type'] ) : '';
+		$vehicle_required = $this->is_vehicle_required_for_process_type( $process_type );
+		$vehicle          = ! empty( $data['vehicle_id'] ) ? $this->vehicle_service->get_vehicle( $data['vehicle_id'] ) : null;
 
-		if ( empty( $data['vehicle_id'] ) || ! $vehicle ) {
+		if ( $vehicle_required && ( empty( $data['vehicle_id'] ) || ! $vehicle ) ) {
+			$errors->add( 'invalid_vehicle', __( 'Debes seleccionar un vehiculo valido.', 'super-mechanic' ) );
+		} elseif ( ! empty( $data['vehicle_id'] ) && ! $vehicle ) {
 			$errors->add( 'invalid_vehicle', __( 'Debes seleccionar un vehiculo valido.', 'super-mechanic' ) );
 		}
 
@@ -323,7 +336,7 @@ class Process_Service {
 			$errors->add( 'invalid_completed_at', __( 'La fecha de finalizacion no puede ser anterior a la apertura.', 'super-mechanic' ) );
 		}
 
-		if ( $is_update && empty( $data['vehicle_id'] ) ) {
+		if ( $is_update && $vehicle_required && empty( $data['vehicle_id'] ) ) {
 			$errors->add( 'missing_vehicle', __( 'El proceso debe conservar un vehiculo valido.', 'super-mechanic' ) );
 		}
 
@@ -336,6 +349,16 @@ class Process_Service {
 			'pre_delivery' => __( 'Pre-entrega', 'super-mechanic' ),
 			'paperwork'    => __( 'Tramites', 'super-mechanic' ),
 		);
+	}
+
+	/**
+	 * Determine if selected process type requires vehicle.
+	 *
+	 * @param string $process_type Process type slug.
+	 * @return bool
+	 */
+	protected function is_vehicle_required_for_process_type( $process_type ) {
+		return in_array( sanitize_key( (string) $process_type ), $this->vehicle_required_process_types, true );
 	}
 
 	public function get_status_options() {

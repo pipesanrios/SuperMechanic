@@ -394,6 +394,131 @@ Subfases de Fase 39:
     - persistencia CRM: OK
     - sin regresiones reportadas: OK
 
+- Fase 39B-1 — Pipeline CRM independiente (base + CRUD): COMPLETA
+  - Alcance consolidado:
+    - entidad comercial independiente `sm_crm_pipeline`
+    - vinculacion estructural:
+      - `client_id` obligatorio
+      - `vehicle_id` opcional
+      - `process_id` opcional
+    - CRUD usable completo con vista detalle `View`
+    - `phone`/`email` obtenidos por relacion con cliente (sin duplicacion)
+    - quick create client desde CRM
+    - quick stage operativo con capability/nonce/tenancy
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - CRUD, view, quick create y quick stage: OK
+    - sin regresiones reportadas: OK
+
+- Fase 39B-2 — Vista kanban del pipeline CRM: COMPLETA
+  - Alcance consolidado:
+    - kanban funcional por columnas de stage
+    - cards por oportunidad en columna correspondiente
+    - cambio de stage desde card reutilizando flujo validado de quick stage
+    - sin drag/drop ni automatizaciones en esta subfase
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - kanban en columnas + quick stage: OK
+    - CRUD previo sin regresion: OK
+
+- Fase 39B-3 — Conversion operativa CRM -> proceso: COMPLETA
+  - Alcance consolidado:
+    - conversion explicita por accion del usuario (sin auto-conversion)
+    - `Create process` y `Link existing process`
+    - validaciones de link:
+      - mismo `business_id`
+      - mismo `client_id`
+      - mismo `vehicle_id` si la oportunidad tiene vehiculo
+    - reglas por tipo de proceso:
+      - `maintenance`: requiere vehiculo
+      - `pre_delivery`: permite sin vehiculo
+      - `paperwork`: permite sin vehiculo
+    - sin sync automatica de estados CRM/proceso y sin cambio automatico de stage CRM
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - conversion y vinculo operativo: OK
+    - sin regresiones reportadas: OK
+
+- Fase 39C-1 — Tareas y recordatorios CRM (base): COMPLETA
+  - Alcance consolidado:
+    - entidad de tareas CRM en `sm_crm_tasks` vinculada a oportunidad (`crm_pipeline_id`)
+    - CRUD base de tareas en detalle de oportunidad CRM:
+      - create
+      - edit
+      - complete
+    - validaciones estrictas:
+      - `status`: `pending`, `completed`, `cancelled`
+      - `task_type`: `call`, `follow_up`, `meeting`, `quote`, `reminder`
+      - oportunidad CRM valida y tenant-aware por `business_id`
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - create/edit/complete de tareas CRM: OK
+    - tenancy de tareas CRM: OK
+    - sin regresion del modulo CRM: OK
+
+- Fase 39C-2 — Tareas vencidas / proximas / pendientes: COMPLETA
+  - Alcance consolidado:
+    - vistas operativas en CRM para:
+      - `pending`
+      - `overdue`
+      - `upcoming`
+    - clasificacion operacional mantenida en capa de servicio con consultas por fecha/estado en repository
+    - `overdue` y `upcoming` tratados como subconjuntos de `pending`
+    - tareas sin `due_at` visibles solo en `pending`
+    - tenancy por `business_id` preservada en buckets, enlaces y contexto operativo
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - buckets operativos y contexto tenant-aware: OK
+    - sin regresion de CRUD tasks/pipeline/kanban: OK
+
+- Fase 39C-3 — Integracion CRM ↔ Calendar: COMPLETA
+  - Alcance consolidado:
+    - feed de calendario unificado sin endpoint nuevo, combinando:
+      - `appointment`
+      - `crm_task`
+    - eventos CRM tipados con `event_type=crm_task`, `url`, `className` diferenciada y `extendedProps` utiles
+    - click funcional por tipo en calendario:
+      - cita -> detalle de cita
+      - tarea CRM -> detalle de oportunidad CRM
+    - `eventDrop` permitido solo para `appointment`; bloqueado/revertido para `crm_task`
+    - tenancy por `business_id` y rango visible del calendario preservados
+  - Validacion de cierre:
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+    - calendario unificado + click por tipo: OK
+    - bloqueo de drag/drop para `crm_task`: OK
+    - sin regresion de calendario operativo de citas: OK
+
+Consolidado del bloque 39B (Pipeline CRM):
+- Cobertura funcional del bloque:
+  - entidad independiente `sm_crm_pipeline`
+  - CRUD usable + `View`
+  - quick create client
+  - quick stage
+  - kanban por columnas
+  - conversion operativa (`create process`, `link existing process`)
+  - reglas por tipo de proceso (`maintenance`, `pre_delivery`, `paperwork`)
+- Estado global del bloque: COMPLETO
+- Validacion global del bloque: runtime manual WordPress real confirmada por usuario en 39B-1/39B-2/39B-3
+- Restricciones preservadas:
+  - sin cambios de schema adicionales fuera de `sm_crm_pipeline`
+  - sin automatizaciones ni sync automatica CRM/proceso
+
+Consolidado del bloque 39C (Tareas y seguimiento CRM):
+- Cobertura funcional del bloque:
+  - tareas CRM (`sm_crm_tasks`)
+  - CRUD base de tareas
+  - estados/tipos base de tarea
+  - vistas operativas (`pending`, `overdue`, `upcoming`)
+  - integracion con detalle de oportunidad CRM
+  - integracion CRM ↔ Calendar en feed unificado (`appointment`, `crm_task`)
+  - click funcional por tipo y `eventDrop` bloqueado para `crm_task`
+- Estado global del bloque: COMPLETO
+- Validacion global del bloque: runtime manual WordPress real confirmada por usuario en 39C-1/39C-2/39C-3
+- Restricciones preservadas:
+  - sin cron
+  - sin email automatico
+  - sin automatizacion compleja
+
 Fase 40 — Hosting gestionado / WordPress dedicado
 - Estado: PLANIFICADA
 - Objetivo:
@@ -426,7 +551,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39A` (subfases CRM siguientes).
+La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39C` (subfases CRM siguientes).
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

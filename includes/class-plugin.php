@@ -22,6 +22,7 @@ use Super_Mechanic\Businesses\Business_Admin_Controller;
 use Super_Mechanic\Businesses\Business_Service;
 use Super_Mechanic\Businesses\Business_User_Assignment_Controller;
 use Super_Mechanic\Clients\Client_Admin_Controller;
+use Super_Mechanic\CRM\Crm_Pipeline_Admin_Controller;
 use Super_Mechanic\Communication\Client_Comment_Shortcodes;
 use Super_Mechanic\Communication\Comment_Service;
 use Super_Mechanic\Communication\Event_Dispatcher;
@@ -146,6 +147,7 @@ class Plugin {
 	protected $update_service;
 	protected $appointment_service;
 	protected $appointment_admin_controller;
+	protected $crm_pipeline_admin_controller;
 	protected $appointment_ical_feed_service;
 	protected $feed_token_service;
 	protected $appointment_ical_feed_controller;
@@ -182,6 +184,7 @@ class Plugin {
 		$this->appointment_admin_controller  = new Appointment_Admin_Controller( $this->appointment_service );
 		$this->appointment_ical_feed_controller = new Appointment_Ical_Feed_Controller( $this->appointment_service, $this->appointment_ical_feed_service, $this->feed_token_service );
 		$this->client_admin_controller       = new Client_Admin_Controller();
+		$this->crm_pipeline_admin_controller = new Crm_Pipeline_Admin_Controller();
 		$this->vehicle_admin_controller      = new Vehicle_Admin_Controller();
 		$this->process_service               = new Process_Service( null, null, null, null, null, null, null, null, null, null, $this->settings_service );
 		$this->maintenance_service           = new Maintenance_Service();
@@ -257,7 +260,8 @@ class Plugin {
 			$this->shortcode_admin_controller,
 			$this->invoice_finance_admin_controller,
 			$this->payment_finance_admin_controller,
-			$this->appointment_admin_controller
+			$this->appointment_admin_controller,
+			$this->crm_pipeline_admin_controller
 		);
 	}
 
@@ -294,6 +298,7 @@ class Plugin {
 			$this->invoice_finance_admin_controller->register_hooks();
 			$this->payment_finance_admin_controller->register_hooks();
 			$this->appointment_admin_controller->register_hooks();
+			$this->crm_pipeline_admin_controller->register_hooks();
 			$this->google_calendar_auth_controller->register_hooks();
 			$this->mechanic_dashboard_controller->register_hooks();
 			$this->business_admin_controller->register_hooks();
