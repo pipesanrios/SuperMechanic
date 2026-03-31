@@ -1619,7 +1619,8 @@ Dependencias:
 
 Estado:
 - `39E-1` implementado
-- `39E-2` implementado con validación runtime formal pendiente
+- `39E-2` implementado y validado en runtime WordPress real
+- `39E-3` implementado y validado en runtime WordPress real (consumo UI persistido en list/kanban/view con fallback runtime controlado)
 
 Riesgos o puntos sensibles:
 - evitar recálculo agresivo en cada tick (usar lotes/límites)

@@ -275,7 +275,8 @@ Reglas:
 - 38D-2
 - 38D-3
 - 39E-1
-- 39E-2 (PARCIAL)
+- 39E-2
+- 39E-3
 
 ### Continuidad oficial post-38
 - Fase 39 — CRM y automatizacion comercial
@@ -304,7 +305,8 @@ Reglas:
 - bloque comercial Woo 38B consolidado (snapshot en quotes/invoices, consistencia de totales y hardening operativo)
 - optimizacion operativa 38C-1 consolidada (quick actions, atajos contextuales y feedback visual sin cambio de schema)
 - scheduler CRM interno por WP-Cron (`sm_crm_scheduler_tick`) consolidado (39E-1)
-- persistencia de alertas CRM en `sm_crm_alerts` con recálculo por lotes (39E-2, parcial por runtime formal pendiente)
+- persistencia de alertas CRM en `sm_crm_alerts` con recálculo por lotes y resolución (`39E-2`)
+- consumo UI de alertas persistidas en list/kanban/view con fallback runtime controlado (`39E-3`)
 - hotfix i18n: carga de textdomain `super-mechanic` en `init` prioridad `0` (bootstrap intacto)
 
 ---
