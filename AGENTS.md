@@ -1,305 +1,132 @@
 # AGENTS.md
-Super Mechanic — AI Agent Development Guide
-
-This file defines the fundamental rules and architecture expectations for AI agents working in this repository.
-
-The goal is to ensure all generated code follows the real structure of the Super Mechanic plugin and respects the project's architectural decisions.
-
-This file intentionally stays concise. Detailed documentation lives in `/docs`.
-
----
-
-# Project Overview
-
-Super Mechanic is a modular WordPress plugin designed for:
-
-- Automotive workshops
-- Dealerships
-- Vehicle maintenance tracking
-- Process workflows
-- Billing and documents
-- Customer portal
-
-The system is designed as a **modular monolith** built around services and repositories.
-
----
-
-# Core Architecture
-
-The active runtime architecture lives in:
-
-/includes/*
-
-Legacy experimental modules may exist in:
-
-/includes/modules/*
-
-These legacy modules are **not part of the active architecture** and must not be extended.
-
----
-
-## Architectural Layers
-
-Modules follow this structure:
-
-Controller  
-↓  
-Service  
-↓  
-Repository  
-↓  
-Database  
-
-### Controller Layer
-
-Handles WordPress integration:
-
-- admin controllers
-- dashboard controllers
-- shortcodes
-- REST controllers
-
-Controllers must **not contain business logic** or direct database queries.
-
-### Service Layer
-
-Contains business logic.
-
-Responsibilities:
-
-- coordinate repositories
-- enforce domain rules
-- orchestrate operations across modules
-
-Services must **not contain direct SQL queries**.
-
-### Repository Layer
-
-Responsible for database interaction.
-
-Repositories must encapsulate:
-
-- SELECT
-- INSERT
-- UPDATE
-- DELETE
-
-Direct use of `$wpdb` is **forbidden outside repositories**.
-
-### Database Layer
-
-Database schema and migrations are defined in:
-
-includes/database/
-
-This includes:
-
-- schema
-- migrations
-- seeding utilities
-
----
-
-# Active Modules
-
-Primary modules:
-
-clients  
-vehicles  
-relations  
-processes  
-flows  
-maintenance  
-paperwork  
-predelivery  
-quotes  
-invoices  
-payments  
-reports  
-attachments  
-communication  
-dashboard  
-
-Infrastructure modules:
-
-helpers  
-integrations  
-database  
-
----
-
-## Module Structure
-
-Each module should contain:
-
-admin-controller  
-service  
-repository  
-
-Optional components:
-
-list-table  
-shortcodes  
-REST controllers  
-
-Module boundaries must be respected.
-
-Cross-module dependencies should happen **through services only**, never repositories.
-
----
-
-# Legacy Code
-
-Legacy experimental modules exist in:
-
-includes/modules/*
-
-Rules:
-
-- DO NOT extend legacy modules
-- DO NOT create dependencies to them
-- DO NOT import classes from them
-- New development must live in `/includes/*`
-
-Legacy modules remain only for reference.
-
----
-
-# Secure File Handling
-
-All file access must go through the secure service layer:
-
-Download_Service  
-Document_Service  
-Attachment_Service  
-
-Direct file URLs must **never be exposed**.
-
-Client downloads must validate:
-
-- authentication
-- ownership
-- visibility permissions
-
-Controllers and shortcodes must never output raw file paths.
-
----
-
-# Database Rules
-
-All SQL must exist in repositories.
-
-Forbidden locations for SQL:
-
-controllers  
-services  
-shortcodes  
-
-Direct use of `$wpdb` is forbidden outside repositories.
-
-Repositories must be the **single source of database interaction**.
-
----
-
-# Transactions
-
-Complex multi-write operations must use repository transaction boundaries.
-
-Example:
-
-Invoice_Transaction_Repository
-
-Services must not directly control transactions.
-
-Transactions should be encapsulated in dedicated transaction repositories.
-
----
-
-# Source of Truth
-
-Architectural truth lives in the following files:
-
-ARCHITECTURE.md  
-docs/SYSTEM_MAP.md  
-docs/FINAL_ARCHITECTURE_MAP.md  
-docs/CURRENT_STATE.md  
-docs/MODULE_REGISTRY.md  
-docs/DATABASE_MAP.md  
-
-If code and documentation diverge:
-
-**Code is the source of truth.**
-
-Documentation must then be updated to reflect the code.
-
----
-
-# Development Rules
-
-AI agents must follow the rule system located in:
-
-ai/rules/
-
-Key rule files include:
-
-AI_RULES.md  
-GUARDRAILS.md  
-MODULE_BOUNDARIES.md  
-WP_PLUGIN_PATTERNS.md  
-ERROR_RECOVERY_PROTOCOL.md  
-
-These rules define:
-
-- architecture safety constraints
-- module boundaries
-- WordPress coding conventions
-- safe recovery procedures
-
----
-
-# Development Workflow
-
-The AI-assisted development workflow is documented in:
-
-ai/context/WORKFLOW.md
-
-Project mental model and development memory are defined in:
-
-ai/context/AGENTS_QUICK_CONTEXT.md  
-ai/context/PROJECT_MEMORY.md  
-
----
-
-# Task Tracking
-
-Development tasks and implementation logs are stored in:
-
-docs/tasks/
-
-These files track work completed in each development phase.
-
----
-
-# Phase Development
-
-The plugin evolves through structured development phases defined in:
-
-docs/PLUGIN_ROADMAP.md
-
-The current implementation status is tracked in:
-
-docs/CURRENT_STATE.md
-
-Agents should consult these files before implementing new features.
-
----
-
-# Agent Entry Point
-
-Before performing any development work, agents must read:
-
-AGENTS_BOOTSTRAP.md
-
-This file defines the required reading order for the entire project context.
-
-Agents must not implement or modify code before loading the bootstrap context.
+Super Mechanic - reglas duras para agentes IA
+
+Este archivo es la politica central para desarrollo asistido por IA.
+Si una regla de este archivo entra en conflicto con suposiciones del agente, manda este archivo y el codigo real.
+
+==================================================
+ENTRYPOINT Y LECTURA MINIMA
+==================================================
+
+- ENTRYPOINT oficial: `AGENTS_BOOTSTRAP.md`.
+- Ninguna IA debe editar codigo sin completar la lectura obligatoria definida ahi.
+
+Orden minimo obligatorio:
+1. `AGENTS_BOOTSTRAP.md`
+2. `AGENTS.md`
+3. `.vscode/AI_CONTEXT.md`
+4. `docs/CURRENT_STATE.md`
+5. `docs/PROJECT_TRANSFER_CONTEXT.md`
+6. `docs/PLUGIN_ROADMAP.md`
+7. `ARCHITECTURE.md`
+8. `docs/DATABASE_MAP.md`
+9. `docs/MODULE_REGISTRY.md`
+10. `docs/SYSTEM_MAP.md`
+11. `docs/TEST_SCENARIOS.md`
+
+==================================================
+PATRON OBLIGATORIO
+==================================================
+
+Siempre respetar:
+`Controller -> Service -> Repository -> Database`
+
+Reglas de capa:
+- Controller: hooks WP, request/response, render UI. Sin logica de negocio pesada.
+- Service: reglas de negocio, orquestacion, validaciones de dominio.
+- Repository: acceso a datos y SQL.
+- Database: schema/migraciones/seeders.
+
+==================================================
+REGLAS TECNICAS DURAS
+==================================================
+
+1) SQL y acceso a datos
+- SQL solo en `Repository` o `includes/database/*`.
+- `$wpdb` prohibido fuera de esas capas.
+
+2) Schema
+- No cambiar schema sin fase/subfase explicita.
+- No alterar contratos existentes sin plan de migracion.
+
+3) Tenancy
+- `business_id` obligatorio en modulos tenant-aware.
+- Evitar fugas cross-tenant en listados, get_by_id, updates, deletes y joins.
+
+4) Compatibilidad
+- No romper backward compatibility sin instruccion explicita.
+- Mantener nonces, capabilities, query args y rutas admin funcionales.
+
+5) Logica
+- No duplicar logica existente si ya hay service/repository apto.
+- Preferir extender capa existente antes de introducir rutas paralelas.
+
+==================================================
+ARQUITECTURA ACTIVA Y LEGACY
+==================================================
+
+Activa:
+- `includes/*`
+
+Legacy/no tocar salvo fase explicita:
+- `includes/modules/*`
+- placeholders: `includes/class-rest-api.php`, `includes/class-hooks.php`, `includes/class-post-types.php`
+
+==================================================
+MODULOS ACTIVOS REALES (REFERENCIA)
+==================================================
+
+`appointments`, `attachments`, `automation`, `businesses`, `clients`, `communication`, `crm`, `dashboard`, `database`, `flows`, `helpers`, `integrations`, `invoices`, `maintenance`, `paperwork`, `predelivery`, `processes`, `quotes`, `relations`, `reports`, `vehicles`.
+
+==================================================
+SEGURIDAD Y ARCHIVOS
+==================================================
+
+- No exponer `file_url` ni rutas directas.
+- Descargas via `Document_Service` + `Download_Service`.
+- Respetar ownership/capabilities y validaciones nonce.
+
+==================================================
+REGLAS DOCUMENTALES
+==================================================
+
+- Si docs y codigo difieren: manda el codigo.
+- Al cerrar fase/subfase/bloque, actualizar al menos:
+  - `docs/CURRENT_STATE.md`
+  - `docs/PLUGIN_ROADMAP.md`
+  - `docs/TEST_SCENARIOS.md`
+  - `.vscode/AI_CONTEXT.md`
+  - `docs/tasks/<cierre>.md` cuando aplique
+
+==================================================
+VALIDACION MINIMA OBLIGATORIA
+==================================================
+
+Antes de declarar cierre:
+- `php scripts/php-lint.php --all`
+- validacion runtime manual (cuando aplique) o dejar explicito que no se ejecuto
+- cierre documental alineado
+
+==================================================
+FUENTE DE VERDAD
+==================================================
+
+Prioridad:
+1. codigo real (`includes/*`, bootstrap, schema)
+2. documentacion tecnica activa
+3. contextos AI
+4. prompts
+
+==================================================
+REPLICABILIDAD (PLAN B MULTI-IA)
+==================================================
+
+Metodo replicable para otros proyectos:
+- bootstrap documental unico
+- current state vivo
+- roadmap continuo
+- transfer context fuerte
+- reglas operativas duras
+- test scenarios
+- known traps
+- prompt master como director de lectura y ejecucion

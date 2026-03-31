@@ -1,360 +1,186 @@
-# ARCHITECTURE — SUPER MECHANIC
+# ARCHITECTURE - SUPER MECHANIC
 
-## Propósito
+Documento tecnico de arquitectura real para continuidad multi-IA.
+Fuente de verdad: codigo activo en `includes/*`.
 
-Super Mechanic es un plugin WordPress modular para gestión de:
+==================================================
+1) BOOTSTRAP Y FLUJO DE CARGA
+==================================================
 
-- talleres mecánicos
-- concesionarios
-- vehículos
-- procesos
-- mantenimiento
-- trámites
-- cotizaciones
-- facturación
-- Client Portal
-
-El sistema está diseñado para evolucionar hacia una base pre-SaaS sin romper compatibilidad WordPress.
-
----
-
-## Principios arquitectónicos
-
-### Patrón obligatorio
-
-Controller  
-↓  
-Service  
-↓  
-Repository  
-↓  
-Database
-
-### Reglas base
-
-- SQL solo en Repository
-- `$wpdb` solo en Repository
-- Services contienen lógica de negocio
-- Controllers integran con WordPress y renderizan UI
-- Shortcodes exponen frontend cliente
-- `includes/*` es la arquitectura activa
-- `includes/modules/*` es legacy y no debe extenderse
-
----
-
-## Estructura activa del proyecto
-
-### Core activo
-
+Entrada principal:
 - `super-mechanic.php`
-- `includes/class-plugin.php`
-- `includes/class-admin-menu.php`
-- `includes/class-assets.php`
-- `includes/class-settings.php`
 
-### Módulos activos
+Flujo base:
+1. carga de constantes/autoload
+2. registro de hooks de activacion/desactivacion
+3. inicializacion del plugin (`includes/class-plugin.php`)
+4. carga de menu admin, assets, settings y modulos
+5. carga de textdomain en `init` (hotfix i18n aplicado)
 
-- `clients`
-- `vehicles`
-- `relations`
-- `flows`
-- `processes`
-- `maintenance`
-- `predelivery`
-- `paperwork`
-- `dashboard`
-- `reports`
-- `quotes`
-- `invoices`
-- `payments`
-- `attachments`
-- `communication`
-- `appointments`
-- `businesses`
-- `automation`
-- `integrations`
-- `helpers`
-- `database`
+Regla:
+- no romper bootstrap en `super-mechanic.php` y `includes/class-plugin.php`
 
-### Legacy o no activo
+==================================================
+2) PATRON ARQUITECTONICO OBLIGATORIO
+==================================================
 
+`Controller -> Service -> Repository -> Database`
+
+- Controller: integra con WordPress y UI
+- Service: reglas de negocio
+- Repository: SQL y persistencia
+- Database: schema/migraciones
+
+Reglas duras:
+- SQL solo en Repository/Database
+- `$wpdb` prohibido fuera de esas capas
+- no meter logica de negocio pesada en Controller
+
+==================================================
+3) ARQUITECTURA ACTIVA VS LEGACY
+==================================================
+
+Activa:
+- `includes/*`
+
+Legacy/no tocar salvo fase explicita:
 - `includes/modules/*`
 - `includes/class-rest-api.php`
 - `includes/class-hooks.php`
 - `includes/class-post-types.php`
 
----
+==================================================
+4) MODULOS ACTIVOS REALES
+==================================================
 
-## Módulos y responsabilidades
+- `appointments`
+- `attachments`
+- `automation`
+- `businesses`
+- `clients`
+- `communication`
+- `crm`
+- `dashboard`
+- `database`
+- `flows`
+- `helpers`
+- `integrations`
+- `invoices`
+- `maintenance`
+- `paperwork`
+- `predelivery`
+- `processes`
+- `quotes`
+- `relations`
+- `reports`
+- `vehicles`
 
-### Clients
-Gestión de clientes, datos de contacto, relación con usuario WordPress y ownership base.
+==================================================
+5) TABLAS PRINCIPALES (MAPA RAPIDO)
+==================================================
 
-### Vehicles
-Gestión de vehículos, vínculo con cliente, historial asociado y documentos.
+Core operativo:
+- `sm_clients`
+- `sm_vehicles`
+- `sm_client_vehicles`
+- `sm_processes`
+- `sm_process_step_logs`
+- `sm_maintenance`, `sm_maintenance_parts`, `sm_maintenance_labor`
+- `sm_predelivery_items`
+- `sm_paperwork`
+- `sm_quotes`, `sm_quote_items`
+- `sm_invoices`, `sm_invoice_items`
+- `sm_payments`
+- `sm_attachments`
+- `sm_notifications`
 
-### Relations
-Relación cliente ↔ vehículo y transferencias de propiedad.
+CRM / automatizacion comercial:
+- `sm_client_crm_meta`
+- `sm_crm_pipeline`
+- `sm_crm_tasks`
+- `sm_crm_alerts`
 
-### Flows
-Definición de flujos, pasos y orden operativo de procesos.
+Citas / integraciones:
+- `sm_appointments`
+- `sm_webhooks`
+- `sm_webhook_deliveries`
+- `sm_businesses`
 
-### Processes
-Entidad central del sistema. Orquesta el ciclo operativo y conecta maintenance, predelivery, paperwork, quotes, invoices y timeline.
+Ver detalle canonico en `docs/DATABASE_MAP.md`.
 
-### Maintenance
-Diagnóstico, repuestos, mano de obra y operación técnica de taller.
+==================================================
+6) TENANCY
+==================================================
 
-### Predelivery
-Flujo de pre-entrega para concesionarios.
+Tenancy obligatoria por `business_id`.
 
-### Paperwork
-Trámites administrativos configurables.
+Contexto de negocio por prioridad:
+1. `sm_active_business_id` (user meta)
+2. `sm_settings.business.business_id`
+3. fallback default business (`id=1`)
 
-### Quotes
-Cotizaciones vinculadas al proceso.
+Regla:
+- toda consulta/edicion tenant-aware debe filtrar por `business_id`
 
-### Invoices / Payments
-Facturación y pagos. `sm_payments` es la fuente financiera de verdad.
+==================================================
+7) CRM, SCHEDULER Y ALERTAS
+==================================================
 
-### Attachments
-Adjuntos, timeline documental y archivos visibles/internos.
+Estado consolidado:
+- `39A` CRM base: completo
+- `39B` pipeline CRM: completo
+- `39C` tareas y seguimiento: completo
+- `39D` refinamiento operativo: completo
+- `39E` automatizacion comercial avanzada: completo
 
-### Communication
-Comentarios, notificaciones y eventos operativos.
+Cobertura 39E:
+- scheduler interno WP-Cron: `sm_crm_scheduler_tick`
+- persistencia de alertas: `sm_crm_alerts`
+- tipos base:
+  - `overdue_task`
+  - `inactive_opportunity`
+  - `follow_up_needed`
+  - `conversion_pending`
+- consumo UI persistido en list/kanban/view
+- fallback runtime controlado cuando no hay alerta persistida
 
-### Dashboard
-Superficies admin, Client Portal y Mechanic Panel.
+==================================================
+8) INTEGRACIONES ACTIVAS
+==================================================
 
-### Reports
-Reportes operativos y financieros.
+- Google Calendar (OAuth, sync, inbound, webhook/watch)
+- API publica `super-mechanic-public/v1` (read + writes minimas de appointments)
+- Webhooks outbound publicos (firma HMAC, retries basicos, idempotencia)
+- WooCommerce (catalogo comercial snapshot en quotes/invoices)
 
-### Helpers
-Servicios transversales:
-- `Access_Control_Service`
-- `Document_Service`
-- `Download_Service`
-- `PDF_Service`
-- `Settings_Service`
+==================================================
+9) SEGURIDAD Y DESCARGAS
+==================================================
 
----
+- no exponer `file_url`
+- descargas via `Document_Service` y `Download_Service`
+- ownership/capabilities/nonces obligatorios
 
-## Flujo central del sistema
+==================================================
+10) RELACIONES ENTRE MODULOS (RESUMEN)
+==================================================
 
-Cliente  
-→ Vehículo  
-→ Relación cliente-vehículo  
-→ Proceso
+- `clients` <-> `vehicles` via `relations`
+- `processes` coordina `maintenance`, `predelivery`, `paperwork`, `quotes`, `invoices`, `payments`, `attachments`, `communication`
+- `crm` conecta comercialmente con `clients`, opcionalmente `vehicles` y `processes`
+- `appointments` y `crm_tasks` convergen en calendario unificado por tipo de evento
+- `reports` agrega datos operativos/financieros tenant-aware
 
-Proceso  
-→ Maintenance / Predelivery / Paperwork  
-→ Quote  
-→ Invoice  
-→ Payment
-
-Elementos asociados:
-- attachments
-- comments
-- notifications
-- timeline
-
----
-
-## Seguridad
-
-### Ownership
-La política central de ownership y visibilidad vive en:
-
-- `Access_Control_Service`
-
-Debe aplicarse a:
-- procesos
-- quotes
-- invoices
-- attachments
-- comments
-- notifications
-
-### Descargas seguras
-Nunca exponer `file_url` directo.
-
-Flujo obligatorio:
-- `Document_Service`
-- `Download_Service`
-
-Esto aplica a:
-- quotes
-- invoices
-- attachments
-- `payment_receipt`
-
----
-
-## UI / UX
-
-La capa visual reusable del plugin usa:
-
-- `assets/css/admin.css`
-- `assets/css/client.css`
-- `assets/css/mechanic.css`
-- clases `sm-*`
-
-Reglas:
-- no romper formularios
-- no romper nonces
-- no romper query args
-- no crear un segundo sistema visual paralelo
-
----
-
-## Estado técnico consolidado
-
-### Versiones
-- plugin: `0.1.0`
-- schema: `1.19.0`
-
-### Fases consolidadas
-- 0
-- 1
-- 2-10
-- 11
-- 12A–12E
-- 13
-- 14
-- 14B
-- 15
-- 16
-- 17
-- 18
-- 19
-- 20
-- 20B
-- 21
-- 22
-- 23
-- 24
-- 24B
-- 25
-- 26
-- 26B
-- 27A
-- 27B
-- 27C-A
-- 27C-B
-- 28
-- 29
-- 30
-- 31A
-- 31B
-- 31C
-- 32A
-- 32B-1
-- 32B-2
-- 32B-3A
-- 32B-3B
-- 33
-- 34
-- 35A
-- 35B
-- 35C
-- 36A
-- 36B
-- 36C-1
-- 36C-2
-- 37A
-- 38A-1
-- 38A-2 (PARCIAL)
-- 38A-3 (PARCIAL)
-- 38A-3B
-- 38B-1
-- 38B-2
-- 38B-3
-- 38C-1
-- 38C-2
-- 38D-1
-- 38D-2
-- 38D-3
-- 39E-1
-- 39E-2
-- 39E-3
-
-### Continuidad oficial post-38
-- Fase 39 — CRM y automatizacion comercial
-- Fase 40 — Hosting gestionado / WordPress dedicado
-- Fase 41 — SaaS independiente
-
-### Hitos recientes
-- reports consolidado
-- ownership centralizado
-- Client Portal operativo
-- Mechanic Panel operativo
-- módulo de citas operativo
-- operación multi-store visible con `sm_businesses` y selector de contexto por usuario
-- integración Google Calendar 1-way + reconciliación inbound controlada
-- watch channels / webhook REST dedicado con idempotencia y renovación preventiva
-- notificaciones multicanal base (in-app + email desacoplado)
-- recordatorios automáticos de citas con `wp_cron` y deduplicación
-- API pública separada `super-mechanic-public/v1` con auth por API key tenant-aware
-- webhooks outbound públicos por negocio con firma `HMAC-SHA256`, idempotencia y retries básicos
-- write pública mínima de citas (`cancel` + `confirm`) con scopes dedicados e idempotencia por transient
-- calendario operativo admin de citas (FullCalendar local + REST interno `GET /admin/appointments/calendar` y `POST /admin/appointments/{id}/status`)
-- `payment_receipt` lógico por `payment_id`
-- panel admin de shortcodes
-- scripts locales de validación técnica
-- hardening pre-SaaS en dashboard cliente, transacciones y descargas admin
-- bloque comercial Woo 38B consolidado (snapshot en quotes/invoices, consistencia de totales y hardening operativo)
-- optimizacion operativa 38C-1 consolidada (quick actions, atajos contextuales y feedback visual sin cambio de schema)
-- scheduler CRM interno por WP-Cron (`sm_crm_scheduler_tick`) consolidado (39E-1)
-- persistencia de alertas CRM en `sm_crm_alerts` con recálculo por lotes y resolución (`39E-2`)
-- consumo UI de alertas persistidas en list/kanban/view con fallback runtime controlado (`39E-3`)
-- hotfix i18n: carga de textdomain `super-mechanic` en `init` prioridad `0` (bootstrap intacto)
-
----
-
-## Deuda técnica activa
-
-- Placeholders legacy/no activos que pueden confundir onboarding: `includes/class-rest-api.php`, `includes/class-hooks.php`, `includes/class-post-types.php`
-- rutas admin de PDF de quotes/invoices siguen como excepción controlada
-- `Process_Admin_Controller` y `Report_Service` siguen siendo puntos a vigilar
-- no existe CI/CD real todavía
-- no hay pruebas runtime automáticas en WordPress
-- settings legacy conviven con `sm_settings`
-
----
-
-## Reglas de escalabilidad
-
-- no reintroducir lógica en controllers
-- no omitir transacciones en operaciones críticas
-- no mover SQL fuera de repository
-- evitar services tipo “god class”
-- no mezclar arquitectura activa con legacy
-- mantener el sistema preparado para una futura API y evolución SaaS
-
----
-
-## Fuente de verdad
+==================================================
+11) FUENTE DE VERDAD
+==================================================
 
 Prioridad:
+1. codigo real
+2. `docs/CURRENT_STATE.md`
+3. `docs/PLUGIN_ROADMAP.md`
+4. `docs/DATABASE_MAP.md`
+5. `docs/MODULE_REGISTRY.md`
+6. `docs/SYSTEM_MAP.md`
 
-1. código real (`includes/*`)
-2. este documento
-3. `docs/SYSTEM_MAP.md`
-4. `docs/FINAL_ARCHITECTURE_MAP.md`
-5. `docs/CURRENT_STATE.md`
-6. `docs/MODULE_REGISTRY.md`
-7. `docs/DATABASE_MAP.md`
-
----
-
-## Referencias
-
-Ver detalle en:
-
-- `docs/CURRENT_STATE.md`
-- `docs/SYSTEM_MAP.md`
-- `docs/FINAL_ARCHITECTURE_MAP.md`
-- `docs/MODULE_REGISTRY.md`
-- `docs/DATABASE_MAP.md`
-- `docs/SECURITY_MODEL.md`
-- `docs/tasks/`
+Si hay conflicto, manda codigo y corrige docs.

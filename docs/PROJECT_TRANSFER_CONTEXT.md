@@ -1,73 +1,126 @@
-# PROJECT TRANSFER CONTEXT — SUPER MECHANIC
+# PROJECT_TRANSFER_CONTEXT - SUPER MECHANIC
 
-Documento compacto para transferencia a otra IA / NotebookLM.
-Fecha: 2026-03-29
+Handoff largo y estable para continuidad por otra IA.
+Fecha de actualizacion: 2026-03-31
 
-## Que es
+==================================================
+RESUMEN EJECUTIVO
+==================================================
 
-Plugin WordPress modular para operacion de talleres/concesionarios:
-clientes, vehiculos, procesos, mantenimiento, cotizaciones, facturacion, pagos, documentos, citas e integraciones.
+Super Mechanic es un plugin WordPress modular para operacion de talleres y concesionarios:
+- clientes y vehiculos
+- procesos operativos
+- maintenance/predelivery/paperwork
+- quotes/invoices/payments
+- CRM comercial
+- citas e integraciones
+- reportes operativos y financieros
 
-## Arquitectura real
+Arquitectura activa: `includes/*`.
+Patron obligatorio: `Controller -> Service -> Repository -> Database`.
 
-- Activa: `includes/*`
-- Legacy: `includes/modules/*` (no usar)
-- Patron: `Controller -> Service -> Repository -> Database`
-- SQL: solo repositories (excepto infraestructura en `includes/database/*`)
+==================================================
+ESTADO REAL DEL SISTEMA
+==================================================
 
-## Versiones reales
+- Plugin version real: `0.1.0`
+- Schema version real: `1.19.0`
+- Fase activa: `Fase 39 - CRM y automatizacion comercial`
+- Bloques consolidados:
+  - `39B` COMPLETO (pipeline CRM)
+  - `39C` COMPLETO (tareas y seguimiento)
+  - `39D` COMPLETO (automatizacion basica + refinamiento UX/control)
+  - `39E` COMPLETO (scheduler + alertas persistidas + consumo UI)
 
-- Plugin: `0.1.0`
-- Schema: `1.15.0`
+==================================================
+QUE YA ESTA COMPLETO (ALTO IMPACTO)
+==================================================
 
-## Estado/fase real
+1) Pipeline CRM independiente (`sm_crm_pipeline`)
+- CRUD usable
+- kanban funcional
+- conversion operativa controlada a proceso
 
-- Fase actual cerrada: `36C-2`
-- Ultimas fases cerradas: `35A/35B/35C`, `36A/36B/36C-1/36C-2`
+2) Tareas CRM (`sm_crm_tasks`)
+- create/edit/complete
+- vistas pending/overdue/upcoming
+- integracion con calendario
 
-## Modulos activos
+3) Scheduler y alertas persistidas (`sm_crm_alerts`)
+- cron interno `sm_crm_scheduler_tick`
+- recálculo por lotes y resolucion `active -> resolved`
+- UI list/kanban/view consume persistido como fuente principal
+- fallback runtime controlado
 
-`appointments`, `attachments`, `automation`, `businesses`, `clients`, `communication`, `dashboard`, `database`, `flows`, `helpers`, `integrations`, `invoices`, `maintenance`, `paperwork`, `predelivery`, `processes`, `quotes`, `relations`, `reports`, `vehicles`
+==================================================
+QUE SIGUE (CONTINUIDAD RECOMENDADA)
+==================================================
 
-## Integraciones activas
+Siguiente continuidad recomendada:
+- subfase posterior de `Fase 39` enfocada en explotacion operativa de alertas persistidas
 
-- Google Calendar: OAuth + sync 1-way + inbound controlado + webhook/watch
-- API publica: `super-mechanic-public/v1`
-  - read: `business`, `processes`, `appointments`
-  - write minima: `appointments/{id}/cancel`, `appointments/{id}/confirm`
-- Webhooks outbound publicos:
-  - tablas `sm_webhooks`, `sm_webhook_deliveries`
-  - firma `HMAC-SHA256`, retries basicos, idempotencia
+Condiciones:
+- sin romper tenancy
+- sin romper CRUD/kanban/calendar
+- sin cambios de schema no planificados
 
-## Tenancy real
+==================================================
+ARQUITECTURA Y ORGANIZACION DEL REPO
+==================================================
 
-- `business_id` activo en tablas tenant-aware
-- tabla `sm_businesses` activa
-- resolucion de contexto:
-  - `sm_active_business_id` (usuario)
-  - fallback `sm_settings.business.business_id`
-  - fallback final negocio default `id=1`
+Codigo:
+- runtime real en `includes/*`
+- bootstrap en `super-mechanic.php` y `includes/class-plugin.php`
+- schema/migraciones en `includes/database/*`
 
-## Reglas que no se deben romper
+Documentacion:
+- estado actual: `docs/CURRENT_STATE.md`
+- roadmap: `docs/PLUGIN_ROADMAP.md`
+- arquitectura: `ARCHITECTURE.md`
+- db: `docs/DATABASE_MAP.md`
+- inventario modulos: `docs/MODULE_REGISTRY.md`
+- mapa funcional: `docs/SYSTEM_MAP.md`
+- escenarios de prueba: `docs/TEST_SCENARIOS.md`
+- trampas historicas: `docs/KNOWN_TRAPS.md`
 
-- no usar `includes/modules/*`
-- no SQL fuera de repository/database infra
-- no exponer `file_url` directo
-- descargas via `Document_Service` + `Download_Service`
-- mantener boundaries por servicio (evitar acoplar repositories cruzados)
+Contextos/prompting:
+- contexto rapido: `.vscode/AI_CONTEXT.md`
+- prompt de arranque: `ai/prompts/PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC.txt`
+- cierre documental: `ai/prompts/ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE.txt`
 
-## Deuda tecnica abierta
+==================================================
+DECISIONES HISTORICAS QUE NO SE DEBEN PERDER
+==================================================
 
-- placeholders no activos: `class-rest-api`, `class-hooks`, `class-post-types`
-- hotspots: `Process_Admin_Controller`, `Report_Service`
-- sin CI/CD externo ni E2E runtime automatizado
-- falta UX/admin para API keys y webhooks publicos
+- Codigo manda sobre docs en caso de conflicto.
+- `includes/modules/*` es legacy, no extender.
+- Tenancy por `business_id` es obligatoria.
+- SQL solo en repository/database.
+- Descargas seguras via `Document_Service` + `Download_Service`.
+- CRM pipeline no se mezcla estructuralmente con `sm_processes`.
+- En calendario, `crm_task` y `appointment` comparten vista pero no entidad.
 
-## Documentos de entrada recomendados
+==================================================
+ERRORES HISTORICOS / MEMORIA OPERATIVA
+==================================================
 
-1. `AGENTS_BOOTSTRAP.md`
-2. `ARCHITECTURE.md`
-3. `docs/CURRENT_STATE.md`
-4. `docs/PLUGIN_ROADMAP.md`
-5. `docs/DATABASE_MAP.md`
-6. `.vscode/AI_CONTEXT.md`
+- Hubo fatal de memoria por cascadas de inicializacion (`HOTFIX-MEM-1`): evitar eager wiring circular.
+- Hubo bug de i18n por carga temprana de textdomain: mantener carga en `init`.
+- Hubo regresiones visuales en kanban: validar siempre estructura HTML + CSS real.
+- Hubo bugs de nonce en quick stage: preservar action/nonce/capability/contexto.
+
+==================================================
+METODO REPLICABLE PARA OTROS PROYECTOS
+==================================================
+
+Modelo recomendado:
+1. `AGENTS_BOOTSTRAP.md` (entrypoint)
+2. `AGENTS.md` (reglas duras)
+3. `CURRENT_STATE` (estado vivo)
+4. `ROADMAP` (continuidad)
+5. `TRANSFER_CONTEXT` (handoff largo)
+6. `KNOWN_TRAPS` (fallos recurrentes)
+7. `TEST_SCENARIOS` (regresion funcional)
+8. prompt master como director de lectura/ejecucion
+
+Mantenerlo practico: poco ruido, mucha accion verificable.

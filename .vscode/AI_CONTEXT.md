@@ -3,6 +3,25 @@ AI CONTEXT — SUPER MECHANIC
 Contexto operativo rápido para agentes IA.
 Fuente de verdad: código real (`includes/*`).
 
+## Entrypoint oficial
+
+- START HERE oficial: `AGENTS_BOOTSTRAP.md`
+- Regla: no tocar código sin completar lectura obligatoria de bootstrap.
+
+## Orden oficial de lectura (resumen)
+
+1. `AGENTS_BOOTSTRAP.md`
+2. `AGENTS.md`
+3. `.vscode/AI_CONTEXT.md`
+4. `docs/CURRENT_STATE.md`
+5. `docs/PROJECT_TRANSFER_CONTEXT.md`
+6. `docs/PLUGIN_ROADMAP.md`
+7. `ARCHITECTURE.md`
+8. `docs/DATABASE_MAP.md`
+9. `docs/MODULE_REGISTRY.md`
+10. `docs/SYSTEM_MAP.md`
+11. `docs/TEST_SCENARIOS.md`
+
 ## Estado real
 
 - Plugin: `0.1.0`

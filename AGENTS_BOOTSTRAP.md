@@ -1,150 +1,91 @@
 # AGENTS_BOOTSTRAP.md
-Super Mechanic — Agent Bootstrap Context
+Super Mechanic - START HERE oficial para cualquier IA
 
-This file defines the reading order that AI agents must follow before performing any implementation work.
+Objetivo:
+- definir el entrypoint unico
+- obligar un orden de lectura estable
+- evitar implementaciones sin contexto
 
-Agents must load these documents in order to understand the system architecture, rules, and current project state.
+Si eres una IA nueva en este repositorio, este archivo es el inicio obligatorio.
 
----
+==================================================
+ENTRYPOINT UNICO OFICIAL
+==================================================
 
-# 1 — Core Architecture
+`AGENTS_BOOTSTRAP.md` = START HERE oficial.
 
-Start by understanding the plugin architecture.
+Ninguna IA debe tocar codigo, schema o wiring antes de completar la lectura minima.
 
-The active runtime architecture lives in:
+==================================================
+ORDEN OFICIAL DE LECTURA (OBLIGATORIO)
+==================================================
 
-includes/*
+1. `AGENTS_BOOTSTRAP.md`
+2. `AGENTS.md`
+3. `.vscode/AI_CONTEXT.md`
+4. `docs/CURRENT_STATE.md`
+5. `docs/PROJECT_TRANSFER_CONTEXT.md`
+6. `docs/PLUGIN_ROADMAP.md`
+7. `ARCHITECTURE.md`
+8. `docs/DATABASE_MAP.md`
+9. `docs/MODULE_REGISTRY.md`
+10. `docs/SYSTEM_MAP.md`
+11. `docs/TEST_SCENARIOS.md`
 
-Legacy experimental modules may exist in:
+Lectura adicional segun necesidad:
+- `docs/KNOWN_TRAPS.md`
+- `ai/rules/*`
+- `docs/tasks/*`
+- `ai/prompts/*`
 
-includes/modules/*
+==================================================
+FUENTE DE VERDAD Y CONFLICTOS
+==================================================
 
-These modules are not part of the active architecture and must not be extended.
+Prioridad obligatoria:
+1. Codigo real (`includes/*`, bootstrap, schema)
+2. Documentacion tecnica activa
+3. Contextos AI
+4. Prompts
 
-Read:
+Si hay conflicto: manda el codigo real y actualiza docs afectadas.
 
-ARCHITECTURE.md
-docs/SYSTEM_MAP.md
-docs/FINAL_ARCHITECTURE_MAP.md
-docs/DOMAIN_MODEL.md
-docs/MODULE_DEPENDENCY_MAP.md
+==================================================
+QUE NO HACER ANTES DE LEER CONTEXTO
+==================================================
 
-These documents define:
+No hacer antes de completar la lectura obligatoria:
+- implementar features
+- editar schema
+- mover wiring de bootstrap
+- refactorizar modulos sensibles
+- cerrar fases documentalmente
 
-- module boundaries
-- dependency rules
-- architectural layers
-- system components
+==================================================
+ARRANQUE DE SESION RECOMENDADO
+==================================================
 
----
+1. Confirmar fase/subfase objetivo en `docs/PLUGIN_ROADMAP.md`.
+2. Verificar estado real en `docs/CURRENT_STATE.md`.
+3. Verificar riesgos/trampas en `docs/KNOWN_TRAPS.md`.
+4. Ejecutar analisis previo (modulos, archivos, riesgos, validacion).
+5. Implementar cambios minimos dentro de alcance.
+6. Validar (`php scripts/php-lint.php --all` + runtime manual cuando aplique).
+7. Cerrar docs sin dejar desalineaciones.
 
-# 2 — Current Implementation State
+==================================================
+CRITERIO DE CONTINUIDAD DE FASES
+==================================================
 
-Then load the current state of the system.
+Para decidir siguiente continuidad:
+- usar `docs/PLUGIN_ROADMAP.md` como referencia oficial
+- mantener secuencia historica completa desde Fase 0
+- respetar subfases A/B/C existentes
+- no inventar renumeraciones ad hoc
+- si una fase esta en PARCIAL, no marcar COMPLETA sin validacion requerida
 
-Read:
+==================================================
+REGLA FINAL
+==================================================
 
-docs/CURRENT_STATE.md
-docs/MODULE_REGISTRY.md
-docs/DATABASE_MAP.md
-docs/PLUGIN_ROADMAP.md
-
-These files describe:
-
-- implemented modules
-- system maturity
-- database schema
-- development roadmap
-
----
-
-# 3 — Security and Performance
-
-Agents must respect the security and performance model.
-
-Read:
-
-docs/SECURITY_MODEL.md
-docs/PERFORMANCE_STRATEGY.md
-
-Important areas:
-
-- document access
-- ownership validation
-- secure downloads
-- performance boundaries
-
----
-
-# 4 — AI Development Rules
-
-All agents must follow the AI rules defined for this project.
-
-Read:
-
-ai/rules/AI_RULES.md
-ai/rules/GUARDRAILS.md
-ai/rules/MODULE_BOUNDARIES.md
-ai/rules/WP_PLUGIN_PATTERNS.md
-ai/rules/ERROR_RECOVERY_PROTOCOL.md
-
-These define:
-
-- safe development constraints
-- architecture protection
-- error recovery rules
-- WordPress coding patterns
-
----
-
-# 5 — Project Context
-
-Agents should then load project context memory.
-
-Read:
-
-ai/context/AGENTS_QUICK_CONTEXT.md
-ai/context/PROJECT_MEMORY.md
-ai/context/WORKFLOW.md
-
-These files explain:
-
-- system mental model
-- development workflow
-- project evolution
-
----
-
-# 6 — Operational Prompts
-
-The project uses standardized prompts for development operations.
-
-Located in:
-
-ai/prompts/
-
-Key prompts:
-
-CONTEXTO DEL PROYECTO.txt  
-MODO DESARROLLO SEGURO — SUPER MECHANIC.txt  
-SCOPE GUARD — CONTROL DE ALCANCE DE IMPLEMENTACIÓN.txt  
-PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC.txt  
-AUDITORÍA DE INTEGRIDAD DEL SISTEMA — SUPER MECHANIC.txt  
-ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE.txt  
-
-These prompts are used during development sessions to control scope and validate changes.
-
-They are not executed automatically and are intended for manual use with AI coding assistants.
-
----
-
-# Final Rule
-
-Agents must not implement or modify code before loading the bootstrap context defined in this document.
-
-Failure to follow the bootstrap reading order may lead to:
-
-- architecture violations
-- module coupling
-- incorrect repository usage
-- security regressions
+Si no leiste el orden obligatorio, no estas autorizado a tocar codigo.

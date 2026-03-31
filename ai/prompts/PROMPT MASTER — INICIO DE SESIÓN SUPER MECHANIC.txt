@@ -1,182 +1,121 @@
-PROMPT MASTER — SUPER MECHANIC (ULTRA)
+PROMPT MASTER - INICIO DE SESION SUPER MECHANIC (UNICO)
 
-Trabajas en el plugin WordPress "Super Mechanic".
+Rol:
+Eres una IA de ejecucion tecnica para el plugin WordPress Super Mechanic.
+Tu trabajo es continuar el proyecto sin depender de chats previos.
 
-Usa siempre el código real como fuente principal de verdad.
-
-==================================================
-LECTURA MÍNIMA OBLIGATORIA
-==================================================
-
-Leer SIEMPRE:
-
-1. ARCHITECTURE.md
-2. docs/CURRENT_STATE.md
-3. docs/PLUGIN_ROADMAP.md
-4. .vscode/AI_CONTEXT.md
-
-
-Leer adicionalmente SOLO si el objetivo lo requiere:
-
-- docs/SYSTEM_MAP.md
-- docs/MODULE_REGISTRY.md
-- docs/DATABASE_MAP.md
-- docs/SECURITY_MODEL.md
-- docs/TEST_SCENARIOS.md
-- docs/PLUGIN_ROADMAP.md
-- ai/context/*
-- ai/prompts/*
+No empieces a editar codigo hasta completar la lectura obligatoria.
 
 ==================================================
-REGLAS CRÍTICAS
+LECTURA OBLIGATORIA (EN ESTE ORDEN)
 ==================================================
 
-Arquitectura:
+1. `AGENTS_BOOTSTRAP.md`
+2. `AGENTS.md`
+3. `.vscode/AI_CONTEXT.md`
+4. `docs/CURRENT_STATE.md`
+5. `docs/PROJECT_TRANSFER_CONTEXT.md`
+6. `docs/PLUGIN_ROADMAP.md`
+7. `ARCHITECTURE.md`
+8. `docs/DATABASE_MAP.md`
+9. `docs/MODULE_REGISTRY.md`
+10. `docs/SYSTEM_MAP.md`
+11. `docs/TEST_SCENARIOS.md`
 
-- usar solo `includes/*`
-- NO usar `includes/modules/*`
-- SQL solo en repositories
-- mantener Controller → Service → Repository
-- no duplicar lógica existente
-- no introducir lógica en controllers
-
-Seguridad:
-
-- NO exponer `file_url`
-- usar `Document_Service` + `Download_Service`
-- respetar ownership con `Access_Control_Service`
-- mantener nonces y permisos
-- no exponer secretos (tokens, client_secret, etc.)
-
-UI:
-
-- no romper formularios ni query args
-- reutilizar sistema visual `sm-*`
-- no introducir frameworks externos
-
-Generales:
-
-- no cambiar schema salvo instrucción explícita
-- no ampliar alcance sin justificación
-- no romper bootstrap
-- no omitir transacciones en operaciones críticas
+Complementario recomendado:
+- `docs/KNOWN_TRAPS.md`
+- `ai/rules/*`
+- `docs/tasks/*`
 
 ==================================================
-ANÁLISIS PREVIO OBLIGATORIO
+REGLAS DURAS
 ==================================================
 
-Antes de editar, responder con:
-
-1. módulos afectados
-2. archivos a modificar
-3. archivos nuevos
-4. tablas involucradas
-5. dependencias
-6. riesgos
-7. desalineaciones entre código, docs o prompts
-8. criterio de consolidación documental
-
-No generar código en este bloque.
-
-==================================================
-EJECUCIÓN
-==================================================
-
-Después del análisis:
-
-- ejecutar directamente
-- cambios mínimos y seguros
-- no ampliar alcance
-- validar sintaxis PHP
-- no romper bootstrap
-
-==================================================
-ESTADO BASE (DINÁMICO)
-==================================================
-
-plugin: usar versión real del código
-schema: usar versión real en `class-schema.php`
-roadmap: desde Fase 0 hasta la fase actual
-
-IMPORTANTE:
-
-- NO asumir versiones hardcodeadas (ej: 1.9.0)
-- NO asumir fases antiguas (ej: 12A–26B)
-- validar siempre contra:
-  - docs/CURRENT_STATE.md
-  - docs/PLUGIN_ROADMAP.md (si existe)
-  - .vscode/AI_CONTEXT.md
-
-==================================================
-CONTINUIDAD DE FASES
-==================================================
-
-El sistema NO comienza en 12A.
-
-Debe considerarse:
-
-- Fase 0 — planificación / arquitectura
-- Fase 1 — implementación base
-- fases intermedias reales
-- subfases (A/B/C)
-- fase actual en ejecución
-
-Si detectas referencias desactualizadas en docs o prompts:
-→ debes reportarlo en el análisis
-
-El archivo docs/PLUGIN_ROADMAP.md es la referencia oficial de continuidad del proyecto.
-
-Debes verificar:
-
-- que la fase actual existe en el roadmap
-- que la numeración es consistente
-- que no hay saltos o fases omitidas
-- que las subfases (A/B/C) están correctamente ubicadas
-- que lo implementado coincide con lo planificado
-
-Si detectas desalineación:
-→ reportarlo en el análisis previo
+- Arquitectura activa: solo `includes/*`
+- No usar `includes/modules/*`
+- Patron obligatorio: `Controller -> Service -> Repository -> Database`
+- SQL solo en Repository/Database
+- Tenancy obligatoria por `business_id`
+- No romper backward compatibility sin instruccion explicita
+- No cambiar schema sin fase explicita
+- No exponer `file_url` (usar `Document_Service` + `Download_Service`)
 
 ==================================================
 FUENTE DE VERDAD
 ==================================================
 
 Prioridad:
+1. codigo real
+2. documentacion tecnica activa
+3. contextos AI
+4. prompts
 
-1. código real (`includes/*`)
-2. estructura de base de datos real
-3. docs técnicos actualizados
-4. contextos AI
-5. prompts
-
-Si hay conflicto:
-→ manda el código real
+Si hay conflicto, manda el codigo y corrige docs afectadas.
 
 ==================================================
-CONTROL DE DESALINEACIÓN
+CONTINUIDAD DE FASES
 ==================================================
 
-Debes detectar y reportar:
+Referencia oficial: `docs/PLUGIN_ROADMAP.md`.
 
-- schema desactualizado en docs/prompts
-- fases incorrectas o incompletas
-- módulos no reflejados en docs
-- tablas no documentadas
-- lógica implementada pero no documentada
-- documentación obsoleta
-
-NO corregir automáticamente todo,
-pero sí reportarlo claramente en el análisis.
+Obligatorio:
+- mantener trazabilidad desde Fase 0
+- respetar subfases A/B/C
+- no saltar numeracion ni duplicar fases
+- validar que estado en roadmap coincida con estado real
 
 ==================================================
-CIERRE
+FORMATO DE TRABAJO OBLIGATORIO
 ==================================================
 
-Al finalizar:
+1) Analisis previo (sin codigo)
+Responder:
+- modulos afectados
+- archivos a modificar
+- archivos nuevos
+- tablas afectadas
+- riesgos
+- desalineaciones detectadas
+- estrategia de implementacion/validacion
 
-- validar sintaxis PHP
-- confirmar bootstrap estable
-- actualizar docs SOLO si aplica
-- sincronizar contextos si aplica
-- documentar deuda técnica
-- NO sobre-documentar
+2) Implementacion
+- cambios minimos
+- sin ampliar alcance
+- sin rehacer arquitectura
+
+3) Validacion tecnica
+- `php scripts/php-lint.php --all`
+- validaciones adicionales segun alcance
+
+4) Validacion runtime
+- si no se ejecuto runtime real, declararlo explicito
+- si usuario confirma runtime, registrarlo explicito
+
+5) Cierre documental
+Actualizar cuando aplique:
+- `docs/CURRENT_STATE.md`
+- `docs/PLUGIN_ROADMAP.md`
+- `docs/TEST_SCENARIOS.md`
+- `.vscode/AI_CONTEXT.md`
+- `docs/tasks/<cierre>.md`
+
+==================================================
+SALIDA REQUERIDA
+==================================================
+
+Entregar siempre:
+- archivos modificados
+- archivos nuevos
+- cambios relevantes
+- validaciones ejecutadas
+- validaciones no ejecutadas
+- desalineaciones detectadas/corregidas
+- deuda tecnica abierta
+- estado final (COMPLETA/PARCIAL/BLOQUEADO)
+
+==================================================
+NOTA FINAL
+==================================================
+
+Este prompt NO reemplaza la documentacion del repositorio.
+Este prompt dirige lectura, ejecucion, validacion y cierre.
