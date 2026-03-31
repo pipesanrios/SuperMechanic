@@ -1,121 +1,39 @@
-PROMPT MASTER - INICIO DE SESION SUPER MECHANIC (UNICO)
+PROMPT MASTER - SUPER MECHANIC EXECUTION ENGINE
 
-Rol:
-Eres una IA de ejecucion tecnica para el plugin WordPress Super Mechanic.
-Tu trabajo es continuar el proyecto sin depender de chats previos.
+Purpose:
+Execution engine for AI sessions. This prompt does not replace repository knowledge.
 
-No empieces a editar codigo hasta completar la lectura obligatoria.
+Mandatory startup:
+1. Read `AGENTS_BOOTSTRAP.md`
+2. Follow full required reading order
+3. Do not edit code before context load
 
-==================================================
-LECTURA OBLIGATORIA (EN ESTE ORDEN)
-==================================================
+Execution flow (mandatory):
+0. Contract validation phase
+   - Check whether a task contract exists for this non-trivial task.
+   - If missing, create it first.
+   - Extract scope, allowed files, forbidden files, constraints, outputs.
+1. Analysis phase
+   - modules affected
+   - files to modify/new
+   - risks
+   - validation plan
+2. Implementation phase
+   - minimal scoped changes
+3. Validation phase
+   - `php scripts/php-lint.php --all`
+   - runtime/manual checks when applicable
+3.5 Validation Contract phase
+   - If `validation_contract` exists in task contract, load it before closure.
+   - Execute automated checks with QA Runner when applicable:
+     - `php scripts/qa-runner.php --contract=<ruta> --output=text`
+   - Capture PASS/FAIL/SKIPPED/NOT_RUN results.
+   - If required validation fails, block closure.
+4. Documentation update phase
+   - align core docs with real code state
 
-1. `AGENTS_BOOTSTRAP.md`
-2. `AGENTS.md`
-3. `.vscode/AI_CONTEXT.md`
-4. `docs/CURRENT_STATE.md`
-5. `docs/PROJECT_TRANSFER_CONTEXT.md`
-6. `docs/PLUGIN_ROADMAP.md`
-7. `ARCHITECTURE.md`
-8. `docs/DATABASE_MAP.md`
-9. `docs/MODULE_REGISTRY.md`
-10. `docs/SYSTEM_MAP.md`
-11. `docs/TEST_SCENARIOS.md`
-
-Complementario recomendado:
-- `docs/KNOWN_TRAPS.md`
-- `ai/rules/*`
-- `docs/tasks/*`
-
-==================================================
-REGLAS DURAS
-==================================================
-
-- Arquitectura activa: solo `includes/*`
-- No usar `includes/modules/*`
-- Patron obligatorio: `Controller -> Service -> Repository -> Database`
-- SQL solo en Repository/Database
-- Tenancy obligatoria por `business_id`
-- No romper backward compatibility sin instruccion explicita
-- No cambiar schema sin fase explicita
-- No exponer `file_url` (usar `Document_Service` + `Download_Service`)
-
-==================================================
-FUENTE DE VERDAD
-==================================================
-
-Prioridad:
-1. codigo real
-2. documentacion tecnica activa
-3. contextos AI
-4. prompts
-
-Si hay conflicto, manda el codigo y corrige docs afectadas.
-
-==================================================
-CONTINUIDAD DE FASES
-==================================================
-
-Referencia oficial: `docs/PLUGIN_ROADMAP.md`.
-
-Obligatorio:
-- mantener trazabilidad desde Fase 0
-- respetar subfases A/B/C
-- no saltar numeracion ni duplicar fases
-- validar que estado en roadmap coincida con estado real
-
-==================================================
-FORMATO DE TRABAJO OBLIGATORIO
-==================================================
-
-1) Analisis previo (sin codigo)
-Responder:
-- modulos afectados
-- archivos a modificar
-- archivos nuevos
-- tablas afectadas
-- riesgos
-- desalineaciones detectadas
-- estrategia de implementacion/validacion
-
-2) Implementacion
-- cambios minimos
-- sin ampliar alcance
-- sin rehacer arquitectura
-
-3) Validacion tecnica
-- `php scripts/php-lint.php --all`
-- validaciones adicionales segun alcance
-
-4) Validacion runtime
-- si no se ejecuto runtime real, declararlo explicito
-- si usuario confirma runtime, registrarlo explicito
-
-5) Cierre documental
-Actualizar cuando aplique:
-- `docs/CURRENT_STATE.md`
-- `docs/PLUGIN_ROADMAP.md`
-- `docs/TEST_SCENARIOS.md`
-- `.vscode/AI_CONTEXT.md`
-- `docs/tasks/<cierre>.md`
-
-==================================================
-SALIDA REQUERIDA
-==================================================
-
-Entregar siempre:
-- archivos modificados
-- archivos nuevos
-- cambios relevantes
-- validaciones ejecutadas
-- validaciones no ejecutadas
-- desalineaciones detectadas/corregidas
-- deuda tecnica abierta
-- estado final (COMPLETA/PARCIAL/BLOQUEADO)
-
-==================================================
-NOTA FINAL
-==================================================
-
-Este prompt NO reemplaza la documentacion del repositorio.
-Este prompt dirige lectura, ejecucion, validacion y cierre.
+Operating constraints:
+- Respect `AGENTS.md` and `ai/rules/*`.
+- Never treat this prompt as source of truth for state/schema.
+- If docs conflict with code, code wins and docs must be corrected.
+- PASS tecnico no implica fase completa sin validacion runtime manual requerida.

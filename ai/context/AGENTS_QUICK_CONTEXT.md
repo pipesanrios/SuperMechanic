@@ -1,33 +1,21 @@
-# SUPER MECHANIC — QUICK CONTEXT
+# AGENTS_QUICK_CONTEXT.md
+THIS FILE IS NOT SOURCE OF TRUTH.
 
-Plugin WordPress para talleres y concesionarios.
+Role:
+Ultra-short startup summary for AI sessions.
 
-Arquitectura:
-Controller → Service → Repository → Database
+Use it for:
+- quick orientation
+- reminder of architecture pattern
+- fast links to canonical docs
 
-Reglas:
-- SQL solo en Repository
-- Lógica en Services
-- Controllers integran con WordPress
-- No lógica en templates
+Do not use it for:
+- phase closure decisions
+- schema truth
+- roadmap truth
 
-Módulo central:
-Processes (motor del sistema)
-
-Flujos:
-maintenance / pre-delivery / paperwork
-
-Servicios clave:
-Process_Service
-Maintenance_Service
-Quote_Service
-Invoice_Service
-
-Seguridad:
-- Sin file_url directo
-- Uso obligatorio de Download_Service
-
-Fuente de verdad:
-ARCHITECTURE.md
-docs/CURRENT_STATE.md
-docs/PLUGIN_ROADMAP.md
+Quick reminders:
+- Runtime architecture: `includes/*`
+- Pattern: `Controller -> Service -> Repository -> Database`
+- Entry point: `AGENTS_BOOTSTRAP.md`
+- Canonical state: `docs/CURRENT_STATE.md`

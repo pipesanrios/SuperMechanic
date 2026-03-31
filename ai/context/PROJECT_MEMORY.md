@@ -1,35 +1,21 @@
-# PROJECT MEMORY — SUPER MECHANIC
+# PROJECT_MEMORY.md
+THIS FILE IS NOT SOURCE OF TRUTH.
 
-Memoria de decisiones vigentes para continuidad de IA.
+Role:
+Historical memory of decisions and recurring pitfalls.
 
-## Decisiones vigentes
+Use it for:
+- understanding why past decisions were made
+- avoiding known regressions
+- preserving continuity across AI sessions
 
-- Arquitectura activa unica: `includes/*`
-- Legacy aislado: `includes/modules/*` (no extender)
-- Patron obligatorio: `Controller -> Service -> Repository`
-- SQL solo en repositories (y en `includes/database/*` para schema/migraciones)
-- Descargas y documentos: `Document_Service` + `Download_Service`
-- Tenancy activa por `business_id` + `sm_businesses`
-- API publica separada de API interna
+Do not use it for:
+- current phase status
+- current schema version
+- architecture truth
 
-## Estado tecnico actual
-
-- Plugin `0.1.0`
-- Schema `1.15.0`
-- Fase actual cerrada: `36C-2`
-- API publica write minima activa:
-  - cancel appointment
-  - confirm appointment
-
-## Riesgos/deuda viva
-
-- `Process_Admin_Controller` y `Report_Service` son hotspots de complejidad
-- Placeholders no activos (`class-rest-api`, `class-hooks`, `class-post-types`) pueden confundir onboarding
-- Falta UX/admin dedicada para API keys y webhooks publicos
-- Sin validacion runtime automatizada E2E en WordPress
-
-## Prioridad de continuidad (siguiente bloque)
-
-- consolidar gestion admin de API keys/webhooks publicos
-- mejorar observabilidad de webhook deliveries
-- formalizar pruebas runtime para 36B/36C
+Canonical references:
+- `docs/CURRENT_STATE.md`
+- `ARCHITECTURE.md`
+- `docs/PLUGIN_ROADMAP.md`
+- `docs/KNOWN_TRAPS.md`

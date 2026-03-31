@@ -1,126 +1,53 @@
-# PROJECT_TRANSFER_CONTEXT - SUPER MECHANIC
+# PROJECT_TRANSFER_CONTEXT.md
 
-Handoff largo y estable para continuidad por otra IA.
-Fecha de actualizacion: 2026-03-31
+Long-form handoff context for multi-AI continuity.
+Date: 2026-03-31
 
-==================================================
-RESUMEN EJECUTIVO
-==================================================
+## This File Is
+- A continuity/handoff layer.
+- Not the source of truth for schema or exact runtime state.
 
-Super Mechanic es un plugin WordPress modular para operacion de talleres y concesionarios:
-- clientes y vehiculos
-- procesos operativos
-- maintenance/predelivery/paperwork
-- quotes/invoices/payments
-- CRM comercial
-- citas e integraciones
-- reportes operativos y financieros
+## System Hierarchy (Reference)
+1. `AGENTS_BOOTSTRAP.md`
+2. `AGENTS.md`
+3. `.vscode/AI_CONTEXT.md` + Prompt Master
+4. `ai/rules/*`
+5. `ai/context/*`
+6. `docs/*`
 
-Arquitectura activa: `includes/*`.
-Patron obligatorio: `Controller -> Service -> Repository -> Database`.
+## Current Baseline Summary
+- Plugin `0.1.0`
+- Schema `1.19.0`
+- Phase baseline: Fase 39
+- Block 39E: COMPLETE
+  - internal scheduler
+  - persisted CRM alerts
+  - persisted-alert UI consumption
 
-==================================================
-ESTADO REAL DEL SISTEMA
-==================================================
+## Architectural Memory
+- Active runtime path is `includes/*`.
+- Legacy tree `includes/modules/*` is not an active architecture surface.
+- Tenancy relies on `business_id` in tenant-aware modules.
 
-- Plugin version real: `0.1.0`
-- Schema version real: `1.19.0`
-- Fase activa: `Fase 39 - CRM y automatizacion comercial`
-- Bloques consolidados:
-  - `39B` COMPLETO (pipeline CRM)
-  - `39C` COMPLETO (tareas y seguimiento)
-  - `39D` COMPLETO (automatizacion basica + refinamiento UX/control)
-  - `39E` COMPLETO (scheduler + alertas persistidas + consumo UI)
+## Key Continuity Risks
+- Reintroducing duplicated rule files or conflicting doc authority.
+- Mixing state/roadmap/architecture in the same document.
+- Bypassing reading order and coding without context.
 
-==================================================
-QUE YA ESTA COMPLETO (ALTO IMPACTO)
-==================================================
+## Recommended Next Continuity
+- Continue Phase 39 after 39E on top of persisted-alert foundation.
 
-1) Pipeline CRM independiente (`sm_crm_pipeline`)
-- CRUD usable
-- kanban funcional
-- conversion operativa controlada a proceso
+## Canonical References
+- State: `docs/CURRENT_STATE.md`
+- Architecture: `ARCHITECTURE.md`
+- Roadmap: `docs/PLUGIN_ROADMAP.md`
+- DB map: `docs/DATABASE_MAP.md`
+- Rule hierarchy: `docs/RULE_SYSTEM.md`
 
-2) Tareas CRM (`sm_crm_tasks`)
-- create/edit/complete
-- vistas pending/overdue/upcoming
-- integracion con calendario
-
-3) Scheduler y alertas persistidas (`sm_crm_alerts`)
-- cron interno `sm_crm_scheduler_tick`
-- recálculo por lotes y resolucion `active -> resolved`
-- UI list/kanban/view consume persistido como fuente principal
-- fallback runtime controlado
-
-==================================================
-QUE SIGUE (CONTINUIDAD RECOMENDADA)
-==================================================
-
-Siguiente continuidad recomendada:
-- subfase posterior de `Fase 39` enfocada en explotacion operativa de alertas persistidas
-
-Condiciones:
-- sin romper tenancy
-- sin romper CRUD/kanban/calendar
-- sin cambios de schema no planificados
-
-==================================================
-ARQUITECTURA Y ORGANIZACION DEL REPO
-==================================================
-
-Codigo:
-- runtime real en `includes/*`
-- bootstrap en `super-mechanic.php` y `includes/class-plugin.php`
-- schema/migraciones en `includes/database/*`
-
-Documentacion:
-- estado actual: `docs/CURRENT_STATE.md`
-- roadmap: `docs/PLUGIN_ROADMAP.md`
-- arquitectura: `ARCHITECTURE.md`
-- db: `docs/DATABASE_MAP.md`
-- inventario modulos: `docs/MODULE_REGISTRY.md`
-- mapa funcional: `docs/SYSTEM_MAP.md`
-- escenarios de prueba: `docs/TEST_SCENARIOS.md`
-- trampas historicas: `docs/KNOWN_TRAPS.md`
-
-Contextos/prompting:
-- contexto rapido: `.vscode/AI_CONTEXT.md`
-- prompt de arranque: `ai/prompts/PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC.txt`
-- cierre documental: `ai/prompts/ACTUALIZACIÓN DE DOCUMENTACIÓN Y CIERRE DE FASE.txt`
-
-==================================================
-DECISIONES HISTORICAS QUE NO SE DEBEN PERDER
-==================================================
-
-- Codigo manda sobre docs en caso de conflicto.
-- `includes/modules/*` es legacy, no extender.
-- Tenancy por `business_id` es obligatoria.
-- SQL solo en repository/database.
-- Descargas seguras via `Document_Service` + `Download_Service`.
-- CRM pipeline no se mezcla estructuralmente con `sm_processes`.
-- En calendario, `crm_task` y `appointment` comparten vista pero no entidad.
-
-==================================================
-ERRORES HISTORICOS / MEMORIA OPERATIVA
-==================================================
-
-- Hubo fatal de memoria por cascadas de inicializacion (`HOTFIX-MEM-1`): evitar eager wiring circular.
-- Hubo bug de i18n por carga temprana de textdomain: mantener carga en `init`.
-- Hubo regresiones visuales en kanban: validar siempre estructura HTML + CSS real.
-- Hubo bugs de nonce en quick stage: preservar action/nonce/capability/contexto.
-
-==================================================
-METODO REPLICABLE PARA OTROS PROYECTOS
-==================================================
-
-Modelo recomendado:
-1. `AGENTS_BOOTSTRAP.md` (entrypoint)
-2. `AGENTS.md` (reglas duras)
-3. `CURRENT_STATE` (estado vivo)
-4. `ROADMAP` (continuidad)
-5. `TRANSFER_CONTEXT` (handoff largo)
-6. `KNOWN_TRAPS` (fallos recurrentes)
-7. `TEST_SCENARIOS` (regresion funcional)
-8. prompt master como director de lectura/ejecucion
-
-Mantenerlo practico: poco ruido, mucha accion verificable.
+## Task Execution Model
+- The system now uses Task Contracts for all non-trivial tasks.
+- Future AI sessions must load the contract before analysis and implementation.
+- Contracts make scope, file boundaries, validation, and outputs explicit.
+- This reduces regressions and prevents scope creep across multi-AI handoffs.
+- Validation Contracts are the second layer for non-trivial phases.
+- They define measurable verification and must run before closure when linked.

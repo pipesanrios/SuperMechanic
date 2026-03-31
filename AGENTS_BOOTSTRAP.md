@@ -1,91 +1,68 @@
 # AGENTS_BOOTSTRAP.md
-Super Mechanic - START HERE oficial para cualquier IA
+Super Mechanic - ONLY ENTRYPOINT FOR ANY AI AGENT
 
-Objetivo:
-- definir el entrypoint unico
-- obligar un orden de lectura estable
-- evitar implementaciones sin contexto
+This is the official START HERE file.
+No code, schema, or wiring changes are allowed before completing the required reading.
 
-Si eres una IA nueva en este repositorio, este archivo es el inicio obligatorio.
+If this order is not followed, the system will break.
+Do not skip any layer.
 
-==================================================
-ENTRYPOINT UNICO OFICIAL
-==================================================
+## System Hierarchy
+1. Level 1 (Entrypoint): `AGENTS_BOOTSTRAP.md`
+2. Level 2 (Core rules): `AGENTS.md`
+3. Level 3 (AI execution context): `.vscode/AI_CONTEXT.md` + Prompt Master
+4. Level 4 (Rules system): `ai/rules/*`
+5. Level 5 (Context support): `ai/context/*`
+6. Level 6 (System documentation): `docs/*`
 
-`AGENTS_BOOTSTRAP.md` = START HERE oficial.
-
-Ninguna IA debe tocar codigo, schema o wiring antes de completar la lectura minima.
-
-==================================================
-ORDEN OFICIAL DE LECTURA (OBLIGATORIO)
-==================================================
-
+## Required Reading Order (Mandatory)
 1. `AGENTS_BOOTSTRAP.md`
 2. `AGENTS.md`
 3. `.vscode/AI_CONTEXT.md`
-4. `docs/CURRENT_STATE.md`
-5. `docs/PROJECT_TRANSFER_CONTEXT.md`
-6. `docs/PLUGIN_ROADMAP.md`
-7. `ARCHITECTURE.md`
-8. `docs/DATABASE_MAP.md`
-9. `docs/MODULE_REGISTRY.md`
-10. `docs/SYSTEM_MAP.md`
-11. `docs/TEST_SCENARIOS.md`
+4. Rules:
+   - `ai/rules/AI_RULES.md`
+   - `ai/rules/GUARDRAILS.md`
+   - `ai/rules/MODULE_BOUNDARIES.md`
+5. Context:
+   - `ai/context/AGENTS_QUICK_CONTEXT.md`
+   - `ai/context/PROJECT_MEMORY.md`
+   - `ai/context/WORKFLOW.md`
+6. `docs/CURRENT_STATE.md`
+7. `docs/PROJECT_TRANSFER_CONTEXT.md`
+8. `docs/PLUGIN_ROADMAP.md`
+9. `ARCHITECTURE.md`
 
-Lectura adicional segun necesidad:
-- `docs/KNOWN_TRAPS.md`
-- `ai/rules/*`
-- `docs/tasks/*`
-- `ai/prompts/*`
+## Source Of Truth By Topic
+| Topic | Source |
+|---|---|
+| Current state | `docs/CURRENT_STATE.md` |
+| Architecture | `ARCHITECTURE.md` |
+| Database | `docs/DATABASE_MAP.md` |
+| AI hard rules | `AGENTS.md` |
+| Entry point | `AGENTS_BOOTSTRAP.md` |
+| Continuity | `docs/PLUGIN_ROADMAP.md` |
+| Handoff context | `docs/PROJECT_TRANSFER_CONTEXT.md` |
 
-==================================================
-FUENTE DE VERDAD Y CONFLICTOS
-==================================================
+## Document Priority Rule
+If documents conflict, use this order:
+1. Code
+2. `docs/CURRENT_STATE.md`
+3. `.vscode/AI_CONTEXT.md`
+4. `AGENTS.md`
+5. `ARCHITECTURE.md`
+6. Remaining docs
 
-Prioridad obligatoria:
-1. Codigo real (`includes/*`, bootstrap, schema)
-2. Documentacion tecnica activa
-3. Contextos AI
-4. Prompts
+## Session Start Protocol
+1. Complete required reading order.
+2. Confirm phase target from roadmap.
+3. Verify current state and risks.
+4. Run analysis phase before any implementation.
 
-Si hay conflicto: manda el codigo real y actualiza docs afectadas.
+## Task Execution Model
+- Non-trivial tasks require a Task Contract before execution.
+- The contract must be read before coding.
+- The contract defines scope boundaries and file boundaries.
+- If no contract exists, create one first.
 
-==================================================
-QUE NO HACER ANTES DE LEER CONTEXTO
-==================================================
-
-No hacer antes de completar la lectura obligatoria:
-- implementar features
-- editar schema
-- mover wiring de bootstrap
-- refactorizar modulos sensibles
-- cerrar fases documentalmente
-
-==================================================
-ARRANQUE DE SESION RECOMENDADO
-==================================================
-
-1. Confirmar fase/subfase objetivo en `docs/PLUGIN_ROADMAP.md`.
-2. Verificar estado real en `docs/CURRENT_STATE.md`.
-3. Verificar riesgos/trampas en `docs/KNOWN_TRAPS.md`.
-4. Ejecutar analisis previo (modulos, archivos, riesgos, validacion).
-5. Implementar cambios minimos dentro de alcance.
-6. Validar (`php scripts/php-lint.php --all` + runtime manual cuando aplique).
-7. Cerrar docs sin dejar desalineaciones.
-
-==================================================
-CRITERIO DE CONTINUIDAD DE FASES
-==================================================
-
-Para decidir siguiente continuidad:
-- usar `docs/PLUGIN_ROADMAP.md` como referencia oficial
-- mantener secuencia historica completa desde Fase 0
-- respetar subfases A/B/C existentes
-- no inventar renumeraciones ad hoc
-- si una fase esta en PARCIAL, no marcar COMPLETA sin validacion requerida
-
-==================================================
-REGLA FINAL
-==================================================
-
-Si no leiste el orden obligatorio, no estas autorizado a tocar codigo.
+## Final Rule
+If you did not complete the required reading order, you are not authorized to modify code.

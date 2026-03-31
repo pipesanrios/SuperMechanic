@@ -1,5 +1,19 @@
 # QA REPORT — SMOKE TEST REAL (EJECUTADO)
 
+## Validation Contract Traceability
+- For non-trivial phases, QA entries should reference the Validation Contract used.
+- Recommended fields per phase entry:
+  - Task Contract path
+  - Validation Contract path
+  - Validation result summary (pass/fail by section)
+- This report stores outcomes and traceability, while phase closure outputs remain concise.
+
+## QA Runner Integration
+- QA Runner output (text/json/markdown) can be attached as technical evidence per phase.
+- Validation contracts should expose automated and manual checks separately.
+- Runner statuses: PASS, FAIL, SKIPPED, NOT_RUN.
+- PASS tecnico no implica fase completa; runtime manual remains required when applicable.
+
 Fecha de ejecución: 2026-03-27
 
 Modo de validación ejecutado:
@@ -440,3 +454,5 @@ Clasificación operativa:
 - `FASE 27A STATUS`: `COMPLETO`
 - Base REST segura disponible para cliente autenticado en arquitectura activa
 - Sin cambios de schema y sin apertura de 27B/27C
+
+

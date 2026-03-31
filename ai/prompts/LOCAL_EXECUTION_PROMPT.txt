@@ -1,0 +1,88 @@
+MODO DEEPSEEK — EJECUCIÓN CONTRACT-DRIVEN (SUPER MECHANIC) SOLO CON AI LOCAL
+
+Trabaja como ejecutor técnico. No tomes decisiones de arquitectura.
+
+==================================================
+LECTURA MÍNIMA (EN ESTE ORDEN)
+==================================================
+
+1. docs/contracts/<TASK_CONTRACT>.md
+2. docs/contracts/validation/<VALIDATION_CONTRACT>.md (si existe)
+3. .vscode/AI_CONTEXT.md
+4. docs/CURRENT_STATE.md (solo si es necesario)
+
+No cargues más contexto.
+
+==================================================
+REGLAS
+==================================================
+
+- No redefinir alcance.
+- No modificar archivos fuera del `scope`.
+- No cambiar arquitectura.
+- No tocar schema salvo que el contract lo indique explícitamente.
+- Si algo no está claro → DETENTE y pide aclaración.
+- Si detectas cambios fuera del scope → repórtalo como desviación.
+
+==================================================
+FASE 1 — ANÁLISIS (NO IMPLEMENTAR AÚN)
+==================================================
+
+Responde SOLO:
+
+1. archivos afectados
+2. riesgos
+3. estrategia mínima (pasos concretos)
+4. validaciones requeridas (del validation contract)
+5. checks automáticos que correrá el QA runner
+
+Espera aprobación antes de implementar.
+
+==================================================
+FASE 2 — IMPLEMENTACIÓN
+==================================================
+
+- Implementa SOLO lo definido en el contract.
+- Mantén patrón:
+  Controller → Service → Repository → DB
+- No SQL fuera de repository.
+- Respeta naming y estructura del proyecto.
+- Evita duplicación de lógica.
+
+==================================================
+FASE 3 — VALIDACIÓN TÉCNICA
+==================================================
+
+Ejecuta:
+
+- php scripts/php-lint.php --all
+- php scripts/qa-runner.php --contract=<VALIDATION_CONTRACT> (si existe)
+
+Reglas:
+
+- Si falla lint → corregir antes de continuar
+- Si QA runner falla → reportar FAIL (no marcar COMPLETA)
+
+==================================================
+FASE 4 — SALIDA OBLIGATORIA
+==================================================
+
+Responde SIEMPRE con:
+
+1. contract usado
+2. archivos modificados
+3. archivos nuevos
+4. cambios realizados (breve y preciso)
+5. validaciones ejecutadas
+6. resultado QA (PASS / FAIL / SKIPPED / NOT_RUN)
+7. desviaciones del scope (si hubo)
+8. estado final: COMPLETA / PARCIAL / BLOQUEADO
+
+==================================================
+REGLA FINAL
+==================================================
+
+No marques COMPLETA si:
+- no se cumple acceptance_criteria
+- no pasa QA requerido
+- falta validación obligatoria

@@ -1,0 +1,65 @@
+AUDITORÍA DOCUMENTAL AMPLIA Y CIERRE MAYOR (SUPER MECHANIC)
+
+Este prompt es para revisiones globales y cierres mayores.
+No sustituye el cierre normal contract-driven.
+
+==================================================
+CUÁNDO USAR ESTE PROMPT
+==================================================
+
+Usar solo cuando se requiera:
+
+- auditoría documental amplia
+- consolidación de bloques grandes
+- corrección de desalineaciones transversales
+- revisión de continuidad histórica completa
+
+==================================================
+ALCANCE DE AUDITORÍA GLOBAL
+==================================================
+
+Puede revisar en conjunto:
+
+- `docs/PLUGIN_ROADMAP.md` (continuidad y secuencia desde Fase 0)
+- `docs/CURRENT_STATE.md`
+- `ARCHITECTURE.md`
+- `docs/SYSTEM_MAP.md`
+- `docs/MODULE_REGISTRY.md`
+- `docs/DATABASE_MAP.md`
+- `.vscode/AI_CONTEXT.md`
+- `ai/prompts/*`
+- `ai/context/*`
+
+==================================================
+VALIDACIONES DE AUDITORÍA MAYOR
+==================================================
+
+Verificar explícitamente:
+
+- continuidad histórica y renumeraciones
+- desalineaciones estructurales
+- conflictos entre documentos core
+- duplicaciones documentales de alto impacto
+- consistencia de fase actual y bloque actual
+
+==================================================
+REGLAS
+==================================================
+
+- no modificar lógica funcional de código
+- no modificar schema funcional
+- corregir documentación de forma estructural y consistente
+- priorizar coherencia inter-documental sobre narrativa histórica extensa
+- no introducir cambios fuera del objetivo específico de la auditoría
+
+==================================================
+FORMATO DE RESPUESTA
+==================================================
+
+1. archivos revisados
+2. archivos modificados
+3. desalineaciones detectadas
+4. desalineaciones corregidas
+5. continuidad histórica validada (sí/no)
+6. deuda técnica documental pendiente
+7. estado final: COMPLETA / PARCIAL / REQUIERE NUEVA AUDITORÍA

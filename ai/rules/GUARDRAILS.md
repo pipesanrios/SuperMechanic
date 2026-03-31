@@ -1,76 +1,25 @@
-GUARDRAILS — SUPER MECHANIC
+GUARDRAILS.md - CRITICAL
 
-Reglas de seguridad y alcance para cualquier agente IA.
+PURPOSE:
+Provide critical safety constraints for architecture, security, and scope.
 
-==================================================
-1) FUENTE DE VERDAD
-==================================================
+SCOPE:
+Execution-time constraints for any coding or refactor action.
 
-Prioridad:
-1. codigo real (`includes/*`)
-2. schema real (`includes/database/class-schema.php`)
-3. docs tecnicos
-4. contextos IA
-5. prompts
+WHEN TO USE:
+Before implementation and before merging any change set.
 
-Si hay conflicto: manda el codigo y corrige docs/contexto.
+WHEN NOT TO USE:
+Do not use as a phase-planning document.
 
-==================================================
-2) ARQUITECTURA INNEGOCIABLE
-==================================================
+## Critical Guardrails
+1. No SQL outside Repository/Database layers.
+2. No schema changes without explicit phase requirement.
+3. No scope expansion beyond requested work.
+4. No use of legacy `includes/modules/*`.
+5. No direct `file_url` exposure.
+6. No cross-tenant leakage; enforce `business_id`.
+7. No bootstrap rewiring unless explicitly required.
 
-- usar solo `includes/*` para desarrollo activo
-- `includes/modules/*` es legacy (no extender)
-- patron: `Controller -> Service -> Repository -> Database`
-- SQL solo en repositories
-- `$wpdb` fuera de repositories/database infra: prohibido
-
-==================================================
-3) SEGURIDAD INNEGOCIABLE
-==================================================
-
-- validar `current_user_can()` y nonces en acciones sensibles
-- sanitizar input y escapar output
-- validar ownership y `business_id` en recursos tenant-aware
-- no exponer secretos (API keys crudas, tokens, client_secret)
-- no exponer `file_url`/`file_path` directos en cliente
-- usar `Document_Service` + `Download_Service` para descargas
-
-==================================================
-4) CONTROL DE ALCANCE
-==================================================
-
-- no agregar features no pedidas
-- no refactor global salvo instruccion explicita
-- cambios minimos, localizados y verificables
-- no cambiar schema sin requerimiento expreso
-- no tocar bootstrap sin necesidad justificada
-
-==================================================
-5) CONTINUIDAD DOCUMENTAL
-==================================================
-
-Al cerrar cambios reales:
-- actualizar solo docs desalineadas
-- no mezclar historia extensa con estado actual
-- mantener continuidad del roadmap desde Fase 0
-
-Docs base:
-- `ARCHITECTURE.md`
-- `docs/CURRENT_STATE.md`
-- `docs/PLUGIN_ROADMAP.md`
-- `docs/SYSTEM_MAP.md`
-- `docs/MODULE_REGISTRY.md`
-- `docs/DATABASE_MAP.md`
-- `.vscode/AI_CONTEXT.md`
-
-==================================================
-6) SALIDA DE AUDITORIA
-==================================================
-
-Toda auditoria debe declarar:
-- que se confirmo en codigo
-- que no se pudo confirmar
-- desalineaciones detectadas
-- correcciones hechas
-- deuda tecnica pendiente
+## Validation Guardrail
+Minimum technical validation: `php scripts/php-lint.php --all`.

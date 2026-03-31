@@ -1,196 +1,54 @@
-# 🚗 Super Mechanic
+# Super Mechanic
 
-**Super Mechanic** is a professional vehicle management system for mechanic workshops, dealerships, and automotive service businesses.
+Super Mechanic is a WordPress-based operations platform for automotive workshops and dealerships.
+It combines day-to-day service operations, customer lifecycle tracking, scheduling, and commercial follow-up in a single system.
 
-Developed by **Mardisom Devs**, this plugin provides a complete workflow to manage vehicles, services, maintenance operations, and customer interactions in a structured and scalable way.
+## What The System Is
 
----
+Super Mechanic is more than a single admin screen plugin: it is an operational layer for workshop workflows, customer relationships, vehicle history, quoting, invoicing, payments, appointments, and CRM tracking.
 
-## ⚙️ Who is this for?
+## What It Includes
 
-Super Mechanic is designed for:
+- Client and vehicle management
+- Process-based operational workflows
+- Maintenance, pre-delivery, and paperwork flows
+- Quotes, invoices, and payment tracking
+- CRM pipeline and task follow-up
+- Calendar operations and reminders
+- Operational and financial reporting
+- Integrations-ready architecture for workshop growth
 
-- Mechanic workshops  
-- Automotive service centers  
-- Motorcycle workshops  
-- Vehicle dealerships  
-- Fleet management businesses  
+## Quick Installation
 
----
+1. Copy the plugin folder into `wp-content/plugins/super-mechanic`.
+2. Activate **Super Mechanic** from WordPress Admin > Plugins.
+3. Open **Super Mechanic** in wp-admin and complete initial setup.
 
-## 🚀 Core Capabilities
+## For Development Or AI
 
-### 🔹 Vehicle & Client Management
-- Centralized client database  
-- Vehicle registry  
-- Client–vehicle relationships  
-- Ownership transfer  
-- Full vehicle history  
+If you are a developer or an AI assistant, do not start from this README alone.
 
----
+Start here:
+- `AGENTS_BOOTSTRAP.md`
 
-### 🔹 Process Tracking
-Manage the complete lifecycle of a vehicle:
+Then follow the required reading order and project rules before touching code.
 
-- Inspection  
-- Diagnostics  
-- Repairs  
-- Maintenance  
-- Administrative paperwork  
-- Delivery preparation  
+## Documentation
 
----
+- Current system status: `docs/CURRENT_STATE.md`
+- Official roadmap: `docs/PLUGIN_ROADMAP.md`
+- Technical architecture: `ARCHITECTURE.md`
+- Database map: `docs/DATABASE_MAP.md`
+- Module registry: `docs/MODULE_REGISTRY.md`
+- Handoff context: `docs/PROJECT_TRANSFER_CONTEXT.md`
+- Known implementation traps: `docs/KNOWN_TRAPS.md`
 
-### 🔹 Maintenance Management
-- Technical diagnostics  
-- Maintenance notes  
-- Parts tracking  
-- Labor tracking  
-- Mechanic assignments  
+## Important Note
 
----
+Do not modify functional code, schema, or core wiring without following project rules in:
+- `AGENTS.md`
+- `AGENTS_BOOTSTRAP.md`
 
-### 🔹 Quotes & Approvals
-- Itemized service quotations  
-- Approval workflows  
-- Client interaction tracking  
+## License
 
----
-
-### 🔹 Invoices & Payments
-- Invoice generation  
-- Itemized billing  
-- Payment tracking  
-- Printable invoices  
-- PDF-ready structure (requires PDF engine)  
-
----
-
-### 🔹 Document Management
-- File attachments  
-- Process-related documents  
-- Internal vs client-visible files  
-- Timeline integration  
-
----
-
-### 🔹 Client Portal
-Customers can:
-
-- View their vehicles  
-- Track service progress  
-- Access invoices and quotes  
-- Download shared documents  
-
----
-
-### 🔹 Multi-Role Dashboards
-Dedicated interfaces for:
-
-- Admins  
-- Mechanics  
-- Clients  
-
----
-
-## 🧠 Architecture
-
-Super Mechanic is built using a clean and scalable architecture:
-
-
-
-### Principles
-
-- SQL isolated in repositories  
-- Business logic in services  
-- Controllers handle WordPress integration  
-- Frontend powered by shortcodes  
-- Secure ownership validation  
-
----
-
-## 🔐 Security
-
-Built following WordPress best practices:
-
-- Capability checks  
-- Nonces  
-- Prepared queries  
-- Input sanitization  
-- Output escaping  
-- Data ownership validation  
-
----
-
-## 🔑 Licensing
-
-Super Mechanic is a **proprietary plugin**.
-
-A valid license is required for:
-
-- Activation  
-- Updates  
-- Premium features  
-
-👉 More info:  
-https://mardisom.com/license  
-
----
-
-## 🧩 Project Status
-
-Current version: `0.1.0`
-
-System status:
-
-- Core architecture implemented  
-- Main modules active  
-- Pre-SaaS stage  
-- Under active development  
-
----
-
-## 📦 Installation
-
-1. Upload plugin to:
-
-2. Activate from WordPress admin  
-3. Database tables will be created automatically  
-
----
-
-## 🛠 Requirements
-
-- WordPress 6.0+  
-- PHP 7.4+  
-- MySQL 5.7+ or MariaDB equivalent  
-
----
-
-## 🧭 Roadmap
-
-Upcoming phases include:
-
-- REST API (Phase 27)  
-- Financial center (Phase 28)  
-- Reporting system  
-- Licensing system  
-- SaaS architecture  
-- Multi-store support  
-- Notifications (SMS / automation)  
-- Maintenance reminders  
-- Calendar & scheduling  
-
----
-
-## 👨‍💻 Author
-
-**Mardisom Devs**  
-https://mardisom.com  
-
----
-
-## 📌 Notes
-
-This repository is private and part of a proprietary system.  
-Unauthorized distribution or reuse is not permitted.
+GPL-2.0-or-later
