@@ -211,7 +211,7 @@ Reglas:
 
 ### Versiones
 - plugin: `0.1.0`
-- schema: `1.15.0`
+- schema: `1.19.0`
 
 ### Fases consolidadas
 - 0
@@ -274,6 +274,8 @@ Reglas:
 - 38D-1
 - 38D-2
 - 38D-3
+- 39E-1
+- 39E-2 (PARCIAL)
 
 ### Continuidad oficial post-38
 - Fase 39 — CRM y automatizacion comercial
@@ -301,6 +303,9 @@ Reglas:
 - hardening pre-SaaS en dashboard cliente, transacciones y descargas admin
 - bloque comercial Woo 38B consolidado (snapshot en quotes/invoices, consistencia de totales y hardening operativo)
 - optimizacion operativa 38C-1 consolidada (quick actions, atajos contextuales y feedback visual sin cambio de schema)
+- scheduler CRM interno por WP-Cron (`sm_crm_scheduler_tick`) consolidado (39E-1)
+- persistencia de alertas CRM en `sm_crm_alerts` con recálculo por lotes (39E-2, parcial por runtime formal pendiente)
+- hotfix i18n: carga de textdomain `super-mechanic` en `init` prioridad `0` (bootstrap intacto)
 
 ---
 

@@ -23,6 +23,7 @@ use Super_Mechanic\Businesses\Business_Service;
 use Super_Mechanic\Businesses\Business_User_Assignment_Controller;
 use Super_Mechanic\Clients\Client_Admin_Controller;
 use Super_Mechanic\CRM\Crm_Pipeline_Admin_Controller;
+use Super_Mechanic\CRM\Crm_Scheduler_Service;
 use Super_Mechanic\Communication\Client_Comment_Shortcodes;
 use Super_Mechanic\Communication\Comment_Service;
 use Super_Mechanic\Communication\Event_Dispatcher;
@@ -148,6 +149,7 @@ class Plugin {
 	protected $appointment_service;
 	protected $appointment_admin_controller;
 	protected $crm_pipeline_admin_controller;
+	protected $crm_scheduler_service;
 	protected $appointment_ical_feed_service;
 	protected $feed_token_service;
 	protected $appointment_ical_feed_controller;
@@ -185,6 +187,7 @@ class Plugin {
 		$this->appointment_ical_feed_controller = new Appointment_Ical_Feed_Controller( $this->appointment_service, $this->appointment_ical_feed_service, $this->feed_token_service );
 		$this->client_admin_controller       = new Client_Admin_Controller();
 		$this->crm_pipeline_admin_controller = new Crm_Pipeline_Admin_Controller();
+		$this->crm_scheduler_service         = new Crm_Scheduler_Service();
 		$this->vehicle_admin_controller      = new Vehicle_Admin_Controller();
 		$this->process_service               = new Process_Service( null, null, null, null, null, null, null, null, null, null, $this->settings_service );
 		$this->maintenance_service           = new Maintenance_Service();
@@ -279,6 +282,7 @@ class Plugin {
 		$this->google_calendar_service->register_hooks();
 		$this->appointment_reminder_scheduler->register_hooks();
 		$this->automation_service->register_hooks();
+		$this->crm_scheduler_service->register_hooks();
 
 		if ( is_admin() ) {
 			add_action( 'admin_menu', array( $this->admin_menu, 'register_menu' ) );

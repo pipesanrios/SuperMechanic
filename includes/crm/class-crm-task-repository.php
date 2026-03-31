@@ -72,7 +72,7 @@ class Crm_Task_Repository {
 	 * @return array<int,int> Map pipeline_id => pending_count.
 	 */
 	public function count_pending_by_pipeline_ids( array $pipeline_ids ) {
-		return $this->count_by_pipeline_ids_and_status( $pipeline_ids, 'pending' );
+		return $this->count_by_pipeline_ids_and_status_for_business( $this->resolve_business_id(), $pipeline_ids, 'pending' );
 	}
 
 	/**
@@ -83,6 +83,18 @@ class Crm_Task_Repository {
 	 * @return array<int,int> Map pipeline_id => overdue_count.
 	 */
 	public function count_overdue_by_pipeline_ids( array $pipeline_ids, $now_mysql ) {
+		return $this->count_overdue_by_pipeline_ids_for_business( $this->resolve_business_id(), $pipeline_ids, $now_mysql );
+	}
+
+	/**
+	 * Count overdue pending tasks grouped by CRM opportunity ids for explicit business.
+	 *
+	 * @param int            $business_id Business ID.
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @param string         $now_mysql    Current datetime in mysql format.
+	 * @return array<int,int> Map pipeline_id => overdue_count.
+	 */
+	public function count_overdue_by_pipeline_ids_for_business( $business_id, array $pipeline_ids, $now_mysql ) {
 		global $wpdb;
 
 		$pipeline_ids = $this->sanitize_pipeline_ids( $pipeline_ids );
@@ -90,7 +102,7 @@ class Crm_Task_Repository {
 			return array();
 		}
 
-		$business_id      = $this->resolve_business_id();
+		$business_id      = absint( $business_id );
 		$id_placeholders  = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
 		$sql              = "SELECT crm_pipeline_id, COUNT(id) AS task_count
 			FROM {$this->get_table_name()}
@@ -133,6 +145,17 @@ class Crm_Task_Repository {
 	 * @return array<int,string> Map pipeline_id => latest mysql datetime.
 	 */
 	public function get_last_activity_by_pipeline_ids( array $pipeline_ids ) {
+		return $this->get_last_activity_by_pipeline_ids_for_business( $this->resolve_business_id(), $pipeline_ids );
+	}
+
+	/**
+	 * Get latest task activity grouped by CRM opportunity ids for explicit business.
+	 *
+	 * @param int            $business_id Business ID.
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,string> Map pipeline_id => latest mysql datetime.
+	 */
+	public function get_last_activity_by_pipeline_ids_for_business( $business_id, array $pipeline_ids ) {
 		global $wpdb;
 
 		$pipeline_ids = $this->sanitize_pipeline_ids( $pipeline_ids );
@@ -140,7 +163,7 @@ class Crm_Task_Repository {
 			return array();
 		}
 
-		$business_id     = $this->resolve_business_id();
+		$business_id     = absint( $business_id );
 		$id_placeholders = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
 		$sql             = "SELECT crm_pipeline_id, MAX(COALESCE(updated_at, created_at)) AS last_activity_at
 			FROM {$this->get_table_name()}
@@ -162,6 +185,17 @@ class Crm_Task_Repository {
 		}
 
 		return $activity_by_id;
+	}
+
+	/**
+	 * Count pending tasks grouped by CRM opportunity ids for explicit business.
+	 *
+	 * @param int            $business_id Business ID.
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,int> Map pipeline_id => pending_count.
+	 */
+	public function count_pending_by_pipeline_ids_for_business( $business_id, array $pipeline_ids ) {
+		return $this->count_by_pipeline_ids_and_status_for_business( $business_id, $pipeline_ids, 'pending' );
 	}
 
 	/**
@@ -514,6 +548,18 @@ class Crm_Task_Repository {
 	 * @return array<int,int> Map pipeline_id => count.
 	 */
 	protected function count_by_pipeline_ids_and_status( array $pipeline_ids, $status ) {
+		return $this->count_by_pipeline_ids_and_status_for_business( $this->resolve_business_id(), $pipeline_ids, $status );
+	}
+
+	/**
+	 * Count tasks by pipeline ids and status for explicit business.
+	 *
+	 * @param int            $business_id Business ID.
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @param string         $status Status key.
+	 * @return array<int,int> Map pipeline_id => count.
+	 */
+	protected function count_by_pipeline_ids_and_status_for_business( $business_id, array $pipeline_ids, $status ) {
 		global $wpdb;
 
 		$pipeline_ids = $this->sanitize_pipeline_ids( $pipeline_ids );
@@ -521,7 +567,7 @@ class Crm_Task_Repository {
 			return array();
 		}
 
-		$business_id     = $this->resolve_business_id();
+		$business_id     = absint( $business_id );
 		$id_placeholders = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
 		$sql             = "SELECT crm_pipeline_id, COUNT(id) AS task_count
 			FROM {$this->get_table_name()}

@@ -6,7 +6,7 @@ Fuente de verdad: código real (`includes/*`).
 ## Estado real
 
 - Plugin: `0.1.0`
-- Schema: `1.18.0`
+- Schema: `1.19.0`
 - Bloque actual: `Fase 39 (CRM y automatizacion comercial)` (continuidad activa)
 - Estado de subfases 38A:
   - `38A-1` — COMPLETA (idioma / i18n base)
@@ -27,6 +27,9 @@ Fuente de verdad: código real (`includes/*`).
 - Estado de bloque 38D: COMPLETO (reportes y control consolidados)
 - Estado de subfases 39:
   - `39A` — COMPLETA (CRM base sobre clientes con bloque CRM, tabla auxiliar `sm_client_crm_meta` y persistencia validada en runtime manual)
+  - `39E-1` — COMPLETA (scheduler interno CRM por `WP-Cron` con hook `sm_crm_scheduler_tick`)
+  - `39E-2` — COMPLETA (persistencia de alertas CRM en `sm_crm_alerts` con recálculo por lotes y resolución `active -> resolved`)
+  - `39E-3` — COMPLETA (consumo UI de alertas persistidas en list/kanban/view con fallback runtime controlado)
 - Siguiente fase habilitada: `Fase 39 — CRM y automatizacion comercial`
 - Continuidad oficial post-38:
   - `Fase 39` — CRM y automatizacion comercial
@@ -36,6 +39,7 @@ Fuente de verdad: código real (`includes/*`).
   - el bloque `38` ya fue consumido en ejecucion real (`38A` a `38D`)
   - CRM no se mantiene como `37B`; se renumera oficialmente a `Fase 39`
 - Últimas subfases completas:
+  - `39E-1` — scheduler interno CRM (WP-Cron controlado)
   - `39A` — CRM base (tracking de clientes)
   - `38A-3B` — export/import operativo (JSON canónico + CSV ZIP + Excel XML)
   - `37A-3` — consistencia operativa y tenancy endurecida
@@ -353,5 +357,44 @@ Si docs/prompts difieren del código: manda el código y corrige la documentaci�
   - sin cron
   - sin email automatico
   - sin cambios de schema
+
+## ACTUALIZACION 39E (SCHEDULER + ALERTAS PERSISTIDAS + CONSUMO UI)
+
+- `39E-1` - COMPLETA
+  - hook cron propio `sm_crm_scheduler_tick`
+  - schedule `sm_crm_every_ten_minutes`
+  - alta en activacion y limpieza en desactivacion
+  - logging debug + hook `sm_crm_scheduler_tick_executed`
+- `39E-2` - COMPLETA
+  - tabla `sm_crm_alerts` persistida
+  - alertas por tipo:
+    - `overdue_task`
+    - `inactive_opportunity`
+    - `follow_up_needed`
+    - `conversion_pending`
+  - recálculo por lotes con limites por tick
+  - deduplicación funcional de alertas `active` por tipo/pipeline/negocio
+  - resolución `active -> resolved` cuando deja de aplicar
+  - validación runtime WordPress manual real confirmada por usuario
+- `39E-3` - COMPLETA
+  - alertas persistidas como fuente principal de UI en:
+    - list
+    - kanban
+    - view
+  - consulta por lote sin N+1 por `crm_pipeline_id`
+  - fallback runtime controlado cuando no existen alertas persistidas
+  - prioridad visual preservada (`overdue` crítico sobre `attention`)
+  - validación runtime WordPress manual real confirmada por usuario
+- Estado bloque 39E: COMPLETO
+- Restricciones preservadas:
+  - sin email automático
+  - sin notificaciones externas
+  - sin automatización masiva adicional
+
+## HOTFIX I18N RECIENTE
+
+- `load_plugin_textdomain('super-mechanic', ...)` movido a `init` prioridad `0`
+- bootstrap en `plugins_loaded` preservado
+- objetivo: eliminar notice `_load_textdomain_just_in_time ... too early`
 - Siguiente continuidad recomendada:
-  - continuidad de `Fase 39` posterior a `39D-2` (siguiente subfase CRM comercial)
+  - continuidad de `Fase 39` posterior a `39E` (siguiente subfase CRM comercial sobre alertas persistidas)

@@ -34,11 +34,29 @@ if ( ! defined( 'SM_PLUGIN_URL' ) ) {
 // Autoloader.
 require_once SM_PLUGIN_PATH . 'includes/autoloader.php';
 
-// Register activation and deactivation hooks.  Use unqualified names; leading
-// backslashes are not required and can confuse call_user_func when the class
-// isn't yet loaded.
-register_activation_hook( SM_PLUGIN_FILE, array( 'Super_Mechanic\\Activator', 'activate' ) );
-register_deactivation_hook( SM_PLUGIN_FILE, array( 'Super_Mechanic\\Deactivator', 'deactivate' ) );
+// Register activation and deactivation hooks with scheduler wiring.
+register_activation_hook( SM_PLUGIN_FILE, 'sm_activate_plugin' );
+register_deactivation_hook( SM_PLUGIN_FILE, 'sm_deactivate_plugin' );
+
+/**
+ * Plugin activation callback.
+ *
+ * @return void
+ */
+function sm_activate_plugin() {
+	Super_Mechanic\Activator::activate();
+	Super_Mechanic\CRM\Crm_Scheduler_Service::ensure_scheduled_event();
+}
+
+/**
+ * Plugin deactivation callback.
+ *
+ * @return void
+ */
+function sm_deactivate_plugin() {
+	Super_Mechanic\CRM\Crm_Scheduler_Service::clear_scheduled_event();
+	Super_Mechanic\Deactivator::deactivate();
+}
 
 /**
  * Resolve operational locale for plugin domain only.
@@ -84,17 +102,25 @@ function sm_filter_plugin_locale( $locale, $domain ) {
 }
 
 /**
+ * Load plugin textdomain on init to avoid early i18n loading notices.
+ *
+ * @return void
+ */
+function sm_load_textdomain() {
+	add_filter( 'plugin_locale', 'sm_filter_plugin_locale', 10, 2 );
+	load_plugin_textdomain( 'super-mechanic', false, dirname( plugin_basename( SM_PLUGIN_FILE ) ) . '/languages' );
+	remove_filter( 'plugin_locale', 'sm_filter_plugin_locale', 10 );
+}
+
+/**
  * Initialize the plugin once other plugins have loaded.
  *
  * @return void
  */
 function sm_run_plugin() {
-	add_filter( 'plugin_locale', 'sm_filter_plugin_locale', 10, 2 );
-	load_plugin_textdomain( 'super-mechanic', false, dirname( plugin_basename( SM_PLUGIN_FILE ) ) . '/languages' );
-	remove_filter( 'plugin_locale', 'sm_filter_plugin_locale', 10 );
-
 	$plugin = new Super_Mechanic\Plugin();
 	$plugin->init();
 }
 
 add_action( 'plugins_loaded', 'sm_run_plugin' );
+add_action( 'init', 'sm_load_textdomain', 0 );

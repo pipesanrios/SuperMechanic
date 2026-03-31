@@ -2,7 +2,7 @@
 
 ## Alcance real del schema actual
 
-Este documento refleja el schema real del plugin en la version `1.15.0` definida en `includes/database/class-schema.php`.
+Este documento refleja el schema real del plugin en la version `1.19.0` definida en `includes/database/class-schema.php`.
 
 Aclaraciones importantes:
 
@@ -24,6 +24,41 @@ Aclaraciones importantes:
 - la Fase 32B-2 agrega la tabla `sm_appointment_calendar_sync` para persistencia desacoplada de sincronizacion 1-way con Google Calendar (sin contaminar `sm_appointments`)
 - la Fase 35C agrega la tabla `sm_businesses` para operación multi-store visible con negocio legacy default
 - la Fase 36B agrega las tablas `sm_webhooks` y `sm_webhook_deliveries` para infraestructura outbound pública con control de entrega e idempotencia
+- la Fase 39A agrega la tabla `sm_client_crm_meta` para metadatos CRM de cliente sin alterar `sm_clients`
+- la Fase 39B-1 agrega la tabla `sm_crm_pipeline` para oportunidades comerciales independientes
+- la Fase 39C-1 agrega la tabla `sm_crm_tasks` para tareas CRM por oportunidad
+- la Fase 39E-2 agrega la tabla `sm_crm_alerts` para persistencia de alertas CRM
+
+--------------------------------------------------
+
+Tabla: sm_crm_alerts
+
+Proposito:
+Persistir alertas CRM calculadas por scheduler para evitar depender solo de señales runtime.
+
+Columnas principales:
+- `id`
+- `business_id`
+- `crm_pipeline_id`
+- `alert_type`
+- `status`
+- `message`
+- `created_at`
+- `updated_at`
+
+Clave primaria:
+- `id`
+
+Claves foraneas logicas:
+- `business_id` -> `sm_businesses.id`
+- `crm_pipeline_id` -> `sm_crm_pipeline.id`
+
+Indices importantes:
+- `business_id`
+- `crm_pipeline_id`
+- `alert_type`
+- `status`
+- `business_pipeline_type_status (business_id,crm_pipeline_id,alert_type,status)`
 
 --------------------------------------------------
 

@@ -1,11 +1,11 @@
 # CURRENT STATE — SUPER MECHANIC
 
-Fecha de consolidacion: 2026-03-30
+Fecha de consolidacion: 2026-03-31
 
 ## Versiones reales
 
 - Plugin: `0.1.0` (`super-mechanic.php`)
-- Schema: `1.18.0` (`includes/database/class-schema.php`)
+- Schema: `1.19.0` (`includes/database/class-schema.php`)
 
 ## Estado general
 
@@ -55,6 +55,9 @@ Fecha de consolidacion: 2026-03-30
   - `39C-3`: COMPLETA (integracion CRM ↔ Calendar con feed unificado tipado `appointment|crm_task`, click por tipo funcional y `eventDrop` bloqueado/revertido para `crm_task`).
   - `39D-1`: COMPLETA (automatizacion comercial basica interna y controlada: auto-tarea inicial idempotente en alta, sugerencias en `contacted/quoted` sin auto-creacion extra, señal de conversion pendiente en `won` sin `process_id`, y señales de overdue/inactividad en UI sin cron/email).
   - `39D-2`: COMPLETA (refinamiento operativo CRM en filtros y control visual: filtro SQL real por `assigned_user_id`, filtros combinables `stage`/`search`/`requires_attention`/`overdue`, jerarquia visual con `Overdue` critico y `Attention` warning, y preservacion de contexto/filtros en quick stage).
+  - `39E-1`: COMPLETA (scheduler interno CRM con `WP-Cron`: hook `sm_crm_scheduler_tick`, frecuencia 10 min, alta en activacion, limpieza en desactivacion, logging debug y hook extensible `sm_crm_scheduler_tick_executed`).
+  - `39E-2`: COMPLETA (persistencia de alertas CRM en `sm_crm_alerts`, recálculo por lotes en scheduler, deduplicación funcional de alertas activas por tipo/pipeline y resolución a `resolved` con validación runtime WordPress real confirmada).
+  - `39E-3`: COMPLETA (consumo UI de alertas persistidas como fuente principal en list/kanban/view, consulta por lote sin N+1 y fallback runtime controlado cuando no hay alerta persistida).
 - Estado de bloque 39B: COMPLETO (pipeline CRM consolidado)
 - Runtime WordPress real de bloque 39B: confirmado por usuario (39B-1/39B-2/39B-3).
 - Runtime WordPress real para 39C-1: confirmado por usuario (create/edit/complete de tareas CRM, tenancy correcta y sin regresion del modulo CRM).
@@ -62,6 +65,8 @@ Fecha de consolidacion: 2026-03-30
 - Runtime WordPress real para 39C-3: confirmado por usuario (calendario unificado con `appointments` + `crm_tasks`, click funcional por tipo y bloqueo de `eventDrop` para `crm_task`).
 - Runtime WordPress real para 39D-1: confirmado por usuario (alta de oportunidad con auto-tarea inicial idempotente, sugerencias en `contacted/quoted`, señal de conversion pendiente en `won` sin `process_id`, señales overdue/inactividad y no regresion de CRM/pipeline/tasks/kanban/calendar/conversion).
 - Runtime WordPress real para 39D-2: confirmado por usuario (filtros operativos por `assigned_user_id`/`stage`/`search`/`requires_attention`/`overdue`, priorizacion visual `Overdue` critico sobre `Attention`, preservacion de contexto en quick stage y no regresion general).
+- Runtime WordPress real para 39E-2: confirmado por usuario (tick scheduler, creacion/actualizacion/resolucion de alertas persistidas por lotes, sin duplicacion activa por tipo/pipeline y sin regresion de pipeline/tasks/calendar/scheduler).
+- Runtime WordPress real para 39E-3: confirmado por usuario (consumo UI persistido en list/kanban/view, prioridad visual correcta, fallback controlado coherente y no regresion de filtros/quick stage/tasks/calendar).
 - Restricciones consolidadas 39B:
   - sin cambios de schema adicionales fuera de `sm_crm_pipeline`
   - sin automatizaciones ni sincronizacion automatica CRM/proceso
@@ -84,6 +89,23 @@ Fecha de consolidacion: 2026-03-30
   - sin email automatico
   - sin cambios de schema
   - sin regresion de CRUD pipeline/tasks/kanban/calendar/conversion
+- Restricciones consolidadas 39E-2:
+  - sin email automatico
+  - sin notificaciones externas
+  - sin UI nueva grande
+  - recálculo controlado por lotes (sin procesamiento agresivo por tick)
+- Restricciones consolidadas 39E-3:
+  - sin cambios de schema
+  - sin nuevas automatizaciones
+  - sin cron/email/notificaciones externas adicionales
+  - consumo UI basado en persistido con fallback runtime controlado
+- Estado de bloque 39E: COMPLETO (scheduler + persistencia + consumo UI)
+- Runtime WordPress real de bloque 39E: confirmado por usuario (39E-1/39E-2/39E-3)
+
+- Hotfix i18n reciente:
+  - carga de textdomain `super-mechanic` movida a `init` prioridad `0` (`sm_load_textdomain`)
+  - bootstrap funcional en `plugins_loaded` preservado
+  - objetivo: eliminar notice `_load_textdomain_just_in_time ... too early`
 
 ## Arquitectura activa real
 
@@ -164,8 +186,8 @@ Fecha de consolidacion: 2026-03-30
 
 ## Siguiente fase real
 
-- Siguiente fase habilitada: `Fase 39 — CRM y automatizacion comercial`.
-- Siguiente fase recomendada: continuidad de `Fase 39` posterior a 39D-2 (profundizacion CRM comercial sobre la base de automatizacion interna y refinamiento UX ya validados, sin romper arquitectura ni tenancy).
+- Siguiente fase habilitada: continuidad de `Fase 39 — CRM y automatizacion comercial`.
+- Siguiente fase recomendada: `39F-1` (acciones comerciales asistidas sobre alertas persistidas: bandeja operativa y reglas de atencion por SLA sin email ni notificaciones externas).
 - Continuidad oficial post-38:
   - `Fase 39` — CRM y automatizacion comercial
   - `Fase 40` — Hosting gestionado / WordPress dedicado

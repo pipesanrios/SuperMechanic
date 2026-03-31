@@ -16,9 +16,10 @@
    - ejecuta `Installer::install()`
 5. Desactivacion:
    - `Super_Mechanic\Deactivator::deactivate()`
-6. `plugins_loaded` -> `sm_run_plugin()`
-7. `sm_run_plugin()` -> instancia `Super_Mechanic\Plugin`
-8. `Plugin::init()`:
+6. `init` (prioridad `0`) -> `sm_load_textdomain()` para `super-mechanic`
+7. `plugins_loaded` -> `sm_run_plugin()`
+8. `sm_run_plugin()` -> instancia `Super_Mechanic\Plugin`
+9. `Plugin::init()`:
    - `maybe_upgrade_schema()`
    - `register_hooks()`
 

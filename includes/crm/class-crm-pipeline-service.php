@@ -83,6 +83,13 @@ class Crm_Pipeline_Service {
 	protected $task_service;
 
 	/**
+	 * CRM alert service.
+	 *
+	 * @var Crm_Alert_Service
+	 */
+	protected $alert_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Crm_Pipeline_Repository|null $repository Repository.
@@ -94,6 +101,7 @@ class Crm_Pipeline_Service {
 		$this->process_repository = new Process_Repository();
 		$this->process_service    = new Process_Service();
 		$this->task_service       = new Crm_Task_Service();
+		$this->alert_service      = new Crm_Alert_Service();
 	}
 
 	/**
@@ -408,6 +416,63 @@ class Crm_Pipeline_Service {
 			return $signals_by_id;
 		}
 
+		$persisted_alerts_map = $this->alert_service->get_active_alerts_by_pipeline_ids( $pipeline_ids );
+		$fallback_rows        = array();
+
+		foreach ( $opportunities as $row ) {
+			$id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			if ( $id <= 0 ) {
+				continue;
+			}
+
+			if ( empty( $persisted_alerts_map[ $id ] ) ) {
+				$fallback_rows[] = $row;
+			}
+		}
+
+		$runtime_fallback_map = $this->build_runtime_automation_signals_for_opportunities( $fallback_rows );
+
+		foreach ( $opportunities as $row ) {
+			$id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			if ( $id <= 0 ) {
+				continue;
+			}
+
+			if ( ! empty( $persisted_alerts_map[ $id ] ) ) {
+				$signals_by_id[ $id ] = $this->map_persisted_alerts_to_signal_payload( $persisted_alerts_map[ $id ], $row );
+				continue;
+			}
+
+			$signals_by_id[ $id ] = isset( $runtime_fallback_map[ $id ] )
+				? $runtime_fallback_map[ $id ]
+				: $this->get_default_automation_signal_payload();
+		}
+
+		return $signals_by_id;
+	}
+
+	/**
+	 * Build runtime automation signals for fallback use.
+	 *
+	 * @param array<int,array<string,mixed>> $opportunities Opportunity rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function build_runtime_automation_signals_for_opportunities( array $opportunities ) {
+		$signals_by_id = array();
+		$pipeline_ids  = array();
+
+		foreach ( $opportunities as $row ) {
+			$id = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			if ( $id > 0 ) {
+				$pipeline_ids[] = $id;
+			}
+		}
+
+		$pipeline_ids = array_values( array_unique( array_filter( $pipeline_ids ) ) );
+		if ( empty( $pipeline_ids ) ) {
+			return $signals_by_id;
+		}
+
 		$now_mysql         = current_time( 'mysql' );
 		$now_ts            = strtotime( $now_mysql );
 		$pending_count_map = $this->task_service->get_pending_counts_by_pipeline_ids( $pipeline_ids );
@@ -450,17 +515,62 @@ class Crm_Pipeline_Service {
 			$requires_attention = $suggest_follow_up || $conversion_pending || ( $overdue_count > 0 ) || $inactive_attention;
 
 			$signals_by_id[ $id ] = array(
-				'pending_task_count' => $pending_count,
-				'overdue_task_count' => $overdue_count,
-				'suggest_follow_up'  => $suggest_follow_up,
-				'conversion_pending' => $conversion_pending,
-				'inactive_attention' => $inactive_attention,
-				'requires_attention' => $requires_attention,
-				'last_activity_at'   => $last_activity_at,
+				'pending_task_count'    => $pending_count,
+				'overdue_task_count'    => $overdue_count,
+				'suggest_follow_up'     => $suggest_follow_up,
+				'conversion_pending'    => $conversion_pending,
+				'inactive_attention'    => $inactive_attention,
+				'requires_attention'    => $requires_attention,
+				'last_activity_at'      => $last_activity_at,
+				'alert_source'          => 'runtime',
+				'persisted_alert_types' => array(),
 			);
 		}
 
 		return $signals_by_id;
+	}
+
+	/**
+	 * Map persisted active alerts into UI-compatible signal payload.
+	 *
+	 * @param array<int,array<string,mixed>> $alert_rows Persisted alert rows.
+	 * @param array<string,mixed>             $opportunity Opportunity row.
+	 * @return array<string,mixed>
+	 */
+	protected function map_persisted_alerts_to_signal_payload( array $alert_rows, array $opportunity ) {
+		$types = array();
+
+		foreach ( $alert_rows as $alert_row ) {
+			$alert_type = isset( $alert_row['alert_type'] ) ? sanitize_key( (string) $alert_row['alert_type'] ) : '';
+			if ( '' !== $alert_type ) {
+				$types[ $alert_type ] = true;
+			}
+		}
+
+		$overdue_count      = ! empty( $types['overdue_task'] ) ? 1 : 0;
+		$suggest_follow_up  = ! empty( $types['follow_up_needed'] );
+		$conversion_pending = ! empty( $types['conversion_pending'] );
+		$inactive_attention = ! empty( $types['inactive_opportunity'] );
+		$requires_attention = ( $overdue_count > 0 ) || $suggest_follow_up || $conversion_pending || $inactive_attention;
+
+		$last_activity_at = '';
+		if ( ! empty( $opportunity['updated_at'] ) ) {
+			$last_activity_at = sanitize_text_field( (string) $opportunity['updated_at'] );
+		} elseif ( ! empty( $opportunity['created_at'] ) ) {
+			$last_activity_at = sanitize_text_field( (string) $opportunity['created_at'] );
+		}
+
+		return array(
+			'pending_task_count'    => 0,
+			'overdue_task_count'    => $overdue_count,
+			'suggest_follow_up'     => $suggest_follow_up,
+			'conversion_pending'    => $conversion_pending,
+			'inactive_attention'    => $inactive_attention,
+			'requires_attention'    => $requires_attention,
+			'last_activity_at'      => $last_activity_at,
+			'alert_source'          => 'persisted',
+			'persisted_alert_types' => array_values( array_keys( $types ) ),
+		);
 	}
 
 	/**
@@ -676,13 +786,15 @@ class Crm_Pipeline_Service {
 	 */
 	protected function get_default_automation_signal_payload() {
 		return array(
-			'pending_task_count' => 0,
-			'overdue_task_count' => 0,
-			'suggest_follow_up'  => false,
-			'conversion_pending' => false,
-			'inactive_attention' => false,
-			'requires_attention' => false,
-			'last_activity_at'   => '',
+			'pending_task_count'    => 0,
+			'overdue_task_count'    => 0,
+			'suggest_follow_up'     => false,
+			'conversion_pending'    => false,
+			'inactive_attention'    => false,
+			'requires_attention'    => false,
+			'last_activity_at'      => '',
+			'alert_source'          => 'none',
+			'persisted_alert_types' => array(),
 		);
 	}
 

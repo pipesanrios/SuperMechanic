@@ -1592,3 +1592,37 @@ Riesgos o puntos sensibles:
 - mantener validación estricta de headers `X-Goog-*` en webhook
 - no introducir updates inbound sobre campos estructurales
 - vigilar drift de timezone en `start_at` durante reconciliación
+
+--------------------------------------------------
+
+## CRM Scheduler & Alerts (FASE 39E)
+
+Carpeta:
+- `includes/crm/`
+
+Proposito:
+- ejecutar recálculo controlado de alertas CRM por `WP-Cron`
+- persistir señales CRM operativas en storage propio para consumo futuro
+
+Tablas:
+- `sm_crm_alerts`
+
+Clases principales:
+- `Crm_Scheduler_Service`
+- `Crm_Alert_Service`
+- `Crm_Alert_Repository`
+
+Dependencias:
+- `crm_pipeline`
+- `crm_tasks`
+- core bootstrap
+
+Estado:
+- `39E-1` implementado
+- `39E-2` implementado con validación runtime formal pendiente
+
+Riesgos o puntos sensibles:
+- evitar recálculo agresivo en cada tick (usar lotes/límites)
+- evitar duplicación de alertas activas por tipo/pipeline
+- mantener mensajes determinísticos para minimizar writes
+- no introducir automatizaciones externas (email/webhook) en esta fase

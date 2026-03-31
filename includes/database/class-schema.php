@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.18.0';
+		return '1.19.0';
 	}
 
 	/**
@@ -36,6 +36,7 @@ class Schema {
 			'client_crm_meta'   => $wpdb->prefix . 'sm_client_crm_meta',
 			'crm_pipeline'      => $wpdb->prefix . 'sm_crm_pipeline',
 			'crm_tasks'         => $wpdb->prefix . 'sm_crm_tasks',
+			'crm_alerts'        => $wpdb->prefix . 'sm_crm_alerts',
 			'vehicles'          => $wpdb->prefix . 'sm_vehicles',
 			'client_vehicles'   => $wpdb->prefix . 'sm_client_vehicles',
 			'flows'             => $wpdb->prefix . 'sm_flows',
@@ -80,6 +81,7 @@ class Schema {
 		$client_crm_meta_table = $tables['client_crm_meta'];
 		$crm_pipeline_table   = $tables['crm_pipeline'];
 		$crm_tasks_table      = $tables['crm_tasks'];
+		$crm_alerts_table     = $tables['crm_alerts'];
 		$vehicles_table        = $tables['vehicles'];
 		$client_vehicles_table = $tables['client_vehicles'];
 		$flows_table           = $tables['flows'];
@@ -206,6 +208,22 @@ class Schema {
 				KEY due_at (due_at),
 				KEY status (status),
 				KEY business_status_due (business_id,status,due_at)
+			) {$charset_collate};",
+			"CREATE TABLE {$crm_alerts_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				crm_pipeline_id bigint(20) unsigned NOT NULL,
+				alert_type varchar(40) NOT NULL,
+				status varchar(20) NOT NULL default 'active',
+				message varchar(255) NOT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY business_id (business_id),
+				KEY crm_pipeline_id (crm_pipeline_id),
+				KEY alert_type (alert_type),
+				KEY status (status),
+				KEY business_pipeline_type_status (business_id,crm_pipeline_id,alert_type,status)
 			) {$charset_collate};",
 			"CREATE TABLE {$vehicles_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,

@@ -539,6 +539,73 @@ Subfases de Fase 39:
     - quick stage preserva contexto/filtros: OK
     - no regresion de pipeline/tasks/kanban/calendar/conversion: OK
 
+- Fase 39E-1 — Scheduler interno CRM (WP-Cron controlado): COMPLETA
+  - Alcance consolidado:
+    - hook de cron propio: `sm_crm_scheduler_tick`
+    - frecuencia base: cada 10 minutos (`sm_crm_every_ten_minutes`)
+    - registro en activacion y limpieza en desactivacion
+    - handler con logging debug condicionado a `WP_DEBUG`
+    - hook extensible post-ejecucion: `sm_crm_scheduler_tick_executed`
+  - Validacion de cierre:
+    - php lint global: OK
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+
+- Fase 39E-2 — Persistencia de alertas CRM: COMPLETA
+  - Alcance consolidado:
+    - nueva entidad persistida `sm_crm_alerts`
+    - tipos iniciales:
+      - `overdue_task`
+      - `inactive_opportunity`
+      - `follow_up_needed`
+      - `conversion_pending`
+    - recálculo por lotes desde `sm_crm_scheduler_tick` (controlado por límites por tick)
+    - deduplicación funcional:
+      - una alerta `active` por tipo/pipeline/negocio
+    - resolución de alertas que dejan de aplicar (`active` -> `resolved`)
+    - mensajes determinísticos por tipo para evitar escrituras innecesarias
+  - Validacion de cierre:
+    - php lint global: OK
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+
+- Fase 39E-3 — Consumo UI de alertas persistidas: COMPLETA
+  - Alcance consolidado:
+    - alertas persistidas (`sm_crm_alerts`) como fuente principal de señales visuales en:
+      - list
+      - kanban
+      - view
+    - consulta por lote en repository para evitar N+1
+    - fallback runtime controlado cuando un pipeline no tiene alertas persistidas
+    - jerarquia visual preservada:
+      - `overdue_task` domina como prioridad critica
+      - resto de alertas como `warning`
+    - consolidacion en view para evitar notices duplicados
+  - Validacion de cierre:
+    - php lint global: OK
+    - runtime WordPress manual real: CONFIRMADA POR USUARIO
+
+Consolidado del bloque 39E (Automatizacion comercial avanzada):
+- Cobertura funcional del bloque:
+  - scheduler CRM (`sm_crm_scheduler_tick`) con frecuencia controlada
+  - registro idempotente en activacion y limpieza correcta en desactivacion
+  - persistencia de alertas CRM en `sm_crm_alerts`
+  - recálculo por lotes + deduplicación funcional + resolución `active -> resolved`
+  - consumo UI persistido en list/kanban/view con fallback runtime controlado
+- Estado global del bloque: COMPLETO
+- Validacion global del bloque: runtime manual WordPress real confirmada por usuario en 39E-1/39E-2/39E-3
+- Restricciones preservadas:
+  - sin email automatico
+  - sin notificaciones externas
+  - sin automatizacion masiva adicional
+
+- Hotfix i18n — carga temprana de textdomain: COMPLETO
+  - Alcance consolidado:
+    - `load_plugin_textdomain('super-mechanic', ...)` movido a hook `init` prioridad `0`
+    - bootstrap principal en `plugins_loaded` preservado
+    - objetivo: eliminar notice `_load_textdomain_just_in_time ... too early`
+  - Validacion de cierre:
+    - php lint global: OK
+    - validacion runtime WordPress formal: PENDIENTE EN ESTE CIERRE
+
 Consolidado del bloque 39B (Pipeline CRM):
 - Cobertura funcional del bloque:
   - entidad independiente `sm_crm_pipeline`
@@ -602,7 +669,7 @@ Alcance consolidado:
 SIGUIENTE CONTINUIDAD (NO CERRADA)
 ==================================================
 
-La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39D-2` (subfases CRM siguientes).
+La siguiente continuidad habilitada es la continuidad de `Fase 39` despues de `39E` (subfases CRM siguientes).
 
 Estado de bloqueo tecnico:
 - `HOTFIX-MEM-1` cerrado sobre arquitectura activa (`includes/*`) con correccion minima y sin cambios de schema.

@@ -559,17 +559,33 @@ class Crm_Pipeline_Admin_Controller {
 		echo '<a href="' . esc_url( $this->get_page_url() ) . '" class="button button-secondary">' . esc_html__( 'Back to pipeline', 'super-mechanic' ) . '</a>';
 		echo '</div></div>';
 
-		if ( ! empty( $signals['conversion_pending'] ) ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Conversion pending: this won opportunity is not linked to a process yet.', 'super-mechanic' ) . '</p></div>';
+		$view_alert_messages = array();
+		$view_alert_type     = 'notice-warning';
+
+		if ( ! empty( $signals['overdue_task_count'] ) ) {
+			$view_alert_type       = 'notice-error';
+			$view_alert_messages[] = sprintf(
+				/* translators: %d overdue tasks count. */
+				__( 'Attention required: %d overdue CRM task(s).', 'super-mechanic' ),
+				absint( $signals['overdue_task_count'] )
+			);
 		}
 		if ( ! empty( $signals['suggest_follow_up'] ) ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Suggestion: this stage has no pending follow-up task.', 'super-mechanic' ) . '</p></div>';
+			$view_alert_messages[] = __( 'Suggestion: this stage has no pending follow-up task.', 'super-mechanic' );
 		}
-		if ( ! empty( $signals['overdue_task_count'] ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Attention required: %d overdue CRM task(s).', 'super-mechanic' ), absint( $signals['overdue_task_count'] ) ) ) . '</p></div>';
+		if ( ! empty( $signals['conversion_pending'] ) ) {
+			$view_alert_messages[] = __( 'Conversion pending: this won opportunity is not linked to a process yet.', 'super-mechanic' );
 		}
 		if ( ! empty( $signals['inactive_attention'] ) ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Attention required: inactive opportunity without recent CRM activity.', 'super-mechanic' ) . '</p></div>';
+			$view_alert_messages[] = __( 'Attention required: inactive opportunity without recent CRM activity.', 'super-mechanic' );
+		}
+
+		if ( ! empty( $view_alert_messages ) ) {
+			echo '<div class="notice ' . esc_attr( $view_alert_type ) . '"><p>' . esc_html__( 'CRM alerts', 'super-mechanic' ) . '</p><ul>';
+			foreach ( $view_alert_messages as $view_alert_message ) {
+				echo '<li>' . esc_html( $view_alert_message ) . '</li>';
+			}
+			echo '</ul></div>';
 		}
 
 		echo '<div class="sm-card sm-section">';

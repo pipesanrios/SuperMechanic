@@ -1242,3 +1242,99 @@ Resultado esperado:
   - kanban OK
   - calendar OK
   - conversion operativa OK
+
+==================================================
+ESCENARIO 49 — SCHEDULER CRM INTERNO (39E-1)
+==================================================
+
+Estado 39E-1: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> activa plugin
+-> verifica hook `sm_crm_scheduler_tick`
+-> dispara tick manual
+-> desactiva plugin
+
+Resultado esperado:
+
+- activación registra una sola programación del hook
+- tick ejecuta sin errores y dispara `sm_crm_scheduler_tick_executed`
+- logging debug disponible solo con `WP_DEBUG`
+- desactivación limpia `sm_crm_scheduler_tick`
+
+==================================================
+ESCENARIO 50 — PERSISTENCIA DE ALERTAS CRM (39E-2)
+==================================================
+
+Estado 39E-2: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Scheduler CRM
+-> recorre oportunidades por lotes
+-> calcula alertas por tipo
+-> crea/actualiza/resuelve alertas persistidas
+
+Resultado esperado:
+
+- tabla `sm_crm_alerts` operativa
+- tipos base soportados:
+  - `overdue_task`
+  - `inactive_opportunity`
+  - `follow_up_needed`
+  - `conversion_pending`
+- no duplicación funcional de alertas `active` por tipo en mismo pipeline/negocio
+- transición a `resolved` cuando deja de aplicar la condición
+- sin regresión en pipeline/tasks/kanban/calendar
+
+==================================================
+ESCENARIO 51 — CONSUMO UI DE ALERTAS CRM PERSISTIDAS (39E-3)
+==================================================
+
+Estado 39E-3: COMPLETA (validacion runtime WordPress real confirmada por usuario)
+
+Flujo:
+
+Administrador
+-> abre CRM Pipeline en list, kanban y view
+-> verifica alertas visibles en oportunidades con alertas persistidas
+-> verifica oportunidad sin alertas persistidas (fallback runtime)
+
+Resultado esperado:
+
+- list:
+  - badges correctos sin duplicacion
+  - `overdue` domina visualmente
+- kanban:
+  - cards muestran prioridad correcta
+  - persistido y fallback conviven sin inconsistencias
+- view:
+  - bloque unico de alertas
+  - sin notices duplicados
+  - jerarquia visual correcta
+- fuente principal:
+  - alertas activas persistidas de `sm_crm_alerts`
+- fallback controlado:
+  - runtime solo cuando no existen alertas persistidas para el pipeline
+- no regresion:
+  - filtros, quick stage, tasks y calendar funcionando
+
+==================================================
+CONSOLIDADO BLOQUE 39E — AUTOMATIZACION COMERCIAL AVANZADA
+==================================================
+
+Estado bloque 39E: COMPLETO
+
+Cobertura validada en runtime manual WordPress real:
+
+- 39E-1: scheduler interno CRM (`sm_crm_scheduler_tick`) con registro idempotente y limpieza en deactivate
+- 39E-2: persistencia de alertas `sm_crm_alerts` con recálculo por lotes, deduplicación activa y resolución `active -> resolved`
+- 39E-3: consumo UI persistido en list/kanban/view con fallback runtime controlado
+
+Restricciones vigentes del bloque:
+
+- sin email automatico
+- sin notificaciones externas
+- sin automatizacion masiva adicional

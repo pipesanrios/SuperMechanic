@@ -341,6 +341,90 @@ class Crm_Pipeline_Repository {
 	}
 
 	/**
+	 * Get business IDs that have CRM opportunities.
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int,int>
+	 */
+	public function get_business_ids_with_opportunities( $limit = 50 ) {
+		global $wpdb;
+
+		$limit = max( 1, absint( $limit ) );
+		$query = $wpdb->prepare(
+			"SELECT DISTINCT business_id FROM {$this->get_table_name()} ORDER BY business_id ASC LIMIT %d",
+			$limit
+		);
+		$rows  = $wpdb->get_col( $query );
+
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		return array_values( array_unique( array_filter( array_map( 'absint', $rows ) ) ) );
+	}
+
+	/**
+	 * Get pipeline IDs by business in paged batches.
+	 *
+	 * @param int $business_id Business ID.
+	 * @param int $limit       Max rows.
+	 * @param int $offset      Offset.
+	 * @return array<int,int>
+	 */
+	public function get_pipeline_ids_by_business( $business_id, $limit = 100, $offset = 0 ) {
+		global $wpdb;
+
+		$business_id = absint( $business_id );
+		$limit       = max( 1, absint( $limit ) );
+		$offset      = max( 0, absint( $offset ) );
+
+		$query = $wpdb->prepare(
+			"SELECT id FROM {$this->get_table_name()}
+			WHERE business_id = %d
+			ORDER BY id ASC
+			LIMIT %d OFFSET %d",
+			$business_id,
+			$limit,
+			$offset
+		);
+		$rows  = $wpdb->get_col( $query );
+
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		return array_values( array_unique( array_filter( array_map( 'absint', $rows ) ) ) );
+	}
+
+	/**
+	 * Get minimal opportunity rows by IDs and business.
+	 *
+	 * @param int            $business_id Business ID.
+	 * @param array<int,int> $pipeline_ids Opportunity IDs.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function get_rows_by_ids_and_business( $business_id, array $pipeline_ids ) {
+		global $wpdb;
+
+		$business_id  = absint( $business_id );
+		$pipeline_ids = array_values( array_unique( array_filter( array_map( 'absint', $pipeline_ids ) ) ) );
+		if ( empty( $pipeline_ids ) ) {
+			return array();
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $pipeline_ids ), '%d' ) );
+		$params       = array_merge( array( $business_id ), $pipeline_ids );
+		$sql          = "SELECT id, stage, process_id, created_at, updated_at
+			FROM {$this->get_table_name()}
+			WHERE business_id = %d
+				AND id IN ({$placeholders})";
+		$query        = $wpdb->prepare( $sql, $params );
+		$rows         = $wpdb->get_results( $query, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
 	 * Resolve active business ID.
 	 *
 	 * @return int
