@@ -36,9 +36,20 @@ Source references:
     - `get_user_workload()`
     - `get_global_operational_summary()`
     - `get_operational_metrics()`
+    - `get_operational_automation_flags()`
+    - `get_operational_escalation_state()`
+    - `get_operational_recommendations()`
+    - `get_operational_assignments()`
+    - `get_operational_assisted_actions()`
+    - `get_operational_bulk_actions()`
+    - `get_operational_automation_console()`
+    - `get_operational_rules_overview()`
   - user workload buckets: `critical`, `warning`, `normal`
   - sources: CRM tasks, operational signals aligned with pipeline policy, active processes, upcoming appointments
-  - role: operational dashboard core aggregator
+  - role: operational dashboard core aggregator and controlled execution orchestrator
+- Automation operational rules:
+  - service: `includes/automation/class-operational-rules-service.php`
+  - role: configurable rules definition and evaluation (preview-only, no auto execution)
 
 ## UI Entry Points
 - Admin menus under `Super Mechanic`

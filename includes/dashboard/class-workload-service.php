@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Dashboard;
 
 use Super_Mechanic\Appointments\Appointment_Service;
+use Super_Mechanic\Automation\Operational_Rules_Service;
 use Super_Mechanic\CRM\Crm_Pipeline_Service;
 use Super_Mechanic\CRM\Crm_Task_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
@@ -567,6 +568,7 @@ class Workload_Service {
 		$global_metrics = $this->get_operational_metrics( $target_business_id );
 		$overloaded     = array();
 		$available      = array();
+		$task_candidates_by_user = array();
 
 		foreach ( $user_ids as $user_id ) {
 			$workload = $this->get_user_workload(
@@ -591,6 +593,7 @@ class Workload_Service {
 				'warning'       => $warning,
 				'total'         => $total,
 			);
+			$task_candidates_by_user[ $user_id ] = $this->extract_reassignable_task_ids_from_workload( $workload );
 			$is_saturated = ! empty( $escalation['user_saturation']['is_saturated'] ) || $critical >= 3 || $total >= 10;
 
 			if ( $is_saturated ) {
@@ -615,6 +618,15 @@ class Workload_Service {
 			}
 		);
 
+		$executable_task_candidates = 0;
+		foreach ( $overloaded as $source ) {
+			$source_user_id = isset( $source['user_id'] ) ? absint( $source['user_id'] ) : 0;
+			if ( $source_user_id <= 0 || empty( $task_candidates_by_user[ $source_user_id ] ) || ! is_array( $task_candidates_by_user[ $source_user_id ] ) ) {
+				continue;
+			}
+			$executable_task_candidates += count( $task_candidates_by_user[ $source_user_id ] );
+		}
+
 		$assignments       = array();
 		$available_pointer = 0;
 		foreach ( $overloaded as $source ) {
@@ -626,18 +638,28 @@ class Workload_Service {
 			$capacity = max( 1, 3 - absint( $target['total'] ) );
 			$delta    = min( max( 1, absint( $source['critical'] ) - 2 ), $capacity );
 			$level    = absint( $source['critical'] ) >= 5 ? 'critical' : 'warning';
+			$source_user_id = absint( $source['user_id'] );
+			$entity_id = 0;
+
+			if ( ! empty( $task_candidates_by_user[ $source_user_id ] ) && is_array( $task_candidates_by_user[ $source_user_id ] ) ) {
+				$entity_id = absint( array_shift( $task_candidates_by_user[ $source_user_id ] ) );
+			}
+
 			if ( isset( $global_metrics['processes']['delayed'] ) && absint( $global_metrics['processes']['delayed'] ) > 0 && 'warning' === $level ) {
 				$level = 'critical';
 			}
 
 			$assignments[] = array(
-				'from_user'      => absint( $source['user_id'] ),
+				'from_user'      => $source_user_id,
 				'to_user'        => absint( $target['user_id'] ),
 				'reason'         => 'saturation_balance',
 				'workload_delta' => absint( $delta ),
 				'level'          => $level,
 				'from_name'      => isset( $source['display_name'] ) ? sanitize_text_field( (string) $source['display_name'] ) : '',
 				'to_name'        => isset( $target['display_name'] ) ? sanitize_text_field( (string) $target['display_name'] ) : '',
+				'entity_type'    => $entity_id > 0 ? 'crm_task' : '',
+				'entity_id'      => $entity_id,
+				'executable'     => $entity_id > 0,
 			);
 
 			$available[ $available_pointer ]['total'] += $delta;
@@ -653,6 +675,7 @@ class Workload_Service {
 			'overloaded_users' => count( $overloaded ),
 			'available_users'  => count( $available ),
 			'proposals'        => count( $assignments ),
+			'executable_task_candidates' => $executable_task_candidates,
 		);
 		$payload['meta']             = array(
 			'business_id'  => $target_business_id,
@@ -661,6 +684,69 @@ class Workload_Service {
 		);
 
 		return $payload;
+	}
+
+	/**
+	 * Execute one controlled operational reassignment.
+	 *
+	 * @param int    $business_id Business ID.
+	 * @param int    $from_user_id Source user ID.
+	 * @param int    $to_user_id Destination user ID.
+	 * @param string $entity_type Entity type.
+	 * @param int    $entity_id Entity ID.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function execute_operational_reassignment( $business_id, $from_user_id, $to_user_id, $entity_type, $entity_id ) {
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$from_user_id        = absint( $from_user_id );
+		$to_user_id          = absint( $to_user_id );
+		$entity_id           = absint( $entity_id );
+		$entity_type         = sanitize_key( (string) $entity_type );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return new \WP_Error( 'sm_operational_reassign_business', __( 'Business scope is not valid for reassignment.', 'super-mechanic' ) );
+		}
+
+		if ( $from_user_id <= 0 || $to_user_id <= 0 || $from_user_id === $to_user_id ) {
+			return new \WP_Error( 'sm_operational_reassign_users', __( 'Reassignment users are not valid.', 'super-mechanic' ) );
+		}
+
+		if ( ! get_userdata( $from_user_id ) || ! get_userdata( $to_user_id ) ) {
+			return new \WP_Error( 'sm_operational_reassign_unknown_user', __( 'Users must exist to execute reassignment.', 'super-mechanic' ) );
+		}
+
+		if ( 'crm_task' !== $entity_type ) {
+			return new \WP_Error( 'sm_operational_reassign_unsupported', __( 'Entity type is not supported in this phase.', 'super-mechanic' ) );
+		}
+
+		if ( $entity_id <= 0 ) {
+			return new \WP_Error( 'sm_operational_reassign_entity', __( 'Entity is not valid for reassignment.', 'super-mechanic' ) );
+		}
+
+		$proposal_valid = $this->has_matching_assignment_proposal( $target_business_id, $from_user_id, $to_user_id, $entity_type, $entity_id );
+		if ( ! $proposal_valid ) {
+			return new \WP_Error( 'sm_operational_reassign_proposal', __( 'No valid reassignment proposal matches this action.', 'super-mechanic' ) );
+		}
+
+		$reassigned = $this->task_service->reassign_task( $entity_id, $from_user_id, $to_user_id );
+		if ( is_wp_error( $reassigned ) ) {
+			return $reassigned;
+		}
+
+		return array(
+			'status'      => 'success',
+			'entity_type' => 'crm_task',
+			'entity_id'   => $entity_id,
+			'from_user'   => $from_user_id,
+			'to_user'     => $to_user_id,
+			'business_id' => $target_business_id,
+		);
 	}
 
 	/**
@@ -711,6 +797,375 @@ class Workload_Service {
 		);
 
 		return $payload;
+	}
+
+	/**
+	 * Build assisted operational actions as safe navigation targets.
+	 *
+	 * @param int      $business_id Business ID.
+	 * @param int|null $user_id Optional user ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_assisted_actions( $business_id, $user_id = null ) {
+		$payload             = $this->get_empty_operational_assisted_actions();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$target_user_id      = null !== $user_id ? absint( $user_id ) : absint( $current_user_id );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		if ( $target_user_id <= 0 ) {
+			$target_user_id = $current_user_id;
+		}
+
+		$recommendations = $this->get_operational_recommendations( $target_business_id, $target_user_id );
+		$escalation      = $this->get_operational_escalation_state( $target_business_id, $target_user_id );
+		$workload        = $this->get_user_workload(
+			$target_user_id,
+			array(
+				'upcoming_days'    => 7,
+				'max_scan'         => 250,
+				'limit_per_bucket' => 50,
+			)
+		);
+		$console         = $this->get_operational_automation_console( $target_business_id, $target_user_id );
+		$actions         = array();
+
+		$actions[] = array(
+			'key'     => 'open_overdue_tasks',
+			'label'   => __( 'Open overdue CRM tasks', 'super-mechanic' ),
+			'url'     => $this->build_admin_page_url( 'super-mechanic-crm-pipeline' ),
+			'level'   => 'warning',
+			'context' => __( 'Review overdue backlog from CRM pipeline.', 'super-mechanic' ),
+		);
+		$actions[] = array(
+			'key'     => 'open_delayed_processes',
+			'label'   => __( 'Open delayed processes', 'super-mechanic' ),
+			'url'     => $this->build_admin_page_url( 'super-mechanic-processes', array( 'filter_status' => 'overdue' ) ),
+			'level'   => 'warning',
+			'context' => __( 'Inspect process delays and unblock pending work.', 'super-mechanic' ),
+		);
+		$actions[] = array(
+			'key'     => 'open_upcoming_appointments',
+			'label'   => __( 'Open upcoming appointments', 'super-mechanic' ),
+			'url'     => $this->build_admin_page_url( 'super-mechanic-appointments' ),
+			'level'   => 'warning',
+			'context' => __( 'Prepare near-term scheduled work.', 'super-mechanic' ),
+		);
+		$actions[] = array(
+			'key'     => 'open_critical_workload',
+			'label'   => __( 'Open critical workload', 'super-mechanic' ),
+			'url'     => $this->build_admin_page_url( 'super-mechanic', array( 'workload_user_id' => $target_user_id ) ),
+			'level'   => 'critical',
+			'context' => __( 'Focus on critical operational items first.', 'super-mechanic' ),
+		);
+
+		$recommendation_rows = isset( $recommendations['recommendations'] ) && is_array( $recommendations['recommendations'] ) ? $recommendations['recommendations'] : array();
+		foreach ( $recommendation_rows as $row ) {
+			$key    = isset( $row['key'] ) ? sanitize_key( (string) $row['key'] ) : '';
+			$hint   = isset( $row['action_hint'] ) ? sanitize_text_field( (string) $row['action_hint'] ) : '';
+			$level  = isset( $row['level'] ) ? sanitize_key( (string) $row['level'] ) : 'warning';
+			$title  = isset( $row['title'] ) ? sanitize_text_field( (string) $row['title'] ) : __( 'Open related module', 'super-mechanic' );
+			$url    = '';
+
+			if ( false !== stripos( $hint, 'CRM' ) || false !== stripos( $hint, 'task' ) || false !== stripos( $key, 'backlog' ) ) {
+				$url = $this->build_admin_page_url( 'super-mechanic-crm-pipeline' );
+			} elseif ( false !== stripos( $hint, 'process' ) || false !== stripos( $key, 'process' ) ) {
+				$url = $this->build_admin_page_url( 'super-mechanic-processes' );
+			} elseif ( false !== stripos( $hint, 'appoint' ) || false !== stripos( $key, 'appointment' ) ) {
+				$url = $this->build_admin_page_url( 'super-mechanic-appointments' );
+			} elseif ( in_array( $key, array( 'immediate_critical_intervention', 'redistribute_user_load' ), true ) ) {
+				$url = $this->build_admin_page_url( 'super-mechanic', array( 'workload_user_id' => $target_user_id ) );
+			}
+
+			$actions[] = array(
+				'key'     => 'open_recommendation_' . ( '' !== $key ? $key : substr( md5( $title . '|' . $hint ), 0, 10 ) ),
+				'label'   => $title,
+				'url'     => $url,
+				'level'   => in_array( $level, array( 'critical', 'warning' ), true ) ? $level : 'warning',
+				'context' => '' !== $hint ? $hint : __( 'Open the module related to this recommendation.', 'super-mechanic' ),
+			);
+		}
+
+		$is_critical_console = isset( $console['system_status']['global_level'] ) && 'critical' === $console['system_status']['global_level'];
+		$has_blocking        = isset( $escalation['blocking_flags'] ) && is_array( $escalation['blocking_flags'] ) && ! empty( $escalation['blocking_flags'] );
+		$critical_count      = isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? count( $workload['critical'] ) : 0;
+		foreach ( $actions as $index => $action ) {
+			if ( ! isset( $actions[ $index ]['level'] ) ) {
+				$actions[ $index ]['level'] = 'warning';
+			}
+			if ( ( $is_critical_console || $has_blocking || $critical_count > 0 ) && 'open_critical_workload' === $action['key'] ) {
+				$actions[ $index ]['level'] = 'critical';
+			}
+		}
+
+		$unique = array();
+		foreach ( $actions as $action ) {
+			$key = isset( $action['key'] ) ? sanitize_key( (string) $action['key'] ) : '';
+			if ( '' === $key || isset( $unique[ $key ] ) ) {
+				continue;
+			}
+			$unique[ $key ] = array(
+				'key'     => $key,
+				'label'   => isset( $action['label'] ) ? sanitize_text_field( (string) $action['label'] ) : __( 'Open module', 'super-mechanic' ),
+				'url'     => isset( $action['url'] ) ? esc_url_raw( (string) $action['url'] ) : '',
+				'level'   => isset( $action['level'] ) ? sanitize_key( (string) $action['level'] ) : 'warning',
+				'context' => isset( $action['context'] ) ? sanitize_text_field( (string) $action['context'] ) : '',
+			);
+		}
+
+		$payload['actions'] = array_values( $unique );
+		$payload['summary'] = array(
+			'total'    => count( $payload['actions'] ),
+			'critical' => 0,
+			'warning'  => 0,
+		);
+
+		foreach ( $payload['actions'] as $action ) {
+			$level = isset( $action['level'] ) ? sanitize_key( (string) $action['level'] ) : 'warning';
+			if ( 'critical' === $level ) {
+				++$payload['summary']['critical'];
+			} else {
+				++$payload['summary']['warning'];
+			}
+		}
+
+		$payload['meta'] = array(
+			'business_id'  => $target_business_id,
+			'user_id'      => $target_user_id,
+			'generated_at' => current_time( 'mysql' ),
+			'mutations'    => 'none',
+		);
+
+		return $payload;
+	}
+
+	/**
+	 * Build grouped operational bulk actions (read-only).
+	 *
+	 * @param int      $business_id Business ID.
+	 * @param int|null $user_id Optional user ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_bulk_actions( $business_id, $user_id = null ) {
+		$payload             = $this->get_empty_operational_bulk_actions();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$target_user_id      = null !== $user_id ? absint( $user_id ) : absint( $current_user_id );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		if ( $target_user_id <= 0 ) {
+			$target_user_id = $current_user_id;
+		}
+
+		$assisted_actions = $this->get_operational_assisted_actions( $target_business_id, $target_user_id );
+		$assignments      = $this->get_operational_assignments( $target_business_id );
+		$console          = $this->get_operational_automation_console( $target_business_id, $target_user_id );
+		$workload         = $this->get_user_workload(
+			$target_user_id,
+			array(
+				'upcoming_days'    => 7,
+				'max_scan'         => 250,
+				'limit_per_bucket' => 50,
+			)
+		);
+
+		$task_ids_by_level = $this->extract_task_ids_by_priority( $workload );
+		$overdue_ids       = $this->extract_overdue_task_ids_from_workload( $workload );
+		$critical_ids      = isset( $task_ids_by_level['critical'] ) ? $task_ids_by_level['critical'] : array();
+		$warning_ids       = isset( $task_ids_by_level['warning'] ) ? $task_ids_by_level['warning'] : array();
+		$reassign_target   = $this->resolve_bulk_reassign_target_user( $assignments, $target_user_id );
+		$groups            = array();
+		$is_critical_state = isset( $console['system_status']['global_level'] ) && 'critical' === $console['system_status']['global_level'];
+
+		if ( ! empty( $overdue_ids ) ) {
+			$groups[] = array(
+				'group_key'   => 'overdue_tasks',
+				'entity_type' => 'crm_task',
+				'count'       => count( $overdue_ids ),
+				'level'       => 'critical',
+				'action'      => 'bulk_resolve',
+				'executable'  => true,
+				'items'       => array_values( $overdue_ids ),
+			);
+		}
+
+		if ( ! empty( $critical_ids ) ) {
+			$groups[] = array(
+				'group_key'       => 'critical_pending_tasks',
+				'entity_type'     => 'crm_task',
+				'count'           => count( $critical_ids ),
+				'level'           => $is_critical_state ? 'critical' : 'warning',
+				'action'          => 'bulk_reassign',
+				'executable'      => $reassign_target > 0,
+				'target_user_id'  => $reassign_target,
+				'items'           => array_values( $critical_ids ),
+			);
+		}
+
+		if ( empty( $critical_ids ) && ! empty( $warning_ids ) ) {
+			$groups[] = array(
+				'group_key'   => 'warning_pending_tasks',
+				'entity_type' => 'crm_task',
+				'count'       => count( $warning_ids ),
+				'level'       => 'warning',
+				'action'      => 'bulk_resolve',
+				'executable'  => true,
+				'items'       => array_values( $warning_ids ),
+			);
+		}
+
+		$payload['groups'] = $groups;
+		$payload['summary'] = array(
+			'total_groups'      => count( $groups ),
+			'executable_groups' => count(
+				array_filter(
+					$groups,
+					function ( $group ) {
+						return is_array( $group ) && ! empty( $group['executable'] );
+					}
+				)
+			),
+		);
+		$payload['meta'] = array(
+			'business_id'  => $target_business_id,
+			'user_id'      => $target_user_id,
+			'generated_at' => current_time( 'mysql' ),
+			'source'       => 'assisted_actions_assignments_console',
+		);
+
+		return $payload;
+	}
+
+	/**
+	 * Execute one operational bulk action with strict validations.
+	 *
+	 * @param int                   $business_id Business ID.
+	 * @param string                $action Action key.
+	 * @param string                $entity_type Entity type.
+	 * @param array<int|string|int> $ids Entity IDs.
+	 * @param int|null              $target_user_id Optional target user ID for reassignment.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function execute_operational_bulk_action( $business_id, $action, $entity_type, $ids, $target_user_id = null ) {
+		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
+			return new \WP_Error( 'sm_bulk_action_capability', __( 'You are not allowed to execute bulk actions.', 'super-mechanic' ) );
+		}
+
+		$nonce = isset( $_POST['sm_operational_bulk_action_nonce'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['sm_operational_bulk_action_nonce'] ) ) : '';
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'sm_operational_bulk_action' ) ) {
+			return new \WP_Error( 'sm_bulk_action_nonce', __( 'Security validation failed for bulk action.', 'super-mechanic' ) );
+		}
+
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$action              = sanitize_key( (string) $action );
+		$entity_type         = sanitize_key( (string) $entity_type );
+		$ids                 = $this->sanitize_bulk_ids( $ids, 50 );
+		$target_user_id      = null !== $target_user_id ? absint( $target_user_id ) : 0;
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return new \WP_Error( 'sm_bulk_action_business', __( 'Business scope is not valid for bulk action.', 'super-mechanic' ) );
+		}
+
+		if ( ! in_array( $action, array( 'bulk_resolve', 'bulk_reassign' ), true ) ) {
+			return new \WP_Error( 'sm_bulk_action_invalid_action', __( 'Bulk action is not supported.', 'super-mechanic' ) );
+		}
+
+		if ( 'crm_task' !== $entity_type ) {
+			return new \WP_Error( 'sm_bulk_action_entity', __( 'Entity type is not supported in this phase.', 'super-mechanic' ) );
+		}
+
+		if ( empty( $ids ) ) {
+			return new \WP_Error( 'sm_bulk_action_ids', __( 'No valid IDs were provided for bulk action.', 'super-mechanic' ) );
+		}
+
+		if ( 'bulk_reassign' === $action && $target_user_id <= 0 ) {
+			return new \WP_Error( 'sm_bulk_action_target', __( 'Target user is required for bulk reassignment.', 'super-mechanic' ) );
+		}
+
+		$validated_rows = array();
+		foreach ( $ids as $task_id ) {
+			$task = $this->task_service->get_task( $task_id );
+			if ( empty( $task ) || ! is_array( $task ) ) {
+				return new \WP_Error( 'sm_bulk_action_missing_task', __( 'One or more CRM tasks are not valid for this business.', 'super-mechanic' ) );
+			}
+
+			$status = isset( $task['status'] ) ? sanitize_key( (string) $task['status'] ) : '';
+			if ( 'pending' !== $status ) {
+				return new \WP_Error( 'sm_bulk_action_status', __( 'All CRM tasks must be pending to execute this bulk action.', 'super-mechanic' ) );
+			}
+
+			$validated_rows[] = array(
+				'id'               => absint( $task_id ),
+				'assigned_user_id' => isset( $task['assigned_user_id'] ) ? absint( $task['assigned_user_id'] ) : 0,
+			);
+		}
+
+		$success_ids = array();
+		$failed_ids  = array();
+		foreach ( $validated_rows as $row ) {
+			$task_id = absint( $row['id'] );
+			if ( 'bulk_resolve' === $action ) {
+				$result = $this->task_service->complete_task( $task_id );
+			} else {
+				$from_user = absint( $row['assigned_user_id'] );
+				$result    = $this->task_service->reassign_task( $task_id, $from_user, $target_user_id );
+			}
+
+			if ( is_wp_error( $result ) || false === $result ) {
+				$failed_ids[] = $task_id;
+			} else {
+				$success_ids[] = $task_id;
+			}
+		}
+
+		$status = empty( $failed_ids ) ? 'success' : ( empty( $success_ids ) ? 'failed' : 'partial' );
+
+		return array(
+			'status'         => $status,
+			'action'         => $action,
+			'entity_type'    => $entity_type,
+			'total'          => count( $validated_rows ),
+			'success_count'  => count( $success_ids ),
+			'failed_count'   => count( $failed_ids ),
+			'success_ids'    => $success_ids,
+			'failed_ids'     => $failed_ids,
+			'business_id'    => $target_business_id,
+			'target_user_id' => $target_user_id,
+		);
+	}
+
+	/**
+	 * Get read-only operational rules overview.
+	 *
+	 * @param int $business_id Business ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_rules_overview( $business_id ) {
+		$rules_service = new Operational_Rules_Service( $this );
+
+		return $rules_service->evaluate_operational_rules( $business_id );
 	}
 
 	/**
@@ -1625,6 +2080,190 @@ class Workload_Service {
 	}
 
 	/**
+	 * Extract candidate CRM task IDs from one workload payload.
+	 *
+	 * @param array<string,mixed> $workload Workload payload.
+	 * @return array<int,int>
+	 */
+	protected function extract_reassignable_task_ids_from_workload( array $workload ) {
+		$task_ids = array();
+		$buckets  = array( 'critical', 'warning' );
+
+		foreach ( $buckets as $bucket ) {
+			$items = isset( $workload[ $bucket ] ) && is_array( $workload[ $bucket ] ) ? $workload[ $bucket ] : array();
+			foreach ( $items as $item ) {
+				$type      = isset( $item['type'] ) ? sanitize_key( (string) $item['type'] ) : '';
+				$source_id = isset( $item['source_id'] ) ? sanitize_text_field( (string) $item['source_id'] ) : '';
+				if ( 'task' !== $type || 0 !== strpos( $source_id, 'task:' ) ) {
+					continue;
+				}
+
+				$task_id = absint( substr( $source_id, 5 ) );
+				if ( $task_id > 0 ) {
+					$task_ids[ $task_id ] = $task_id;
+				}
+			}
+		}
+
+		return array_values( $task_ids );
+	}
+
+	/**
+	 * Check if one reassignment request matches a currently executable proposal.
+	 *
+	 * @param int    $business_id Business ID.
+	 * @param int    $from_user_id Source user ID.
+	 * @param int    $to_user_id Destination user ID.
+	 * @param string $entity_type Entity type.
+	 * @param int    $entity_id Entity ID.
+	 * @return bool
+	 */
+	protected function has_matching_assignment_proposal( $business_id, $from_user_id, $to_user_id, $entity_type, $entity_id ) {
+		$payload     = $this->get_operational_assignments( $business_id );
+		$assignments = isset( $payload['assignments'] ) && is_array( $payload['assignments'] ) ? $payload['assignments'] : array();
+
+		foreach ( $assignments as $proposal ) {
+			$is_executable = ! empty( $proposal['executable'] );
+			if ( ! $is_executable ) {
+				continue;
+			}
+
+			if (
+				absint( isset( $proposal['from_user'] ) ? $proposal['from_user'] : 0 ) === absint( $from_user_id ) &&
+				absint( isset( $proposal['to_user'] ) ? $proposal['to_user'] : 0 ) === absint( $to_user_id ) &&
+				sanitize_key( isset( $proposal['entity_type'] ) ? (string) $proposal['entity_type'] : '' ) === sanitize_key( (string) $entity_type ) &&
+				absint( isset( $proposal['entity_id'] ) ? $proposal['entity_id'] : 0 ) === absint( $entity_id )
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Extract task IDs grouped by workload priority.
+	 *
+	 * @param array<string,mixed> $workload Workload payload.
+	 * @return array<string,array<int,int>>
+	 */
+	protected function extract_task_ids_by_priority( array $workload ) {
+		$grouped = array(
+			'critical' => array(),
+			'warning'  => array(),
+		);
+
+		foreach ( array( 'critical', 'warning' ) as $bucket ) {
+			$items = isset( $workload[ $bucket ] ) && is_array( $workload[ $bucket ] ) ? $workload[ $bucket ] : array();
+			foreach ( $items as $item ) {
+				$type      = isset( $item['type'] ) ? sanitize_key( (string) $item['type'] ) : '';
+				$source_id = isset( $item['source_id'] ) ? sanitize_text_field( (string) $item['source_id'] ) : '';
+				if ( 'task' !== $type || 0 !== strpos( $source_id, 'task:' ) ) {
+					continue;
+				}
+
+				$task_id = absint( substr( $source_id, 5 ) );
+				if ( $task_id > 0 ) {
+					$grouped[ $bucket ][ $task_id ] = $task_id;
+				}
+			}
+		}
+
+		return array(
+			'critical' => array_values( $grouped['critical'] ),
+			'warning'  => array_values( $grouped['warning'] ),
+		);
+	}
+
+	/**
+	 * Extract overdue task IDs from workload items.
+	 *
+	 * @param array<string,mixed> $workload Workload payload.
+	 * @return array<int,int>
+	 */
+	protected function extract_overdue_task_ids_from_workload( array $workload ) {
+		$overdue = array();
+		$now_ts  = current_time( 'timestamp', true );
+
+		foreach ( array( 'critical', 'warning' ) as $bucket ) {
+			$items = isset( $workload[ $bucket ] ) && is_array( $workload[ $bucket ] ) ? $workload[ $bucket ] : array();
+			foreach ( $items as $item ) {
+				$type      = isset( $item['type'] ) ? sanitize_key( (string) $item['type'] ) : '';
+				$source_id = isset( $item['source_id'] ) ? sanitize_text_field( (string) $item['source_id'] ) : '';
+				$date      = isset( $item['date'] ) ? sanitize_text_field( (string) $item['date'] ) : '';
+				if ( 'task' !== $type || 0 !== strpos( $source_id, 'task:' ) ) {
+					continue;
+				}
+
+				$date_ts = '' !== $date ? strtotime( $date ) : false;
+				if ( false === $date_ts || $date_ts >= $now_ts ) {
+					continue;
+				}
+
+				$task_id = absint( substr( $source_id, 5 ) );
+				if ( $task_id > 0 ) {
+					$overdue[ $task_id ] = $task_id;
+				}
+			}
+		}
+
+		return array_values( $overdue );
+	}
+
+	/**
+	 * Resolve target user for bulk reassignment from assignment proposals.
+	 *
+	 * @param array<string,mixed> $assignments Assignments payload.
+	 * @param int                 $fallback_user_id Fallback user ID.
+	 * @return int
+	 */
+	protected function resolve_bulk_reassign_target_user( array $assignments, $fallback_user_id ) {
+		$rows = isset( $assignments['assignments'] ) && is_array( $assignments['assignments'] ) ? $assignments['assignments'] : array();
+		foreach ( $rows as $row ) {
+			if ( empty( $row['executable'] ) ) {
+				continue;
+			}
+			$to_user = isset( $row['to_user'] ) ? absint( $row['to_user'] ) : 0;
+			if ( $to_user > 0 ) {
+				return $to_user;
+			}
+		}
+
+		return absint( $fallback_user_id );
+	}
+
+	/**
+	 * Sanitize bulk action IDs with hard safety cap.
+	 *
+	 * @param mixed $ids Raw IDs payload.
+	 * @param int   $max_items Max allowed IDs.
+	 * @return array<int,int>
+	 */
+	protected function sanitize_bulk_ids( $ids, $max_items ) {
+		$max_items = max( 1, absint( $max_items ) );
+		if ( is_string( $ids ) ) {
+			$ids = array_filter( array_map( 'trim', explode( ',', $ids ) ) );
+		}
+
+		if ( ! is_array( $ids ) ) {
+			return array();
+		}
+
+		$clean = array();
+		foreach ( $ids as $candidate ) {
+			$id = absint( $candidate );
+			if ( $id > 0 ) {
+				$clean[ $id ] = $id;
+			}
+			if ( count( $clean ) >= $max_items ) {
+				break;
+			}
+		}
+
+		return array_values( $clean );
+	}
+
+	/**
 	 * Empty operational assignments payload.
 	 *
 	 * @return array<string,mixed>
@@ -1638,6 +2277,7 @@ class Workload_Service {
 				'overloaded_users' => 0,
 				'available_users'  => 0,
 				'proposals'        => 0,
+				'executable_task_candidates' => 0,
 			),
 			'meta'             => array(
 				'business_id'  => 0,
@@ -1668,6 +2308,68 @@ class Workload_Service {
 				'user_id'      => 0,
 				'generated_at' => '',
 				'source'       => 'flags_escalation_recommendations_assignments',
+			),
+		);
+	}
+
+	/**
+	 * Build a safe admin URL to navigate assisted actions.
+	 *
+	 * @param string               $page_slug Page slug.
+	 * @param array<string,mixed>  $args Extra args.
+	 * @return string
+	 */
+	protected function build_admin_page_url( $page_slug, array $args = array() ) {
+		return add_query_arg(
+			array_merge(
+				array(
+					'page' => sanitize_key( $page_slug ),
+				),
+				$args
+			),
+			admin_url( 'admin.php' )
+		);
+	}
+
+	/**
+	 * Empty assisted actions payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_assisted_actions() {
+		return array(
+			'actions' => array(),
+			'summary' => array(
+				'total'    => 0,
+				'critical' => 0,
+				'warning'  => 0,
+			),
+			'meta'    => array(
+				'business_id'  => 0,
+				'user_id'      => 0,
+				'generated_at' => '',
+				'mutations'    => 'none',
+			),
+		);
+	}
+
+	/**
+	 * Empty operational bulk actions payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_bulk_actions() {
+		return array(
+			'groups'  => array(),
+			'summary' => array(
+				'total_groups'      => 0,
+				'executable_groups' => 0,
+			),
+			'meta'    => array(
+				'business_id'  => 0,
+				'user_id'      => 0,
+				'generated_at' => '',
+				'source'       => 'assisted_actions_assignments_console',
 			),
 		);
 	}

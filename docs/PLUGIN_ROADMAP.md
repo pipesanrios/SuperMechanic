@@ -13,91 +13,74 @@ Use:
 
 ## Baseline
 
-- Current delivery baseline: **Fase 40**
-- Last completed block: **40D (UI consistency CRM pipeline)**
+- Current delivery baseline: **Fase 42**
+- Fase 42 status: **COMPLETA (42B PARCIAL)**
 
 ---
 
-## Phase 40 — Operación Interna (Core) (COMPLETED)
+## Phase 42 — Operación Avanzada y Automatización Controlada (COMPLETED WITH PARTIAL COMPONENT)
 
 Completed scope:
-- 40A: global operational summary
-- 40B: per-user workload aggregation
-- alignment hotfix: CRM Pipeline signal-policy consistency (`persisted` + `runtime fallback` policy)
-- 40C: SLA/operational metrics
-- 40D: CRM pipeline UI consistency
+- 42A: assisted operational actions (manual safe navigation)
+- 42B: controlled operational reassignment (PARTIAL runtime closure)
+- 42C: safe bulk actions execution
+- 42D: unified operational action center
+- 42E: configurable executable rules (preview/evaluation only)
 
 ---
 
 ### Subphases Status
 
-#### 🔹 40B — Workload Operativo por Usuario (COMPLETED)
+#### 🔹 42A — Acciones Operativas Asistidas (COMPLETED)
 
-Goal:
-Provide a clear view of:
-
-- pending tasks
-- overdue items
-- alerts (persisted)
-- active processes
-- appointments
-
-Characteristics:
-- aggregation only (no new logic creation)
-- no new tables
-- no cron
-- no notifications
-- based on persisted alerts system (39E)
-
-Delivered:
-- `includes/dashboard/class-workload-service.php`
-- admin dashboard section: **Mi trabajo**
-- per-user aggregation: tasks, persisted alerts, active processes, upcoming appointments
-- priority buckets: `critical`, `warning`, `normal`
-- validation complete: php lint + QA runner + runtime manual
+- dashboard actions derived from recommendations/escalation/workload
+- safe navigation only
+- no data mutation by this layer
 
 ---
 
-#### 🔹 40A — Control Operativo Unificado (COMPLETED)
+#### 🔹 42B — Reasignación Operativa Controlada (PARTIAL)
 
-- global operational visibility across modules
-- system-level awareness
-- base for consolidated operations view
-
----
-
-#### 🔹 40C — SLA / Tiempos / Métricas (COMPLETED)
-
-- operational metrics for:
-  - tasks
-  - processes
-  - alerts
-  - appointments
+- implementation complete for controlled `crm_task` reassignment
+- technical validations passing
+- operational observability added for zero-proposal diagnostics
+- runtime completion pending dataset with:
+  - overloaded users
+  - available users
+  - executable CRM task candidate
 
 ---
 
-#### 🔹 40D — UI Consistency CRM Pipeline (COMPLETED)
+#### 🔹 42C — Acciones Masivas Seguras (COMPLETED)
 
-- compact and consistent operational UI rendering
-- no logical/backend changes
+- controlled bulk execution for `crm_task`
+- strict capability/nonce/business validation
+- no cron and no auto execution
+
+---
+
+#### 🔹 42D — Centro de Acción Operativa (COMPLETED)
+
+- unified block for assisted actions, reassignment and bulk actions
+- top operational UX layer without changing business rules
+
+---
+
+#### 🔹 42E — Reglas Ejecutables Configurables (COMPLETED)
+
+- `Operational_Rules_Service` introduced
+- rules definition + evaluation + action preview
+- explicitly no automatic execution and no cron
 
 ---
 
 ## Next Planned Continuity
 
-### Phase 41 — Automatización Operativa (NEXT)
+### Phase 43 — Automatización Operativa Real (NEXT)
 
-- automate operational execution on top of stable signals and SLA visibility
-- reduce repetitive manual actions
-- keep strict tenancy and architectural constraints
-
----
-
-### Phase 42 — SaaS Evolution
-
-- central backend
-- independent frontend
-- progressive migration from plugin model
+- evolve from controlled/manual execution to real operational automation
+- preserve tenancy, capability and safety guarantees
+- start only after runtime closure of pending partial validations
 
 ---
 

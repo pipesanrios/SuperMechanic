@@ -163,6 +163,53 @@ class Crm_Task_Service {
 	}
 
 	/**
+	 * Reassign one CRM task between users.
+	 *
+	 * @param int $task_id      Task ID.
+	 * @param int $from_user_id Current assigned user ID.
+	 * @param int $to_user_id   Destination user ID.
+	 * @return bool|WP_Error
+	 */
+	public function reassign_task( $task_id, $from_user_id, $to_user_id ) {
+		$task_id      = absint( $task_id );
+		$from_user_id = absint( $from_user_id );
+		$to_user_id   = absint( $to_user_id );
+
+		if ( $task_id <= 0 ) {
+			return new WP_Error( 'sm_crm_task_invalid_id', __( 'CRM task is not valid.', 'super-mechanic' ) );
+		}
+
+		if ( $from_user_id <= 0 || $to_user_id <= 0 || $from_user_id === $to_user_id ) {
+			return new WP_Error( 'sm_crm_task_invalid_users', __( 'Reassignment users are not valid.', 'super-mechanic' ) );
+		}
+
+		if ( ! get_userdata( $from_user_id ) || ! get_userdata( $to_user_id ) ) {
+			return new WP_Error( 'sm_crm_task_unknown_user', __( 'Assigned users are not valid.', 'super-mechanic' ) );
+		}
+
+		$existing = $this->repository->get_by_id( $task_id );
+		if ( empty( $existing ) ) {
+			return new WP_Error( 'sm_crm_task_not_found', __( 'CRM task does not exist.', 'super-mechanic' ) );
+		}
+
+		$current_assigned = isset( $existing['assigned_user_id'] ) ? absint( $existing['assigned_user_id'] ) : 0;
+		$status           = isset( $existing['status'] ) ? sanitize_key( (string) $existing['status'] ) : '';
+		if ( $current_assigned !== $from_user_id ) {
+			return new WP_Error( 'sm_crm_task_reassign_mismatch', __( 'CRM task is no longer assigned to the source user.', 'super-mechanic' ) );
+		}
+
+		if ( 'pending' !== $status ) {
+			return new WP_Error( 'sm_crm_task_reassign_status', __( 'Only pending CRM tasks can be reassigned.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->repository->reassign_task( $task_id, $from_user_id, $to_user_id ) ) {
+			return new WP_Error( 'sm_crm_task_reassign_failed', __( 'Could not reassign CRM task.', 'super-mechanic' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get tasks for one opportunity.
 	 *
 	 * @param int $crm_pipeline_id Opportunity ID.

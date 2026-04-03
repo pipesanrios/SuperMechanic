@@ -25,6 +25,18 @@ class Admin_Dashboard_Controller {
 	 * @var Workload_Service
 	 */
 	protected $workload_service;
+	/**
+	 * Reassignment feedback notice.
+	 *
+	 * @var array<string,string>|null
+	 */
+	protected $reassignment_notice;
+	/**
+	 * Bulk action feedback notice.
+	 *
+	 * @var array<string,string>|null
+	 */
+	protected $bulk_action_notice;
 
 	/**
 	 * Constructor.
@@ -46,6 +58,8 @@ class Admin_Dashboard_Controller {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
+		$this->maybe_handle_operational_reassignment_request();
+		$this->maybe_handle_operational_bulk_action_request();
 
 		$kpis             = $this->service->get_admin_kpis();
 		$process_status   = $this->service->get_processes_by_status();
@@ -89,6 +103,17 @@ class Admin_Dashboard_Controller {
 			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
 			$selected_workload_user_id
 		);
+		$assisted_actions = $this->workload_service->get_operational_assisted_actions(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$selected_workload_user_id
+		);
+		$operational_bulk_actions = $this->workload_service->get_operational_bulk_actions(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$selected_workload_user_id
+		);
+		$operational_rules_overview = $this->workload_service->get_operational_rules_overview(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0
+		);
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
@@ -96,16 +121,27 @@ class Admin_Dashboard_Controller {
 		echo '<h1>' . esc_html__( 'Dashboard', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'System overview focused on operations, current workload, and recent activity.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
+		$this->render_reassignment_notice();
+		$this->render_bulk_action_notice();
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Operations hub', 'super-mechanic' ) . '</span>';
 		echo '</div>';
 
 		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Metrics are calculated from current operations without altering existing flows.', 'super-mechanic' ) . '</p></div>';
+		$this->render_operational_action_center(
+			$assisted_actions,
+			$operational_assignments,
+			$operational_bulk_actions,
+			$automation_console
+		);
+		$this->render_operational_rules( $operational_rules_overview );
 		$this->render_global_operational_summary( $global_summary );
 		$this->render_operational_escalation_state( $escalation_state );
 		$this->render_operational_automation_flags( $automation_flags );
 		$this->render_operational_recommendations( $operational_recommendations );
 		$this->render_operational_assignments( $operational_assignments );
+		$this->render_operational_bulk_actions( $operational_bulk_actions );
 		$this->render_operational_automation_console( $automation_console );
+		$this->render_operational_assisted_actions( $assisted_actions );
 
 		echo '<section class="sm-card sm-section sm-quick-actions-card">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Quick actions', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Operational shortcuts', 'super-mechanic' ) . '</span></div>';
@@ -201,6 +237,171 @@ class Admin_Dashboard_Controller {
 		echo '</section>';
 		echo '</div>';
 		echo '</div>';
+	}
+
+	/**
+	 * Handle manual reassignment request from operational assignment block.
+	 *
+	 * @return void
+	 */
+	protected function maybe_handle_operational_reassignment_request() {
+		if ( 'POST' !== strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( (string) wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' ) ) {
+			return;
+		}
+
+		$action = isset( $_POST['sm_operational_reassign_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['sm_operational_reassign_action'] ) ) : '';
+		if ( 'execute' !== $action ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
+			$this->reassignment_notice = array(
+				'type'    => 'error',
+				'message' => __( 'You are not allowed to execute reassignment.', 'super-mechanic' ),
+			);
+			return;
+		}
+
+		$nonce = isset( $_POST['sm_operational_reassign_nonce'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['sm_operational_reassign_nonce'] ) ) : '';
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'sm_operational_reassign' ) ) {
+			$this->reassignment_notice = array(
+				'type'    => 'error',
+				'message' => __( 'Security validation failed for reassignment action.', 'super-mechanic' ),
+			);
+			return;
+		}
+
+		$business_id = isset( $_POST['business_id'] ) ? absint( wp_unslash( $_POST['business_id'] ) ) : 0;
+		$from_user   = isset( $_POST['from_user'] ) ? absint( wp_unslash( $_POST['from_user'] ) ) : 0;
+		$to_user     = isset( $_POST['to_user'] ) ? absint( wp_unslash( $_POST['to_user'] ) ) : 0;
+		$entity_type = isset( $_POST['entity_type'] ) ? sanitize_key( (string) wp_unslash( $_POST['entity_type'] ) ) : '';
+		$entity_id   = isset( $_POST['entity_id'] ) ? absint( wp_unslash( $_POST['entity_id'] ) ) : 0;
+		$result      = $this->workload_service->execute_operational_reassignment( $business_id, $from_user, $to_user, $entity_type, $entity_id );
+
+		if ( is_wp_error( $result ) ) {
+			$this->reassignment_notice = array(
+				'type'    => 'error',
+				'message' => $result->get_error_message(),
+			);
+			return;
+		}
+
+		$this->reassignment_notice = array(
+			'type'    => 'success',
+			'message' => __( 'Operational reassignment executed successfully.', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	 * Render reassignment feedback notice.
+	 *
+	 * @return void
+	 */
+	protected function render_reassignment_notice() {
+		if ( empty( $this->reassignment_notice ) || ! is_array( $this->reassignment_notice ) ) {
+			return;
+		}
+
+		$type    = isset( $this->reassignment_notice['type'] ) ? sanitize_key( (string) $this->reassignment_notice['type'] ) : 'success';
+		$message = isset( $this->reassignment_notice['message'] ) ? sanitize_text_field( (string) $this->reassignment_notice['message'] ) : '';
+		if ( '' === $message ) {
+			return;
+		}
+
+		$class = 'notice notice-success is-dismissible';
+		if ( 'error' === $type ) {
+			$class = 'notice notice-error is-dismissible';
+		}
+
+		echo '<div class="' . esc_attr( $class ) . '"><p>' . esc_html( $message ) . '</p></div>';
+	}
+
+	/**
+	 * Handle manual operational bulk action request.
+	 *
+	 * @return void
+	 */
+	protected function maybe_handle_operational_bulk_action_request() {
+		if ( 'POST' !== strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( (string) wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' ) ) {
+			return;
+		}
+
+		$action_key = isset( $_POST['sm_operational_bulk_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['sm_operational_bulk_action'] ) ) : '';
+		if ( '' === $action_key ) {
+			return;
+		}
+
+		$business_id    = isset( $_POST['business_id'] ) ? absint( wp_unslash( $_POST['business_id'] ) ) : 0;
+		$entity_type    = isset( $_POST['entity_type'] ) ? sanitize_key( (string) wp_unslash( $_POST['entity_type'] ) ) : '';
+		$ids_raw        = isset( $_POST['ids'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['ids'] ) ) : '';
+		$ids            = '' !== $ids_raw ? array_filter( array_map( 'absint', explode( ',', $ids_raw ) ) ) : array();
+		$target_user_id = isset( $_POST['target_user_id'] ) ? absint( wp_unslash( $_POST['target_user_id'] ) ) : 0;
+		$result         = $this->workload_service->execute_operational_bulk_action( $business_id, $action_key, $entity_type, $ids, $target_user_id );
+
+		if ( is_wp_error( $result ) ) {
+			$this->bulk_action_notice = array(
+				'type'    => 'error',
+				'message' => $result->get_error_message(),
+			);
+			return;
+		}
+
+		$status       = isset( $result['status'] ) ? sanitize_key( (string) $result['status'] ) : 'success';
+		$success_count = isset( $result['success_count'] ) ? absint( $result['success_count'] ) : 0;
+		$failed_count  = isset( $result['failed_count'] ) ? absint( $result['failed_count'] ) : 0;
+		if ( 'failed' === $status ) {
+			$this->bulk_action_notice = array(
+				'type'    => 'error',
+				'message' => __( 'Bulk action failed for all selected items.', 'super-mechanic' ),
+			);
+			return;
+		}
+
+		if ( 'partial' === $status ) {
+			$this->bulk_action_notice = array(
+				'type'    => 'error',
+				'message' => sprintf(
+					/* translators: 1: success count, 2: failed count. */
+					__( 'Bulk action executed partially: %1$d succeeded, %2$d failed.', 'super-mechanic' ),
+					$success_count,
+					$failed_count
+				),
+			);
+			return;
+		}
+
+		$this->bulk_action_notice = array(
+			'type'    => 'success',
+			'message' => sprintf(
+				/* translators: %d success count. */
+				__( 'Bulk action executed successfully for %d items.', 'super-mechanic' ),
+				$success_count
+			),
+		);
+	}
+
+	/**
+	 * Render bulk action feedback notice.
+	 *
+	 * @return void
+	 */
+	protected function render_bulk_action_notice() {
+		if ( empty( $this->bulk_action_notice ) || ! is_array( $this->bulk_action_notice ) ) {
+			return;
+		}
+
+		$type    = isset( $this->bulk_action_notice['type'] ) ? sanitize_key( (string) $this->bulk_action_notice['type'] ) : 'success';
+		$message = isset( $this->bulk_action_notice['message'] ) ? sanitize_text_field( (string) $this->bulk_action_notice['message'] ) : '';
+		if ( '' === $message ) {
+			return;
+		}
+
+		$class = 'notice notice-success is-dismissible';
+		if ( 'error' === $type ) {
+			$class = 'notice notice-error is-dismissible';
+		}
+
+		echo '<div class="' . esc_attr( $class ) . '"><p>' . esc_html( $message ) . '</p></div>';
 	}
 
 	/**
@@ -655,6 +856,306 @@ class Admin_Dashboard_Controller {
 	}
 
 	/**
+	 * Render centralized operational action center.
+	 *
+	 * @param array<string,mixed> $assisted_payload Assisted actions payload.
+	 * @param array<string,mixed> $assignments_payload Assignment payload.
+	 * @param array<string,mixed> $bulk_payload Bulk actions payload.
+	 * @param array<string,mixed> $console_payload Automation console payload.
+	 * @return void
+	 */
+	protected function render_operational_action_center( array $assisted_payload, array $assignments_payload, array $bulk_payload, array $console_payload ) {
+		$assisted_actions = isset( $assisted_payload['actions'] ) && is_array( $assisted_payload['actions'] ) ? $assisted_payload['actions'] : array();
+		$critical_actions = array_values(
+			array_filter(
+				$assisted_actions,
+				static function ( $action ) {
+					return is_array( $action ) && 'critical' === sanitize_key( (string) ( $action['level'] ?? '' ) );
+				}
+			)
+		);
+		$assignments       = isset( $assignments_payload['assignments'] ) && is_array( $assignments_payload['assignments'] ) ? $assignments_payload['assignments'] : array();
+		$business_id       = isset( $assignments_payload['meta']['business_id'] ) ? absint( $assignments_payload['meta']['business_id'] ) : 0;
+		$executable_assignments = array_values(
+			array_filter(
+				$assignments,
+				static function ( $proposal ) use ( $business_id ) {
+					if ( ! is_array( $proposal ) ) {
+						return false;
+					}
+					$entity_type = sanitize_key( (string) ( $proposal['entity_type'] ?? '' ) );
+					$entity_id   = absint( $proposal['entity_id'] ?? 0 );
+					$from_user   = absint( $proposal['from_user'] ?? 0 );
+					$to_user     = absint( $proposal['to_user'] ?? 0 );
+
+					return ! empty( $proposal['executable'] ) && 'crm_task' === $entity_type && $entity_id > 0 && $from_user > 0 && $to_user > 0 && $business_id > 0;
+				}
+			)
+		);
+		$groups            = isset( $bulk_payload['groups'] ) && is_array( $bulk_payload['groups'] ) ? $bulk_payload['groups'] : array();
+		$bulk_business_id  = isset( $bulk_payload['meta']['business_id'] ) ? absint( $bulk_payload['meta']['business_id'] ) : 0;
+		$executable_groups = array_values(
+			array_filter(
+				$groups,
+				static function ( $group ) use ( $bulk_business_id ) {
+					if ( ! is_array( $group ) ) {
+						return false;
+					}
+					$items = isset( $group['items'] ) && is_array( $group['items'] ) ? $group['items'] : array();
+					return ! empty( $group['executable'] ) && $bulk_business_id > 0 && ! empty( $items );
+				}
+			)
+		);
+		$flags             = isset( $console_payload['flags']['flags'] ) && is_array( $console_payload['flags']['flags'] ) ? $console_payload['flags']['flags'] : array();
+		$critical_flags    = array_values(
+			array_filter(
+				$flags,
+				static function ( $flag ) {
+					return is_array( $flag ) && ! empty( $flag['active'] ) && 'critical' === sanitize_key( (string) ( $flag['level'] ?? '' ) );
+				}
+			)
+		);
+		$recommendations   = isset( $console_payload['recommendations']['recommendations'] ) && is_array( $console_payload['recommendations']['recommendations'] ) ? $console_payload['recommendations']['recommendations'] : array();
+		$recommendation_total = isset( $console_payload['recommendations']['summary']['total'] ) ? absint( $console_payload['recommendations']['summary']['total'] ) : count( $recommendations );
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Centro de Acción Operativa', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'Unified', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Single operational layer to execute critical actions, controlled reassignments, and bulk actions from one place.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card( __( 'Critical priority actions', 'super-mechanic' ), count( $critical_actions ), __( 'Assisted critical actions', 'super-mechanic' ) );
+		$this->render_kpi_card( __( 'Critical flags', 'super-mechanic' ), count( $critical_flags ), __( 'Active critical signals', 'super-mechanic' ) );
+		$this->render_kpi_card( __( 'Executable reassignments', 'super-mechanic' ), count( $executable_assignments ), __( 'Reassignment proposals ready to run', 'super-mechanic' ) );
+		$this->render_kpi_card( __( 'Executable bulk groups', 'super-mechanic' ), count( $executable_groups ), __( 'Bulk actions ready to run', 'super-mechanic' ) );
+		$this->render_kpi_card( __( 'Recommendations', 'super-mechanic' ), $recommendation_total, __( 'Operational suggestions', 'super-mechanic' ) );
+		echo '</div>';
+
+		echo '<div class="sm-grid sm-grid-two">';
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Prioridad crítica', 'super-mechanic' ) . '</h3></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $critical_actions ) && empty( $critical_flags ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No critical operational actions right now.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $critical_actions as $action ) {
+				$label = isset( $action['label'] ) ? sanitize_text_field( (string) $action['label'] ) : __( 'Critical action', 'super-mechanic' );
+				$url   = isset( $action['url'] ) ? esc_url_raw( (string) $action['url'] ) : '';
+				echo '<tr>';
+				echo '<td>' . esc_html( $label ) . '</td>';
+				echo '<td>' . esc_html__( 'Assisted action', 'super-mechanic' ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( 'critical' ) ) . '</td>';
+				if ( '' !== $url ) {
+					echo '<td><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Open', 'super-mechanic' ) . '</a></td>';
+				} else {
+					echo '<td>' . esc_html__( 'No direct action available', 'super-mechanic' ) . '</td>';
+				}
+				echo '</tr>';
+			}
+			foreach ( $critical_flags as $flag ) {
+				$message = isset( $flag['message'] ) ? sanitize_text_field( (string) $flag['message'] ) : __( 'Critical operational flag', 'super-mechanic' );
+				echo '<tr>';
+				echo '<td>' . esc_html( $message ) . '</td>';
+				echo '<td>' . esc_html__( 'Automation flag', 'super-mechanic' ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( 'critical' ) ) . '</td>';
+				echo '<td>' . esc_html__( 'Monitor now', 'super-mechanic' ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Reasignación', 'super-mechanic' ) . '</h3></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'From', 'super-mechanic' ) . '</th><th>' . esc_html__( 'To', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $executable_assignments ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No executable reassignment proposals.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $executable_assignments as $proposal ) {
+				$from_name = isset( $proposal['from_name'] ) ? sanitize_text_field( (string) $proposal['from_name'] ) : '';
+				$to_name   = isset( $proposal['to_name'] ) ? sanitize_text_field( (string) $proposal['to_name'] ) : '';
+				$entity    = isset( $proposal['entity_type'] ) ? sanitize_key( (string) $proposal['entity_type'] ) : '';
+				$level     = isset( $proposal['level'] ) ? sanitize_key( (string) $proposal['level'] ) : 'warning';
+				$from_user = absint( $proposal['from_user'] );
+				$to_user   = absint( $proposal['to_user'] );
+				$entity_id = absint( $proposal['entity_id'] );
+				echo '<tr>';
+				echo '<td>' . esc_html( $from_name ) . '</td>';
+				echo '<td>' . esc_html( $to_name ) . '</td>';
+				echo '<td>' . esc_html( strtoupper( str_replace( '_', ' ', $entity ) ) ) . ' #' . esc_html( $entity_id ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td><form method="post" style="margin:0;">';
+				echo '<input type="hidden" name="sm_operational_reassign_action" value="execute" />';
+				echo '<input type="hidden" name="business_id" value="' . esc_attr( $business_id ) . '" />';
+				echo '<input type="hidden" name="from_user" value="' . esc_attr( $from_user ) . '" />';
+				echo '<input type="hidden" name="to_user" value="' . esc_attr( $to_user ) . '" />';
+				echo '<input type="hidden" name="entity_type" value="' . esc_attr( $entity ) . '" />';
+				echo '<input type="hidden" name="entity_id" value="' . esc_attr( $entity_id ) . '" />';
+				wp_nonce_field( 'sm_operational_reassign', 'sm_operational_reassign_nonce', false, true );
+				echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Reassign', 'super-mechanic' ) . '</button>';
+				echo '</form></td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Acciones masivas', 'super-mechanic' ) . '</h3></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Group', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Count', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $executable_groups ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No executable bulk groups.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $executable_groups as $group ) {
+				$group_key      = isset( $group['group_key'] ) ? sanitize_key( (string) $group['group_key'] ) : 'group';
+				$entity_type    = isset( $group['entity_type'] ) ? sanitize_key( (string) $group['entity_type'] ) : '';
+				$count          = isset( $group['count'] ) ? absint( $group['count'] ) : 0;
+				$level          = isset( $group['level'] ) ? sanitize_key( (string) $group['level'] ) : 'warning';
+				$action         = isset( $group['action'] ) ? sanitize_key( (string) $group['action'] ) : '';
+				$target_user_id = isset( $group['target_user_id'] ) ? absint( $group['target_user_id'] ) : 0;
+				$ids            = isset( $group['items'] ) && is_array( $group['items'] ) ? implode( ',', array_map( 'absint', $group['items'] ) ) : '';
+				$button_label   = 'bulk_resolve' === $action ? __( 'Resolve all', 'super-mechanic' ) : __( 'Reassign all', 'super-mechanic' );
+				echo '<tr>';
+				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $group_key ) ) ) . '</td>';
+				echo '<td>' . esc_html( strtoupper( str_replace( '_', ' ', $entity_type ) ) ) . '</td>';
+				echo '<td>' . esc_html( $count ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td><form method="post" style="margin:0;">';
+				echo '<input type="hidden" name="sm_operational_bulk_action" value="' . esc_attr( $action ) . '" />';
+				echo '<input type="hidden" name="business_id" value="' . esc_attr( $bulk_business_id ) . '" />';
+				echo '<input type="hidden" name="entity_type" value="' . esc_attr( $entity_type ) . '" />';
+				echo '<input type="hidden" name="ids" value="' . esc_attr( $ids ) . '" />';
+				if ( $target_user_id > 0 ) {
+					echo '<input type="hidden" name="target_user_id" value="' . esc_attr( $target_user_id ) . '" />';
+				}
+				wp_nonce_field( 'sm_operational_bulk_action', 'sm_operational_bulk_action_nonce', false, true );
+				echo '<button type="submit" class="button button-secondary">' . esc_html( $button_label ) . '</button>';
+				echo '</form></td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Sugerencias', 'super-mechanic' ) . '</h3></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Recommendation', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action hint', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $recommendations ) ) {
+			echo '<tr><td colspan="3">' . esc_html__( 'No active recommendations.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $recommendations as $recommendation ) {
+				$title       = isset( $recommendation['title'] ) ? sanitize_text_field( (string) $recommendation['title'] ) : __( 'Operational recommendation', 'super-mechanic' );
+				$level       = isset( $recommendation['level'] ) ? sanitize_key( (string) $recommendation['level'] ) : 'warning';
+				$action_hint = isset( $recommendation['action_hint'] ) ? sanitize_text_field( (string) $recommendation['action_hint'] ) : '';
+				echo '<tr>';
+				echo '<td>' . esc_html( $title ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td>' . esc_html( $action_hint ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+		echo '</div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render operational rules overview block.
+	 *
+	 * @param array<string,mixed> $payload Rules overview payload.
+	 * @return void
+	 */
+	protected function render_operational_rules( array $payload ) {
+		$rules       = isset( $payload['rules'] ) && is_array( $payload['rules'] ) ? $payload['rules'] : array();
+		$evaluations = isset( $payload['evaluations'] ) && is_array( $payload['evaluations'] ) ? $payload['evaluations'] : array();
+
+		$evaluation_by_rule = array();
+		$triggered_count    = 0;
+		foreach ( $evaluations as $evaluation ) {
+			if ( ! is_array( $evaluation ) ) {
+				continue;
+			}
+			$rule_key = isset( $evaluation['rule_key'] ) ? sanitize_key( (string) $evaluation['rule_key'] ) : '';
+			if ( '' === $rule_key ) {
+				continue;
+			}
+			$evaluation_by_rule[ $rule_key ] = $evaluation;
+			if ( ! empty( $evaluation['triggered'] ) ) {
+				++$triggered_count;
+			}
+		}
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Reglas Operativas', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Preview only', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Configurable operational rules evaluated against current system state. No automatic execution is performed.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Total rules', 'super-mechanic' ),
+			count( $rules ),
+			__( 'Configured operational rules', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Triggered rules', 'super-mechanic' ),
+			$triggered_count,
+			__( 'Rules currently matching conditions', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Execution mode', 'super-mechanic' ),
+			__( 'Manual only', 'super-mechanic' ),
+			__( 'No cron or automatic action execution', 'super-mechanic' )
+		);
+		echo '</div>';
+
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Rule', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Enabled', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Triggered', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Impact', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action preview', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $rules ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No operational rules configured.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $rules as $rule ) {
+				$rule_key   = isset( $rule['rule_key'] ) ? sanitize_key( (string) $rule['rule_key'] ) : '';
+				$name       = isset( $rule['name'] ) ? sanitize_text_field( (string) $rule['name'] ) : __( 'Operational rule', 'super-mechanic' );
+				$enabled    = ! empty( $rule['enabled'] );
+				$evaluation = isset( $evaluation_by_rule[ $rule_key ] ) && is_array( $evaluation_by_rule[ $rule_key ] ) ? $evaluation_by_rule[ $rule_key ] : array();
+				$triggered  = ! empty( $evaluation['triggered'] );
+				$impact     = isset( $evaluation['impact_level'] ) ? sanitize_key( (string) $evaluation['impact_level'] ) : 'info';
+				$preview    = isset( $evaluation['action_preview'] ) && is_array( $evaluation['action_preview'] ) ? $evaluation['action_preview'] : array();
+				$action_type = isset( $preview['action_type'] ) ? sanitize_key( (string) $preview['action_type'] ) : ( isset( $rule['action_type'] ) ? sanitize_key( (string) $rule['action_type'] ) : 'flag' );
+				$candidate_count = isset( $preview['candidate_count'] ) ? absint( $preview['candidate_count'] ) : 0;
+				$proposal_count  = isset( $preview['proposal_count'] ) ? absint( $preview['proposal_count'] ) : 0;
+				$executable      = isset( $preview['executable'] ) ? (bool) $preview['executable'] : false;
+
+				$preview_parts = array(
+					ucwords( str_replace( '_', ' ', $action_type ) ),
+				);
+				if ( $candidate_count > 0 ) {
+					$preview_parts[] = sprintf(
+						/* translators: %d candidate count. */
+						__( '%d candidates', 'super-mechanic' ),
+						$candidate_count
+					);
+				}
+				if ( $proposal_count > 0 ) {
+					$preview_parts[] = sprintf(
+						/* translators: %d proposal count. */
+						__( '%d proposals', 'super-mechanic' ),
+						$proposal_count
+					);
+				}
+				$preview_parts[] = $executable ? __( 'Executable in manual flow', 'super-mechanic' ) : __( 'Informative only', 'super-mechanic' );
+				$preview_label   = implode( ' · ', $preview_parts );
+
+				echo '<tr>';
+				echo '<td>' . esc_html( $name ) . '</td>';
+				echo '<td>' . ( $enabled ? '<span class="sm-badge sm-badge-success">' . esc_html__( 'Enabled', 'super-mechanic' ) . '</span>' : '<span class="sm-badge sm-badge-neutral">' . esc_html__( 'Disabled', 'super-mechanic' ) . '</span>' ) . '</td>';
+				echo '<td>' . ( $triggered ? '<span class="sm-badge sm-badge-warning">' . esc_html__( 'Triggered', 'super-mechanic' ) . '</span>' : '<span class="sm-badge sm-badge-neutral">' . esc_html__( 'Not triggered', 'super-mechanic' ) . '</span>' ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( in_array( $impact, array( 'critical', 'warning' ), true ) ? $impact : 'normal' ) ) . '</td>';
+				echo '<td>' . esc_html( $preview_label ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
 	 * Render operational assignment suggestions.
 	 *
 	 * @param array<string,mixed> $payload Assignment payload.
@@ -665,6 +1166,7 @@ class Admin_Dashboard_Controller {
 		$available   = isset( $payload['available_users'] ) && is_array( $payload['available_users'] ) ? $payload['available_users'] : array();
 		$assignments = isset( $payload['assignments'] ) && is_array( $payload['assignments'] ) ? $payload['assignments'] : array();
 		$summary     = isset( $payload['summary'] ) && is_array( $payload['summary'] ) ? $payload['summary'] : array();
+		$business_id = isset( $payload['meta']['business_id'] ) ? absint( $payload['meta']['business_id'] ) : 0;
 
 		echo '<section class="sm-card sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Asignación Operativa', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Suggested only', 'super-mechanic' ) . '</span></div>';
@@ -724,9 +1226,24 @@ class Admin_Dashboard_Controller {
 		echo '</section>';
 		echo '</div>';
 
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'From', 'super-mechanic' ) . '</th><th>' . esc_html__( 'To', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Reason', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Delta', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		$proposals_count                  = isset( $summary['proposals'] ) ? absint( $summary['proposals'] ) : 0;
+		$overloaded_users_count           = isset( $summary['overloaded_users'] ) ? absint( $summary['overloaded_users'] ) : 0;
+		$available_users_count            = isset( $summary['available_users'] ) ? absint( $summary['available_users'] ) : 0;
+		$executable_task_candidates_count = isset( $summary['executable_task_candidates'] ) ? absint( $summary['executable_task_candidates'] ) : 0;
+		if ( 0 === $proposals_count ) {
+			echo '<div class="sm-notice-card">';
+			echo '<strong>' . esc_html__( 'No executable assignment proposals yet.', 'super-mechanic' ) . '</strong>';
+			echo '<p class="sm-card-copy">' . esc_html__( 'Proposals require at least one overloaded user, one available user, and a reassignable CRM task candidate.', 'super-mechanic' ) . '</p>';
+			echo '<ul class="sm-inline-list">';
+			echo '<li>' . esc_html( sprintf( __( 'Overloaded users detected: %d', 'super-mechanic' ), $overloaded_users_count ) ) . '</li>';
+			echo '<li>' . esc_html( sprintf( __( 'Available users detected: %d', 'super-mechanic' ), $available_users_count ) ) . '</li>';
+			echo '<li>' . esc_html( sprintf( __( 'Reassignable CRM task candidates: %d', 'super-mechanic' ), $executable_task_candidates_count ) ) . '</li>';
+			echo '</ul>';
+			echo '</div>';
+		}
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'From', 'super-mechanic' ) . '</th><th>' . esc_html__( 'To', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Reason', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Delta', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $assignments ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No redistribution proposals right now.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="6">' . esc_html__( 'No redistribution proposals right now.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $assignments as $proposal ) {
 				$from_name = isset( $proposal['from_name'] ) ? sanitize_text_field( (string) $proposal['from_name'] ) : '';
@@ -734,12 +1251,31 @@ class Admin_Dashboard_Controller {
 				$reason    = isset( $proposal['reason'] ) ? sanitize_key( (string) $proposal['reason'] ) : 'saturation_balance';
 				$delta     = isset( $proposal['workload_delta'] ) ? absint( $proposal['workload_delta'] ) : 0;
 				$level     = isset( $proposal['level'] ) ? sanitize_key( (string) $proposal['level'] ) : 'warning';
+				$from_user = isset( $proposal['from_user'] ) ? absint( $proposal['from_user'] ) : 0;
+				$to_user   = isset( $proposal['to_user'] ) ? absint( $proposal['to_user'] ) : 0;
+				$entity_id = isset( $proposal['entity_id'] ) ? absint( $proposal['entity_id'] ) : 0;
+				$entity    = isset( $proposal['entity_type'] ) ? sanitize_key( (string) $proposal['entity_type'] ) : '';
+				$executable = ! empty( $proposal['executable'] ) && 'crm_task' === $entity && $entity_id > 0 && $from_user > 0 && $to_user > 0 && $business_id > 0;
 				echo '<tr>';
 				echo '<td>' . esc_html( $from_name ) . '</td>';
 				echo '<td>' . esc_html( $to_name ) . '</td>';
 				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $reason ) ) ) . '</td>';
 				echo '<td>' . esc_html( $delta ) . '</td>';
 				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				if ( $executable ) {
+					echo '<td><form method="post" style="margin:0;">';
+					echo '<input type="hidden" name="sm_operational_reassign_action" value="execute" />';
+					echo '<input type="hidden" name="business_id" value="' . esc_attr( $business_id ) . '" />';
+					echo '<input type="hidden" name="from_user" value="' . esc_attr( $from_user ) . '" />';
+					echo '<input type="hidden" name="to_user" value="' . esc_attr( $to_user ) . '" />';
+					echo '<input type="hidden" name="entity_type" value="' . esc_attr( $entity ) . '" />';
+					echo '<input type="hidden" name="entity_id" value="' . esc_attr( $entity_id ) . '" />';
+					wp_nonce_field( 'sm_operational_reassign', 'sm_operational_reassign_nonce', false, true );
+					echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Reassign', 'super-mechanic' ) . '</button>';
+					echo '</form></td>';
+				} else {
+					echo '<td>' . esc_html__( 'Not executable', 'super-mechanic' ) . '</td>';
+				}
 				echo '</tr>';
 			}
 		}
@@ -801,6 +1337,130 @@ class Admin_Dashboard_Controller {
 		echo '<tr><td>' . esc_html__( 'Escalation', 'super-mechanic' ) . '</td><td>' . esc_html( ucfirst( $global_level ) ) . '</td><td>' . esc_html( isset( $escalation['blocking_flags'] ) && is_array( $escalation['blocking_flags'] ) ? count( $escalation['blocking_flags'] ) : 0 ) . '</td></tr>';
 		echo '<tr><td>' . esc_html__( 'Recommendations', 'super-mechanic' ) . '</td><td>' . esc_html__( 'Generated', 'super-mechanic' ) . '</td><td>' . esc_html( isset( $recommendations['summary']['total'] ) ? absint( $recommendations['summary']['total'] ) : 0 ) . '</td></tr>';
 		echo '<tr><td>' . esc_html__( 'Assignments', 'super-mechanic' ) . '</td><td>' . esc_html__( 'Suggested', 'super-mechanic' ) . '</td><td>' . esc_html( isset( $assignments['summary']['proposals'] ) ? absint( $assignments['summary']['proposals'] ) : 0 ) . '</td></tr>';
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render assisted operational actions block.
+	 *
+	 * @param array<string,mixed> $payload Assisted actions payload.
+	 * @return void
+	 */
+	protected function render_operational_assisted_actions( array $payload ) {
+		$actions = isset( $payload['actions'] ) && is_array( $payload['actions'] ) ? $payload['actions'] : array();
+		$summary = isset( $payload['summary'] ) && is_array( $payload['summary'] ) ? $payload['summary'] : array();
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Acciones Operativas Asistidas', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'Manual actions', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Safe navigation actions to execute operational follow-up manually.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Total actions', 'super-mechanic' ),
+			isset( $summary['total'] ) ? absint( $summary['total'] ) : 0,
+			__( 'Available manual actions', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Critical actions', 'super-mechanic' ),
+			isset( $summary['critical'] ) ? absint( $summary['critical'] ) : 0,
+			__( 'Highest operational priority', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Warning actions', 'super-mechanic' ),
+			isset( $summary['warning'] ) ? absint( $summary['warning'] ) : 0,
+			__( 'Recommended follow-up', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Context', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Navigate', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $actions ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No assisted actions available.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $actions as $action ) {
+				$label   = isset( $action['label'] ) ? sanitize_text_field( (string) $action['label'] ) : __( 'Open module', 'super-mechanic' );
+				$level   = isset( $action['level'] ) ? sanitize_key( (string) $action['level'] ) : 'warning';
+				$context = isset( $action['context'] ) ? sanitize_text_field( (string) $action['context'] ) : '';
+				$url     = isset( $action['url'] ) ? esc_url_raw( (string) $action['url'] ) : '';
+				echo '<tr>';
+				echo '<td>' . esc_html( $label ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td>' . esc_html( $context ) . '</td>';
+				if ( '' !== $url ) {
+					echo '<td><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Open', 'super-mechanic' ) . '</a></td>';
+				} else {
+					echo '<td>' . esc_html__( 'No direct action available', 'super-mechanic' ) . '</td>';
+				}
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render operational bulk actions block.
+	 *
+	 * @param array<string,mixed> $payload Bulk actions payload.
+	 * @return void
+	 */
+	protected function render_operational_bulk_actions( array $payload ) {
+		$groups      = isset( $payload['groups'] ) && is_array( $payload['groups'] ) ? $payload['groups'] : array();
+		$summary     = isset( $payload['summary'] ) && is_array( $payload['summary'] ) ? $payload['summary'] : array();
+		$business_id = isset( $payload['meta']['business_id'] ) ? absint( $payload['meta']['business_id'] ) : 0;
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Acciones Masivas Seguras', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-warning">' . esc_html__( 'Bulk operations', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Controlled bulk operations for supported entities without automatic execution.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Total groups', 'super-mechanic' ),
+			isset( $summary['total_groups'] ) ? absint( $summary['total_groups'] ) : 0,
+			__( 'Bulk candidates detected', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Executable groups', 'super-mechanic' ),
+			isset( $summary['executable_groups'] ) ? absint( $summary['executable_groups'] ) : 0,
+			__( 'Ready for manual execution', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Group', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Count', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $groups ) ) {
+			echo '<tr><td colspan="6">' . esc_html__( 'No bulk action groups available.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $groups as $group ) {
+				$group_key      = isset( $group['group_key'] ) ? sanitize_key( (string) $group['group_key'] ) : 'group';
+				$entity_type    = isset( $group['entity_type'] ) ? sanitize_key( (string) $group['entity_type'] ) : '';
+				$count          = isset( $group['count'] ) ? absint( $group['count'] ) : 0;
+				$level          = isset( $group['level'] ) ? sanitize_key( (string) $group['level'] ) : 'warning';
+				$action         = isset( $group['action'] ) ? sanitize_key( (string) $group['action'] ) : '';
+				$is_executable  = ! empty( $group['executable'] );
+				$ids            = isset( $group['items'] ) && is_array( $group['items'] ) ? implode( ',', array_map( 'absint', $group['items'] ) ) : '';
+				$target_user_id = isset( $group['target_user_id'] ) ? absint( $group['target_user_id'] ) : 0;
+				$button_label   = 'bulk_resolve' === $action ? __( 'Resolve all', 'super-mechanic' ) : __( 'Reassign all', 'super-mechanic' );
+
+				echo '<tr>';
+				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $group_key ) ) ) . '</td>';
+				echo '<td>' . esc_html( strtoupper( str_replace( '_', ' ', $entity_type ) ) ) . '</td>';
+				echo '<td>' . esc_html( $count ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $action ) ) ) . '</td>';
+				if ( $is_executable && '' !== $ids && $business_id > 0 ) {
+					echo '<td><form method="post" style="margin:0;">';
+					echo '<input type="hidden" name="sm_operational_bulk_action" value="' . esc_attr( $action ) . '" />';
+					echo '<input type="hidden" name="business_id" value="' . esc_attr( $business_id ) . '" />';
+					echo '<input type="hidden" name="entity_type" value="' . esc_attr( $entity_type ) . '" />';
+					echo '<input type="hidden" name="ids" value="' . esc_attr( $ids ) . '" />';
+					if ( $target_user_id > 0 ) {
+						echo '<input type="hidden" name="target_user_id" value="' . esc_attr( $target_user_id ) . '" />';
+					}
+					wp_nonce_field( 'sm_operational_bulk_action', 'sm_operational_bulk_action_nonce', false, true );
+					echo '<button type="submit" class="button button-secondary">' . esc_html( $button_label ) . '</button>';
+					echo '</form></td>';
+				} else {
+					echo '<td>' . esc_html__( 'Not executable', 'super-mechanic' ) . '</td>';
+				}
+				echo '</tr>';
+			}
+		}
 		echo '</tbody></table></div>';
 		echo '</section>';
 	}

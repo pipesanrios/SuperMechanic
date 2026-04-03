@@ -28,8 +28,8 @@ No future speculation beyond immediate continuity.
 
 ## Current Delivery Baseline
 
-- Last completed phase baseline: **Fase 40**
-- Last completed block: **40D**
+- Last completed phase baseline: **Fase 42**
+- Last completed block: **42E**
 - Block status:
   - `39B` COMPLETE
   - `39C` COMPLETE
@@ -39,30 +39,42 @@ No future speculation beyond immediate continuity.
   - `40B` COMPLETE
   - `40C` COMPLETE
   - `40D` COMPLETE
+  - `41A` COMPLETE
+  - `41B` COMPLETE
+  - `41C` COMPLETE
+  - `41D` COMPLETE
+  - `41E` COMPLETE
+  - `42A` COMPLETE
+  - `42B` PARTIAL
+  - `42C` COMPLETE
+  - `42D` COMPLETE
+  - `42E` COMPLETE
 
 ---
 
-## 40 Complete Scope
+## 42 Delivery Scope
 
-- 40A:
-  - global operational summary in admin dashboard
-  - business-level aggregated visibility
-- 40B:
-  - `includes/dashboard/class-workload-service.php`
-  - section **Mi trabajo** with per-user workload
-  - aggregation of CRM tasks, operational signals, active processes, upcoming appointments
-- Hotfix alignment:
-  - dashboard signals aligned with CRM Pipeline policy (`persisted` first, `runtime fallback` only when persisted is absent)
-- 40C:
-  - operational/SLA metrics via `get_operational_metrics($business_id)`
-  - tasks, processes, alerts, appointments KPI blocks
-- 40D:
-  - UI consistency improvements in CRM Pipeline operational views
+- 42A:
+  - assisted operational actions with safe manual navigation
+- 42B (PARTIAL):
+  - controlled reassignment implementation for `crm_task` is complete
+  - technical validation is OK
+  - observability for zero-proposal state is complete
+  - runtime validation remains pending due to lack of dataset with:
+    - overloaded users
+    - available users
+    - executable reassignment candidate
+- 42C:
+  - safe bulk actions layer (`bulk_resolve`, `bulk_reassign`) with strict validations
+- 42D:
+  - operational action center consolidating assisted, reassignment and bulk execution entry points
+- 42E:
+  - configurable executable-rules layer (evaluation + preview only, no auto execution)
 - Constraints respected:
   - no new tables
   - no cron
-  - no persisted-alert recalculation when persisted exists
-  - no functional regressions in core modules
+  - no automatic execution in configurable rules
+  - no functional regressions reported in core modules
 
 ---
 
@@ -70,15 +82,18 @@ No future speculation beyond immediate continuity.
 
 The system is now capable of:
 
-- Unified operational dashboard layer:
-  - global summary (40A)
-  - user workload (40B)
-  - SLA metrics (40C)
-- Cross-module operational signal alignment with CRM Pipeline
-- Improved operational UI consistency for CRM Pipeline (40D)
-- Stable operational baseline ready for automation continuity
+- complete operational observability layer
+- controlled manual execution layer:
+  - assisted actions
+  - controlled reassignment
+  - safe bulk actions
+- configurable rules layer:
+  - rule definition
+  - rule evaluation
+  - action preview
+  - no automatic execution
 
-This enables the transition from **data system → operational system**
+This enables the transition from **operational system → controlled automation readiness**
 
 ---
 
@@ -107,19 +122,13 @@ This enables the transition from **data system → operational system**
 
 ## Next Continuity
 
-### Fase 41 — Automatización Operativa
+### Fase 43 — Automatización Operativa Real
 
-The next phase extends the now-stable operational layer with automation workflows.
+Continuity target:
 
-Immediate next block:
-
-👉 **41A — Automatización Operativa (entrypoint)**
-
-Focus:
-
-- automation based on validated operational signals
-- low-friction operational execution
-- preserving tenancy, safety, and architectural boundaries
+- move from preview/manual execution to controlled real automation workflows
+- preserve tenancy, safety, and architectural boundaries
+- keep no-regression guarantees for operational dashboard flows
 
 ---
 

@@ -60,14 +60,19 @@ This mirrors the bootstrap order and must be respected:
 
 - Plugin version: `0.1.0`
 - Schema version: `1.19.0`
-- Current confirmed baseline: **Fase 40 completed through block 40D**
-- System state: **stable operational baseline**
-- Next continuity: **Fase 41 — Automatización Operativa**
+- Current confirmed baseline: **Fase 42 completed with one partial component (42B)**
+- System state: **stable operational + controlled automation baseline**
+- Next continuity: **Fase 43 — Automatización Operativa Real**
 
 ⚠️ Important:
 Before starting any task, confirm continuity in:
 - `docs/PLUGIN_ROADMAP.md`
 - `docs/CURRENT_STATE.md`
+
+Operational status reminder:
+- rules are already modeled and evaluated (`Operational_Rules_Service`)
+- execution remains manual/controlled in dashboard layers
+- no cron-based automatic execution in the 42 baseline
 
 ---
 

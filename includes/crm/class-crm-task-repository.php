@@ -248,6 +248,36 @@ class Crm_Task_Repository {
 	}
 
 	/**
+	 * Reassign one CRM task between users in active business context.
+	 *
+	 * @param int $id           Task ID.
+	 * @param int $from_user_id Current assigned user ID.
+	 * @param int $to_user_id   Destination user ID.
+	 * @return bool
+	 */
+	public function reassign_task( $id, $from_user_id, $to_user_id ) {
+		global $wpdb;
+
+		$result = $wpdb->update(
+			$this->get_table_name(),
+			array(
+				'assigned_user_id' => absint( $to_user_id ),
+				'updated_at'       => current_time( 'mysql' ),
+			),
+			array(
+				'id'               => absint( $id ),
+				'business_id'      => $this->resolve_business_id(),
+				'assigned_user_id' => absint( $from_user_id ),
+				'status'           => 'pending',
+			),
+			array( '%d', '%s' ),
+			array( '%d', '%d', '%d', '%s' )
+		);
+
+		return false !== $result && $result > 0;
+	}
+
+	/**
 	 * Delete task by id scoped to active business.
 	 *
 	 * @param int $id Task ID.
