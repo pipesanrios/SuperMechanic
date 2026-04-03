@@ -70,6 +70,25 @@ class Admin_Dashboard_Controller {
 		$global_summary = $this->workload_service->get_global_operational_summary(
 			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0
 		);
+		$automation_flags = $this->workload_service->get_operational_automation_flags(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$selected_workload_user_id
+		);
+		$escalation_state = $this->workload_service->get_operational_escalation_state(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$selected_workload_user_id
+		);
+		$operational_recommendations = $this->workload_service->get_operational_recommendations(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$selected_workload_user_id
+		);
+		$operational_assignments = $this->workload_service->get_operational_assignments(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0
+		);
+		$automation_console = $this->workload_service->get_operational_automation_console(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$selected_workload_user_id
+		);
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
@@ -82,6 +101,11 @@ class Admin_Dashboard_Controller {
 
 		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Metrics are calculated from current operations without altering existing flows.', 'super-mechanic' ) . '</p></div>';
 		$this->render_global_operational_summary( $global_summary );
+		$this->render_operational_escalation_state( $escalation_state );
+		$this->render_operational_automation_flags( $automation_flags );
+		$this->render_operational_recommendations( $operational_recommendations );
+		$this->render_operational_assignments( $operational_assignments );
+		$this->render_operational_automation_console( $automation_console );
 
 		echo '<section class="sm-card sm-section sm-quick-actions-card">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Quick actions', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Operational shortcuts', 'super-mechanic' ) . '</span></div>';
@@ -393,7 +417,7 @@ class Admin_Dashboard_Controller {
 	 */
 	protected function render_global_operational_summary( array $summary ) {
 		echo '<section class="sm-card sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Resumen Operativo Global', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( '40A', 'super-mechanic' ) . '</span></div>';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Resumen Operativo Global', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Global', 'super-mechanic' ) . '</span></div>';
 		echo '<p class="sm-card-copy">' . esc_html__( 'Business-level aggregated metrics for operational load and critical points.', 'super-mechanic' ) . '</p>';
 		echo '<div class="sm-grid sm-grid-cards">';
 		$this->render_kpi_card(
@@ -452,6 +476,332 @@ class Admin_Dashboard_Controller {
 			__( 'No normal items.', 'super-mechanic' )
 		);
 		echo '</div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render automation flags section.
+	 *
+	 * @param array<string,mixed> $automation_flags Automation flags payload.
+	 * @return void
+	 */
+	protected function render_operational_automation_flags( array $automation_flags ) {
+		$flags        = isset( $automation_flags['flags'] ) && is_array( $automation_flags['flags'] ) ? $automation_flags['flags'] : array();
+		$summary      = isset( $automation_flags['summary'] ) && is_array( $automation_flags['summary'] ) ? $automation_flags['summary'] : array();
+		$active_count = isset( $summary['active_flags'] ) ? absint( $summary['active_flags'] ) : 0;
+		$global_state = isset( $summary['global_state'] ) ? sanitize_key( (string) $summary['global_state'] ) : 'stable';
+		$state_label  = 'elevated' === $global_state ? __( 'Elevated', 'super-mechanic' ) : ( 'attention' === $global_state ? __( 'Attention', 'super-mechanic' ) : __( 'Stable', 'super-mechanic' ) );
+		$state_badge  = 'elevated' === $global_state ? 'sm-badge sm-badge-danger' : ( 'attention' === $global_state ? 'sm-badge sm-badge-warning' : 'sm-badge sm-badge-success' );
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Automatización operativa interna', 'super-mechanic' ) . '</h2><span class="' . esc_attr( $state_badge ) . '">' . esc_html( $state_label ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Rule-based internal flags generated from existing operational signals (no external automation).', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Active internal flags', 'super-mechanic' ),
+			$active_count,
+			__( 'Automatic operational suggestions', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Critical flags', 'super-mechanic' ),
+			isset( $summary['critical_flags'] ) ? absint( $summary['critical_flags'] ) : 0,
+			__( 'Need immediate attention', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Warning flags', 'super-mechanic' ),
+			isset( $summary['warning_flags'] ) ? absint( $summary['warning_flags'] ) : 0,
+			__( 'Monitor and rebalance load', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Rule', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Current value', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Threshold', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $flags ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No internal rules available.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $flags as $flag ) {
+				$message   = isset( $flag['message'] ) ? sanitize_text_field( (string) $flag['message'] ) : __( 'Operational rule', 'super-mechanic' );
+				$is_active = ! empty( $flag['active'] );
+				$value     = isset( $flag['value'] ) ? absint( $flag['value'] ) : 0;
+				$threshold = isset( $flag['threshold'] ) ? absint( $flag['threshold'] ) : 0;
+				$level     = isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'normal';
+				$badge     = $is_active ? $this->render_workload_priority_badge( $level ) : '<span class="sm-badge sm-badge-success">' . esc_html__( 'OK', 'super-mechanic' ) . '</span>';
+				echo '<tr>';
+				echo '<td>' . esc_html( $message ) . '</td>';
+				echo '<td>' . wp_kses_post( $badge ) . '</td>';
+				echo '<td>' . esc_html( $value ) . '</td>';
+				echo '<td>' . esc_html( $threshold ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render escalation state section.
+	 *
+	 * @param array<string,mixed> $escalation_state Escalation payload.
+	 * @return void
+	 */
+	protected function render_operational_escalation_state( array $escalation_state ) {
+		$global_level = isset( $escalation_state['global_level'] ) ? sanitize_key( (string) $escalation_state['global_level'] ) : 'normal';
+		$blocking     = isset( $escalation_state['blocking_flags'] ) && is_array( $escalation_state['blocking_flags'] ) ? $escalation_state['blocking_flags'] : array();
+		$user_sat     = isset( $escalation_state['user_saturation'] ) && is_array( $escalation_state['user_saturation'] ) ? $escalation_state['user_saturation'] : array();
+		$badge_class  = 'sm-badge sm-badge-success';
+		$badge_label  = __( 'Normal', 'super-mechanic' );
+
+		if ( 'critical' === $global_level ) {
+			$badge_class = 'sm-badge sm-badge-danger';
+			$badge_label = __( 'Critical', 'super-mechanic' );
+		} elseif ( 'warning' === $global_level ) {
+			$badge_class = 'sm-badge sm-badge-warning';
+			$badge_label = __( 'Warning', 'super-mechanic' );
+		}
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Escalamiento Operativo', 'super-mechanic' ) . '</h2><span class="' . esc_attr( $badge_class ) . '">' . esc_html( $badge_label ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Consolidated escalation layer for critical blockers and saturation conditions.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Blocking flags', 'super-mechanic' ),
+			count( $blocking ),
+			__( 'Active operational blockers', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Critical workload', 'super-mechanic' ),
+			isset( $escalation_state['critical_workload_count'] ) ? absint( $escalation_state['critical_workload_count'] ) : 0,
+			__( 'Prioritized workload items', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Warning workload', 'super-mechanic' ),
+			isset( $escalation_state['warning_workload_count'] ) ? absint( $escalation_state['warning_workload_count'] ) : 0,
+			__( 'Follow-up workload items', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'User saturation', 'super-mechanic' ),
+			! empty( $user_sat['is_saturated'] ) ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ),
+			__( 'Critical load pressure per user', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Blocking condition', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Value', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Threshold', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $blocking ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No active operational blockers.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $blocking as $flag ) {
+				$message   = isset( $flag['message'] ) ? sanitize_text_field( (string) $flag['message'] ) : __( 'Operational blocker', 'super-mechanic' );
+				$level     = isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'warning';
+				$value     = isset( $flag['value'] ) ? absint( $flag['value'] ) : 0;
+				$threshold = isset( $flag['threshold'] ) ? absint( $flag['threshold'] ) : 0;
+				echo '<tr>';
+				echo '<td>' . esc_html( $message ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td>' . esc_html( $value ) . '</td>';
+				echo '<td>' . esc_html( $threshold ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render intelligent recommendations section.
+	 *
+	 * @param array<string,mixed> $payload Recommendations payload.
+	 * @return void
+	 */
+	protected function render_operational_recommendations( array $payload ) {
+		$recommendations = isset( $payload['recommendations'] ) && is_array( $payload['recommendations'] ) ? $payload['recommendations'] : array();
+		$summary         = isset( $payload['summary'] ) && is_array( $payload['summary'] ) ? $payload['summary'] : array();
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Sugerencias Inteligentes', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'Recommendations', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Suggested next actions based on workload, escalation, and SLA signals.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Total recommendations', 'super-mechanic' ),
+			isset( $summary['total'] ) ? absint( $summary['total'] ) : 0,
+			__( 'Suggested operational actions', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Critical recommendations', 'super-mechanic' ),
+			isset( $summary['critical'] ) ? absint( $summary['critical'] ) : 0,
+			__( 'Immediate interventions', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Warning recommendations', 'super-mechanic' ),
+			isset( $summary['warning'] ) ? absint( $summary['warning'] ) : 0,
+			__( 'Priority follow-up actions', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Recommendation', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Message', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action hint', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $recommendations ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No recommendations at this time.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $recommendations as $recommendation ) {
+				$title       = isset( $recommendation['title'] ) ? sanitize_text_field( (string) $recommendation['title'] ) : __( 'Operational recommendation', 'super-mechanic' );
+				$level       = isset( $recommendation['level'] ) ? sanitize_key( (string) $recommendation['level'] ) : 'warning';
+				$message     = isset( $recommendation['message'] ) ? sanitize_text_field( (string) $recommendation['message'] ) : '';
+				$action_hint = isset( $recommendation['action_hint'] ) ? sanitize_text_field( (string) $recommendation['action_hint'] ) : '';
+				echo '<tr>';
+				echo '<td>' . esc_html( $title ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '<td>' . esc_html( $message ) . '</td>';
+				echo '<td>' . esc_html( $action_hint ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render operational assignment suggestions.
+	 *
+	 * @param array<string,mixed> $payload Assignment payload.
+	 * @return void
+	 */
+	protected function render_operational_assignments( array $payload ) {
+		$overloaded  = isset( $payload['overloaded_users'] ) && is_array( $payload['overloaded_users'] ) ? $payload['overloaded_users'] : array();
+		$available   = isset( $payload['available_users'] ) && is_array( $payload['available_users'] ) ? $payload['available_users'] : array();
+		$assignments = isset( $payload['assignments'] ) && is_array( $payload['assignments'] ) ? $payload['assignments'] : array();
+		$summary     = isset( $payload['summary'] ) && is_array( $payload['summary'] ) ? $payload['summary'] : array();
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Asignación Operativa', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Suggested only', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Load balancing proposals without applying any real assignment changes.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Overloaded users', 'super-mechanic' ),
+			isset( $summary['overloaded_users'] ) ? absint( $summary['overloaded_users'] ) : 0,
+			__( 'Users with high critical load', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Available users', 'super-mechanic' ),
+			isset( $summary['available_users'] ) ? absint( $summary['available_users'] ) : 0,
+			__( 'Users with low operational load', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Assignment proposals', 'super-mechanic' ),
+			isset( $summary['proposals'] ) ? absint( $summary['proposals'] ) : 0,
+			__( 'Suggested workload redistribution', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-grid sm-grid-two">';
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Saturated users', 'super-mechanic' ) . '</h3></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'User', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Critical', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Warning', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $overloaded ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No saturated users detected.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $overloaded as $row ) {
+				echo '<tr>';
+				echo '<td>' . esc_html( isset( $row['display_name'] ) ? (string) $row['display_name'] : '' ) . '</td>';
+				echo '<td>' . esc_html( absint( isset( $row['critical'] ) ? $row['critical'] : 0 ) ) . '</td>';
+				echo '<td>' . esc_html( absint( isset( $row['warning'] ) ? $row['warning'] : 0 ) ) . '</td>';
+				echo '<td>' . esc_html( absint( isset( $row['total'] ) ? $row['total'] : 0 ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Available users', 'super-mechanic' ) . '</h3></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'User', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Critical', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Warning', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $available ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No available users detected.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $available as $row ) {
+				echo '<tr>';
+				echo '<td>' . esc_html( isset( $row['display_name'] ) ? (string) $row['display_name'] : '' ) . '</td>';
+				echo '<td>' . esc_html( absint( isset( $row['critical'] ) ? $row['critical'] : 0 ) ) . '</td>';
+				echo '<td>' . esc_html( absint( isset( $row['warning'] ) ? $row['warning'] : 0 ) ) . '</td>';
+				echo '<td>' . esc_html( absint( isset( $row['total'] ) ? $row['total'] : 0 ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+		echo '</div>';
+
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'From', 'super-mechanic' ) . '</th><th>' . esc_html__( 'To', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Reason', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Delta', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $assignments ) ) {
+			echo '<tr><td colspan="5">' . esc_html__( 'No redistribution proposals right now.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $assignments as $proposal ) {
+				$from_name = isset( $proposal['from_name'] ) ? sanitize_text_field( (string) $proposal['from_name'] ) : '';
+				$to_name   = isset( $proposal['to_name'] ) ? sanitize_text_field( (string) $proposal['to_name'] ) : '';
+				$reason    = isset( $proposal['reason'] ) ? sanitize_key( (string) $proposal['reason'] ) : 'saturation_balance';
+				$delta     = isset( $proposal['workload_delta'] ) ? absint( $proposal['workload_delta'] ) : 0;
+				$level     = isset( $proposal['level'] ) ? sanitize_key( (string) $proposal['level'] ) : 'warning';
+				echo '<tr>';
+				echo '<td>' . esc_html( $from_name ) . '</td>';
+				echo '<td>' . esc_html( $to_name ) . '</td>';
+				echo '<td>' . esc_html( ucwords( str_replace( '_', ' ', $reason ) ) ) . '</td>';
+				echo '<td>' . esc_html( $delta ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $level ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render centralized automation console.
+	 *
+	 * @param array<string,mixed> $payload Automation console payload.
+	 * @return void
+	 */
+	protected function render_operational_automation_console( array $payload ) {
+		$status          = isset( $payload['system_status'] ) && is_array( $payload['system_status'] ) ? $payload['system_status'] : array();
+		$flags           = isset( $payload['flags'] ) && is_array( $payload['flags'] ) ? $payload['flags'] : array();
+		$escalation      = isset( $payload['escalation'] ) && is_array( $payload['escalation'] ) ? $payload['escalation'] : array();
+		$recommendations = isset( $payload['recommendations'] ) && is_array( $payload['recommendations'] ) ? $payload['recommendations'] : array();
+		$assignments     = isset( $payload['assignments'] ) && is_array( $payload['assignments'] ) ? $payload['assignments'] : array();
+
+		$global_level = isset( $status['global_level'] ) ? sanitize_key( (string) $status['global_level'] ) : 'normal';
+		$badge_class  = 'sm-badge sm-badge-success';
+		$badge_label  = __( 'Normal', 'super-mechanic' );
+		if ( 'critical' === $global_level ) {
+			$badge_class = 'sm-badge sm-badge-danger';
+			$badge_label = __( 'Critical', 'super-mechanic' );
+		} elseif ( 'warning' === $global_level ) {
+			$badge_class = 'sm-badge sm-badge-warning';
+			$badge_label = __( 'Warning', 'super-mechanic' );
+		}
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Consola de Automatización', 'super-mechanic' ) . '</h2><span class="' . esc_attr( $badge_class ) . '">' . esc_html( $badge_label ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Centralized read-only overview of automatic operational layers.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Active flags', 'super-mechanic' ),
+			isset( $status['active_flags'] ) ? absint( $status['active_flags'] ) : 0,
+			__( 'From automation flags layer', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Blocking flags', 'super-mechanic' ),
+			isset( $status['blocking_flags'] ) ? absint( $status['blocking_flags'] ) : 0,
+			__( 'From escalation layer', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Recommendations', 'super-mechanic' ),
+			isset( $recommendations['summary']['total'] ) ? absint( $recommendations['summary']['total'] ) : 0,
+			__( 'Suggested next actions', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Assignment proposals', 'super-mechanic' ),
+			isset( $assignments['summary']['proposals'] ) ? absint( $assignments['summary']['proposals'] ) : 0,
+			__( 'Suggested redistribution only', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Layer', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Main count', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<tr><td>' . esc_html__( 'Flags', 'super-mechanic' ) . '</td><td>' . esc_html__( 'Active', 'super-mechanic' ) . '</td><td>' . esc_html( isset( $flags['summary']['active_flags'] ) ? absint( $flags['summary']['active_flags'] ) : 0 ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Escalation', 'super-mechanic' ) . '</td><td>' . esc_html( ucfirst( $global_level ) ) . '</td><td>' . esc_html( isset( $escalation['blocking_flags'] ) && is_array( $escalation['blocking_flags'] ) ? count( $escalation['blocking_flags'] ) : 0 ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Recommendations', 'super-mechanic' ) . '</td><td>' . esc_html__( 'Generated', 'super-mechanic' ) . '</td><td>' . esc_html( isset( $recommendations['summary']['total'] ) ? absint( $recommendations['summary']['total'] ) : 0 ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Assignments', 'super-mechanic' ) . '</td><td>' . esc_html__( 'Suggested', 'super-mechanic' ) . '</td><td>' . esc_html( isset( $assignments['summary']['proposals'] ) ? absint( $assignments['summary']['proposals'] ) : 0 ) . '</td></tr>';
+		echo '</tbody></table></div>';
 		echo '</section>';
 	}
 

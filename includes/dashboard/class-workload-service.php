@@ -193,6 +193,527 @@ class Workload_Service {
 	}
 
 	/**
+	 * Get internal automation flags from existing operational signals.
+	 *
+	 * @param int      $business_id Business ID.
+	 * @param int|null $user_id Optional user ID for user-scoped saturation flag.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_automation_flags( $business_id, $user_id = null ) {
+		$payload             = $this->get_empty_operational_automation_flags();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$target_user_id      = null !== $user_id ? absint( $user_id ) : absint( $current_user_id );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		if ( $target_user_id <= 0 ) {
+			$target_user_id = $current_user_id;
+		}
+
+		$summary  = $this->get_global_operational_summary( $target_business_id );
+		$metrics  = $this->get_operational_metrics( $target_business_id );
+		$workload = $this->get_user_workload(
+			$target_user_id,
+			array(
+				'upcoming_days'    => 7,
+				'max_scan'         => 250,
+				'limit_per_bucket' => 50,
+			)
+		);
+
+		$tasks_overdue_total = isset( $summary['tasks_overdue_total'] ) ? absint( $summary['tasks_overdue_total'] ) : 0;
+		$processes_delayed   = isset( $metrics['processes']['delayed'] ) ? absint( $metrics['processes']['delayed'] ) : 0;
+		$alerts_critical     = isset( $metrics['alerts']['critical'] ) ? absint( $metrics['alerts']['critical'] ) : 0;
+		$user_critical_load  = isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? count( $workload['critical'] ) : 0;
+
+		$flags = array(
+			array(
+				'code'      => 'overdue_open_tasks',
+				'active'    => $tasks_overdue_total > 0,
+				'level'     => $tasks_overdue_total > 0 ? 'critical' : 'normal',
+				'message'   => __( 'There are overdue CRM tasks still open.', 'super-mechanic' ),
+				'value'     => $tasks_overdue_total,
+				'threshold' => 1,
+			),
+			array(
+				'code'      => 'delayed_active_processes',
+				'active'    => $processes_delayed > 0,
+				'level'     => $processes_delayed > 0 ? 'warning' : 'normal',
+				'message'   => __( 'Active processes with operational delay detected.', 'super-mechanic' ),
+				'value'     => $processes_delayed,
+				'threshold' => 1,
+			),
+			array(
+				'code'      => 'user_critical_saturation',
+				'active'    => $user_critical_load >= 3,
+				'level'     => $user_critical_load >= 3 ? 'warning' : 'normal',
+				'message'   => __( 'User operational saturation by critical workload.', 'super-mechanic' ),
+				'value'     => $user_critical_load,
+				'threshold' => 3,
+			),
+			array(
+				'code'      => 'global_critical_escalation',
+				'active'    => $alerts_critical >= 2,
+				'level'     => $alerts_critical >= 2 ? 'critical' : 'normal',
+				'message'   => __( 'Multiple critical business signals require elevated operational state.', 'super-mechanic' ),
+				'value'     => $alerts_critical,
+				'threshold' => 2,
+			),
+		);
+
+		$payload['flags'] = $flags;
+		$payload['meta']  = array(
+			'business_id'      => $target_business_id,
+			'user_id'          => $target_user_id,
+			'generated_at'     => current_time( 'mysql' ),
+			'signals_policy'   => 'crm_pipeline_aligned',
+		);
+
+		foreach ( $flags as $flag ) {
+			if ( empty( $flag['active'] ) ) {
+				continue;
+			}
+
+			$level = isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'normal';
+			if ( 'critical' === $level ) {
+				++$payload['summary']['critical_flags'];
+			} elseif ( 'warning' === $level ) {
+				++$payload['summary']['warning_flags'];
+			} else {
+				++$payload['summary']['normal_flags'];
+			}
+		}
+
+		$payload['summary']['active_flags'] = $payload['summary']['critical_flags'] + $payload['summary']['warning_flags'] + $payload['summary']['normal_flags'];
+		$payload['summary']['global_state'] = $payload['summary']['critical_flags'] > 0 ? 'elevated' : ( $payload['summary']['warning_flags'] > 0 ? 'attention' : 'stable' );
+
+		return $payload;
+	}
+
+	/**
+	 * Build operational escalation state from existing aggregated signals.
+	 *
+	 * @param int      $business_id Business ID.
+	 * @param int|null $user_id Optional user ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_escalation_state( $business_id, $user_id = null ) {
+		$payload             = $this->get_empty_operational_escalation_state();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$target_user_id      = null !== $user_id ? absint( $user_id ) : absint( $current_user_id );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		if ( $target_user_id <= 0 ) {
+			$target_user_id = $current_user_id;
+		}
+
+		$automation_flags = $this->get_operational_automation_flags( $target_business_id, $target_user_id );
+		$workload         = $this->get_user_workload(
+			$target_user_id,
+			array(
+				'upcoming_days'    => 7,
+				'max_scan'         => 250,
+				'limit_per_bucket' => 50,
+			)
+		);
+		$summary          = $this->get_global_operational_summary( $target_business_id );
+		$metrics          = $this->get_operational_metrics( $target_business_id );
+		$flags            = isset( $automation_flags['flags'] ) && is_array( $automation_flags['flags'] ) ? $automation_flags['flags'] : array();
+		$active_flags     = array_values(
+			array_filter(
+				$flags,
+				function ( $flag ) {
+					return is_array( $flag ) && ! empty( $flag['active'] );
+				}
+			)
+		);
+
+		$payload['critical_workload_count'] = isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? count( $workload['critical'] ) : 0;
+		$payload['warning_workload_count']  = isset( $workload['warning'] ) && is_array( $workload['warning'] ) ? count( $workload['warning'] ) : 0;
+		$payload['blocking_flags']          = array_values(
+			array_filter(
+				$active_flags,
+				function ( $flag ) {
+					$level = isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'normal';
+					return in_array( $level, array( 'critical', 'warning' ), true );
+				}
+			)
+		);
+
+		$payload['user_saturation'] = array(
+			'user_id'         => $target_user_id,
+			'is_saturated'    => false,
+			'critical_load'   => $payload['critical_workload_count'],
+			'threshold'       => 3,
+			'active_flag'     => '',
+			'suggested_level' => 'normal',
+		);
+		foreach ( $active_flags as $flag ) {
+			if ( isset( $flag['code'] ) && 'user_critical_saturation' === $flag['code'] ) {
+				$payload['user_saturation']['is_saturated']    = true;
+				$payload['user_saturation']['threshold']       = isset( $flag['threshold'] ) ? absint( $flag['threshold'] ) : 3;
+				$payload['user_saturation']['active_flag']     = 'user_critical_saturation';
+				$payload['user_saturation']['suggested_level'] = isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'warning';
+				break;
+			}
+		}
+
+		$has_critical_flag = false;
+		$has_warning_flag  = false;
+		foreach ( $active_flags as $flag ) {
+			$level = isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'normal';
+			if ( 'critical' === $level ) {
+				$has_critical_flag = true;
+			} elseif ( 'warning' === $level ) {
+				$has_warning_flag = true;
+			}
+		}
+
+		if ( $has_critical_flag || $payload['critical_workload_count'] > 0 || ( isset( $summary['tasks_overdue_total'] ) && absint( $summary['tasks_overdue_total'] ) > 0 ) ) {
+			$payload['global_level'] = 'critical';
+		} elseif ( $has_warning_flag || $payload['warning_workload_count'] > 0 || ( isset( $metrics['processes']['delayed'] ) && absint( $metrics['processes']['delayed'] ) > 0 ) ) {
+			$payload['global_level'] = 'warning';
+		}
+
+		$payload['meta'] = array(
+			'business_id'    => $target_business_id,
+			'user_id'        => $target_user_id,
+			'generated_at'   => current_time( 'mysql' ),
+			'source'         => 'automation_flags_workload_summary_metrics',
+		);
+
+		return $payload;
+	}
+
+	/**
+	 * Build intelligent operational recommendations from existing aggregates.
+	 *
+	 * @param int      $business_id Business ID.
+	 * @param int|null $user_id Optional user ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_recommendations( $business_id, $user_id = null ) {
+		$payload             = $this->get_empty_operational_recommendations();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$target_user_id      = null !== $user_id ? absint( $user_id ) : absint( $current_user_id );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		if ( $target_user_id <= 0 ) {
+			$target_user_id = $current_user_id;
+		}
+
+		$automation      = $this->get_operational_automation_flags( $target_business_id, $target_user_id );
+		$escalation      = $this->get_operational_escalation_state( $target_business_id, $target_user_id );
+		$workload        = $this->get_user_workload(
+			$target_user_id,
+			array(
+				'upcoming_days'    => 7,
+				'max_scan'         => 250,
+				'limit_per_bucket' => 50,
+			)
+		);
+		$global_summary  = $this->get_global_operational_summary( $target_business_id );
+		$metrics         = $this->get_operational_metrics( $target_business_id );
+		$recommendations = array();
+
+		$tasks_overdue = isset( $global_summary['tasks_overdue_total'] ) ? absint( $global_summary['tasks_overdue_total'] ) : 0;
+		if ( $tasks_overdue > 0 ) {
+			$recommendations[] = array(
+				'key'         => 'resolve_overdue_backlog',
+				'level'       => 'critical',
+				'title'       => __( 'Resolve overdue backlog', 'super-mechanic' ),
+				'message'     => sprintf(
+					/* translators: %d number of overdue tasks. */
+					__( '%d overdue CRM tasks are still open and should be resolved first.', 'super-mechanic' ),
+					$tasks_overdue
+				),
+				'action_hint' => __( 'Prioritize overdue tasks in CRM and clear oldest items first.', 'super-mechanic' ),
+			);
+		}
+
+		$processes_delayed = isset( $metrics['processes']['delayed'] ) ? absint( $metrics['processes']['delayed'] ) : 0;
+		if ( $processes_delayed > 0 ) {
+			$recommendations[] = array(
+				'key'         => 'review_delayed_processes',
+				'level'       => 'warning',
+				'title'       => __( 'Review delayed processes', 'super-mechanic' ),
+				'message'     => sprintf(
+					/* translators: %d number of delayed processes. */
+					__( '%d active processes show operational delay.', 'super-mechanic' ),
+					$processes_delayed
+				),
+				'action_hint' => __( 'Inspect blockers and unblock delayed processes before adding new load.', 'super-mechanic' ),
+			);
+		}
+
+		$is_user_saturated = ! empty( $escalation['user_saturation']['is_saturated'] );
+		if ( $is_user_saturated ) {
+			$critical_load = isset( $escalation['user_saturation']['critical_load'] ) ? absint( $escalation['user_saturation']['critical_load'] ) : 0;
+			$recommendations[] = array(
+				'key'         => 'redistribute_user_load',
+				'level'       => 'warning',
+				'title'       => __( 'Redistribute user load', 'super-mechanic' ),
+				'message'     => sprintf(
+					/* translators: %d critical workload count. */
+					__( 'User has %d critical workload items and is operationally saturated.', 'super-mechanic' ),
+					$critical_load
+				),
+				'action_hint' => __( 'Reassign non-critical items to rebalance daily operational capacity.', 'super-mechanic' ),
+			);
+		}
+
+		$critical_flags = isset( $automation['summary']['critical_flags'] ) ? absint( $automation['summary']['critical_flags'] ) : 0;
+		if ( $critical_flags >= 2 || ( isset( $escalation['global_level'] ) && 'critical' === $escalation['global_level'] ) ) {
+			$recommendations[] = array(
+				'key'         => 'immediate_critical_intervention',
+				'level'       => 'critical',
+				'title'       => __( 'Immediate critical intervention', 'super-mechanic' ),
+				'message'     => __( 'Multiple critical operational signals are active across the business.', 'super-mechanic' ),
+				'action_hint' => __( 'Run a short priority triage and focus team effort on top critical blockers.', 'super-mechanic' ),
+			);
+		}
+
+		$critical_count   = isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? count( $workload['critical'] ) : 0;
+		$warning_count    = isset( $workload['warning'] ) && is_array( $workload['warning'] ) ? count( $workload['warning'] ) : 0;
+		$normal_count     = isset( $workload['normal'] ) && is_array( $workload['normal'] ) ? count( $workload['normal'] ) : 0;
+		$workload_total   = $critical_count + $warning_count + $normal_count;
+		$appointments_upcoming = isset( $global_summary['appointments_upcoming_total'] ) ? absint( $global_summary['appointments_upcoming_total'] ) : 0;
+		if ( 0 === $workload_total && $appointments_upcoming > 0 ) {
+			$recommendations[] = array(
+				'key'         => 'prepare_upcoming_appointments',
+				'level'       => 'warning',
+				'title'       => __( 'Prepare scheduled work', 'super-mechanic' ),
+				'message'     => sprintf(
+					/* translators: %d number of upcoming appointments. */
+					__( 'No current workload items, but %d appointments are coming soon.', 'super-mechanic' ),
+					$appointments_upcoming
+				),
+				'action_hint' => __( 'Pre-assign resources and prepare required documents and parts in advance.', 'super-mechanic' ),
+			);
+		}
+
+		$payload['recommendations'] = $recommendations;
+		$payload['summary']['total'] = count( $recommendations );
+		foreach ( $recommendations as $recommendation ) {
+			$level = isset( $recommendation['level'] ) ? sanitize_key( (string) $recommendation['level'] ) : 'warning';
+			if ( 'critical' === $level ) {
+				++$payload['summary']['critical'];
+			} else {
+				++$payload['summary']['warning'];
+			}
+		}
+
+		$payload['meta'] = array(
+			'business_id'  => $target_business_id,
+			'user_id'      => $target_user_id,
+			'generated_at' => current_time( 'mysql' ),
+			'source'       => 'automation_escalation_workload_metrics',
+		);
+
+		return $payload;
+	}
+
+	/**
+	 * Build operational assignment suggestions without mutating real assignments.
+	 *
+	 * @param int $business_id Business ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_assignments( $business_id ) {
+		$payload             = $this->get_empty_operational_assignments();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		$user_ids = $this->get_operational_candidate_user_ids( $target_business_id );
+		if ( empty( $user_ids ) ) {
+			return $payload;
+		}
+
+		$global_metrics = $this->get_operational_metrics( $target_business_id );
+		$overloaded     = array();
+		$available      = array();
+
+		foreach ( $user_ids as $user_id ) {
+			$workload = $this->get_user_workload(
+				$user_id,
+				array(
+					'upcoming_days'    => 7,
+					'max_scan'         => 250,
+					'limit_per_bucket' => 50,
+				)
+			);
+			$escalation = $this->get_operational_escalation_state( $target_business_id, $user_id );
+			$critical   = isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? count( $workload['critical'] ) : 0;
+			$warning    = isset( $workload['warning'] ) && is_array( $workload['warning'] ) ? count( $workload['warning'] ) : 0;
+			$normal     = isset( $workload['normal'] ) && is_array( $workload['normal'] ) ? count( $workload['normal'] ) : 0;
+			$total      = $critical + $warning + $normal;
+			$user       = get_userdata( $user_id );
+			$name       = $user ? sanitize_text_field( $user->display_name ) : sprintf( __( 'User #%d', 'super-mechanic' ), $user_id );
+			$row        = array(
+				'user_id'       => $user_id,
+				'display_name'  => $name,
+				'critical'      => $critical,
+				'warning'       => $warning,
+				'total'         => $total,
+			);
+			$is_saturated = ! empty( $escalation['user_saturation']['is_saturated'] ) || $critical >= 3 || $total >= 10;
+
+			if ( $is_saturated ) {
+				$overloaded[] = $row;
+			} elseif ( 0 === $critical && $total <= 2 ) {
+				$available[] = $row;
+			}
+		}
+
+		usort(
+			$overloaded,
+			function ( $left, $right ) {
+				$left_score  = ( absint( $left['critical'] ) * 10 ) + absint( $left['warning'] );
+				$right_score = ( absint( $right['critical'] ) * 10 ) + absint( $right['warning'] );
+				return $right_score <=> $left_score;
+			}
+		);
+		usort(
+			$available,
+			function ( $left, $right ) {
+				return absint( $left['total'] ) <=> absint( $right['total'] );
+			}
+		);
+
+		$assignments       = array();
+		$available_pointer = 0;
+		foreach ( $overloaded as $source ) {
+			if ( ! isset( $available[ $available_pointer ] ) ) {
+				break;
+			}
+
+			$target   = $available[ $available_pointer ];
+			$capacity = max( 1, 3 - absint( $target['total'] ) );
+			$delta    = min( max( 1, absint( $source['critical'] ) - 2 ), $capacity );
+			$level    = absint( $source['critical'] ) >= 5 ? 'critical' : 'warning';
+			if ( isset( $global_metrics['processes']['delayed'] ) && absint( $global_metrics['processes']['delayed'] ) > 0 && 'warning' === $level ) {
+				$level = 'critical';
+			}
+
+			$assignments[] = array(
+				'from_user'      => absint( $source['user_id'] ),
+				'to_user'        => absint( $target['user_id'] ),
+				'reason'         => 'saturation_balance',
+				'workload_delta' => absint( $delta ),
+				'level'          => $level,
+				'from_name'      => isset( $source['display_name'] ) ? sanitize_text_field( (string) $source['display_name'] ) : '',
+				'to_name'        => isset( $target['display_name'] ) ? sanitize_text_field( (string) $target['display_name'] ) : '',
+			);
+
+			$available[ $available_pointer ]['total'] += $delta;
+			if ( absint( $available[ $available_pointer ]['total'] ) >= 3 ) {
+				++$available_pointer;
+			}
+		}
+
+		$payload['overloaded_users'] = $overloaded;
+		$payload['available_users']  = $available;
+		$payload['assignments']      = $assignments;
+		$payload['summary']          = array(
+			'overloaded_users' => count( $overloaded ),
+			'available_users'  => count( $available ),
+			'proposals'        => count( $assignments ),
+		);
+		$payload['meta']             = array(
+			'business_id'  => $target_business_id,
+			'generated_at' => current_time( 'mysql' ),
+			'mutations'    => 'none',
+		);
+
+		return $payload;
+	}
+
+	/**
+	 * Consolidated automation console payload.
+	 *
+	 * @param int      $business_id Business ID.
+	 * @param int|null $user_id Optional user ID.
+	 * @return array<string,mixed>
+	 */
+	public function get_operational_automation_console( $business_id, $user_id = null ) {
+		$payload             = $this->get_empty_operational_automation_console();
+		$current_user_id     = get_current_user_id();
+		$current_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_user_id ) );
+		$target_business_id  = absint( $this->business_context_service->normalize_business_id( absint( $business_id ), $current_user_id ) );
+		$target_user_id      = null !== $user_id ? absint( $user_id ) : absint( $current_user_id );
+
+		if ( $target_business_id <= 0 ) {
+			$target_business_id = $current_business_id;
+		}
+
+		if ( $target_business_id <= 0 || $target_business_id !== $current_business_id ) {
+			return $payload;
+		}
+
+		if ( $target_user_id <= 0 ) {
+			$target_user_id = $current_user_id;
+		}
+
+		$flags           = $this->get_operational_automation_flags( $target_business_id, $target_user_id );
+		$escalation      = $this->get_operational_escalation_state( $target_business_id, $target_user_id );
+		$recommendations = $this->get_operational_recommendations( $target_business_id, $target_user_id );
+		$assignments     = $this->get_operational_assignments( $target_business_id );
+
+		$payload['flags']           = $flags;
+		$payload['escalation']      = $escalation;
+		$payload['recommendations'] = $recommendations;
+		$payload['assignments']     = $assignments;
+		$payload['system_status']   = array(
+			'global_level'   => isset( $escalation['global_level'] ) ? sanitize_key( (string) $escalation['global_level'] ) : 'normal',
+			'active_flags'   => isset( $flags['summary']['active_flags'] ) ? absint( $flags['summary']['active_flags'] ) : 0,
+			'blocking_flags' => isset( $escalation['blocking_flags'] ) && is_array( $escalation['blocking_flags'] ) ? count( $escalation['blocking_flags'] ) : 0,
+		);
+		$payload['meta']            = array(
+			'business_id'  => $target_business_id,
+			'user_id'      => $target_user_id,
+			'generated_at' => current_time( 'mysql' ),
+			'source'       => 'flags_escalation_recommendations_assignments',
+		);
+
+		return $payload;
+	}
+
+	/**
 	 * Collect CRM task items.
 	 *
 	 * @param int $user_id User ID.
@@ -990,6 +1511,163 @@ class Workload_Service {
 					'scheduled' => 0,
 				),
 				'overdue'                => 0,
+			),
+		);
+	}
+
+	/**
+	 * Empty internal automation flags payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_automation_flags() {
+		return array(
+			'flags'   => array(),
+			'summary' => array(
+				'active_flags'   => 0,
+				'critical_flags' => 0,
+				'warning_flags'  => 0,
+				'normal_flags'   => 0,
+				'global_state'   => 'stable',
+			),
+			'meta'    => array(
+				'business_id'    => 0,
+				'user_id'        => 0,
+				'generated_at'   => '',
+				'signals_policy' => 'crm_pipeline_aligned',
+			),
+		);
+	}
+
+	/**
+	 * Empty operational escalation payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_escalation_state() {
+		return array(
+			'global_level'            => 'normal',
+			'blocking_flags'          => array(),
+			'user_saturation'         => array(
+				'user_id'         => 0,
+				'is_saturated'    => false,
+				'critical_load'   => 0,
+				'threshold'       => 3,
+				'active_flag'     => '',
+				'suggested_level' => 'normal',
+			),
+			'critical_workload_count' => 0,
+			'warning_workload_count'  => 0,
+			'meta'                    => array(
+				'business_id'  => 0,
+				'user_id'      => 0,
+				'generated_at' => '',
+				'source'       => 'automation_flags_workload_summary_metrics',
+			),
+		);
+	}
+
+	/**
+	 * Empty operational recommendations payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_recommendations() {
+		return array(
+			'recommendations' => array(),
+			'summary'         => array(
+				'total'    => 0,
+				'critical' => 0,
+				'warning'  => 0,
+			),
+			'meta'            => array(
+				'business_id'  => 0,
+				'user_id'      => 0,
+				'generated_at' => '',
+				'source'       => 'automation_escalation_workload_metrics',
+			),
+		);
+	}
+
+	/**
+	 * Resolve candidate user IDs for operational assignment analysis.
+	 *
+	 * @param int $business_id Business ID.
+	 * @return array<int,int>
+	 */
+	protected function get_operational_candidate_user_ids( $business_id ) {
+		$users = get_users(
+			array(
+				'role__in' => array( 'sm_admin', 'sm_mechanic', 'administrator' ),
+				'fields'   => array( 'ID' ),
+				'number'   => 200,
+				'orderby'  => 'ID',
+				'order'    => 'ASC',
+			)
+		);
+		$ids   = array();
+
+		foreach ( $users as $user ) {
+			$user_id = isset( $user->ID ) ? absint( $user->ID ) : 0;
+			if ( $user_id <= 0 ) {
+				continue;
+			}
+
+			$user_business_id = absint( $this->business_context_service->resolve_business_id_for_user( $user_id, $business_id ) );
+			if ( $user_business_id !== absint( $business_id ) ) {
+				continue;
+			}
+
+			$ids[ $user_id ] = $user_id;
+		}
+
+		return array_values( $ids );
+	}
+
+	/**
+	 * Empty operational assignments payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_assignments() {
+		return array(
+			'overloaded_users' => array(),
+			'available_users'  => array(),
+			'assignments'      => array(),
+			'summary'          => array(
+				'overloaded_users' => 0,
+				'available_users'  => 0,
+				'proposals'        => 0,
+			),
+			'meta'             => array(
+				'business_id'  => 0,
+				'generated_at' => '',
+				'mutations'    => 'none',
+			),
+		);
+	}
+
+	/**
+	 * Empty automation console payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_empty_operational_automation_console() {
+		return array(
+			'system_status'   => array(
+				'global_level'   => 'normal',
+				'active_flags'   => 0,
+				'blocking_flags' => 0,
+			),
+			'flags'           => $this->get_empty_operational_automation_flags(),
+			'escalation'      => $this->get_empty_operational_escalation_state(),
+			'recommendations' => $this->get_empty_operational_recommendations(),
+			'assignments'     => $this->get_empty_operational_assignments(),
+			'meta'            => array(
+				'business_id'  => 0,
+				'user_id'      => 0,
+				'generated_at' => '',
+				'source'       => 'flags_escalation_recommendations_assignments',
 			),
 		);
 	}
