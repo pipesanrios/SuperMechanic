@@ -19,14 +19,22 @@ class Admin_Dashboard_Controller {
 	 * @var Dashboard_Service
 	 */
 	protected $service;
+	/**
+	 * Workload service.
+	 *
+	 * @var Workload_Service
+	 */
+	protected $workload_service;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param Dashboard_Service|null $service Dashboard service.
+	 * @param Workload_Service|null  $workload_service Workload service.
 	 */
-	public function __construct( Dashboard_Service $service = null ) {
-		$this->service = $service ? $service : new Dashboard_Service();
+	public function __construct( Dashboard_Service $service = null, Workload_Service $workload_service = null ) {
+		$this->service          = $service ? $service : new Dashboard_Service();
+		$this->workload_service = $workload_service ? $workload_service : new Workload_Service();
 	}
 
 	/**
@@ -47,6 +55,21 @@ class Admin_Dashboard_Controller {
 		$recent_clients   = $this->service->get_recent_clients( 10 );
 		$today_appointments = $this->service->get_today_appointments( 8 );
 		$upcoming_appointments = $this->service->get_upcoming_appointments( 7, 8 );
+		$selected_workload_user_id = isset( $_GET['workload_user_id'] ) ? absint( wp_unslash( $_GET['workload_user_id'] ) ) : get_current_user_id();
+		if ( $selected_workload_user_id <= 0 ) {
+			$selected_workload_user_id = get_current_user_id();
+		}
+		$workload = $this->workload_service->get_user_workload(
+			$selected_workload_user_id,
+			array(
+				'upcoming_days'    => 7,
+				'max_scan'         => 250,
+				'limit_per_bucket' => 12,
+			)
+		);
+		$global_summary = $this->workload_service->get_global_operational_summary(
+			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0
+		);
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
@@ -58,6 +81,7 @@ class Admin_Dashboard_Controller {
 		echo '</div>';
 
 		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Metrics are calculated from current operations without altering existing flows.', 'super-mechanic' ) . '</p></div>';
+		$this->render_global_operational_summary( $global_summary );
 
 		echo '<section class="sm-card sm-section sm-quick-actions-card">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Quick actions', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Operational shortcuts', 'super-mechanic' ) . '</span></div>';
@@ -69,6 +93,7 @@ class Admin_Dashboard_Controller {
 		echo '</div>';
 		echo '<p class="sm-card-copy">' . esc_html__( 'Quote and invoice actions open the fastest operational route in current architecture (process tab or finance center).', 'super-mechanic' ) . '</p>';
 		echo '</section>';
+		$this->render_workload_section( $workload );
 
 		echo '<div class="sm-grid sm-grid-cards">';
 		$this->render_kpi_card( __( 'Clients', 'super-mechanic' ), $kpis['total_clients'], __( 'Total registered base', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-clients' ) );
@@ -358,6 +383,134 @@ class Admin_Dashboard_Controller {
 		}
 
 		return wp_date( 'Y-m-d H:i', $timestamp );
+	}
+
+	/**
+	 * Render global operational summary section.
+	 *
+	 * @param array<string,int> $summary Global summary payload.
+	 * @return void
+	 */
+	protected function render_global_operational_summary( array $summary ) {
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Resumen Operativo Global', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( '40A', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Business-level aggregated metrics for operational load and critical points.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card(
+			__( 'Pending CRM tasks', 'super-mechanic' ),
+			isset( $summary['tasks_pending_total'] ) ? absint( $summary['tasks_pending_total'] ) : 0,
+			__( 'Open workload in CRM', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Overdue CRM tasks', 'super-mechanic' ),
+			isset( $summary['tasks_overdue_total'] ) ? absint( $summary['tasks_overdue_total'] ) : 0,
+			__( 'Immediate attention required', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Active operational signals', 'super-mechanic' ),
+			isset( $summary['alerts_active_total'] ) ? absint( $summary['alerts_active_total'] ) : 0,
+			__( 'Pipeline-equivalent critical/attention signals', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Active processes', 'super-mechanic' ),
+			isset( $summary['processes_active_total'] ) ? absint( $summary['processes_active_total'] ) : 0,
+			__( 'Operational pipeline currently open', 'super-mechanic' )
+		);
+		$this->render_kpi_card(
+			__( 'Upcoming appointments', 'super-mechanic' ),
+			isset( $summary['appointments_upcoming_total'] ) ? absint( $summary['appointments_upcoming_total'] ) : 0,
+			__( 'Near-term scheduled work', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render workload section.
+	 *
+	 * @param array<string,mixed> $workload Workload payload.
+	 * @return void
+	 */
+	protected function render_workload_section( array $workload ) {
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Mi trabajo (workload operativo)', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'Por usuario', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Vista consolidada de tareas, alertas persistidas, procesos activos y citas próximas.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_workload_bucket_table(
+			__( 'Critical', 'super-mechanic' ),
+			isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? $workload['critical'] : array(),
+			__( 'No critical items.', 'super-mechanic' )
+		);
+		$this->render_workload_bucket_table(
+			__( 'Warning', 'super-mechanic' ),
+			isset( $workload['warning'] ) && is_array( $workload['warning'] ) ? $workload['warning'] : array(),
+			__( 'No warning items.', 'super-mechanic' )
+		);
+		$this->render_workload_bucket_table(
+			__( 'Normal', 'super-mechanic' ),
+			isset( $workload['normal'] ) && is_array( $workload['normal'] ) ? $workload['normal'] : array(),
+			__( 'No normal items.', 'super-mechanic' )
+		);
+		echo '</div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render one workload bucket table.
+	 *
+	 * @param string                            $title Bucket title.
+	 * @param array<int,array<string,mixed>>    $items Bucket items.
+	 * @param string                            $empty_message Empty message.
+	 * @return void
+	 */
+	protected function render_workload_bucket_table( $title, array $items, $empty_message ) {
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h3>' . esc_html( $title ) . '</h3><span class="sm-badge sm-badge-neutral">' . esc_html( count( $items ) ) . '</span></div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Date', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Priority', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $items ) ) {
+			echo '<tr><td colspan="4">' . esc_html( $empty_message ) . '</td></tr>';
+		} else {
+			foreach ( $items as $item ) {
+				$type      = isset( $item['type'] ) ? sanitize_key( (string) $item['type'] ) : 'task';
+				$title     = isset( $item['title'] ) ? sanitize_text_field( (string) $item['title'] ) : __( 'Work item', 'super-mechanic' );
+				$url       = isset( $item['url'] ) ? esc_url_raw( (string) $item['url'] ) : '';
+				$date      = isset( $item['date'] ) ? (string) $item['date'] : '';
+				$priority  = isset( $item['priority'] ) ? sanitize_key( (string) $item['priority'] ) : 'normal';
+				echo '<tr>';
+				echo '<td>' . esc_html( ucfirst( $type ) ) . '</td>';
+				if ( '' !== $url ) {
+					echo '<td><a href="' . esc_url( $url ) . '">' . esc_html( $title ) . '</a></td>';
+				} else {
+					echo '<td>' . esc_html( $title ) . '</td>';
+				}
+				echo '<td>' . esc_html( $this->format_datetime_label( $date ) ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_workload_priority_badge( $priority ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render workload priority badge.
+	 *
+	 * @param string $priority Priority key.
+	 * @return string
+	 */
+	protected function render_workload_priority_badge( $priority ) {
+		$priority = sanitize_key( (string) $priority );
+		$class    = 'sm-badge sm-badge-neutral';
+
+		if ( 'critical' === $priority ) {
+			$class = 'sm-badge sm-badge-danger';
+		} elseif ( 'warning' === $priority ) {
+			$class = 'sm-badge sm-badge-warning';
+		} elseif ( 'normal' === $priority ) {
+			$class = 'sm-badge sm-badge-success';
+		}
+
+		return '<span class="' . esc_attr( $class ) . '">' . esc_html( ucfirst( $priority ) ) . '</span>';
 	}
 }
 

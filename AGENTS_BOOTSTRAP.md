@@ -168,6 +168,17 @@ No AI should begin with code changes before this protocol is complete.
 
 ---
 
+## Pre-Execution Consistency Check
+
+Before starting any implementation:
+
+- If conflicting information is detected between documents:
+  - do not proceed with implementation
+  - identify authoritative source using the priority rule
+  - report the conflict if ambiguity remains
+
+No implementation is allowed under uncertain or conflicting context./
+
 ## Task Execution Model
 
 This repository uses a contract-driven execution model.

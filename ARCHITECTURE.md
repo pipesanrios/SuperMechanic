@@ -131,6 +131,12 @@ This layer must:
 - not duplicate logic
 - not recalculate persisted signals
 
+### Constraints
+
+- This layer must not introduce new business logic.
+- It must only orchestrate and aggregate existing services.
+- It must not write directly to database.
+
 ---
 
 ## Data Flow Principles

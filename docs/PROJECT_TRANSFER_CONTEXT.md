@@ -24,10 +24,11 @@ Date: 2026-03-31
 
 1. `AGENTS_BOOTSTRAP.md`
 2. `AGENTS.md`
-3. `.vscode/AI_CONTEXT.md` + Prompt Master
-4. `ai/rules/*`
-5. `ai/context/*`
-6. `docs/*`
+3. `.vscode/AI_CONTEXT.md`
+4. `ai/prompts/PROMPT MASTER — INICIO DE SESIÓN SUPER MECHANIC.txt`
+5. `ai/rules/*`
+6. `ai/context/*`
+7. `docs/*`
 
 ---
 

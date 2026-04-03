@@ -79,6 +79,13 @@
 	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.sm-kpi-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
 .sm-card {
 	background: var(--sm-surface);
 	border: 1px solid var(--sm-border);
@@ -262,6 +269,12 @@
 	padding: 0 16px;
 	font-weight: 600;
 	box-shadow: none;
+}
+
+@media (max-width: 782px) {
+	.sm-kpi-grid {
+		grid-template-columns: 1fr;
+	}
 }
 
 .sm-admin-shell .button-primary,

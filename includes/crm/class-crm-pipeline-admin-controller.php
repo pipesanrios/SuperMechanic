@@ -771,16 +771,20 @@ class Crm_Pipeline_Admin_Controller {
 		echo '<div class="sm-card sm-section" style="margin-bottom:14px;">';
 		echo '<h2 class="sm-card-title">' . esc_html__( 'Operational CRM tasks', 'super-mechanic' ) . '</h2>';
 		echo '<p class="sm-card-copy">' . esc_html__( 'Overdue and upcoming are operational subsets of pending tasks.', 'super-mechanic' ) . '</p>';
+		// Inline layout guard keeps KPI cards aligned even if cached stylesheet versions lag.
+		echo '<style>.sm-crm-kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px;}@media (max-width:782px){.sm-crm-kpi-grid{grid-template-columns:1fr;}}</style>';
 
-		echo '<div class="sm-kpi-grid">';
+		echo '<div class="sm-kpi-grid sm-crm-kpi-grid">';
 		echo '<div class="sm-kpi-card"><div class="sm-kpi-label">' . esc_html__( 'Pending', 'super-mechanic' ) . '</div><div class="sm-kpi-value">' . esc_html( absint( $buckets['pending']['count'] ) ) . '</div></div>';
 		echo '<div class="sm-kpi-card"><div class="sm-kpi-label">' . esc_html__( 'Overdue (subset)', 'super-mechanic' ) . '</div><div class="sm-kpi-value">' . esc_html( absint( $buckets['overdue']['count'] ) ) . '</div></div>';
 		echo '<div class="sm-kpi-card"><div class="sm-kpi-label">' . esc_html__( 'Upcoming 7 days (subset)', 'super-mechanic' ) . '</div><div class="sm-kpi-value">' . esc_html( absint( $buckets['upcoming']['count'] ) ) . '</div></div>';
 		echo '</div>';
 
-		$this->render_operational_task_table( __( 'Overdue tasks', 'super-mechanic' ), isset( $buckets['overdue']['items'] ) ? $buckets['overdue']['items'] : array() );
-		$this->render_operational_task_table( __( 'Upcoming tasks (next 7 days)', 'super-mechanic' ), isset( $buckets['upcoming']['items'] ) ? $buckets['upcoming']['items'] : array() );
-		$this->render_operational_task_table( __( 'Pending tasks', 'super-mechanic' ), isset( $buckets['pending']['items'] ) ? $buckets['pending']['items'] : array() );
+		echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;align-items:start;">';
+		$this->render_operational_task_table( __( 'Overdue tasks', 'super-mechanic' ), isset( $buckets['overdue']['items'] ) ? $buckets['overdue']['items'] : array(), 'sm-badge-danger' );
+		$this->render_operational_task_table( __( 'Upcoming tasks (next 7 days)', 'super-mechanic' ), isset( $buckets['upcoming']['items'] ) ? $buckets['upcoming']['items'] : array(), 'sm-badge-warning' );
+		$this->render_operational_task_table( __( 'Pending tasks', 'super-mechanic' ), isset( $buckets['pending']['items'] ) ? $buckets['pending']['items'] : array(), 'sm-badge-neutral' );
+		echo '</div>';
 		echo '</div>';
 	}
 
@@ -791,8 +795,9 @@ class Crm_Pipeline_Admin_Controller {
 	 * @param array<int, array<string,mixed>> $tasks Tasks.
 	 * @return void
 	 */
-	protected function render_operational_task_table( $title, array $tasks ) {
-		echo '<h3 class="sm-card-title" style="margin-top:14px;">' . esc_html( $title ) . '</h3>';
+	protected function render_operational_task_table( $title, array $tasks, $badge_class = 'sm-badge-neutral' ) {
+		echo '<section class="sm-card sm-card-muted" style="margin-top:12px;">';
+		echo '<div class="sm-section-heading"><h3 class="sm-card-title" style="margin:0;">' . esc_html( $title ) . '</h3><span class="sm-badge ' . esc_attr( $badge_class ) . '">' . esc_html( count( $tasks ) ) . '</span></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr>';
 		echo '<th>' . esc_html__( 'Task', 'super-mechanic' ) . '</th>';
 		echo '<th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th>';
@@ -823,6 +828,7 @@ class Crm_Pipeline_Admin_Controller {
 		}
 
 		echo '</tbody></table></div>';
+		echo '</section>';
 	}
 
 	/**

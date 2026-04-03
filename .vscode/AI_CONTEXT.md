@@ -60,7 +60,9 @@ This mirrors the bootstrap order and must be respected:
 
 - Plugin version: `0.1.0`
 - Schema version: `1.19.0`
-- Phase baseline: **Fase 39 (block 39E complete)**
+- Current confirmed baseline: **Fase 40 completed through block 40D**
+- System state: **stable operational baseline**
+- Next continuity: **Fase 41 — Automatización Operativa**
 
 ⚠️ Important:
 Before starting any task, confirm continuity in:

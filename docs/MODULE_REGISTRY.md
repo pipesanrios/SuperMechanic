@@ -34,6 +34,14 @@ No phase timeline and no schema details.
 - communication
 - reports
 - dashboard
+  - Workload_Service (core aggregator):
+    - `get_user_workload()`
+    - `get_global_operational_summary()`
+    - `get_operational_metrics()`
+  - Admin Dashboard Controller:
+    - global operational summary view
+    - user workload view (`Mi trabajo`)
+    - operational/SLA metrics view
 
 ## CRM Modules
 - crm pipeline

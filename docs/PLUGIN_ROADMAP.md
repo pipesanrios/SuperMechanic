@@ -13,37 +13,25 @@ Use:
 
 ## Baseline
 
-- Current delivery baseline: **Fase 39**
-- Last completed block: **39E (alerts persistidas + scheduler + UI consumo estable)**
+- Current delivery baseline: **Fase 40**
+- Last completed block: **40D (UI consistency CRM pipeline)**
 
 ---
 
-## Next Planned Continuity
+## Phase 40 — Operación Interna (Core) (COMPLETED)
 
-### Phase 40 — Operación Interna (Core)
-
-Objective:
-Transform the system into a **daily operational tool**, reducing friction, manual effort, and cognitive load.
-
-This phase focuses on:
-- usability
-- prioritization
-- visibility
-- operational control
-
-Not focused on:
-- marketing
-- UI aesthetics
-- external automation
-- SaaS yet
+Completed scope:
+- 40A: global operational summary
+- 40B: per-user workload aggregation
+- alignment hotfix: CRM Pipeline signal-policy consistency (`persisted` + `runtime fallback` policy)
+- 40C: SLA/operational metrics
+- 40D: CRM pipeline UI consistency
 
 ---
 
-### Subphases
+### Subphases Status
 
-#### 🔹 40B — Workload Operativo por Usuario (ENTRYPOINT)
-
-First implementation step.
+#### 🔹 40B — Workload Operativo por Usuario (COMPLETED)
 
 Goal:
 Provide a clear view of:
@@ -61,60 +49,47 @@ Characteristics:
 - no notifications
 - based on persisted alerts system (39E)
 
+Delivered:
+- `includes/dashboard/class-workload-service.php`
+- admin dashboard section: **Mi trabajo**
+- per-user aggregation: tasks, persisted alerts, active processes, upcoming appointments
+- priority buckets: `critical`, `warning`, `normal`
+- validation complete: php lint + QA runner + runtime manual
+
 ---
 
-#### 🔹 40A — Control Operativo Unificado
+#### 🔹 40A — Control Operativo Unificado (COMPLETED)
 
-Goal:
-Global operational visibility across modules.
-
-- cross-module state overview
+- global operational visibility across modules
 - system-level awareness
-- builds on 40B aggregation layer
+- base for consolidated operations view
 
 ---
 
-#### 🔹 40C — SLA / Tiempos / Métricas
+#### 🔹 40C — SLA / Tiempos / Métricas (COMPLETED)
 
-Goal:
-Measure real system performance.
-
-- process durations
-- bottlenecks
-- delays
-- time-to-completion
+- operational metrics for:
+  - tasks
+  - processes
+  - alerts
+  - appointments
 
 ---
 
-#### 🔹 40D — Auditoría Operativa Profunda
+#### 🔹 40D — UI Consistency CRM Pipeline (COMPLETED)
 
-Goal:
-Traceability and accountability.
-
-- who did what
-- when
-- why
+- compact and consistent operational UI rendering
+- no logical/backend changes
 
 ---
 
-#### 🔹 40E — Optimización de Procesos Internos
+## Next Planned Continuity
 
-Goal:
-Remove real friction.
+### Phase 41 — Automatización Operativa (NEXT)
 
-- simplify flows
-- reduce manual steps
-- eliminate redundant actions
-
----
-
-## Future Phases (After Operational Maturity)
-
-### Phase 41 — Managed Hosting / Centralized Deployment
-
-- standardized environments
-- centralized support
-- deployment control
+- automate operational execution on top of stable signals and SLA visibility
+- reduce repetitive manual actions
+- keep strict tenancy and architectural constraints
 
 ---
 

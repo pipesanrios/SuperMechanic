@@ -29,6 +29,16 @@ Source references:
 - Comms/docs: attachments, communication, document/download services
 - Scheduling/integrations: appointments, google calendar, public API/webhooks
 - Reporting: operational and financial views
+- Dashboard operational aggregation:
+  - admin dashboard section **Mi trabajo**
+  - service: `includes/dashboard/class-workload-service.php`
+  - core methods:
+    - `get_user_workload()`
+    - `get_global_operational_summary()`
+    - `get_operational_metrics()`
+  - user workload buckets: `critical`, `warning`, `normal`
+  - sources: CRM tasks, operational signals aligned with pipeline policy, active processes, upcoming appointments
+  - role: operational dashboard core aggregator
 
 ## UI Entry Points
 - Admin menus under `Super Mechanic`

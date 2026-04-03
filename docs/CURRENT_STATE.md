@@ -1,6 +1,6 @@
 # CURRENT_STATE.md
 
-Date: 2026-03-31
+Date: 2026-04-03
 
 ## Purpose
 
@@ -28,26 +28,41 @@ No future speculation beyond immediate continuity.
 
 ## Current Delivery Baseline
 
-- Phase baseline: **Fase 39**
+- Last completed phase baseline: **Fase 40**
+- Last completed block: **40D**
 - Block status:
   - `39B` COMPLETE
   - `39C` COMPLETE
   - `39D` COMPLETE
   - `39E` COMPLETE
+  - `40A` COMPLETE
+  - `40B` COMPLETE
+  - `40C` COMPLETE
+  - `40D` COMPLETE
 
 ---
 
-## 39E Complete Scope
+## 40 Complete Scope
 
-- Internal scheduler: `sm_crm_scheduler_tick`
-- CRM persisted alerts: `sm_crm_alerts`
-- Batch recalculation and state resolution (`active → resolved`)
-- Persisted alerts consumed in UI:
-  - list
-  - kanban
-  - view
-- Controlled runtime fallback when persisted alerts are absent
-- No N+1 queries in alert consumption
+- 40A:
+  - global operational summary in admin dashboard
+  - business-level aggregated visibility
+- 40B:
+  - `includes/dashboard/class-workload-service.php`
+  - section **Mi trabajo** with per-user workload
+  - aggregation of CRM tasks, operational signals, active processes, upcoming appointments
+- Hotfix alignment:
+  - dashboard signals aligned with CRM Pipeline policy (`persisted` first, `runtime fallback` only when persisted is absent)
+- 40C:
+  - operational/SLA metrics via `get_operational_metrics($business_id)`
+  - tasks, processes, alerts, appointments KPI blocks
+- 40D:
+  - UI consistency improvements in CRM Pipeline operational views
+- Constraints respected:
+  - no new tables
+  - no cron
+  - no persisted-alert recalculation when persisted exists
+  - no functional regressions in core modules
 
 ---
 
@@ -55,11 +70,13 @@ No future speculation beyond immediate continuity.
 
 The system is now capable of:
 
-- Persistent alert lifecycle (not runtime-only)
-- Stable CRM operational signals
-- Cross-module consumption of alerts
-- Reliable scheduler-based recalculation
-- UI consistency between persisted + fallback states
+- Unified operational dashboard layer:
+  - global summary (40A)
+  - user workload (40B)
+  - SLA metrics (40C)
+- Cross-module operational signal alignment with CRM Pipeline
+- Improved operational UI consistency for CRM Pipeline (40D)
+- Stable operational baseline ready for automation continuity
 
 This enables the transition from **data system → operational system**
 
@@ -90,23 +107,19 @@ This enables the transition from **data system → operational system**
 
 ## Next Continuity
 
-### Fase 40 — Operación Interna (Core)
+### Fase 41 — Automatización Operativa
 
-The next phase shifts the system into **daily operational usability**.
+The next phase extends the now-stable operational layer with automation workflows.
 
 Immediate next block:
 
-👉 **40B — Workload operativo por usuario**
+👉 **41A — Automatización Operativa (entrypoint)**
 
 Focus:
 
-- unified workload per user
-- aggregation of:
-  - tasks
-  - alerts (persisted)
-  - processes
-  - appointments
-- prioritization and operational clarity
+- automation based on validated operational signals
+- low-friction operational execution
+- preserving tenancy, safety, and architectural boundaries
 
 ---
 
