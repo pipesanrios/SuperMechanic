@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Dashboard;
 
 use Super_Mechanic\Appointments\Appointment_Service;
+use Super_Mechanic\Automation\Execution_Log_Service;
 use Super_Mechanic\Automation\Operational_Rules_Service;
 use Super_Mechanic\CRM\Crm_Pipeline_Service;
 use Super_Mechanic\CRM\Crm_Task_Service;
@@ -54,6 +55,12 @@ class Workload_Service {
 	 * @var Business_Context_Service
 	 */
 	protected $business_context_service;
+	/**
+	 * Execution log service.
+	 *
+	 * @var Execution_Log_Service
+	 */
+	protected $execution_log_service;
 
 	/**
 	 * Request-level memoization cache.
@@ -71,12 +78,13 @@ class Workload_Service {
 	 * @param Appointment_Service|null     $appointment_service Appointment service.
 	 * @param Business_Context_Service|null $business_context_service Business context service.
 	 */
-	public function __construct( Crm_Task_Service $task_service = null, Crm_Pipeline_Service $crm_pipeline_service = null, Process_Service $process_service = null, Appointment_Service $appointment_service = null, Business_Context_Service $business_context_service = null ) {
+	public function __construct( Crm_Task_Service $task_service = null, Crm_Pipeline_Service $crm_pipeline_service = null, Process_Service $process_service = null, Appointment_Service $appointment_service = null, Business_Context_Service $business_context_service = null, Execution_Log_Service $execution_log_service = null ) {
 		$this->task_service             = $task_service ? $task_service : new Crm_Task_Service();
 		$this->crm_pipeline_service     = $crm_pipeline_service ? $crm_pipeline_service : new Crm_Pipeline_Service();
 		$this->process_service          = $process_service ? $process_service : new Process_Service();
 		$this->appointment_service      = $appointment_service ? $appointment_service : new Appointment_Service();
 		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->execution_log_service    = $execution_log_service ? $execution_log_service : new Execution_Log_Service();
 	}
 
 	/**
@@ -1194,7 +1202,7 @@ class Workload_Service {
 	 * @param int|null              $target_user_id Optional target user ID for reassignment.
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public function execute_operational_bulk_action( $business_id, $action, $entity_type, $ids, $target_user_id = null ) {
+	public function execute_operational_bulk_action( $business_id, $action, $entity_type, $ids, $target_user_id = null, array $execution_context = array() ) {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			return new \WP_Error( 'sm_bulk_action_capability', __( 'You are not allowed to execute bulk actions.', 'super-mechanic' ) );
 		}
@@ -1291,7 +1299,11 @@ class Workload_Service {
 			}
 		}
 
-		$status = empty( $failed_ids ) ? 'success' : ( empty( $success_ids ) ? 'failed' : 'partial' );
+		$status   = empty( $failed_ids ) ? 'success' : ( empty( $success_ids ) ? 'failed' : 'partial' );
+		$rule_key = isset( $execution_context['rule_key'] ) ? sanitize_key( (string) $execution_context['rule_key'] ) : '';
+		if ( '' === $rule_key && isset( $_POST['sm_rule_key'] ) ) {
+			$rule_key = sanitize_key( (string) wp_unslash( $_POST['sm_rule_key'] ) );
+		}
 		$rollback = array(
 			'supported'    => in_array( $action, array( 'bulk_resolve', 'bulk_reassign' ), true ),
 			'action_type'  => $action,
@@ -1311,6 +1323,7 @@ class Workload_Service {
 			'failed_ids'     => $failed_ids,
 			'business_id'    => $target_business_id,
 			'target_user_id' => $target_user_id,
+			'rule_key'       => $rule_key,
 			'execution_guard' => $execution_guard,
 			'rollback'       => $rollback,
 		);
@@ -1322,9 +1335,10 @@ class Workload_Service {
 			}
 			}
 
-			$this->clear_request_cache();
+		$this->register_execution_log( $target_business_id, $action, $response, $execution_context );
+		$this->clear_request_cache();
 
-			return $response;
+		return $response;
 	}
 
 	/**
@@ -1499,17 +1513,37 @@ class Workload_Service {
 
 		$status = empty( $failed_ids ) ? 'success' : ( empty( $success_ids ) ? 'failed' : 'partial' );
 
-		$snapshot['available']        = false;
-		$snapshot['rollback_status']  = $status;
-		$snapshot['rolled_back_at']   = current_time( 'mysql' );
-		$snapshot['rollback_result']  = array(
+		$snapshot['available']       = false;
+		$snapshot['rollback_status'] = $status;
+		$snapshot['rolled_back_at']  = current_time( 'mysql' );
+		$snapshot['rollback_result'] = array(
 			'success_ids' => $success_ids,
 			'failed_ids'  => $failed_ids,
 		);
-			$this->update_controlled_execution_snapshot( $target_business_id, $snapshot );
-			$this->clear_request_cache();
+		$this->update_controlled_execution_snapshot( $target_business_id, $snapshot );
+		$this->clear_request_cache();
 
-			return array(
+		if ( ! empty( $success_ids ) ) {
+			$this->register_execution_log(
+				$target_business_id,
+				'rollback_' . $action_type,
+				array(
+					'status'        => $status,
+					'entity_type'   => 'crm_task',
+					'total'         => count( $items ),
+					'success_count' => count( $success_ids ),
+					'failed_count'  => count( $failed_ids ),
+					'target_user_id' => 0,
+				),
+				array(
+					'rule_key'       => isset( $snapshot['rule_key'] ) ? sanitize_key( (string) $snapshot['rule_key'] ) : '',
+					'execution_mode' => isset( $snapshot['execution_mode'] ) ? sanitize_key( (string) $snapshot['execution_mode'] ) : 'confirmable',
+					'source'         => 'controlled_rollback',
+				)
+			);
+		}
+
+		return array(
 			'status'        => $status,
 			'action_type'   => $action_type,
 			'business_id'   => $target_business_id,
@@ -2202,7 +2236,13 @@ class Workload_Service {
 				$target_business_id,
 				'bulk_resolve',
 				'crm_task',
-				$items
+				$items,
+				null,
+				array(
+					'rule_key'       => $rule_key,
+					'execution_mode' => 'auto',
+					'source'         => 'controlled_auto_execution',
+				)
 			);
 
 			if ( is_wp_error( $exec_result ) ) {
@@ -3398,6 +3438,76 @@ class Workload_Service {
 	}
 
 	/**
+	 * Resolve execution mode for execution log row.
+	 *
+	 * @param array<string,mixed> $execution_context Optional execution context.
+	 * @return string
+	 */
+	protected function resolve_execution_log_mode( array $execution_context = array() ) {
+		$mode = isset( $execution_context['execution_mode'] ) ? sanitize_key( (string) $execution_context['execution_mode'] ) : '';
+		if ( in_array( $mode, array( 'manual', 'confirmable', 'auto' ), true ) ) {
+			return $mode;
+		}
+
+		if ( isset( $_POST['sm_execution_mode'] ) ) {
+			$post_mode = sanitize_key( (string) wp_unslash( $_POST['sm_execution_mode'] ) );
+			if ( in_array( $post_mode, array( 'manual', 'confirmable', 'auto' ), true ) ) {
+				return $post_mode;
+			}
+		}
+
+		if ( $this->is_controlled_execution_source() ) {
+			return 'confirmable';
+		}
+
+		return 'manual';
+	}
+
+	/**
+	 * Register one execution log row for bulk actions.
+	 *
+	 * @param int                 $business_id Business ID.
+	 * @param string              $action Action key.
+	 * @param array<string,mixed> $response Execution response.
+	 * @param array<string,mixed> $execution_context Execution context.
+	 * @return void
+	 */
+	protected function register_execution_log( $business_id, $action, array $response, array $execution_context = array() ) {
+		$business_id = absint( $business_id );
+		$action      = sanitize_key( (string) $action );
+		$status      = isset( $response['status'] ) ? sanitize_key( (string) $response['status'] ) : 'unknown';
+		$actor_id    = get_current_user_id();
+		if ( $business_id <= 0 || '' === $action || $actor_id <= 0 ) {
+			return;
+		}
+
+		$rule_key       = isset( $execution_context['rule_key'] ) ? sanitize_key( (string) $execution_context['rule_key'] ) : '';
+		if ( '' === $rule_key && isset( $_POST['sm_rule_key'] ) ) {
+			$rule_key = sanitize_key( (string) wp_unslash( $_POST['sm_rule_key'] ) );
+		}
+		$execution_mode = $this->resolve_execution_log_mode( $execution_context );
+		$affected_count = isset( $response['success_count'] ) ? absint( $response['success_count'] ) : 0;
+		$context        = array(
+			'entity_type'    => isset( $response['entity_type'] ) ? sanitize_key( (string) $response['entity_type'] ) : 'crm_task',
+			'total'          => isset( $response['total'] ) ? absint( $response['total'] ) : 0,
+			'failed_count'   => isset( $response['failed_count'] ) ? absint( $response['failed_count'] ) : 0,
+			'target_user_id' => isset( $response['target_user_id'] ) ? absint( $response['target_user_id'] ) : 0,
+			'source'         => isset( $execution_context['source'] ) ? sanitize_key( (string) $execution_context['source'] ) : ( $this->is_controlled_execution_source() ? 'controlled' : 'dashboard' ),
+		);
+
+		$this->execution_log_service->register_execution(
+			$business_id,
+			$rule_key,
+			$action,
+			$execution_mode,
+			$status,
+			$affected_count,
+			$actor_id,
+			$context
+		);
+	}
+
+	/**
 	 * Build per-user snapshot meta key for controlled execution.
 	 *
 	 * @param int $business_id Business ID.
@@ -3439,6 +3549,8 @@ class Workload_Service {
 			'result'            => isset( $execution_result['status'] ) ? sanitize_key( (string) $execution_result['status'] ) : 'failed',
 			'success_count'     => isset( $execution_result['success_count'] ) ? absint( $execution_result['success_count'] ) : 0,
 			'failed_count'      => isset( $execution_result['failed_count'] ) ? absint( $execution_result['failed_count'] ) : 0,
+			'rule_key'          => isset( $execution_result['rule_key'] ) ? sanitize_key( (string) $execution_result['rule_key'] ) : '',
+			'execution_mode'    => $this->resolve_execution_log_mode(),
 			'created_at'        => current_time( 'mysql' ),
 		);
 		update_user_meta( $user_id, $this->get_controlled_execution_snapshot_meta_key( $business_id ), $snapshot );

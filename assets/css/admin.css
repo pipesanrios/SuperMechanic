@@ -75,6 +75,11 @@
 	margin-bottom: 24px;
 }
 
+.sm-grid-cards-compact {
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	margin-bottom: 14px;
+}
+
 .sm-grid-two {
 	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
@@ -120,6 +125,15 @@
 	overflow: hidden;
 }
 
+.sm-kpi-header-compact .sm-kpi-card {
+	padding: 14px;
+}
+
+.sm-kpi-header-compact .sm-kpi-value {
+	margin-top: 8px;
+	font-size: 28px;
+}
+
 .sm-kpi-card::after {
 	content: "";
 	position: absolute;
@@ -154,6 +168,16 @@
 
 .sm-section {
 	margin-top: 26px;
+}
+
+.sm-critical-strip .sm-section-heading {
+	margin-bottom: 10px;
+}
+
+.sm-critical-strip-items {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
 }
 
 .sm-section:first-of-type {
@@ -814,4 +838,25 @@
 	.sm-appointments-calendar {
 		min-height: 520px;
 	}
+}
+.sm-inline-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: end;
+}
+
+.sm-inline-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 12px;
+	color: #3c434a;
+}
+
+.sm-inline-form input[type="text"],
+.sm-inline-form input[type="number"],
+.sm-inline-form input[type="date"],
+.sm-inline-form select {
+	min-width: 160px;
 }

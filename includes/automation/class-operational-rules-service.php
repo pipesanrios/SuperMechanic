@@ -27,6 +27,12 @@ class Operational_Rules_Service {
 	 * @var Operational_Rules_Repository
 	 */
 	protected $repository;
+	/**
+	 * Execution log service dependency.
+	 *
+	 * @var Execution_Log_Service
+	 */
+	protected $execution_log_service;
 
 	/**
 	 * Request-level memoization cache.
@@ -40,9 +46,10 @@ class Operational_Rules_Service {
 	 *
 	 * @param Workload_Service|null $workload_service Workload service.
 	 */
-	public function __construct( Workload_Service $workload_service = null, Operational_Rules_Repository $repository = null ) {
-		$this->workload_service = $workload_service ? $workload_service : new Workload_Service();
-		$this->repository       = $repository ? $repository : new Operational_Rules_Repository();
+	public function __construct( Workload_Service $workload_service = null, Operational_Rules_Repository $repository = null, Execution_Log_Service $execution_log_service = null ) {
+		$this->workload_service     = $workload_service ? $workload_service : new Workload_Service();
+		$this->repository           = $repository ? $repository : new Operational_Rules_Repository();
+		$this->execution_log_service = $execution_log_service ? $execution_log_service : new Execution_Log_Service();
 	}
 
 	/**
@@ -356,11 +363,37 @@ class Operational_Rules_Service {
 			return $max_items_parse;
 		}
 
-		$thresholds      = isset( $current_config['thresholds'] ) && is_array( $current_config['thresholds'] ) ? $current_config['thresholds'] : array();
-		$limits          = isset( $current_config['limits'] ) && is_array( $current_config['limits'] ) ? $current_config['limits'] : array();
+		$thresholds       = isset( $current_config['thresholds'] ) && is_array( $current_config['thresholds'] ) ? $current_config['thresholds'] : array();
+		$limits           = isset( $current_config['limits'] ) && is_array( $current_config['limits'] ) ? $current_config['limits'] : array();
 		$resolved_enabled = (bool) $enabled_parse;
 		$resolved_mode    = (string) $execution_mode_parse;
 		$resolved_max     = $max_items_parse;
+		$previous_max     = isset( $limits['max_items_auto'] ) ? absint( $limits['max_items_auto'] ) : null;
+
+		$old_basic = array(
+			'enabled'        => ! empty( $current_config['enabled'] ),
+			'execution_mode' => isset( $current_config['execution_mode'] ) ? sanitize_key( (string) $current_config['execution_mode'] ) : 'manual',
+			'max_items_auto' => $previous_max,
+		);
+		$new_basic = array(
+			'enabled'        => $resolved_enabled,
+			'execution_mode' => sanitize_key( $resolved_mode ),
+			'max_items_auto' => null !== $resolved_max ? absint( $resolved_max ) : $previous_max,
+		);
+		$changed_fields = array();
+		if ( $old_basic['enabled'] !== $new_basic['enabled'] ) {
+			$changed_fields[] = 'enabled';
+		}
+		if ( $old_basic['execution_mode'] !== $new_basic['execution_mode'] ) {
+			$changed_fields[] = 'execution_mode';
+		}
+		if ( $old_basic['max_items_auto'] !== $new_basic['max_items_auto'] ) {
+			$changed_fields[] = 'max_items_auto';
+		}
+
+		if ( empty( $changed_fields ) ) {
+			return $current_config;
+		}
 
 		if ( null !== $resolved_max ) {
 			$limits['max_items_auto'] = absint( $resolved_max );
@@ -382,7 +415,22 @@ class Operational_Rules_Service {
 		}
 
 		$this->clear_request_cache();
-		return $this->get_rule_config( $business_id, $rule_key );
+		$updated_config = $this->get_rule_config( $business_id, $rule_key );
+
+		$actor_user_id = get_current_user_id();
+		if ( $actor_user_id > 0 ) {
+			$this->execution_log_service->register_rule_update_audit(
+				$business_id,
+				$rule_key,
+				$actor_user_id,
+				$new_basic['execution_mode'],
+				$old_basic,
+				$new_basic,
+				$changed_fields
+			);
+		}
+
+		return $updated_config;
 	}
 
 	/**
@@ -509,6 +557,9 @@ class Operational_Rules_Service {
 			$threshold  = isset( $rule['conditions'][0]['threshold'] ) ? absint( $rule['conditions'][0]['threshold'] ) : 0;
 			$triggered  = false;
 			$impact     = 'info';
+			$trigger_reason  = __( 'Rule is disabled for this business.', 'super-mechanic' );
+			$execution_state = 'skipped';
+			$execution_reason = __( 'Enable this rule to evaluate and prepare an action.', 'super-mechanic' );
 			$preview    = array(
 				'action_type' => isset( $rule['action_type'] ) ? sanitize_key( (string) $rule['action_type'] ) : 'flag',
 				'executable'  => false,
@@ -518,6 +569,23 @@ class Operational_Rules_Service {
 			if ( 'overdue_tasks_cleanup' === $rule_key ) {
 				$triggered = $enabled && $overdue_count > $threshold;
 				$impact    = $overdue_count >= ( $threshold * 2 ) ? 'critical' : ( $triggered ? 'warning' : 'info' );
+				if ( $enabled ) {
+					if ( $triggered ) {
+						$trigger_reason = sprintf(
+							/* translators: 1: overdue count, 2: threshold. */
+							__( 'Triggered: overdue CRM tasks (%1$d) are above threshold (%2$d).', 'super-mechanic' ),
+							$overdue_count,
+							$threshold
+						);
+					} else {
+						$trigger_reason = sprintf(
+							/* translators: 1: overdue count, 2: threshold. */
+							__( 'Not triggered: overdue CRM tasks (%1$d) must be greater than threshold (%2$d).', 'super-mechanic' ),
+							$overdue_count,
+							$threshold
+						);
+					}
+				}
 				$preview   = array(
 					'action_type'  => 'bulk_resolve',
 					'entity_type'  => 'crm_task',
@@ -527,10 +595,40 @@ class Operational_Rules_Service {
 					'execution_mode' => $execution_mode,
 					'note'         => __( 'Would resolve pending overdue CRM tasks in a controlled bulk action.', 'super-mechanic' ),
 				);
+				if ( ! $enabled ) {
+					$execution_state  = 'skipped';
+					$execution_reason = __( 'Rule disabled: overdue cleanup is currently inactive.', 'super-mechanic' );
+				} elseif ( ! $triggered ) {
+					$execution_state  = 'skipped';
+					$execution_reason = __( 'Skipped: overdue threshold is not met yet.', 'super-mechanic' );
+				} elseif ( empty( $overdue_group['executable'] ) ) {
+					$execution_state  = 'blocked';
+					$execution_reason = __( 'Blocked: no executable overdue bulk group is available for current conditions.', 'super-mechanic' );
+				} else {
+					$execution_state  = 'ready';
+					$execution_reason = __( 'Ready: overdue cleanup can run through the controlled execution flow.', 'super-mechanic' );
+				}
 			} elseif ( 'critical_saturation_rebalance' === $rule_key ) {
 				$proposals = isset( $assignments['summary']['proposals'] ) ? absint( $assignments['summary']['proposals'] ) : 0;
 				$triggered = $enabled && $overloaded_users > $threshold;
 				$impact    = $overloaded_users >= 2 ? 'critical' : ( $triggered ? 'warning' : 'info' );
+				if ( $enabled ) {
+					if ( $triggered ) {
+						$trigger_reason = sprintf(
+							/* translators: 1: overloaded users, 2: threshold. */
+							__( 'Triggered: overloaded users (%1$d) are above threshold (%2$d).', 'super-mechanic' ),
+							$overloaded_users,
+							$threshold
+						);
+					} else {
+						$trigger_reason = sprintf(
+							/* translators: 1: overloaded users, 2: threshold. */
+							__( 'Not triggered: overloaded users (%1$d) must be greater than threshold (%2$d).', 'super-mechanic' ),
+							$overloaded_users,
+							$threshold
+						);
+					}
+				}
 				$preview   = array(
 					'action_type'    => 'bulk_reassign',
 					'entity_type'    => 'crm_task',
@@ -541,9 +639,39 @@ class Operational_Rules_Service {
 					'execution_mode' => $execution_mode,
 					'note'           => __( 'Would rebalance critical CRM task load using validated proposals.', 'super-mechanic' ),
 				);
+				if ( ! $enabled ) {
+					$execution_state  = 'skipped';
+					$execution_reason = __( 'Rule disabled: saturation rebalance is currently inactive.', 'super-mechanic' );
+				} elseif ( ! $triggered ) {
+					$execution_state  = 'skipped';
+					$execution_reason = __( 'Skipped: no overload condition has been reached.', 'super-mechanic' );
+				} elseif ( empty( $critical_group['executable'] ) && 0 === $proposals ) {
+					$execution_state  = 'blocked';
+					$execution_reason = __( 'Blocked: no executable reassignment proposal is available yet.', 'super-mechanic' );
+				} else {
+					$execution_state  = 'ready';
+					$execution_reason = __( 'Ready: critical rebalance can run through controlled reassignment.', 'super-mechanic' );
+				}
 			} elseif ( 'multi_critical_alert' === $rule_key ) {
 				$triggered = $enabled && $critical_flags >= $threshold;
 				$impact    = $critical_flags >= ( $threshold + 1 ) || 'critical' === $global_level ? 'critical' : ( $triggered ? 'warning' : 'info' );
+				if ( $enabled ) {
+					if ( $triggered ) {
+						$trigger_reason = sprintf(
+							/* translators: 1: critical flags, 2: threshold. */
+							__( 'Triggered: critical flags (%1$d) reached threshold (%2$d).', 'super-mechanic' ),
+							$critical_flags,
+							$threshold
+						);
+					} else {
+						$trigger_reason = sprintf(
+							/* translators: 1: critical flags, 2: threshold. */
+							__( 'Not triggered: critical flags (%1$d) must be at least threshold (%2$d).', 'super-mechanic' ),
+							$critical_flags,
+							$threshold
+						);
+					}
+				}
 				$preview   = array(
 					'action_type'    => 'flag',
 					'critical_flags' => $critical_flags,
@@ -552,12 +680,25 @@ class Operational_Rules_Service {
 					'execution_mode' => $execution_mode,
 					'note'           => __( 'Would elevate operational visibility through dashboard flagging only.', 'super-mechanic' ),
 				);
+				if ( ! $enabled ) {
+					$execution_state  = 'skipped';
+					$execution_reason = __( 'Rule disabled: critical alert visibility is currently inactive.', 'super-mechanic' );
+				} elseif ( ! $triggered ) {
+					$execution_state  = 'skipped';
+					$execution_reason = __( 'Skipped: critical flag threshold has not been reached.', 'super-mechanic' );
+				} else {
+					$execution_state  = 'informative';
+					$execution_reason = __( 'Triggered: this rule increases visibility only and does not mutate data.', 'super-mechanic' );
+				}
 			}
 
 			$evaluations[] = array(
 				'rule_key'       => $rule_key,
 				'triggered'      => $triggered,
 				'impact_level'   => $impact,
+				'trigger_reason' => $trigger_reason,
+				'execution_state' => $execution_state,
+				'execution_reason' => $execution_reason,
 				'action_preview' => $preview,
 			);
 		}
