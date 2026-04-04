@@ -17,6 +17,13 @@ defined( 'ABSPATH' ) || exit;
  */
 class Crm_Task_Repository {
 	/**
+	 * Constructor.
+	 */
+	public function __construct() {
+		$this->maybe_ensure_performance_indexes();
+	}
+
+	/**
 	 * Get CRM tasks table name.
 	 *
 	 * @return string
@@ -665,5 +672,81 @@ class Crm_Task_Repository {
 		$pipeline_ids = array_values( array_unique( array_filter( array_map( 'absint', $pipeline_ids ) ) ) );
 
 		return $pipeline_ids;
+	}
+
+	/**
+	 * Ensure strategic indexes exist for frequently used CRM task queries.
+	 *
+	 * @return void
+	 */
+	protected function maybe_ensure_performance_indexes() {
+		static $checked = false;
+		if ( $checked ) {
+			return;
+		}
+
+		$checked       = true;
+		$transient_key = 'sm_crm_tasks_idx_checked_v46d';
+		if ( get_transient( $transient_key ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$table_name = $this->get_table_name();
+		$indexes    = $wpdb->get_results( "SHOW INDEX FROM {$table_name}", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		if ( ! is_array( $indexes ) ) {
+			return;
+		}
+
+		$existing = array();
+		foreach ( $indexes as $row ) {
+			if ( ! is_array( $row ) || empty( $row['Key_name'] ) ) {
+				continue;
+			}
+			$existing[ sanitize_key( (string) $row['Key_name'] ) ] = true;
+		}
+
+		$this->maybe_add_index(
+			$table_name,
+			$existing,
+			'business_assigned_status_due',
+			'(business_id,assigned_user_id,status,due_at)'
+		);
+		$this->maybe_add_index(
+			$table_name,
+			$existing,
+			'business_pipeline_status_due',
+			'(business_id,crm_pipeline_id,status,due_at)'
+		);
+
+		// Keep checks cheap between requests while allowing future schema upgrades.
+		set_transient( $transient_key, 1, 6 * HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * Add index when missing.
+	 *
+	 * @param string               $table_name Table name.
+	 * @param array<string,bool>   $existing Existing index map.
+	 * @param string               $index_name Index name.
+	 * @param string               $columns Columns list.
+	 * @return void
+	 */
+	protected function maybe_add_index( $table_name, array &$existing, $index_name, $columns ) {
+		global $wpdb;
+
+		$index_name = sanitize_key( (string) $index_name );
+		if ( '' === $index_name || isset( $existing[ $index_name ] ) ) {
+			return;
+		}
+
+		$columns = trim( (string) $columns );
+		if ( '' === $columns ) {
+			return;
+		}
+
+		$wpdb->query( "ALTER TABLE {$table_name} ADD INDEX {$index_name} {$columns}" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$existing[ $index_name ] = true;
 	}
 }

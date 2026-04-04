@@ -168,6 +168,9 @@ QA Runner does not replace manual validation.
 - Prefer batch operations
 - Reuse services and repositories
 - Do not recalculate persisted data (e.g., alerts)
+- Prefer request-level reuse in controllers/services before adding new heavy reads
+- Resolve `business_id` from business context when workload payload is not required
+- Avoid per-row user lookups in admin tables; use batch resolution + in-request memoization
 
 ---
 

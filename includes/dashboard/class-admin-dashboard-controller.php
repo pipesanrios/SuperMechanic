@@ -9,6 +9,7 @@ namespace Super_Mechanic\Dashboard;
 
 use Super_Mechanic\Automation\Execution_Log_Service;
 use Super_Mechanic\Automation\Operational_Rules_Service;
+use Super_Mechanic\Helpers\Business_Context_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -34,6 +35,48 @@ class Admin_Dashboard_Controller {
 	 * @var Execution_Log_Service
 	 */
 	protected $execution_log_service;
+	/**
+	 * Operational rules service.
+	 *
+	 * @var Operational_Rules_Service
+	 */
+	protected $operational_rules_service;
+	/**
+	 * Business context service.
+	 *
+	 * @var Business_Context_Service
+	 */
+	protected $business_context_service;
+	/**
+	 * Dashboard request-level cache.
+	 *
+	 * @var array<string,mixed>
+	 */
+	protected $dashboard_request_cache = array();
+	/**
+	 * Profiling enabled for current request.
+	 *
+	 * @var bool
+	 */
+	protected $profiling_enabled = false;
+	/**
+	 * Profiling context label.
+	 *
+	 * @var string
+	 */
+	protected $profiling_context = '';
+	/**
+	 * Profiling request start time.
+	 *
+	 * @var float
+	 */
+	protected $profiling_request_started_at = 0.0;
+	/**
+	 * Profiling marks.
+	 *
+	 * @var array<int,array<string,mixed>>
+	 */
+	protected $profiling_marks = array();
 	/**
 	 * Reassignment feedback notice.
 	 *
@@ -81,9 +124,12 @@ class Admin_Dashboard_Controller {
 		$this->service               = $service ? $service : new Dashboard_Service();
 		$this->workload_service      = $workload_service ? $workload_service : new Workload_Service();
 		$this->execution_log_service = new Execution_Log_Service();
+		$this->operational_rules_service = new Operational_Rules_Service( $this->workload_service );
+		$this->business_context_service  = new Business_Context_Service();
 
 		add_action( 'admin_menu', array( $this, 'register_automation_submenu' ), 98 );
 		add_action( 'admin_menu', array( $this, 'register_logs_submenu' ), 99 );
+		add_action( 'wp_ajax_sm_dashboard_lazy_sections', array( $this, 'ajax_load_dashboard_heavy_sections' ) );
 	}
 
 	/**
@@ -95,24 +141,21 @@ class Admin_Dashboard_Controller {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
+		$this->start_request_profiling( 'dashboard' );
+
 		$this->maybe_handle_operational_reassignment_request();
 		$this->maybe_handle_operational_bulk_action_request();
 		$this->maybe_handle_controlled_auto_execution_request();
 		$this->maybe_handle_controlled_execution_rollback_request();
 		$this->maybe_handle_operational_rule_update_request();
 
-		$kpis             = $this->service->get_admin_kpis();
-		$process_status   = $this->service->get_processes_by_status();
-		$process_types    = $this->service->get_processes_by_type();
-		$recent_processes = $this->service->get_recent_processes( 10 );
-		$recent_vehicles  = $this->service->get_recent_vehicles( 10 );
-		$recent_clients   = $this->service->get_recent_clients( 10 );
-		$today_appointments = $this->service->get_today_appointments( 8 );
-		$upcoming_appointments = $this->service->get_upcoming_appointments( 7, 8 );
 		$selected_workload_user_id = isset( $_GET['workload_user_id'] ) ? absint( wp_unslash( $_GET['workload_user_id'] ) ) : get_current_user_id();
 		if ( $selected_workload_user_id <= 0 ) {
 			$selected_workload_user_id = get_current_user_id();
 		}
+		$this->enqueue_dashboard_lazy_assets( $selected_workload_user_id );
+		$business_id = $this->resolve_business_id_for_user( $selected_workload_user_id );
+		$timer    = $this->profile_mark_start();
 		$workload = $this->workload_service->get_user_workload(
 			$selected_workload_user_id,
 			array(
@@ -121,52 +164,80 @@ class Admin_Dashboard_Controller {
 				'limit_per_bucket' => 12,
 			)
 		);
-		$global_summary = $this->workload_service->get_global_operational_summary(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0
+		$this->profile_mark_end( 'data.workload', $timer );
+		$timer          = $this->profile_mark_start();
+		$global_summary = $this->get_cached_dashboard_payload(
+			'global_operational_summary',
+			$business_id,
+			30,
+			function () use ( $business_id ) {
+				return $this->workload_service->get_global_operational_summary( $business_id );
+			}
 		);
+		$this->profile_mark_end( 'data.global_summary', $timer );
+		$timer            = $this->profile_mark_start();
 		$automation_flags = $this->workload_service->get_operational_automation_flags(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$business_id,
 			$selected_workload_user_id
 		);
+		$this->profile_mark_end( 'data.automation_flags', $timer );
+		$timer            = $this->profile_mark_start();
 		$escalation_state = $this->workload_service->get_operational_escalation_state(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$business_id,
 			$selected_workload_user_id
 		);
+		$this->profile_mark_end( 'data.escalation', $timer );
+		$timer                       = $this->profile_mark_start();
 		$operational_recommendations = $this->workload_service->get_operational_recommendations(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$business_id,
 			$selected_workload_user_id
 		);
+		$this->profile_mark_end( 'data.recommendations', $timer );
+		$timer                   = $this->profile_mark_start();
 		$operational_assignments = $this->workload_service->get_operational_assignments(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0
+			$business_id
 		);
+		$this->profile_mark_end( 'data.assignments', $timer );
+		$timer              = $this->profile_mark_start();
 		$automation_console = $this->workload_service->get_operational_automation_console(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$business_id,
 			$selected_workload_user_id
 		);
+		$this->profile_mark_end( 'data.automation_console', $timer );
+		$timer            = $this->profile_mark_start();
 		$assisted_actions = $this->workload_service->get_operational_assisted_actions(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$business_id,
 			$selected_workload_user_id
 		);
+		$this->profile_mark_end( 'data.assisted_actions', $timer );
+		$timer                    = $this->profile_mark_start();
 		$operational_bulk_actions = $this->workload_service->get_operational_bulk_actions(
-			isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0,
+			$business_id,
 			$selected_workload_user_id
 		);
+		$this->profile_mark_end( 'data.bulk_actions', $timer );
 		$action_center_section = isset( $_GET['section'] ) ? sanitize_key( (string) wp_unslash( $_GET['section'] ) ) : '';
 		$action_center_filter  = isset( $_GET['filter'] ) ? sanitize_key( (string) wp_unslash( $_GET['filter'] ) ) : '';
 		$has_operational_data  = $this->has_operational_data( $global_summary, $workload );
+		$noise_coverage        = $this->build_operational_noise_coverage(
+			$assisted_actions,
+			$operational_assignments,
+			$operational_bulk_actions,
+			$escalation_state
+		);
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Dashboard', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'System overview focused on operations, current workload, and recent activity.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Operational overview for priorities, actions, and current workload.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		$this->render_reassignment_notice();
 		$this->render_bulk_action_notice();
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Operations hub', 'super-mechanic' ) . '</span>';
 		echo '</div>';
 
-		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Metrics are calculated from current operations without altering existing flows.', 'super-mechanic' ) . '</p></div>';
+		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Real-time operational metrics with no flow changes.', 'super-mechanic' ) . '</p></div>';
 		if ( ! $has_operational_data ) {
 			echo '<div class="sm-notice-card">';
 			echo '<strong>' . esc_html__( 'This business has no operational data yet.', 'super-mechanic' ) . '</strong>';
@@ -184,10 +255,15 @@ class Admin_Dashboard_Controller {
 		echo '<a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=super-mechanic-automation' ) ) . '">' . esc_html__( 'Open Automation Center', 'super-mechanic' ) . '</a>';
 		echo '</div>';
 		echo '</section>';
+		$timer = $this->profile_mark_start();
 		// 2) KPI header.
 		$this->render_operational_kpi_header( $global_summary );
+		$this->profile_mark_end( 'render.kpi_header', $timer );
+		$timer = $this->profile_mark_start();
 		// 3) Critical strip.
 		$this->render_operational_critical_strip( $escalation_state );
+		$this->profile_mark_end( 'render.critical_strip', $timer );
+		$timer = $this->profile_mark_start();
 		// 4) Action center.
 		$this->render_operational_action_center(
 			$assisted_actions,
@@ -195,98 +271,74 @@ class Admin_Dashboard_Controller {
 			$operational_bulk_actions,
 			$automation_console,
 			$action_center_section,
-			$action_center_filter
+			$action_center_filter,
+			$noise_coverage
 		);
+		$this->profile_mark_end( 'render.action_center', $timer );
+		$timer = $this->profile_mark_start();
 		// 5) Smart suggestions (max 3).
-		$this->render_operational_recommendations( $operational_recommendations, 3 );
+		$this->render_operational_recommendations( $operational_recommendations, 3, $noise_coverage );
+		$this->profile_mark_end( 'render.recommendations', $timer );
+		$timer = $this->profile_mark_start();
 		// 6) My workload.
 		$this->render_workload_section( $workload );
+		$this->profile_mark_end( 'render.workload', $timer );
+		$timer = $this->profile_mark_start();
 		// 7) Automation summary compact.
 		$this->render_automation_summary_compact( $automation_flags );
-
-		echo '<div class="sm-grid sm-grid-cards">';
-		$this->render_kpi_card( __( 'Clients', 'super-mechanic' ), $kpis['total_clients'], __( 'Total registered base', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-clients' ) );
-		$this->render_kpi_card( __( 'Vehicles', 'super-mechanic' ), $kpis['total_vehicles'], __( 'Active in tracking', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-vehicles' ) );
-		$this->render_kpi_card( __( 'Processes', 'super-mechanic' ), $kpis['total_processes'], __( 'Consolidated historical workload', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-processes' ) );
-		$this->render_kpi_card( __( 'Open processes', 'super-mechanic' ), $kpis['open_processes'], __( 'Immediate operational workload', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-processes', array( 'filter_status' => 'open' ) ) );
-		echo '</div>';
-
-		echo '<div class="sm-grid sm-grid-two">';
-		echo '<section class="sm-card sm-card-muted">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Processes by status', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( count( $process_status ) ) . ' ' . esc_html__( 'groups', 'super-mechanic' ) . '</span></div>';
-		$this->render_simple_summary_table( $process_status, __( 'Status', 'super-mechanic' ), 'status' );
+		$this->profile_mark_end( 'render.automation_summary', $timer );
+		echo '<section class="sm-card sm-section sm-lazy-shell" id="sm-dashboard-lazy-shell" data-sm-lazy="heavy-sections">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Secondary operational data', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Deferred by profiling', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Detailed sections load after core operational blocks to preserve focus and perceived speed.', 'super-mechanic' ) . '</p>';
+		echo '<div id="sm-dashboard-lazy-placeholder" class="sm-lazy-placeholder">' . esc_html__( 'Loading section...', 'super-mechanic' ) . '</div>';
+		echo '<div id="sm-dashboard-lazy-content" class="sm-lazy-content" aria-live="polite"></div>';
+		echo '<noscript><p class="description">' . esc_html__( 'Enable JavaScript to load extended operational sections.', 'super-mechanic' ) . '</p></noscript>';
 		echo '</section>';
 
-		echo '<section class="sm-card sm-card-muted">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Processes by type', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( count( $process_types ) ) . ' ' . esc_html__( 'groups', 'super-mechanic' ) . '</span></div>';
-		$this->render_simple_summary_table( $process_types, __( 'Type', 'super-mechanic' ), 'process_type' );
-		echo '</section>';
+		$this->render_profiling_panel();
 		echo '</div>';
+	}
 
-		echo '<section class="sm-section">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest processes', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'High priority', 'super-mechanic' ) . '</span></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
-		if ( empty( $recent_processes ) ) {
-			echo '<tr><td colspan="7">' . esc_html__( 'No recent processes found.', 'super-mechanic' ) . '</td></tr>';
-		} else {
-			foreach ( $recent_processes as $process ) {
-				$process_id = absint( $process['id'] );
-				echo '<tr>';
-				echo '<td>' . esc_html( $process_id ) . '</td>';
-				echo '<td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'edit', 'id' => $process_id ) ) ) . '">' . esc_html( $process['title'] ) . '</a></td>';
-				echo '<td>' . esc_html( $this->humanize_key( $process['process_type'] ) ) . '</td>';
-				echo '<td>' . wp_kses_post( $this->render_status_badge( $process['status'] ) ) . '</td>';
-				echo '<td>' . esc_html( $this->format_vehicle_label( $process ) ) . '</td>';
-				echo '<td>' . esc_html( $process['client_name'] ? $process['client_name'] : __( 'Unassigned', 'super-mechanic' ) ) . '</td>';
-				echo '<td>' . wp_kses_post( $this->render_process_quick_links( $process_id, isset( $process['process_type'] ) ? (string) $process['process_type'] : '' ) ) . '</td>';
-				echo '</tr>';
-			}
+	/**
+	 * Handle lazy dashboard heavy sections request.
+	 *
+	 * @return void
+	 */
+	public function ajax_load_dashboard_heavy_sections() {
+		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'You are not allowed to load this dashboard section.', 'super-mechanic' ),
+				),
+				403
+			);
 		}
-		echo '</tbody></table></div>';
-		echo '</section>';
 
-		echo '<div class="sm-grid sm-grid-two">';
-		echo '<section class="sm-card sm-card-muted">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Today appointments', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html( count( $today_appointments ) ) . '</span></div>';
-		$this->render_appointments_table( $today_appointments, __( 'No appointments for today.', 'super-mechanic' ) );
-		echo '</section>';
-
-		echo '<section class="sm-card sm-card-muted">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Upcoming appointments', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( '7 days', 'super-mechanic' ) . '</span></div>';
-		$this->render_appointments_table( $upcoming_appointments, __( 'No upcoming appointments in the next 7 days.', 'super-mechanic' ) );
-		echo '</section>';
-		echo '</div>';
-
-		echo '<div class="sm-grid sm-grid-two">';
-		echo '<section class="sm-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest vehicles', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Plate', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th></tr></thead><tbody>';
-		if ( empty( $recent_vehicles ) ) {
-			echo '<tr><td colspan="4">' . esc_html__( 'No recent vehicles found.', 'super-mechanic' ) . '</td></tr>';
-		} else {
-			foreach ( $recent_vehicles as $vehicle ) {
-				echo '<tr><td>' . esc_html( $vehicle['id'] ) . '</td><td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-vehicles', array( 'action' => 'view', 'id' => absint( $vehicle['id'] ) ) ) ) . '">' . esc_html( $this->format_vehicle_label( $vehicle ) ) . '</a></td><td>' . esc_html( $vehicle['plate'] ) . '</td><td>' . esc_html( ! empty( $vehicle['client_name'] ) ? $vehicle['client_name'] : __( 'Unassigned', 'super-mechanic' ) ) . '</td></tr>';
-			}
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['nonce'] ) ) : '';
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'sm_dashboard_lazy_sections' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Security validation failed while loading dashboard section.', 'super-mechanic' ),
+				),
+				403
+			);
 		}
-		echo '</tbody></table></div>';
-		echo '</section>';
 
-		echo '<section class="sm-card">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest clients', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Name', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Email', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Phone', 'super-mechanic' ) . '</th></tr></thead><tbody>';
-		if ( empty( $recent_clients ) ) {
-			echo '<tr><td colspan="4">' . esc_html__( 'No recent clients found.', 'super-mechanic' ) . '</td></tr>';
-		} else {
-			foreach ( $recent_clients as $client ) {
-				$name = trim( $client['first_name'] . ' ' . $client['last_name'] );
-				echo '<tr><td>' . esc_html( $client['id'] ) . '</td><td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-clients', array( 'action' => 'view', 'id' => absint( $client['id'] ) ) ) ) . '">' . esc_html( $name ) . '</a></td><td>' . esc_html( $client['email'] ) . '</td><td>' . esc_html( $client['phone'] ) . '</td></tr>';
-			}
+		$selected_workload_user_id = isset( $_POST['workload_user_id'] ) ? absint( wp_unslash( $_POST['workload_user_id'] ) ) : get_current_user_id();
+		if ( $selected_workload_user_id <= 0 ) {
+			$selected_workload_user_id = get_current_user_id();
 		}
-		echo '</tbody></table></div>';
-		echo '</section>';
-		echo '</div>';
 
-		echo '</div>';
+		$this->start_request_profiling( 'dashboard_lazy_ajax' );
+		$timer = $this->profile_mark_start();
+		$html = $this->get_dashboard_heavy_sections_html( $selected_workload_user_id );
+		$this->profile_mark_end( 'lazy.heavy_sections', $timer );
+		wp_send_json_success(
+			array(
+				'html'    => $html,
+				'profile' => $this->get_profile_export_payload(),
+			)
+		);
 	}
 
 	/**
@@ -693,8 +745,7 @@ class Admin_Dashboard_Controller {
 		$execution_mode = isset( $_POST['execution_mode'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['execution_mode'] ) ) : null;
 		$max_items_auto = isset( $_POST['max_items_auto'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['max_items_auto'] ) ) : null;
 
-		$service = new Operational_Rules_Service();
-			$result  = $service->save_basic_rule_config( $business_id, $rule_key, $enabled_raw, $execution_mode, $max_items_auto );
+			$result  = $this->operational_rules_service->save_basic_rule_config( $business_id, $rule_key, $enabled_raw, $execution_mode, $max_items_auto );
 			if ( is_wp_error( $result ) ) {
 				$error_code = $result->get_error_code();
 				if ( in_array( $error_code, array( 'invalid_rule_key', 'invalid_execution_mode', 'invalid_max_items_auto', 'invalid_enabled', 'invalid_business_id' ), true ) ) {
@@ -1027,7 +1078,7 @@ class Admin_Dashboard_Controller {
 		echo '<section class="sm-card sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Resumen Operativo Global', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Global', 'super-mechanic' ) . '</span></div>';
 		echo '<p class="sm-card-copy">' . esc_html__( 'Business-level aggregated metrics for operational load and critical points.', 'super-mechanic' ) . '</p>';
-		echo '<div class="sm-grid sm-grid-cards">';
+		echo '<div class="sm-grid sm-grid-cards sm-grid-cards-compact sm-secondary-metrics">';
 		$this->render_kpi_card(
 			__( 'Pending CRM tasks', 'super-mechanic' ),
 			isset( $summary['tasks_pending_total'] ) ? absint( $summary['tasks_pending_total'] ) : 0,
@@ -1157,7 +1208,7 @@ class Admin_Dashboard_Controller {
 		echo '<section class="sm-card sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Mi trabajo (workload operativo)', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'Por usuario', 'super-mechanic' ) . '</span></div>';
 		echo '<p class="sm-card-copy">' . esc_html__( 'Vista consolidada de tareas, alertas persistidas, procesos activos y citas próximas.', 'super-mechanic' ) . '</p>';
-		echo '<div class="sm-grid sm-grid-cards">';
+		echo '<div class="sm-grid sm-grid-cards sm-grid-cards-compact sm-secondary-metrics">';
 		$this->render_workload_bucket_table(
 			__( 'Critical', 'super-mechanic' ),
 			isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? $workload['critical'] : array(),
@@ -1305,24 +1356,28 @@ class Admin_Dashboard_Controller {
 	 * Render intelligent recommendations section.
 	 *
 	 * @param array<string,mixed> $payload Recommendations payload.
+	 * @param int                 $max_items Optional max items to show.
+	 * @param array<string,bool>  $suppressed_problem_keys Problem keys already covered by higher-priority actionable blocks.
 	 * @return void
 	 */
-	protected function render_operational_recommendations( array $payload, $max_items = 0 ) {
+	protected function render_operational_recommendations( array $payload, $max_items = 0, array $suppressed_problem_keys = array() ) {
 		$recommendations = isset( $payload['recommendations'] ) && is_array( $payload['recommendations'] ) ? $payload['recommendations'] : array();
-		$summary         = isset( $payload['summary'] ) && is_array( $payload['summary'] ) ? $payload['summary'] : array();
 		$max_items       = absint( $max_items );
+		$recommendations = $this->filter_recommendations_by_noise_coverage( $recommendations, $suppressed_problem_keys, false );
 
 		if ( $max_items > 0 && ! empty( $recommendations ) ) {
-			usort(
-				$recommendations,
-				static function ( $a, $b ) {
-					$rank = array( 'critical' => 0, 'warning' => 1, 'normal' => 2 );
-					$la   = is_array( $a ) ? sanitize_key( (string) ( $a['level'] ?? 'normal' ) ) : 'normal';
-					$lb   = is_array( $b ) ? sanitize_key( (string) ( $b['level'] ?? 'normal' ) ) : 'normal';
-					return ( $rank[ $la ] ?? 9 ) <=> ( $rank[ $lb ] ?? 9 );
-				}
-			);
 			$recommendations = array_slice( $recommendations, 0, $max_items );
+		}
+		$display_total    = count( $recommendations );
+		$display_critical = 0;
+		$display_warning  = 0;
+		foreach ( $recommendations as $recommendation ) {
+			$level = isset( $recommendation['level'] ) ? sanitize_key( (string) $recommendation['level'] ) : 'warning';
+			if ( 'critical' === $level ) {
+				++$display_critical;
+			} else {
+				++$display_warning;
+			}
 		}
 
 		echo '<section class="sm-card sm-section">';
@@ -1331,17 +1386,17 @@ class Admin_Dashboard_Controller {
 		echo '<div class="sm-grid sm-grid-cards">';
 		$this->render_kpi_card(
 			__( 'Total recommendations', 'super-mechanic' ),
-			isset( $summary['total'] ) ? absint( $summary['total'] ) : 0,
+			$display_total,
 			__( 'Suggested operational actions', 'super-mechanic' )
 		);
 		$this->render_kpi_card(
 			__( 'Critical recommendations', 'super-mechanic' ),
-			isset( $summary['critical'] ) ? absint( $summary['critical'] ) : 0,
+			$display_critical,
 			__( 'Immediate interventions', 'super-mechanic' )
 		);
 		$this->render_kpi_card(
 			__( 'Warning recommendations', 'super-mechanic' ),
-			isset( $summary['warning'] ) ? absint( $summary['warning'] ) : 0,
+			$display_warning,
 			__( 'Priority follow-up actions', 'super-mechanic' )
 		);
 		echo '</div>';
@@ -1409,9 +1464,10 @@ class Admin_Dashboard_Controller {
 	 * @param array<string,mixed> $console_payload Automation console payload.
 	 * @param string              $section Optional dashboard section filter.
 	 * @param string              $filter Optional severity filter.
+	 * @param array<string,bool>  $suppressed_problem_keys Problem keys already covered in higher-priority surfaces.
 	 * @return void
 	 */
-	protected function render_operational_action_center( array $assisted_payload, array $assignments_payload, array $bulk_payload, array $console_payload, $section = '', $filter = '' ) {
+	protected function render_operational_action_center( array $assisted_payload, array $assignments_payload, array $bulk_payload, array $console_payload, $section = '', $filter = '', array $suppressed_problem_keys = array() ) {
 		$is_critical_focus = 'action_center' === sanitize_key( (string) $section ) && 'critical' === sanitize_key( (string) $filter );
 		$assisted_actions = isset( $assisted_payload['actions'] ) && is_array( $assisted_payload['actions'] ) ? $assisted_payload['actions'] : array();
 		$critical_actions = array_values(
@@ -1491,6 +1547,7 @@ class Admin_Dashboard_Controller {
 		$render_assignments    = $is_critical_focus ? $critical_assignments : $executable_assignments;
 		$render_groups         = $is_critical_focus ? $critical_executable_groups : $executable_groups;
 		$render_recommendations = $is_critical_focus ? $critical_recommendations : $recommendations;
+		$render_recommendations = $this->filter_recommendations_by_noise_coverage( $render_recommendations, $suppressed_problem_keys, true );
 		$recommendation_total  = count( $render_recommendations );
 		$has_critical_items    = ! empty( $critical_actions ) || ! empty( $critical_flags ) || ! empty( $critical_assignments ) || ! empty( $critical_executable_groups ) || ! empty( $critical_recommendations );
 
@@ -1513,7 +1570,7 @@ class Admin_Dashboard_Controller {
 		}
 
 		echo '<div class="sm-grid sm-grid-two">';
-		echo '<section class="sm-card sm-card-muted">';
+		echo '<section class="sm-card sm-card-muted sm-secondary-compact">';
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Prioridad crítica', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $critical_actions ) && empty( $critical_flags ) ) {
@@ -1546,7 +1603,7 @@ class Admin_Dashboard_Controller {
 		echo '</tbody></table></div>';
 		echo '</section>';
 
-		echo '<section class="sm-card sm-card-muted">';
+		echo '<section class="sm-card sm-card-muted sm-secondary-compact">';
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Reasignación', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'From', 'super-mechanic' ) . '</th><th>' . esc_html__( 'To', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $render_assignments ) ) {
@@ -1581,7 +1638,7 @@ class Admin_Dashboard_Controller {
 		echo '</tbody></table></div>';
 		echo '</section>';
 
-		echo '<section class="sm-card sm-card-muted">';
+		echo '<section class="sm-card sm-card-muted sm-secondary-compact">';
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Acciones masivas', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Group', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Count', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $render_groups ) ) {
@@ -1619,11 +1676,11 @@ class Admin_Dashboard_Controller {
 		echo '</tbody></table></div>';
 		echo '</section>';
 
-		echo '<section class="sm-card sm-card-muted">';
+		echo '<section class="sm-card sm-card-muted sm-secondary-compact">';
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Sugerencias', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Recommendation', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action hint', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $render_recommendations ) ) {
-			echo '<tr><td colspan="3">' . esc_html__( 'No active recommendations.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="3">' . esc_html__( 'No additional recommendations. Priority outputs are already listed above.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $render_recommendations as $recommendation ) {
 				$title       = isset( $recommendation['title'] ) ? sanitize_text_field( (string) $recommendation['title'] ) : __( 'Operational recommendation', 'super-mechanic' );
@@ -1640,6 +1697,166 @@ class Admin_Dashboard_Controller {
 		echo '</section>';
 		echo '</div>';
 		echo '</section>';
+	}
+
+	/**
+	 * Build per-problem coverage map to reduce duplicated noise across blocks.
+	 *
+	 * @param array<string,mixed> $assisted_payload Assisted actions payload.
+	 * @param array<string,mixed> $assignments_payload Assignments payload.
+	 * @param array<string,mixed> $bulk_payload Bulk payload.
+	 * @param array<string,mixed> $escalation_state Escalation payload.
+	 * @return array<string,bool>
+	 */
+	protected function build_operational_noise_coverage( array $assisted_payload, array $assignments_payload, array $bulk_payload, array $escalation_state ) {
+		$coverage = array();
+
+		$actions = isset( $assisted_payload['actions'] ) && is_array( $assisted_payload['actions'] ) ? $assisted_payload['actions'] : array();
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$key      = isset( $action['key'] ) ? sanitize_key( (string) $action['key'] ) : '';
+			$label    = isset( $action['label'] ) ? sanitize_text_field( (string) $action['label'] ) : '';
+			$context  = isset( $action['context'] ) ? sanitize_text_field( (string) $action['context'] ) : '';
+			$combined = trim( $key . ' ' . $label . ' ' . $context );
+			$issue    = $this->infer_operational_problem_from_text( $combined );
+			if ( '' !== $issue ) {
+				$coverage[ $issue ] = true;
+			}
+		}
+
+		$assignments = isset( $assignments_payload['assignments'] ) && is_array( $assignments_payload['assignments'] ) ? $assignments_payload['assignments'] : array();
+		foreach ( $assignments as $assignment ) {
+			if ( is_array( $assignment ) && ! empty( $assignment['executable'] ) ) {
+				$coverage['saturation'] = true;
+				break;
+			}
+		}
+
+		$groups = isset( $bulk_payload['groups'] ) && is_array( $bulk_payload['groups'] ) ? $bulk_payload['groups'] : array();
+		foreach ( $groups as $group ) {
+			if ( ! is_array( $group ) || empty( $group['executable'] ) ) {
+				continue;
+			}
+			$group_key = isset( $group['group_key'] ) ? sanitize_key( (string) $group['group_key'] ) : '';
+			$issue     = $this->infer_operational_problem_from_text( $group_key );
+			if ( '' !== $issue ) {
+				$coverage[ $issue ] = true;
+			}
+		}
+
+		$blocking_flags = isset( $escalation_state['blocking_flags'] ) && is_array( $escalation_state['blocking_flags'] ) ? $escalation_state['blocking_flags'] : array();
+		foreach ( $blocking_flags as $flag ) {
+			if ( ! is_array( $flag ) ) {
+				continue;
+			}
+			$message = isset( $flag['message'] ) ? sanitize_text_field( (string) $flag['message'] ) : '';
+			$issue   = $this->infer_operational_problem_from_text( $message );
+			if ( '' !== $issue ) {
+				$coverage[ $issue ] = true;
+			}
+		}
+
+		return $coverage;
+	}
+
+	/**
+	 * Filter recommendations when the same problem is already surfaced in higher-priority outputs.
+	 *
+	 * @param array<int,array<string,mixed>> $recommendations Recommendations to filter.
+	 * @param array<string,bool>             $suppressed_problem_keys Covered problems.
+	 * @param bool                           $keep_critical Whether critical recommendations should still pass through.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function filter_recommendations_by_noise_coverage( array $recommendations, array $suppressed_problem_keys, $keep_critical = false ) {
+		if ( empty( $suppressed_problem_keys ) ) {
+			return $recommendations;
+		}
+
+		$filtered = array();
+		foreach ( $recommendations as $recommendation ) {
+			if ( ! is_array( $recommendation ) ) {
+				continue;
+			}
+			$problem_key = $this->resolve_recommendation_problem_key( $recommendation );
+			$level       = isset( $recommendation['level'] ) ? sanitize_key( (string) $recommendation['level'] ) : 'warning';
+
+			if ( '' !== $problem_key && isset( $suppressed_problem_keys[ $problem_key ] ) ) {
+				if ( $keep_critical && 'critical' === $level ) {
+					$filtered[] = $recommendation;
+				}
+				continue;
+			}
+
+			$filtered[] = $recommendation;
+		}
+
+		return $filtered;
+	}
+
+	/**
+	 * Resolve recommendation to a normalized operational problem key.
+	 *
+	 * @param array<string,mixed> $recommendation Recommendation row.
+	 * @return string
+	 */
+	protected function resolve_recommendation_problem_key( array $recommendation ) {
+		$key = isset( $recommendation['key'] ) ? sanitize_key( (string) $recommendation['key'] ) : '';
+		if ( '' !== $key ) {
+			if ( false !== strpos( $key, 'overdue' ) || false !== strpos( $key, 'backlog' ) ) {
+				return 'overdue_tasks';
+			}
+			if ( false !== strpos( $key, 'delayed' ) || false !== strpos( $key, 'process' ) ) {
+				return 'delayed_processes';
+			}
+			if ( false !== strpos( $key, 'critical' ) || false !== strpos( $key, 'intervention' ) ) {
+				return 'critical_signals';
+			}
+			if ( false !== strpos( $key, 'saturation' ) || false !== strpos( $key, 'redistribute' ) || false !== strpos( $key, 'load' ) ) {
+				return 'saturation';
+			}
+			if ( false !== strpos( $key, 'appointment' ) ) {
+				return 'upcoming_appointments';
+			}
+		}
+
+		$title   = isset( $recommendation['title'] ) ? sanitize_text_field( (string) $recommendation['title'] ) : '';
+		$message = isset( $recommendation['message'] ) ? sanitize_text_field( (string) $recommendation['message'] ) : '';
+		$hint    = isset( $recommendation['action_hint'] ) ? sanitize_text_field( (string) $recommendation['action_hint'] ) : '';
+
+		return $this->infer_operational_problem_from_text( trim( $title . ' ' . $message . ' ' . $hint ) );
+	}
+
+	/**
+	 * Infer normalized operational problem key from free text.
+	 *
+	 * @param string $text Source text.
+	 * @return string
+	 */
+	protected function infer_operational_problem_from_text( $text ) {
+		$value = strtolower( sanitize_text_field( (string) $text ) );
+		if ( '' === $value ) {
+			return '';
+		}
+
+		if ( false !== strpos( $value, 'overdue' ) || false !== strpos( $value, 'backlog' ) ) {
+			return 'overdue_tasks';
+		}
+		if ( false !== strpos( $value, 'delayed' ) || false !== strpos( $value, 'process' ) ) {
+			return 'delayed_processes';
+		}
+		if ( false !== strpos( $value, 'critical' ) || false !== strpos( $value, 'blocker' ) || false !== strpos( $value, 'flag' ) || false !== strpos( $value, 'intervention' ) ) {
+			return 'critical_signals';
+		}
+		if ( false !== strpos( $value, 'saturation' ) || false !== strpos( $value, 'workload' ) || false !== strpos( $value, 'reassign' ) || false !== strpos( $value, 'rebalance' ) ) {
+			return 'saturation';
+		}
+		if ( false !== strpos( $value, 'appointment' ) || false !== strpos( $value, 'scheduled work' ) ) {
+			return 'upcoming_appointments';
+		}
+
+		return '';
 	}
 
 	/**
@@ -2584,6 +2801,7 @@ class Admin_Dashboard_Controller {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
+		$this->start_request_profiling( 'automation_center' );
 
 		$this->maybe_handle_operational_bulk_action_request();
 		$this->maybe_handle_controlled_auto_execution_request();
@@ -2595,23 +2813,29 @@ class Admin_Dashboard_Controller {
 			$selected_workload_user_id = get_current_user_id();
 		}
 
-		$workload = $this->workload_service->get_user_workload(
-			$selected_workload_user_id,
-			array(
-				'upcoming_days'    => 7,
-				'max_scan'         => 250,
-				'limit_per_bucket' => 12,
-			)
-		);
-		$business_id = isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0;
+		$business_id = $this->resolve_business_id_for_user( $selected_workload_user_id );
 
+		$timer = $this->profile_mark_start();
 		$operational_rules_overview = $this->workload_service->get_operational_rules_overview( $business_id );
-		$rules_admin_listing        = ( new Operational_Rules_Service() )->get_operational_rules_admin_listing( $business_id );
-		$guided_rule_actions        = $this->workload_service->get_guided_rule_actions( $business_id, $selected_workload_user_id );
-		$confirmable_rule_actions   = $this->workload_service->get_confirmable_rule_actions( $business_id, $selected_workload_user_id );
+		$this->profile_mark_end( 'data.rules_overview', $timer );
+		$timer = $this->profile_mark_start();
+		$rules_admin_listing = $this->operational_rules_service->get_operational_rules_admin_listing( $business_id );
+		$this->profile_mark_end( 'data.rules_listing', $timer );
+		$timer = $this->profile_mark_start();
+		$guided_rule_actions = $this->workload_service->get_guided_rule_actions( $business_id, $selected_workload_user_id );
+		$this->profile_mark_end( 'data.guided_actions', $timer );
+		$timer = $this->profile_mark_start();
+		$confirmable_rule_actions = $this->workload_service->get_confirmable_rule_actions( $business_id, $selected_workload_user_id );
+		$this->profile_mark_end( 'data.confirmable_actions', $timer );
+		$timer = $this->profile_mark_start();
 		$controlled_auto_execution  = is_array( $this->auto_execution_payload ) ? $this->auto_execution_payload : $this->workload_service->get_controlled_auto_execution_overview( $business_id, $selected_workload_user_id );
+		$this->profile_mark_end( 'data.auto_execution', $timer );
+		$timer = $this->profile_mark_start();
 		$execution_safety_overview  = $this->workload_service->get_execution_safety_overview( $business_id, $selected_workload_user_id );
-		$automation_console         = $this->workload_service->get_operational_automation_console( $business_id, $selected_workload_user_id );
+		$this->profile_mark_end( 'data.execution_safety', $timer );
+		$timer = $this->profile_mark_start();
+		$automation_console = $this->workload_service->get_operational_automation_console( $business_id, $selected_workload_user_id );
+		$this->profile_mark_end( 'data.automation_console', $timer );
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
@@ -2646,6 +2870,7 @@ class Admin_Dashboard_Controller {
 		// G. Consola de Automatización.
 		$this->render_operational_automation_console( $automation_console );
 
+		$this->render_profiling_panel();
 		echo '</div>';
 	}
 
@@ -2674,10 +2899,10 @@ class Admin_Dashboard_Controller {
 		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
+		$this->start_request_profiling( 'operational_logs' );
 
-		$current_user_id = get_current_user_id();
-		$workload        = $this->workload_service->get_user_workload( $current_user_id );
-		$current_business_id = isset( $workload['meta']['business_id'] ) ? absint( $workload['meta']['business_id'] ) : 0;
+		$current_user_id     = get_current_user_id();
+		$current_business_id = $this->resolve_business_id_for_user( $current_user_id );
 
 		$filters = array(
 			'rule_key'    => isset( $_GET['rule_key'] ) ? sanitize_key( (string) wp_unslash( $_GET['rule_key'] ) ) : '',
@@ -2694,7 +2919,9 @@ class Admin_Dashboard_Controller {
 
 		$page     = isset( $_GET['paged'] ) ? max( 1, absint( wp_unslash( $_GET['paged'] ) ) ) : 1;
 		$per_page = 20;
+		$timer    = $this->profile_mark_start();
 		$payload  = $this->execution_log_service->get_logs_list( $filters, $page, $per_page );
+		$this->profile_mark_end( 'data.logs_list', $timer );
 		$items    = isset( $payload['items'] ) && is_array( $payload['items'] ) ? $payload['items'] : array();
 		$pager    = isset( $payload['pagination'] ) && is_array( $payload['pagination'] ) ? $payload['pagination'] : array();
 
@@ -2758,6 +2985,7 @@ class Admin_Dashboard_Controller {
 
 		$this->render_logs_pagination( $filters, $pager );
 		echo '</section>';
+		$this->render_profiling_panel();
 		echo '</div>';
 	}
 
@@ -2860,6 +3088,422 @@ class Admin_Dashboard_Controller {
 		}
 
 		return '<span class="' . esc_attr( $class ) . '">' . esc_html( ucfirst( $result ) ) . '</span>';
+	}
+
+	/**
+	 * Resolve current business context for one user without loading workload payload.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int
+	 */
+	protected function resolve_business_id_for_user( $user_id ) {
+		$user_id     = absint( $user_id );
+		$current_uid = get_current_user_id();
+		if ( $user_id <= 0 ) {
+			$user_id = $current_uid;
+		}
+
+		$business_id = absint( $this->business_context_service->resolve_business_id_for_user( $user_id ) );
+		if ( $business_id <= 0 && $current_uid > 0 ) {
+			$business_id = absint( $this->business_context_service->resolve_business_id_for_user( $current_uid ) );
+		}
+
+		return $business_id;
+	}
+
+	/**
+	 * Enqueue lazy-loading assets for dashboard heavy sections.
+	 *
+	 * @param int $selected_workload_user_id Selected workload user.
+	 * @return void
+	 */
+	protected function enqueue_dashboard_lazy_assets( $selected_workload_user_id ) {
+		$script_path = SM_PLUGIN_PATH . 'assets/js/admin-dashboard.js';
+		$script_ver  = file_exists( $script_path ) ? (string) filemtime( $script_path ) : SM_PLUGIN_VERSION;
+		$handle      = 'sm-admin-dashboard-lazy';
+
+		wp_enqueue_script(
+			$handle,
+			SM_PLUGIN_URL . 'assets/js/admin-dashboard.js',
+			array(),
+			$script_ver,
+			true
+		);
+
+		wp_localize_script(
+			$handle,
+			'smDashboardLazy',
+			array(
+				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'sm_dashboard_lazy_sections' ),
+				'action'          => 'sm_dashboard_lazy_sections',
+				'profile'         => $this->is_profile_request_enabled() ? 1 : 0,
+				'workloadUserId'  => absint( $selected_workload_user_id ),
+				'loadingText'     => __( 'Loading section...', 'super-mechanic' ),
+				'errorText'       => __( 'Could not load this section right now.', 'super-mechanic' ),
+			)
+		);
+	}
+
+	/**
+	 * Build heavy dashboard sections HTML (deferred via AJAX).
+	 *
+	 * @param int $selected_workload_user_id Selected workload user.
+	 * @return string
+	 */
+	protected function get_dashboard_heavy_sections_html( $selected_workload_user_id ) {
+		$selected_workload_user_id = absint( $selected_workload_user_id );
+		$business_id               = $this->resolve_business_id_for_user( $selected_workload_user_id );
+
+		$timer = $this->profile_mark_start();
+		$kpis = $this->get_cached_dashboard_payload(
+			'kpis',
+			$business_id,
+			30,
+			function () {
+				return $this->service->get_admin_kpis();
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.kpis', $timer );
+		$timer          = $this->profile_mark_start();
+		$process_status = $this->get_cached_dashboard_payload(
+			'process_status_summary',
+			$business_id,
+			60,
+			function () {
+				return $this->service->get_processes_by_status();
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.process_status', $timer );
+		$timer         = $this->profile_mark_start();
+		$process_types = $this->get_cached_dashboard_payload(
+			'process_type_summary',
+			$business_id,
+			60,
+			function () {
+				return $this->service->get_processes_by_type();
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.process_types', $timer );
+		$timer            = $this->profile_mark_start();
+		$recent_processes = $this->get_cached_dashboard_payload(
+			'recent_processes',
+			$business_id,
+			90,
+			function () {
+				return $this->service->get_recent_processes( 10 );
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.recent_processes', $timer );
+		$timer           = $this->profile_mark_start();
+		$recent_vehicles = $this->get_cached_dashboard_payload(
+			'recent_vehicles',
+			$business_id,
+			120,
+			function () {
+				return $this->service->get_recent_vehicles( 10 );
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.recent_vehicles', $timer );
+		$timer          = $this->profile_mark_start();
+		$recent_clients = $this->get_cached_dashboard_payload(
+			'recent_clients',
+			$business_id,
+			120,
+			function () {
+				return $this->service->get_recent_clients( 10 );
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.recent_clients', $timer );
+		$timer              = $this->profile_mark_start();
+		$today_appointments = $this->get_cached_dashboard_payload(
+			'today_appointments',
+			$business_id,
+			30,
+			function () {
+				return $this->service->get_today_appointments( 8 );
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.today_appointments', $timer );
+		$timer                 = $this->profile_mark_start();
+		$upcoming_appointments = $this->get_cached_dashboard_payload(
+			'upcoming_appointments',
+			$business_id,
+			60,
+			function () {
+				return $this->service->get_upcoming_appointments( 7, 8 );
+			}
+		);
+		$this->profile_mark_end( 'lazy.data.upcoming_appointments', $timer );
+
+		$timer = $this->profile_mark_start();
+		ob_start();
+		echo '<div class="sm-secondary-sections">';
+
+		echo '<div class="sm-grid sm-grid-cards">';
+		$this->render_kpi_card( __( 'Clients', 'super-mechanic' ), $kpis['total_clients'], __( 'Total registered base', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-clients' ) );
+		$this->render_kpi_card( __( 'Vehicles', 'super-mechanic' ), $kpis['total_vehicles'], __( 'Active in tracking', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-vehicles' ) );
+		$this->render_kpi_card( __( 'Processes', 'super-mechanic' ), $kpis['total_processes'], __( 'Consolidated historical workload', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-processes' ) );
+		$this->render_kpi_card( __( 'Open processes', 'super-mechanic' ), $kpis['open_processes'], __( 'Immediate operational workload', 'super-mechanic' ), $this->get_admin_page_url( 'super-mechanic-processes', array( 'filter_status' => 'open' ) ) );
+		echo '</div>';
+
+		echo '<div class="sm-grid sm-grid-two">';
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Processes by status', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( count( $process_status ) ) . ' ' . esc_html__( 'groups', 'super-mechanic' ) . '</span></div>';
+		$this->render_simple_summary_table( $process_status, __( 'Status', 'super-mechanic' ), 'status' );
+		echo '</section>';
+
+		echo '<section class="sm-card sm-card-muted">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Processes by type', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( count( $process_types ) ) . ' ' . esc_html__( 'groups', 'super-mechanic' ) . '</span></div>';
+		$this->render_simple_summary_table( $process_types, __( 'Type', 'super-mechanic' ), 'process_type' );
+		echo '</section>';
+		echo '</div>';
+
+		echo '<section class="sm-section sm-secondary-compact">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest processes', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Detailed view', 'super-mechanic' ) . '</span></div>';
+		echo '<div class="sm-table-wrap sm-table-wrap-compact"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $recent_processes ) ) {
+			echo '<tr><td colspan="7">' . esc_html__( 'No recent processes found.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $recent_processes as $process ) {
+				$process_id = absint( $process['id'] );
+				echo '<tr>';
+				echo '<td>' . esc_html( $process_id ) . '</td>';
+				echo '<td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'edit', 'id' => $process_id ) ) ) . '">' . esc_html( $process['title'] ) . '</a></td>';
+				echo '<td>' . esc_html( $this->humanize_key( $process['process_type'] ) ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_status_badge( $process['status'] ) ) . '</td>';
+				echo '<td>' . esc_html( $this->format_vehicle_label( $process ) ) . '</td>';
+				echo '<td>' . esc_html( $process['client_name'] ? $process['client_name'] : __( 'Unassigned', 'super-mechanic' ) ) . '</td>';
+				echo '<td>' . wp_kses_post( $this->render_process_quick_links( $process_id, isset( $process['process_type'] ) ? (string) $process['process_type'] : '' ) ) . '</td>';
+				echo '</tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<div class="sm-grid sm-grid-two">';
+		echo '<section class="sm-card sm-card-muted sm-secondary-compact">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Today appointments', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html( count( $today_appointments ) ) . '</span></div>';
+		$this->render_appointments_table( $today_appointments, __( 'No appointments for today.', 'super-mechanic' ) );
+		echo '</section>';
+
+		echo '<section class="sm-card sm-card-muted sm-secondary-compact">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Upcoming appointments', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( '7 days', 'super-mechanic' ) . '</span></div>';
+		$this->render_appointments_table( $upcoming_appointments, __( 'No upcoming appointments in the next 7 days.', 'super-mechanic' ) );
+		echo '</section>';
+		echo '</div>';
+
+		echo '<div class="sm-grid sm-grid-two">';
+		echo '<section class="sm-card sm-secondary-compact">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest vehicles', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap sm-table-wrap-compact"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Vehicle', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Plate', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $recent_vehicles ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No recent vehicles found.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $recent_vehicles as $vehicle ) {
+				echo '<tr><td>' . esc_html( $vehicle['id'] ) . '</td><td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-vehicles', array( 'action' => 'view', 'id' => absint( $vehicle['id'] ) ) ) ) . '">' . esc_html( $this->format_vehicle_label( $vehicle ) ) . '</a></td><td>' . esc_html( $vehicle['plate'] ) . '</td><td>' . esc_html( ! empty( $vehicle['client_name'] ) ? $vehicle['client_name'] : __( 'Unassigned', 'super-mechanic' ) ) . '</td></tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+
+		echo '<section class="sm-card sm-secondary-compact">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Latest clients', 'super-mechanic' ) . '</h2></div>';
+		echo '<div class="sm-table-wrap sm-table-wrap-compact"><table class="sm-table"><thead><tr><th>ID</th><th>' . esc_html__( 'Name', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Email', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Phone', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		if ( empty( $recent_clients ) ) {
+			echo '<tr><td colspan="4">' . esc_html__( 'No recent clients found.', 'super-mechanic' ) . '</td></tr>';
+		} else {
+			foreach ( $recent_clients as $client ) {
+				$name = trim( $client['first_name'] . ' ' . $client['last_name'] );
+				echo '<tr><td>' . esc_html( $client['id'] ) . '</td><td><a href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-clients', array( 'action' => 'view', 'id' => absint( $client['id'] ) ) ) ) . '">' . esc_html( $name ) . '</a></td><td>' . esc_html( $client['email'] ) . '</td><td>' . esc_html( $client['phone'] ) . '</td></tr>';
+			}
+		}
+		echo '</tbody></table></div>';
+		echo '</section>';
+		echo '</div>';
+		echo '</div>';
+		$this->profile_mark_end( 'lazy.render_sections', $timer );
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Build transient key for dashboard aggregates.
+	 *
+	 * @param string $key Cache key.
+	 * @param int    $business_id Business ID.
+	 * @return string
+	 */
+	protected function build_dashboard_cache_key( $key, $business_id ) {
+		$key         = sanitize_key( (string) $key );
+		$business_id = absint( $business_id );
+
+		return 'sm_dash_46b_' . md5( $key . '|' . $business_id );
+	}
+
+	/**
+	 * Get dashboard payload with runtime + transient caching.
+	 *
+	 * @param string   $key Cache key.
+	 * @param int      $business_id Business ID.
+	 * @param int      $ttl Cache TTL in seconds.
+	 * @param callable $resolver Resolver callback.
+	 * @return mixed
+	 */
+	protected function get_cached_dashboard_payload( $key, $business_id, $ttl, callable $resolver ) {
+		$key         = sanitize_key( (string) $key );
+		$business_id = absint( $business_id );
+		$ttl         = max( 30, min( 120, absint( $ttl ) ) );
+		$request_key = $key . ':' . $business_id;
+
+		if ( array_key_exists( $request_key, $this->dashboard_request_cache ) ) {
+			return $this->dashboard_request_cache[ $request_key ];
+		}
+
+		if ( $business_id > 0 ) {
+			$transient_key = $this->build_dashboard_cache_key( $key, $business_id );
+			$cached_value  = get_transient( $transient_key );
+			if ( false !== $cached_value ) {
+				$this->dashboard_request_cache[ $request_key ] = $cached_value;
+				return $cached_value;
+			}
+		}
+
+		$value = call_user_func( $resolver );
+		$this->dashboard_request_cache[ $request_key ] = $value;
+
+		if ( $business_id > 0 ) {
+			set_transient( $this->build_dashboard_cache_key( $key, $business_id ), $value, $ttl );
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Start per-request profiling when enabled by secure flag.
+	 *
+	 * @param string $context Context label.
+	 * @return void
+	 */
+	protected function start_request_profiling( $context ) {
+		if ( ! $this->is_profile_request_enabled() ) {
+			$this->profiling_enabled = false;
+			return;
+		}
+
+		$this->profiling_enabled            = true;
+		$this->profiling_context            = sanitize_key( (string) $context );
+		$this->profiling_request_started_at = microtime( true );
+		$this->profiling_marks              = array();
+	}
+
+	/**
+	 * Check if profiling is enabled in current request.
+	 *
+	 * @return bool
+	 */
+	protected function is_profile_request_enabled() {
+		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
+			return false;
+		}
+
+		$from_get  = isset( $_GET['sm_profile'] ) ? absint( wp_unslash( $_GET['sm_profile'] ) ) : 0;
+		$from_post = isset( $_POST['sm_profile'] ) ? absint( wp_unslash( $_POST['sm_profile'] ) ) : 0;
+
+		return 1 === $from_get || 1 === $from_post;
+	}
+
+	/**
+	 * Start one profile mark.
+	 *
+	 * @return float
+	 */
+	protected function profile_mark_start() {
+		return microtime( true );
+	}
+
+	/**
+	 * End one profile mark.
+	 *
+	 * @param string $label Label.
+	 * @param float  $started_at Started timestamp.
+	 * @return void
+	 */
+	protected function profile_mark_end( $label, $started_at ) {
+		if ( ! $this->profiling_enabled ) {
+			return;
+		}
+
+		$elapsed_ms = max( 0, ( microtime( true ) - (float) $started_at ) * 1000 );
+		$this->profiling_marks[] = array(
+			'label'      => sanitize_text_field( (string) $label ),
+			'elapsed_ms' => $elapsed_ms,
+		);
+	}
+
+	/**
+	 * Export profiling payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_profile_export_payload() {
+		if ( ! $this->profiling_enabled ) {
+			return array(
+				'enabled' => false,
+			);
+		}
+
+		$total_ms = max( 0, ( microtime( true ) - $this->profiling_request_started_at ) * 1000 );
+
+		return array(
+			'enabled' => true,
+			'context' => $this->profiling_context,
+			'total_ms' => round( $total_ms, 2 ),
+			'marks'   => array_map(
+				function ( $mark ) {
+					if ( ! is_array( $mark ) ) {
+						return array();
+					}
+
+					return array(
+						'label'      => isset( $mark['label'] ) ? sanitize_text_field( (string) $mark['label'] ) : '',
+						'elapsed_ms' => isset( $mark['elapsed_ms'] ) ? round( (float) $mark['elapsed_ms'], 2 ) : 0.0,
+					);
+				},
+				$this->profiling_marks
+			),
+		);
+	}
+
+	/**
+	 * Render internal profiling panel.
+	 *
+	 * @return void
+	 */
+	protected function render_profiling_panel() {
+		$payload = $this->get_profile_export_payload();
+		if ( empty( $payload['enabled'] ) ) {
+			return;
+		}
+
+		$context = isset( $payload['context'] ) ? sanitize_text_field( (string) $payload['context'] ) : 'request';
+		$total   = isset( $payload['total_ms'] ) ? (float) $payload['total_ms'] : 0.0;
+		$marks   = isset( $payload['marks'] ) && is_array( $payload['marks'] ) ? $payload['marks'] : array();
+
+		echo '<section id="sm-profile-panel" class="sm-card sm-section sm-profile-panel">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Internal profiling', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( strtoupper( $context ) ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html( sprintf( __( 'Total request: %sms', 'super-mechanic' ), number_format_i18n( $total, 2 ) ) ) . '</p>';
+		echo '<ul id="sm-profile-marks" class="sm-profile-list">';
+		foreach ( $marks as $mark ) {
+			if ( ! is_array( $mark ) ) {
+				continue;
+			}
+			$label = isset( $mark['label'] ) ? sanitize_text_field( (string) $mark['label'] ) : '';
+			$ms    = isset( $mark['elapsed_ms'] ) ? (float) $mark['elapsed_ms'] : 0.0;
+			echo '<li><span>' . esc_html( $label ) . '</span><strong>' . esc_html( number_format_i18n( $ms, 2 ) ) . 'ms</strong></li>';
+		}
+		echo '</ul>';
+		echo '</section>';
 	}
 
 	/**

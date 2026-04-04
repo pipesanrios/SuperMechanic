@@ -626,8 +626,9 @@ class Workload_Service {
 		}
 
 		$payload['recommendations'] = $recommendations;
+		$payload['recommendations'] = $this->prioritize_operational_recommendations( $payload['recommendations'] );
 		$payload['summary']['total'] = count( $recommendations );
-		foreach ( $recommendations as $recommendation ) {
+		foreach ( $payload['recommendations'] as $recommendation ) {
 			$level = isset( $recommendation['level'] ) ? sanitize_key( (string) $recommendation['level'] ) : 'warning';
 			if ( 'critical' === $level ) {
 				++$payload['summary']['critical'];
@@ -782,7 +783,7 @@ class Workload_Service {
 
 		$payload['overloaded_users'] = $overloaded;
 		$payload['available_users']  = $available;
-		$payload['assignments']      = $assignments;
+		$payload['assignments']      = $this->prioritize_operational_assignments( $assignments );
 		$payload['summary']          = array(
 			'overloaded_users' => count( $overloaded ),
 			'available_users'  => count( $available ),
@@ -1055,7 +1056,7 @@ class Workload_Service {
 			);
 		}
 
-		$payload['actions'] = array_values( $unique );
+		$payload['actions'] = $this->prioritize_operational_assisted_actions( array_values( $unique ) );
 		$payload['summary'] = array(
 			'total'    => count( $payload['actions'] ),
 			'critical' => 0,
@@ -1170,12 +1171,12 @@ class Workload_Service {
 			);
 		}
 
-		$payload['groups'] = $groups;
+		$payload['groups'] = $this->prioritize_operational_bulk_groups( $groups );
 		$payload['summary'] = array(
-			'total_groups'      => count( $groups ),
+			'total_groups'      => count( $payload['groups'] ),
 			'executable_groups' => count(
 				array_filter(
-					$groups,
+					$payload['groups'],
 					function ( $group ) {
 						return is_array( $group ) && ! empty( $group['executable'] );
 					}
@@ -3588,6 +3589,236 @@ class Workload_Service {
 		}
 
 		update_user_meta( $user_id, $this->get_controlled_execution_snapshot_meta_key( $business_id ), $snapshot );
+	}
+
+	/**
+	 * Prioritize operational recommendations with explicit scoring.
+	 *
+	 * Scoring model:
+	 * - severity: critical > warning > normal
+	 * - impact: numeric signals in message/context
+	 * - urgency: overdue/delay/critical/upcoming keywords
+	 * - readiness: recommendations are informative (no readiness bonus by default)
+	 *
+	 * @param array<int,array<string,mixed>> $rows Recommendation rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function prioritize_operational_recommendations( array $rows ) {
+		foreach ( $rows as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$key_text = implode(
+				' ',
+				array(
+					isset( $row['key'] ) ? (string) $row['key'] : '',
+					isset( $row['title'] ) ? (string) $row['title'] : '',
+					isset( $row['message'] ) ? (string) $row['message'] : '',
+					isset( $row['action_hint'] ) ? (string) $row['action_hint'] : '',
+				)
+			);
+			$level   = isset( $row['level'] ) ? sanitize_key( (string) $row['level'] ) : 'normal';
+			$impact  = $this->extract_numeric_impact_from_text( $key_text );
+			$urgency = $this->resolve_urgency_points_from_text( $key_text );
+			$score   = $this->build_operational_priority_score( $level, $impact, $urgency, false );
+
+			$rows[ $index ]['_priority_score'] = $score;
+		}
+
+		return $this->sort_operational_items_by_priority( $rows );
+	}
+
+	/**
+	 * Prioritize assisted actions with explicit scoring.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Action rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function prioritize_operational_assisted_actions( array $rows ) {
+		foreach ( $rows as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$text   = implode(
+				' ',
+				array(
+					isset( $row['key'] ) ? (string) $row['key'] : '',
+					isset( $row['label'] ) ? (string) $row['label'] : '',
+					isset( $row['context'] ) ? (string) $row['context'] : '',
+				)
+			);
+			$level  = isset( $row['level'] ) ? sanitize_key( (string) $row['level'] ) : 'normal';
+			$impact = $this->extract_numeric_impact_from_text( $text );
+			$urgency = $this->resolve_urgency_points_from_text( $text );
+			$ready   = ! empty( $row['url'] );
+			$score   = $this->build_operational_priority_score( $level, $impact, $urgency, $ready );
+
+			$rows[ $index ]['_priority_score'] = $score;
+		}
+
+		return $this->sort_operational_items_by_priority( $rows );
+	}
+
+	/**
+	 * Prioritize assignment proposals with explicit scoring.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Assignment proposals.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function prioritize_operational_assignments( array $rows ) {
+		foreach ( $rows as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$level   = isset( $row['level'] ) ? sanitize_key( (string) $row['level'] ) : 'normal';
+			$impact  = isset( $row['workload_delta'] ) ? absint( $row['workload_delta'] ) : 0;
+			$urgency = $this->resolve_urgency_points_from_text( isset( $row['reason'] ) ? (string) $row['reason'] : '' );
+			$ready   = ! empty( $row['executable'] );
+			$score   = $this->build_operational_priority_score( $level, $impact, $urgency, $ready );
+
+			$rows[ $index ]['_priority_score'] = $score;
+		}
+
+		return $this->sort_operational_items_by_priority( $rows );
+	}
+
+	/**
+	 * Prioritize bulk groups with explicit scoring.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Bulk groups.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function prioritize_operational_bulk_groups( array $rows ) {
+		foreach ( $rows as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$text   = implode(
+				' ',
+				array(
+					isset( $row['group_key'] ) ? (string) $row['group_key'] : '',
+					isset( $row['action'] ) ? (string) $row['action'] : '',
+				)
+			);
+			$level  = isset( $row['level'] ) ? sanitize_key( (string) $row['level'] ) : 'normal';
+			$impact = isset( $row['count'] ) ? absint( $row['count'] ) : 0;
+			$urgency = $this->resolve_urgency_points_from_text( $text );
+			$ready   = ! empty( $row['executable'] );
+			$score   = $this->build_operational_priority_score( $level, $impact, $urgency, $ready );
+
+			$rows[ $index ]['_priority_score'] = $score;
+		}
+
+		return $this->sort_operational_items_by_priority( $rows );
+	}
+
+	/**
+	 * Build one explicit operational priority score.
+	 *
+	 * @param string $level Severity level.
+	 * @param int    $impact Impact value.
+	 * @param int    $urgency Urgency points.
+	 * @param bool   $executable Executable/readiness flag.
+	 * @return int
+	 */
+	protected function build_operational_priority_score( $level, $impact, $urgency, $executable ) {
+		$severity_points = $this->resolve_severity_points( $level );
+		$impact_points   = min( 80, max( 0, absint( $impact ) * 5 ) );
+		$urgency_points  = min( 60, max( 0, absint( $urgency ) ) );
+		$readiness_bonus = $executable ? 40 : 0;
+
+		return $severity_points + $impact_points + $urgency_points + $readiness_bonus;
+	}
+
+	/**
+	 * Convert severity level to priority points.
+	 *
+	 * @param string $level Severity level.
+	 * @return int
+	 */
+	protected function resolve_severity_points( $level ) {
+		$level = sanitize_key( (string) $level );
+		if ( 'critical' === $level ) {
+			return 300;
+		}
+		if ( 'warning' === $level ) {
+			return 200;
+		}
+
+		return 100;
+	}
+
+	/**
+	 * Resolve urgency points from text keywords.
+	 *
+	 * @param string $text Source text.
+	 * @return int
+	 */
+	protected function resolve_urgency_points_from_text( $text ) {
+		$text  = strtolower( sanitize_text_field( (string) $text ) );
+		$score = 0;
+
+		if ( false !== strpos( $text, 'overdue' ) || false !== strpos( $text, 'vencid' ) ) {
+			$score += 30;
+		}
+		if ( false !== strpos( $text, 'delay' ) || false !== strpos( $text, 'delayed' ) || false !== strpos( $text, 'retras' ) ) {
+			$score += 22;
+		}
+		if ( false !== strpos( $text, 'critical' ) || false !== strpos( $text, 'critic' ) || false !== strpos( $text, 'blocking' ) ) {
+			$score += 18;
+		}
+		if ( false !== strpos( $text, 'upcoming' ) || false !== strpos( $text, 'next' ) || false !== strpos( $text, 'appoint' ) ) {
+			$score += 10;
+		}
+
+		return $score;
+	}
+
+	/**
+	 * Extract impact signal from first numeric token in text.
+	 *
+	 * @param string $text Source text.
+	 * @return int
+	 */
+	protected function extract_numeric_impact_from_text( $text ) {
+		$text = sanitize_text_field( (string) $text );
+		if ( preg_match( '/\b(\d{1,4})\b/', $text, $matches ) ) {
+			return absint( $matches[1] );
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Sort items by explicit priority score descending.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Rows to sort.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function sort_operational_items_by_priority( array $rows ) {
+		usort(
+			$rows,
+			function ( $left, $right ) {
+				$left_score  = isset( $left['_priority_score'] ) ? intval( $left['_priority_score'] ) : 0;
+				$right_score = isset( $right['_priority_score'] ) ? intval( $right['_priority_score'] ) : 0;
+				if ( $right_score !== $left_score ) {
+					return $right_score <=> $left_score;
+				}
+
+				$left_key  = isset( $left['key'] ) ? sanitize_key( (string) $left['key'] ) : '';
+				$right_key = isset( $right['key'] ) ? sanitize_key( (string) $right['key'] ) : '';
+				if ( '' !== $left_key || '' !== $right_key ) {
+					return strcmp( $left_key, $right_key );
+				}
+
+				$left_title  = isset( $left['title'] ) ? sanitize_text_field( (string) $left['title'] ) : '';
+				$right_title = isset( $right['title'] ) ? sanitize_text_field( (string) $right['title'] ) : '';
+
+				return strcmp( $left_title, $right_title );
+			}
+		);
+
+		return array_values( $rows );
 	}
 
 	/**

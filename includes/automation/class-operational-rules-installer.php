@@ -33,17 +33,7 @@ class Operational_Rules_Installer {
 		global $wpdb;
 
 		$table_name = $this->get_table_name();
-		$existing   = $wpdb->get_var(
-			$wpdb->prepare(
-				'SHOW TABLES LIKE %s',
-				$table_name
-			)
-		);
-
-		if ( $existing === $table_name ) {
-			return;
-		}
-
+		// Always run dbDelta so index changes can be applied on existing installs.
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$charset_collate = $wpdb->get_charset_collate();
 		$sql             = "CREATE TABLE {$table_name} (
@@ -60,7 +50,8 @@ class Operational_Rules_Installer {
 			UNIQUE KEY business_rule (business_id, rule_key),
 			KEY business_id (business_id),
 			KEY rule_key (rule_key),
-			KEY execution_mode (execution_mode)
+			KEY execution_mode (execution_mode),
+			KEY business_execution_mode (business_id,execution_mode)
 		) {$charset_collate};";
 
 		dbDelta( $sql );

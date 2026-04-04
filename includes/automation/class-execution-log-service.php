@@ -19,6 +19,12 @@ class Execution_Log_Service {
 	 * @var Execution_Log_Repository
 	 */
 	protected $repository;
+	/**
+	 * In-request actor label cache.
+	 *
+	 * @var array<int,string>
+	 */
+	protected $actor_labels_cache = array();
 
 	/**
 	 * Constructor.
@@ -127,6 +133,18 @@ class Execution_Log_Service {
 		$total = $this->repository->count_logs( $filters );
 		$rows  = $this->repository->get_logs( $filters, $page, $per_page );
 		$items = array();
+		$actor_labels = $this->resolve_actor_labels(
+			array_values(
+				array_filter(
+					array_map(
+						function ( $row ) {
+							return is_array( $row ) && isset( $row['actor_user_id'] ) ? absint( $row['actor_user_id'] ) : 0;
+						},
+						$rows
+					)
+				)
+			)
+		);
 
 		foreach ( $rows as $row ) {
 			if ( ! is_array( $row ) ) {
@@ -140,13 +158,7 @@ class Execution_Log_Service {
 			}
 
 			$actor_user_id = isset( $row['actor_user_id'] ) ? absint( $row['actor_user_id'] ) : 0;
-			$actor_label   = '';
-			if ( $actor_user_id > 0 ) {
-				$user = get_userdata( $actor_user_id );
-				if ( $user && isset( $user->display_name ) ) {
-					$actor_label = sanitize_text_field( (string) $user->display_name );
-				}
-			}
+			$actor_label   = isset( $actor_labels[ $actor_user_id ] ) ? (string) $actor_labels[ $actor_user_id ] : '';
 
 			$items[] = array(
 				'id'              => isset( $row['id'] ) ? absint( $row['id'] ) : 0,
@@ -184,6 +196,66 @@ class Execution_Log_Service {
 				'total_pages' => max( 1, $total_pages ),
 			),
 		);
+	}
+
+	/**
+	 * Resolve actor labels in one batch to avoid one query per log row.
+	 *
+	 * @param array<int,int> $actor_ids Actor IDs.
+	 * @return array<int,string>
+	 */
+	protected function resolve_actor_labels( array $actor_ids ) {
+		$actor_ids = array_values( array_unique( array_filter( array_map( 'absint', $actor_ids ) ) ) );
+		if ( empty( $actor_ids ) ) {
+			return array();
+		}
+
+		$resolved = array();
+		$missing  = array();
+		foreach ( $actor_ids as $actor_id ) {
+			if ( isset( $this->actor_labels_cache[ $actor_id ] ) ) {
+				$resolved[ $actor_id ] = $this->actor_labels_cache[ $actor_id ];
+				continue;
+			}
+			$missing[] = $actor_id;
+		}
+
+		if ( ! empty( $missing ) ) {
+			$users = get_users(
+				array(
+					'include' => $missing,
+					'fields'  => array( 'ID', 'display_name' ),
+					'orderby' => 'ID',
+					'order'   => 'ASC',
+				)
+			);
+			if ( is_array( $users ) ) {
+				foreach ( $users as $user ) {
+					if ( ! is_object( $user ) || ! isset( $user->ID ) ) {
+						continue;
+					}
+					$user_id = absint( $user->ID );
+					if ( $user_id <= 0 ) {
+						continue;
+					}
+					$label = isset( $user->display_name ) ? sanitize_text_field( (string) $user->display_name ) : '';
+					$this->actor_labels_cache[ $user_id ] = $label;
+					$resolved[ $user_id ]                 = $label;
+				}
+			}
+
+			// Keep misses memoized to avoid repeated lookups in the same request.
+			foreach ( $missing as $actor_id ) {
+				if ( ! array_key_exists( $actor_id, $this->actor_labels_cache ) ) {
+					$this->actor_labels_cache[ $actor_id ] = '';
+				}
+				if ( ! array_key_exists( $actor_id, $resolved ) ) {
+					$resolved[ $actor_id ] = $this->actor_labels_cache[ $actor_id ];
+				}
+			}
+		}
+
+		return $resolved;
 	}
 
 	/**

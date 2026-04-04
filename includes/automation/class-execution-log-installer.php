@@ -33,17 +33,7 @@ class Execution_Log_Installer {
 		global $wpdb;
 
 		$table_name = $this->get_table_name();
-		$existing   = $wpdb->get_var(
-			$wpdb->prepare(
-				'SHOW TABLES LIKE %s',
-				$table_name
-			)
-		);
-
-		if ( $existing === $table_name ) {
-			return;
-		}
-
+		// Always run dbDelta so index changes can be applied on existing installs.
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$charset_collate = $wpdb->get_charset_collate();
 		$sql             = "CREATE TABLE {$table_name} (
@@ -64,10 +54,12 @@ class Execution_Log_Installer {
 			KEY execution_mode (execution_mode),
 			KEY result (result),
 			KEY actor_user_id (actor_user_id),
-			KEY created_at (created_at)
+			KEY created_at (created_at),
+			KEY business_created (business_id,created_at),
+			KEY business_rule_created (business_id,rule_key,created_at),
+			KEY business_result_created (business_id,result,created_at)
 		) {$charset_collate};";
 
 		dbDelta( $sql );
 	}
 }
-

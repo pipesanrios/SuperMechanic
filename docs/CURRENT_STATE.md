@@ -1,6 +1,6 @@
 # CURRENT_STATE.md
 
-Date: 2026-04-03
+Date: 2026-04-04
 
 ## Purpose
 
@@ -135,6 +135,24 @@ This confirms transition from **controlled automation readiness -> controlled au
 - No push/real-time notification layer
 - Tenancy enforced by `business_id`
 - Alerts are **persisted-first**, not computed on-demand
+
+---
+
+## 46A Query Optimization State
+
+Status: **Applied (technical)**  
+
+Delivered in current code:
+- request-level optimization in admin render paths to avoid loading full workload payload only to resolve `business_id` in:
+  - Automation Center
+  - Operational Logs
+- operational rules service instance reuse in dashboard controller to avoid duplicate service bootstrap in same request
+- logs listing actor resolution optimized from per-row lookup to batch lookup with in-request memoization
+
+Functional behavior:
+- unchanged business logic
+- unchanged safety/guardrails
+- unchanged CRM Pipeline behavior
 
 ---
 
