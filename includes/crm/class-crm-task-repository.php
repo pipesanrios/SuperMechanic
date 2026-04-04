@@ -325,6 +325,33 @@ class Crm_Task_Repository {
 	}
 
 	/**
+	 * Reopen task to pending scoped to active business.
+	 *
+	 * @param int $id Task ID.
+	 * @return bool
+	 */
+	public function reopen( $id ) {
+		global $wpdb;
+
+		$result = $wpdb->update(
+			$this->get_table_name(),
+			array(
+				'status'     => 'pending',
+				'updated_at' => current_time( 'mysql' ),
+			),
+			array(
+				'id'          => absint( $id ),
+				'business_id' => $this->resolve_business_id(),
+				'status'      => 'completed',
+			),
+			array( '%s', '%s' ),
+			array( '%d', '%d', '%s' )
+		);
+
+		return false !== $result && $result > 0;
+	}
+
+	/**
 	 * Get pending tasks for active business.
 	 *
 	 * @param int $limit Max rows.

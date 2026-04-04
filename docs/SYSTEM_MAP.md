@@ -44,12 +44,37 @@ Source references:
     - `get_operational_bulk_actions()`
     - `get_operational_automation_console()`
     - `get_operational_rules_overview()`
+    - `get_guided_rule_actions()`
+    - `get_confirmable_rule_actions()`
+    - `run_controlled_auto_execution()`
+    - `get_execution_guardrails()`
+    - `rollback_controlled_execution()`
   - user workload buckets: `critical`, `warning`, `normal`
   - sources: CRM tasks, operational signals aligned with pipeline policy, active processes, upcoming appointments
   - role: operational dashboard core aggregator and controlled execution orchestrator
 - Automation operational rules:
   - service: `includes/automation/class-operational-rules-service.php`
-  - role: configurable rules definition and evaluation (preview-only, no auto execution)
+  - repository: `includes/automation/class-operational-rules-repository.php`
+  - installer: `includes/automation/class-operational-rules-installer.php`
+  - role: rule config by tenant + evaluation + execution mode source
+- Automation Execution Layer (Phase 43 active):
+  - `Operational_Rules_Service`:
+    - provides evaluated rules + persistent config by `business_id`
+  - `Workload_Service` execution layer:
+    - guided actions (43A)
+    - confirmable actions (43B)
+    - controlled auto execution (43C)
+  - `Automation Safety Layer` (43D):
+    - execution guardrails (`allowed`, `risk_level`, `reason`)
+    - controlled rollback for supported execution payloads
+  - `Rules Persistence Layer` (43E):
+    - DB-backed rule config with defaults fallback
+  - relation flow:
+    - CRM / processes / appointments -> `Workload_Service`
+    - `Operational_Rules_Service` -> `Workload_Service`
+    - `Workload_Service` -> existing bulk/assisted execution handlers
+    - `Automation Safety Layer` protects execution/rollback
+    - `Operational_Rules_Repository` supplies persistent rule config
 
 ## UI Entry Points
 - Admin menus under `Super Mechanic`

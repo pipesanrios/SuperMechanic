@@ -28,8 +28,8 @@ No future speculation beyond immediate continuity.
 
 ## Current Delivery Baseline
 
-- Last completed phase baseline: **Fase 42**
-- Last completed block: **42E**
+- Last completed phase baseline: **Fase 43**
+- Last completed block: **43E**
 - Block status:
   - `39B` COMPLETE
   - `39C` COMPLETE
@@ -49,6 +49,11 @@ No future speculation beyond immediate continuity.
   - `42C` COMPLETE
   - `42D` COMPLETE
   - `42E` COMPLETE
+  - `43A` COMPLETE
+  - `43B` COMPLETE
+  - `43C` COMPLETE
+  - `43D` COMPLETE
+  - `43E` COMPLETE
 
 ---
 
@@ -78,6 +83,25 @@ No future speculation beyond immediate continuity.
 
 ---
 
+## Automation Execution Layer (Fase 43)
+
+Status: **COMPLETA**
+
+Delivered capabilities:
+- operational rules engine evaluable and persistent by `business_id`
+- execution in three levels:
+  - guided (`manual`)
+  - confirmable (`confirm_required`)
+  - auto controlled (`auto_controlled`)
+- active execution guardrails with explicit allow/deny context
+- controlled rollback support for supported mutation actions
+- UX empty states for tenant with no operational data and empty critical action center
+
+Conclusion:
+- System is ready for controlled production operations with guarded automation.
+
+---
+
 ## System Capability State
 
 The system is now capable of:
@@ -91,9 +115,16 @@ The system is now capable of:
   - rule definition
   - rule evaluation
   - action preview
-  - no automatic execution
+  - persistent tenant configuration
+- multi-level execution layer:
+  - guided
+  - confirmable
+  - auto controlled
+- mandatory safety layer:
+  - guardrails
+  - rollback for supported actions
 
-This enables the transition from **operational system → controlled automation readiness**
+This confirms transition from **controlled automation readiness -> controlled automation execution**
 
 ---
 
@@ -122,13 +153,12 @@ This enables the transition from **operational system → controlled automation 
 
 ## Next Continuity
 
-### Fase 43 — Automatización Operativa Real
+### Fase 44 — Continuidad operativa (pending definition)
 
 Continuity target:
-
-- move from preview/manual execution to controlled real automation workflows
-- preserve tenancy, safety, and architectural boundaries
-- keep no-regression guarantees for operational dashboard flows
+- preserve safety guarantees already active in 43
+- expand controlled automation coverage without regression
+- keep tenant isolation and execution guardrails as non-negotiable
 
 ---
 

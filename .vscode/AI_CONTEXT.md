@@ -60,9 +60,9 @@ This mirrors the bootstrap order and must be respected:
 
 - Plugin version: `0.1.0`
 - Schema version: `1.19.0`
-- Current confirmed baseline: **Fase 42 completed with one partial component (42B)**
-- System state: **stable operational + controlled automation baseline**
-- Next continuity: **Fase 43 — Automatización Operativa Real**
+- Current confirmed baseline: **Fase 43 COMPLETA**
+- System state: **stable operational + multi-level automation execution**
+- Next continuity: **post-43 continuity planning**
 
 ⚠️ Important:
 Before starting any task, confirm continuity in:
@@ -70,9 +70,16 @@ Before starting any task, confirm continuity in:
 - `docs/CURRENT_STATE.md`
 
 Operational status reminder:
-- rules are already modeled and evaluated (`Operational_Rules_Service`)
-- execution remains manual/controlled in dashboard layers
-- no cron-based automatic execution in the 42 baseline
+- rules are modeled, evaluated and persisted by tenant (`Operational_Rules_Service`)
+- execution modes are active:
+  - `manual` (guided)
+  - `confirmable`
+  - `auto_controlled`
+- safety controls are mandatory in execution paths:
+  - guardrails
+  - controlled rollback
+- no cron-based uncontrolled execution
+- no execution should bypass capability/nonce/business validation
 
 ---
 

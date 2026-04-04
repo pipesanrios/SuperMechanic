@@ -13,8 +13,8 @@ Use:
 
 ## Baseline
 
-- Current delivery baseline: **Fase 42**
-- Fase 42 status: **COMPLETA (42B PARCIAL)**
+- Current delivery baseline: **Fase 43**
+- Fase 43 status: **COMPLETA**
 
 ---
 
@@ -74,13 +74,48 @@ Completed scope:
 
 ---
 
-## Next Planned Continuity
+## Phase 43 — Automatización Operativa Real (COMPLETED)
 
-### Phase 43 — Automatización Operativa Real (NEXT)
+Completed scope:
+- 43A: guided manual execution from triggered rules
+- 43B: confirmable execution (`Confirm and Run`) with explicit human approval
+- 43C: controlled auto execution with bounded eligibility and limits
+- 43D: execution safety layer (`guardrails` + controlled rollback)
+- 43E: persistent rules engine by tenant (`business_id`)
 
-- evolve from controlled/manual execution to real operational automation
-- preserve tenancy, capability and safety guarantees
-- start only after runtime closure of pending partial validations
+System capabilities after 43:
+- guided execution
+- confirmable execution
+- auto controlled execution
+- safety controls (guardrails + rollback)
+- tenant-persistent rules configuration
+
+### Subphases Status
+
+#### 🔹 43A — Ejecución manual guiada (COMPLETA)
+
+- rules evaluation connected to safe guided actions
+- no auto execution in this layer
+
+#### 🔹 43B — Ejecución confirmable (COMPLETA)
+
+- prepared actions require explicit confirmation before mutation
+- no mutation by GET and strict nonce/capability checks
+
+#### 🔹 43C — Ejecución automática controlada (COMPLETA)
+
+- controlled automation path available with bounded execution
+- only supported safe actions are eligible
+
+#### 🔹 43D — Seguridad y rollback (COMPLETA)
+
+- execution guardrails exposed and enforced
+- controlled rollback for supported actions
+
+#### 🔹 43E — Motor de reglas persistente (COMPLETA)
+
+- tenant-scoped persisted rule configuration
+- default fallback preserved when no tenant config is present
 
 ---
 

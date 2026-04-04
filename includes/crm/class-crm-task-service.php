@@ -132,6 +132,32 @@ class Crm_Task_Service {
 	}
 
 	/**
+	 * Reopen one completed task to pending.
+	 *
+	 * @param int $id Task ID.
+	 * @return bool|WP_Error
+	 */
+	public function reopen_task( $id ) {
+		$id       = absint( $id );
+		$existing = $this->repository->get_by_id( $id );
+
+		if ( empty( $existing ) ) {
+			return new WP_Error( 'sm_crm_task_not_found', __( 'CRM task does not exist.', 'super-mechanic' ) );
+		}
+
+		$status = isset( $existing['status'] ) ? sanitize_key( (string) $existing['status'] ) : '';
+		if ( 'completed' !== $status ) {
+			return new WP_Error( 'sm_crm_task_reopen_status', __( 'Only completed CRM tasks can be reopened.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->repository->reopen( $id ) ) {
+			return new WP_Error( 'sm_crm_task_reopen_failed', __( 'Could not reopen CRM task.', 'super-mechanic' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Delete task.
 	 *
 	 * @param int $id Task ID.

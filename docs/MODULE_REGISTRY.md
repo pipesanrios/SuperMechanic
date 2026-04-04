@@ -46,6 +46,11 @@ No phase timeline and no schema details.
     - `get_operational_bulk_actions()`
     - `get_operational_automation_console()`
     - `get_operational_rules_overview()`
+    - `get_guided_rule_actions()`
+    - `get_confirmable_rule_actions()`
+    - `run_controlled_auto_execution()`
+    - `get_execution_guardrails()`
+    - `rollback_controlled_execution()`
   - Admin Dashboard Controller:
     - global operational summary view
     - user workload view (`Mi trabajo`)
@@ -55,6 +60,10 @@ No phase timeline and no schema details.
     - Assisted Actions Layer (42A)
     - Assignment Engine UI surface (41D/42B)
     - Rules Engine UI surface (42E)
+    - Guided Rule Actions (43A)
+    - Confirmable Rule Actions (43B)
+    - Controlled Auto Execution visibility (43C)
+    - Guardrails and Rollback surface (43D)
 
 ## CRM Modules
 - crm pipeline
@@ -73,8 +82,35 @@ No phase timeline and no schema details.
 - automation rule engine (existing events layer)
 - operational rules service:
   - `includes/automation/class-operational-rules-service.php`
-  - configurable rules + evaluation preview
-  - no auto execution and no cron added by this layer
+  - configurable rules + evaluation + execution mode source
+  - persistent tenant config via repository + defaults fallback
+- Automation Execution Layer:
+  - Description:
+    - progressive execution orchestrator (guided -> confirmable -> auto controlled)
+  - Inputs:
+    - evaluated rules, workload context, actionable operational payloads
+  - Outputs:
+    - guided actions, confirmable actions, controlled auto execution dispatch
+  - Status:
+    - ACTIVE
+- Automation Safety Layer:
+  - Description:
+    - execution guardrails and controlled rollback for supported actions
+  - Inputs:
+    - execution payloads, tenant context, capability/nonce validated requests
+  - Outputs:
+    - allow/deny decisions, rollback availability and execution results
+  - Status:
+    - ACTIVE
+- Rules Persistence Layer:
+  - Description:
+    - persistent operational rules config per tenant (`business_id`)
+  - Inputs:
+    - rule_key, thresholds, limits, execution_mode, enabled state
+  - Outputs:
+    - DB-backed rule configuration consumed by service layer
+  - Status:
+    - ACTIVE
 
 ## Boundary Rule
 Module-to-module interactions must go through Services, not repositories.
