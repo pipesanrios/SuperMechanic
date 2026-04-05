@@ -75,6 +75,24 @@ Source references:
     - `Workload_Service` -> existing bulk/assisted execution handlers
     - `Automation Safety Layer` protects execution/rollback
     - `Operational_Rules_Repository` supplies persistent rule config
+- Users / Multi-business access (Phase 49 active):
+  - storage model:
+    - table `sm_business_user_roles` (business memberships)
+  - service layer:
+    - `includes/users/class-business-membership-service.php`
+    - `includes/users/class-role-access-service.php`
+  - admin UI:
+    - `includes/users/class-admin-roles-controller.php` (`super-mechanic-roles`)
+  - core capabilities:
+    - business-scoped memberships (`admin`, `mechanic`, `client`)
+    - global super admin scope vs membership scope
+    - membership transfer (`replace` / `add`)
+    - consistency validation + safe repair
+  - relation flow:
+    - WP users + businesses -> membership service
+    - membership service -> role access scope resolution
+    - role access scope -> dashboard/admin access surfaces
+    - roles UI -> secure membership mutations (nonce/capability)
 
 ## UI Entry Points
 - Admin menus under `Super Mechanic`

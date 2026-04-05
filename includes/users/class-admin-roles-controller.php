@@ -7,10 +7,12 @@
 
 namespace Super_Mechanic\Users;
 
+use Super_Mechanic\Businesses\Business_Repository;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Renders and handles basic operational roles management.
+ * Renders and handles operational roles + business memberships management.
  */
 class Admin_Roles_Controller {
 	/**
@@ -19,6 +21,20 @@ class Admin_Roles_Controller {
 	 * @var Role_Access_Service
 	 */
 	protected $role_access_service;
+
+	/**
+	 * Membership service.
+	 *
+	 * @var Business_Membership_Service
+	 */
+	protected $membership_service;
+
+	/**
+	 * Business repository.
+	 *
+	 * @var Business_Repository
+	 */
+	protected $business_repository;
 
 	/**
 	 * Feedback notice.
@@ -30,10 +46,14 @@ class Admin_Roles_Controller {
 	/**
 	 * Constructor.
 	 *
-	 * @param Role_Access_Service|null $role_access_service Service.
+	 * @param Role_Access_Service|null         $role_access_service Role access service.
+	 * @param Business_Membership_Service|null $membership_service Membership service.
+	 * @param Business_Repository|null         $business_repository Business repository.
 	 */
-	public function __construct( Role_Access_Service $role_access_service = null ) {
+	public function __construct( Role_Access_Service $role_access_service = null, Business_Membership_Service $membership_service = null, Business_Repository $business_repository = null ) {
 		$this->role_access_service = $role_access_service ? $role_access_service : new Role_Access_Service();
+		$this->membership_service  = $membership_service ? $membership_service : new Business_Membership_Service();
+		$this->business_repository = $business_repository ? $business_repository : new Business_Repository();
 	}
 
 	/**
@@ -43,6 +63,8 @@ class Admin_Roles_Controller {
 	 */
 	public function register_hooks() {
 		add_action( 'admin_menu', array( $this, 'register_submenu' ), 100 );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'wp_ajax_sm_roles_membership_action', array( $this, 'ajax_membership_action' ) );
 	}
 
 	/**
@@ -62,6 +84,38 @@ class Admin_Roles_Controller {
 	}
 
 	/**
+	 * Enqueue page assets.
+	 *
+	 * @param string $hook_suffix Hook suffix.
+	 * @return void
+	 */
+	public function enqueue_assets( $hook_suffix ) {
+		if ( ! is_string( $hook_suffix ) || false === strpos( $hook_suffix, 'super-mechanic_page_super-mechanic-roles' ) ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'sm-admin-roles-access',
+			SM_PLUGIN_URL . 'assets/js/admin-roles-access.js',
+			array( 'jquery' ),
+			defined( 'SM_PLUGIN_VERSION' ) ? SM_PLUGIN_VERSION : '0.1.0',
+			true
+		);
+
+		wp_localize_script(
+			'sm-admin-roles-access',
+			'smRolesAccess',
+			array(
+				'ajax_url'  => admin_url( 'admin-ajax.php' ),
+				'nonce'     => wp_create_nonce( 'sm_roles_membership_action' ),
+				'messages'  => array(
+					'unexpected' => __( 'Unexpected error while processing membership action.', 'super-mechanic' ),
+				),
+			)
+		);
+	}
+
+	/**
 	 * Render page.
 	 *
 	 * @return void
@@ -72,13 +126,23 @@ class Admin_Roles_Controller {
 		}
 
 		$this->maybe_handle_role_update_request();
-		$rows = $this->role_access_service->get_role_access_rows();
+		$rows       = $this->role_access_service->get_role_access_rows();
+		$businesses = $this->business_repository->get_businesses(
+			array(
+				'status'   => 'active',
+				'page'     => 1,
+				'per_page' => 200,
+				'orderby'  => 'id',
+				'order'    => 'ASC',
+			)
+		);
+		$business_labels = $this->build_business_labels_map( $businesses );
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Roles & Access', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Operational role visibility and safe internal access management.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Operational role visibility and business membership management.', 'super-mechanic' ) . '</p>';
 		echo '</div>';
 		echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Admin only', 'super-mechanic' ) . '</span>';
 		echo '</div>';
@@ -87,21 +151,31 @@ class Admin_Roles_Controller {
 
 		echo '<section class="sm-card sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Users access summary', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html( sprintf( __( 'Total: %d', 'super-mechanic' ), count( $rows ) ) ) . '</span></div>';
-		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr>';
-		echo '<th>' . esc_html__( 'ID', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Name', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Email', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'WP roles', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Operational role', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Business', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Dashboard access', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Automation/Logs access', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Status', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th>';
+		echo '<div class="sm-roles-columns-toolbar">';
+		echo '<span class="sm-roles-columns-title">' . esc_html__( 'Visible columns:', 'super-mechanic' ) . '</span>';
+		echo '<label><input type="checkbox" class="sm-roles-column-toggle" value="wp_roles" checked="checked" /> ' . esc_html__( 'WP roles', 'super-mechanic' ) . '</label>';
+		echo '<label><input type="checkbox" class="sm-roles-column-toggle" value="business" checked="checked" /> ' . esc_html__( 'Business', 'super-mechanic' ) . '</label>';
+		echo '<label><input type="checkbox" class="sm-roles-column-toggle" value="memberships" checked="checked" /> ' . esc_html__( 'Memberships', 'super-mechanic' ) . '</label>';
+		echo '<label><input type="checkbox" class="sm-roles-column-toggle" value="dashboard_access" /> ' . esc_html__( 'Dashboard access', 'super-mechanic' ) . '</label>';
+		echo '<label><input type="checkbox" class="sm-roles-column-toggle" value="automation_access" /> ' . esc_html__( 'Automation/Logs', 'super-mechanic' ) . '</label>';
+		echo '<label><input type="checkbox" class="sm-roles-column-toggle" value="status" checked="checked" /> ' . esc_html__( 'Status', 'super-mechanic' ) . '</label>';
+		echo '</div>';
+		echo '<div class="sm-table-wrap"><table class="sm-table sm-roles-access-table"><thead><tr>';
+		echo '<th data-col="id">' . esc_html__( 'ID', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="name">' . esc_html__( 'Name', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="email">' . esc_html__( 'Email', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="wp_roles">' . esc_html__( 'WP roles', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="operational_role">' . esc_html__( 'Operational role', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="business">' . esc_html__( 'Business', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="memberships">' . esc_html__( 'Memberships', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="dashboard_access">' . esc_html__( 'Dashboard access', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="automation_access">' . esc_html__( 'Automation/Logs access', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="status">' . esc_html__( 'Status', 'super-mechanic' ) . '</th>';
+		echo '<th data-col="actions">' . esc_html__( 'Actions', 'super-mechanic' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		if ( empty( $rows ) ) {
-			echo '<tr><td colspan="10">' . esc_html__( 'No users found for access summary.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="11">' . esc_html__( 'No users found for access summary.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $rows as $row ) {
 				$user_id          = isset( $row['user_id'] ) ? absint( $row['user_id'] ) : 0;
@@ -110,40 +184,54 @@ class Admin_Roles_Controller {
 				$wp_roles         = isset( $row['wp_roles'] ) && is_array( $row['wp_roles'] ) ? $row['wp_roles'] : array();
 				$operational_role = isset( $row['operational_role'] ) ? sanitize_key( (string) $row['operational_role'] ) : 'none';
 				$business_id      = isset( $row['business_id'] ) ? absint( $row['business_id'] ) : 0;
+				$is_global        = ! empty( $row['is_global'] );
+				$memberships      = isset( $row['memberships'] ) && is_array( $row['memberships'] ) ? $row['memberships'] : array();
+				$consistency_repairable = ! empty( $row['consistency_repairable'] );
 				$dashboard_access = ! empty( $row['dashboard_access'] );
 				$automation_access = ! empty( $row['automation_access'] );
 				$status           = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'ok';
 				$status_summary   = isset( $row['status_summary'] ) ? sanitize_text_field( (string) $row['status_summary'] ) : '';
 
 				echo '<tr>';
-				echo '<td>' . esc_html( $user_id ) . '</td>';
-				echo '<td>' . esc_html( $display_name ) . '</td>';
-				echo '<td>' . esc_html( $user_email ) . '</td>';
-				echo '<td>' . esc_html( empty( $wp_roles ) ? '—' : implode( ', ', array_map( 'sanitize_key', $wp_roles ) ) ) . '</td>';
-				echo '<td>' . esc_html( $operational_role ) . '</td>';
-				echo '<td>' . esc_html( $business_id > 0 ? (string) $business_id : '—' ) . '</td>';
-				echo '<td>' . wp_kses_post( $this->render_yes_no_badge( $dashboard_access ) ) . '</td>';
-				echo '<td>' . wp_kses_post( $this->render_yes_no_badge( $automation_access ) ) . '</td>';
-				echo '<td>' . wp_kses_post( $this->render_status_badge( $status, $status_summary ) ) . '</td>';
-				echo '<td>';
+				echo '<td data-col="id">' . esc_html( $user_id ) . '</td>';
+				echo '<td data-col="name">' . esc_html( $display_name ) . '</td>';
+				echo '<td data-col="email">' . esc_html( $user_email ) . '</td>';
+				echo '<td data-col="wp_roles">' . esc_html( empty( $wp_roles ) ? '—' : implode( ', ', array_map( 'sanitize_key', $wp_roles ) ) ) . '</td>';
+				echo '<td data-col="operational_role">' . esc_html( $operational_role ) . '</td>';
+				echo '<td data-col="business">' . esc_html( $this->format_business_label( $business_id, $is_global ) ) . '</td>';
+				echo '<td data-col="memberships">' . $this->render_memberships_cell( $user_id, $memberships, $businesses, $business_labels ) . '</td>';
+				echo '<td data-col="dashboard_access">' . wp_kses_post( $this->render_yes_no_badge( $dashboard_access ) ) . '</td>';
+				echo '<td data-col="automation_access">' . wp_kses_post( $this->render_yes_no_badge( $automation_access ) ) . '</td>';
+				echo '<td data-col="status">' . wp_kses_post( $this->render_status_badge( $status, $status_summary ) ) . '</td>';
+				echo '<td data-col="actions">';
+				echo '<div class="sm-role-actions">';
 				echo '<form method="post" class="sm-inline-form">';
 				wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
 				echo '<input type="hidden" name="sm_roles_access_action" value="assign_sm_admin" />';
 				echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign sm_admin', 'super-mechanic' ) . '</button>';
+				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign admin', 'super-mechanic' ) . '</button>';
 				echo '</form>';
 				echo '<form method="post" class="sm-inline-form">';
 				wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
 				echo '<input type="hidden" name="sm_roles_access_action" value="assign_sm_mechanic" />';
 				echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign sm_mechanic', 'super-mechanic' ) . '</button>';
+				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign mechanic', 'super-mechanic' ) . '</button>';
 				echo '</form>';
 				echo '<form method="post" class="sm-inline-form">';
 				wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
 				echo '<input type="hidden" name="sm_roles_access_action" value="remove_operational_role" />';
 				echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Remove operational role', 'super-mechanic' ) . '</button>';
+				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Remove role', 'super-mechanic' ) . '</button>';
 				echo '</form>';
+				if ( $consistency_repairable ) {
+					echo '<form method="post" class="sm-inline-form">';
+					wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
+					echo '<input type="hidden" name="sm_roles_access_action" value="repair_membership_consistency" />';
+					echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
+					echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Run safe repair', 'super-mechanic' ) . '</button>';
+					echo '</form>';
+				}
+				echo '</div>';
 				echo '</td>';
 				echo '</tr>';
 			}
@@ -183,7 +271,6 @@ class Admin_Roles_Controller {
 
 		$user_id = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : 0;
 		$action  = isset( $_POST['sm_roles_access_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['sm_roles_access_action'] ) ) : '';
-
 		if ( $user_id <= 0 || '' === $action ) {
 			$this->notice = array(
 				'type'    => 'error',
@@ -196,19 +283,325 @@ class Admin_Roles_Controller {
 			'success' => false,
 			'message' => __( 'Unknown role action.', 'super-mechanic' ),
 		);
-
 		if ( 'assign_sm_admin' === $action ) {
 			$result = $this->role_access_service->assign_operational_role( $user_id, 'sm_admin' );
 		} elseif ( 'assign_sm_mechanic' === $action ) {
 			$result = $this->role_access_service->assign_operational_role( $user_id, 'sm_mechanic' );
 		} elseif ( 'remove_operational_role' === $action ) {
 			$result = $this->role_access_service->remove_operational_role( $user_id );
+		} elseif ( 'repair_membership_consistency' === $action ) {
+			$result = $this->role_access_service->repair_user_membership_consistency( $user_id );
 		}
 
 		$this->notice = array(
 			'type'    => ! empty( $result['success'] ) ? 'success' : 'error',
 			'message' => isset( $result['message'] ) ? sanitize_text_field( (string) $result['message'] ) : __( 'Role update result unavailable.', 'super-mechanic' ),
 		);
+	}
+
+	/**
+	 * AJAX membership actions handler.
+	 *
+	 * @return void
+	 */
+	public function ajax_membership_action() {
+		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'super-mechanic' ) ), 403 );
+		}
+
+		check_ajax_referer( 'sm_roles_membership_action', 'nonce' );
+
+		$action_key = isset( $_POST['membership_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['membership_action'] ) ) : '';
+		$result     = array(
+			'success' => false,
+			'message' => __( 'Invalid membership action.', 'super-mechanic' ),
+		);
+
+		if ( 'create_membership' === $action_key ) {
+			$result = $this->membership_service->create_membership(
+				isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : 0,
+				isset( $_POST['business_id'] ) ? absint( wp_unslash( $_POST['business_id'] ) ) : 0,
+				isset( $_POST['role'] ) ? sanitize_key( (string) wp_unslash( $_POST['role'] ) ) : ''
+			);
+		} elseif ( 'update_membership_role' === $action_key ) {
+			$result = $this->membership_service->update_membership_role(
+				isset( $_POST['membership_id'] ) ? absint( wp_unslash( $_POST['membership_id'] ) ) : 0,
+				isset( $_POST['role'] ) ? sanitize_key( (string) wp_unslash( $_POST['role'] ) ) : ''
+			);
+		} elseif ( 'set_membership_status' === $action_key ) {
+			$result = $this->membership_service->set_membership_status(
+				isset( $_POST['membership_id'] ) ? absint( wp_unslash( $_POST['membership_id'] ) ) : 0,
+				isset( $_POST['status'] ) ? sanitize_key( (string) wp_unslash( $_POST['status'] ) ) : ''
+			);
+		} elseif ( 'set_primary_membership' === $action_key ) {
+			$result = $this->membership_service->set_primary_membership(
+				isset( $_POST['membership_id'] ) ? absint( wp_unslash( $_POST['membership_id'] ) ) : 0
+			);
+		} elseif ( 'remove_membership' === $action_key ) {
+			$result = $this->membership_service->remove_membership(
+				isset( $_POST['membership_id'] ) ? absint( wp_unslash( $_POST['membership_id'] ) ) : 0
+			);
+		} elseif ( in_array( $action_key, array( 'transfer', 'transfer_user_to_business' ), true ) ) {
+			$user_id            = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : 0;
+			$target_business_id = 0;
+			if ( isset( $_POST['target_business_id'] ) ) {
+				$target_business_id = absint( wp_unslash( $_POST['target_business_id'] ) );
+			} elseif ( isset( $_POST['business_id'] ) ) {
+				$target_business_id = absint( wp_unslash( $_POST['business_id'] ) );
+			} elseif ( isset( $_POST['target_business'] ) ) {
+				$target_business_id = absint( wp_unslash( $_POST['target_business'] ) );
+			} elseif ( isset( $_POST['destination_business_id'] ) ) {
+				$target_business_id = absint( wp_unslash( $_POST['destination_business_id'] ) );
+			}
+			$role = isset( $_POST['role'] ) ? sanitize_key( (string) wp_unslash( $_POST['role'] ) ) : '';
+			$mode = isset( $_POST['mode'] ) ? sanitize_key( (string) wp_unslash( $_POST['mode'] ) ) : '';
+
+			if ( $user_id <= 0 ) {
+				$result = array(
+					'success' => false,
+					'message' => __( 'Invalid transfer payload: user_id is required.', 'super-mechanic' ),
+				);
+			} elseif ( $target_business_id <= 0 ) {
+				$result = array(
+					'success' => false,
+					'message' => __( 'Invalid transfer payload: target_business_id is required.', 'super-mechanic' ),
+				);
+			} elseif ( ! in_array( $role, array( 'admin', 'mechanic', 'client' ), true ) ) {
+				$result = array(
+					'success' => false,
+					'message' => __( 'Invalid transfer payload: role must be admin, mechanic or client.', 'super-mechanic' ),
+				);
+			} elseif ( ! in_array( $mode, array( 'replace', 'add' ), true ) ) {
+				$result = array(
+					'success' => false,
+					'message' => __( 'Invalid transfer payload: mode must be replace or add.', 'super-mechanic' ),
+				);
+			} else {
+				$result = $this->membership_service->transfer_user_to_business(
+					$user_id,
+					$target_business_id,
+					$role,
+					$mode
+				);
+			}
+		}
+
+		if ( ! empty( $result['success'] ) ) {
+			wp_send_json_success(
+				array(
+					'message' => isset( $result['message'] ) ? (string) $result['message'] : __( 'Membership action completed.', 'super-mechanic' ),
+				)
+			);
+		}
+
+		wp_send_json_error(
+			array(
+				'message' => isset( $result['message'] ) ? (string) $result['message'] : __( 'Membership action failed.', 'super-mechanic' ),
+			),
+			400
+		);
+	}
+
+	/**
+	 * Render memberships cell.
+	 *
+	 * @param int                               $user_id User ID.
+	 * @param array<int,array<string,mixed>>    $memberships Memberships.
+	 * @param array<int,array<string,mixed>>    $businesses Businesses.
+	 * @return string
+	 */
+	protected function render_memberships_cell( $user_id, array $memberships, array $businesses, array $business_labels = array() ) {
+		$business_options = $this->render_business_select_options( $businesses );
+		$role_options     = $this->render_role_select_options();
+		$has_businesses   = '' !== trim( $business_options );
+		ob_start();
+
+		echo '<div class="sm-membership-panel">';
+		echo '<div class="sm-membership-block sm-membership-current">';
+		echo '<h4 class="sm-membership-title">' . esc_html__( 'Current memberships', 'super-mechanic' ) . '</h4>';
+		if ( empty( $memberships ) ) {
+			echo '<div class="sm-list-meta">' . esc_html__( 'No membership assigned', 'super-mechanic' ) . '</div>';
+		} else {
+			echo '<div class="sm-membership-cards">';
+			foreach ( $memberships as $membership ) {
+				if ( ! is_array( $membership ) ) {
+					continue;
+				}
+
+				$membership_id = isset( $membership['id'] ) ? absint( $membership['id'] ) : 0;
+				$business_id   = isset( $membership['business_id'] ) ? absint( $membership['business_id'] ) : 0;
+				$role          = isset( $membership['operational_role'] ) ? sanitize_key( (string) $membership['operational_role'] ) : '';
+				$status        = isset( $membership['status'] ) ? sanitize_key( (string) $membership['status'] ) : 'inactive';
+				$is_primary    = ! empty( $membership['is_primary'] );
+
+				echo '<div class="sm-membership-item" data-membership-id="' . esc_attr( (string) $membership_id ) . '">';
+				echo '<div class="sm-membership-meta">';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Business:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html( $this->resolve_business_display_label( $business_id, $business_labels ) ) . '</span></div>';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Role:', 'super-mechanic' ) . '</span> <span class="sm-membership-value"><select class="sm-membership-role sm-membership-select-inline">' . $this->render_role_select_options( $role ) . '</select></span></div>';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Status:', 'super-mechanic' ) . '</span> <span class="sm-membership-value sm-membership-badge">' . esc_html( $status ) . '</span></div>';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Primary:', 'super-mechanic' ) . '</span> <span class="sm-membership-value sm-membership-badge">' . esc_html( $is_primary ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</span></div>';
+				echo '</div>';
+				echo '<div class="sm-membership-item-actions">';
+				echo '<div class="sm-membership-actions">';
+				echo '<button type="button" class="button button-small sm-membership-action" data-action="update_membership_role">' . esc_html__( 'Change', 'super-mechanic' ) . '</button>';
+				if ( 'active' === $status ) {
+					echo '<button type="button" class="button button-small sm-membership-action" data-action="set_membership_status" data-status="inactive">' . esc_html__( 'Deactivate', 'super-mechanic' ) . '</button>';
+				} else {
+					echo '<button type="button" class="button button-small sm-membership-action" data-action="set_membership_status" data-status="active">' . esc_html__( 'Activate', 'super-mechanic' ) . '</button>';
+				}
+				if ( ! $is_primary ) {
+					echo '<button type="button" class="button button-small sm-membership-action" data-action="set_primary_membership">' . esc_html__( 'Set primary', 'super-mechanic' ) . '</button>';
+				}
+				echo '<button type="button" class="button button-small sm-membership-action" data-action="remove_membership">' . esc_html__( 'Remove', 'super-mechanic' ) . '</button>';
+				echo '</div>';
+				echo '</div>';
+				echo '</div>';
+			}
+			echo '</div>';
+		}
+		echo '</div>';
+
+		echo '<div class="sm-membership-block sm-membership-add" data-user-id="' . esc_attr( (string) $user_id ) . '">';
+		echo '<h4 class="sm-membership-title">' . esc_html__( 'Add membership', 'super-mechanic' ) . '</h4>';
+		if ( $has_businesses ) {
+			echo '<label class="sm-membership-field">';
+			echo '<span class="sm-membership-field-label">' . esc_html__( 'Business', 'super-mechanic' ) . '</span>';
+			echo '<select class="sm-membership-business sm-membership-select" name="business_id" data-field="business_id">';
+			echo '<option value="">' . esc_html__( 'Select business', 'super-mechanic' ) . '</option>';
+			echo $business_options;
+			echo '</select>';
+			echo '</label>';
+		} else {
+			echo '<span class="sm-list-meta">' . esc_html__( 'No businesses available for assignment.', 'super-mechanic' ) . '</span>';
+		}
+		echo '<label class="sm-membership-field">';
+		echo '<span class="sm-membership-field-label">' . esc_html__( 'Role', 'super-mechanic' ) . '</span>';
+		echo '<select class="sm-membership-role sm-membership-select">' . $role_options . '</select>';
+		echo '</label>';
+		echo '<button type="button" class="button button-small button-primary sm-membership-action" data-action="create_membership"' . disabled( $has_businesses, false, false ) . '>' . esc_html__( 'Add membership', 'super-mechanic' ) . '</button>';
+		echo '<span class="sm-membership-feedback" aria-live="polite"></span>';
+		echo '</div>';
+
+		echo '<div class="sm-membership-block sm-membership-transfer" data-user-id="' . esc_attr( (string) $user_id ) . '">';
+		echo '<h4 class="sm-membership-title">' . esc_html__( 'Transfer / Move user', 'super-mechanic' ) . '</h4>';
+		if ( $has_businesses ) {
+			echo '<label class="sm-membership-field">';
+			echo '<span class="sm-membership-field-label">' . esc_html__( 'Target business', 'super-mechanic' ) . '</span>';
+			echo '<select class="sm-transfer-business sm-membership-select" name="target_business_id" data-field="target_business_id">';
+			echo '<option value="">' . esc_html__( 'Select target business', 'super-mechanic' ) . '</option>';
+			echo $business_options;
+			echo '</select>';
+			echo '</label>';
+		} else {
+			echo '<span class="sm-list-meta">' . esc_html__( 'No businesses available for assignment.', 'super-mechanic' ) . '</span>';
+		}
+		echo '<label class="sm-membership-field">';
+		echo '<span class="sm-membership-field-label">' . esc_html__( 'Role', 'super-mechanic' ) . '</span>';
+		echo '<select class="sm-transfer-role sm-membership-select">' . $role_options . '</select>';
+		echo '</label>';
+		echo '<label class="sm-membership-field">';
+		echo '<span class="sm-membership-field-label">' . esc_html__( 'Mode', 'super-mechanic' ) . '</span>';
+		echo '<select class="sm-transfer-mode sm-membership-select">';
+		echo '<option value="replace">' . esc_html__( 'Move and replace current active business', 'super-mechanic' ) . '</option>';
+		echo '<option value="add">' . esc_html__( 'Add as additional business membership', 'super-mechanic' ) . '</option>';
+		echo '</select>';
+		echo '</label>';
+		echo '<button type="button" class="button button-small sm-membership-action" data-action="transfer"' . disabled( $has_businesses, false, false ) . '>' . esc_html__( 'Transfer / Move user', 'super-mechanic' ) . '</button>';
+		echo '<span class="sm-membership-feedback" aria-live="polite"></span>';
+		echo '</div>';
+		echo '</div>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Build business labels map.
+	 *
+	 * @param array<int,array<string,mixed>> $businesses Businesses.
+	 * @return array<int,string>
+	 */
+	protected function build_business_labels_map( array $businesses ) {
+		$labels = array();
+		foreach ( $businesses as $business ) {
+			if ( ! is_array( $business ) ) {
+				continue;
+			}
+
+			$business_id = isset( $business['id'] ) ? absint( $business['id'] ) : 0;
+			if ( $business_id <= 0 ) {
+				continue;
+			}
+
+			$name = isset( $business['name'] ) ? sanitize_text_field( (string) $business['name'] ) : '';
+			if ( '' !== $name ) {
+				$labels[ $business_id ] = 'B' . $business_id . ' · ' . $name;
+			} else {
+				$labels[ $business_id ] = sprintf( 'Business #%d', $business_id );
+			}
+		}
+
+		return $labels;
+	}
+
+	/**
+	 * Resolve readable business label.
+	 *
+	 * @param int              $business_id Business ID.
+	 * @param array<int,string> $business_labels Label map.
+	 * @return string
+	 */
+	protected function resolve_business_display_label( $business_id, array $business_labels ) {
+		$business_id = absint( $business_id );
+		if ( $business_id <= 0 ) {
+			return __( 'Business not assigned', 'super-mechanic' );
+		}
+
+		if ( isset( $business_labels[ $business_id ] ) ) {
+			return (string) $business_labels[ $business_id ];
+		}
+
+		return sprintf( 'Business #%d', $business_id );
+	}
+
+	/**
+	 * Render business select options.
+	 *
+	 * @param array<int,array<string,mixed>> $businesses Businesses.
+	 * @return string
+	 */
+	protected function render_business_select_options( array $businesses ) {
+		$html = '';
+		foreach ( $businesses as $business ) {
+			if ( ! is_array( $business ) ) {
+				continue;
+			}
+			$business_id = isset( $business['id'] ) ? absint( $business['id'] ) : 0;
+			$name        = isset( $business['name'] ) ? sanitize_text_field( (string) $business['name'] ) : '';
+			if ( $business_id <= 0 ) {
+				continue;
+			}
+			$label = 'B' . $business_id . ( '' !== $name ? ' · ' . $name : '' );
+			$html .= '<option value="' . esc_attr( (string) $business_id ) . '">' . esc_html( $label ) . '</option>';
+		}
+
+		return $html;
+	}
+
+	/**
+	 * Render role select options.
+	 *
+	 * @param string $selected_role Optional selected role.
+	 * @return string
+	 */
+	protected function render_role_select_options( $selected_role = 'mechanic' ) {
+		$selected_role = sanitize_key( (string) $selected_role );
+		$roles         = array( 'admin', 'mechanic', 'client' );
+		$html          = '';
+		foreach ( $roles as $role ) {
+			$html .= '<option value="' . esc_attr( $role ) . '"' . selected( $selected_role, $role, false ) . '>' . esc_html( $role ) . '</option>';
+		}
+
+		return $html;
 	}
 
 	/**
@@ -259,5 +652,23 @@ class Admin_Roles_Controller {
 		}
 
 		return '<span class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</span><div class="sm-list-meta">' . esc_html( $summary ) . '</div>';
+	}
+
+	/**
+	 * Render business label.
+	 *
+	 * @param int  $business_id Business ID.
+	 * @param bool $is_global Is global.
+	 * @return string
+	 */
+	protected function format_business_label( $business_id, $is_global ) {
+		if ( $is_global ) {
+			return __( 'Global scope', 'super-mechanic' );
+		}
+		if ( $business_id <= 0 ) {
+			return __( 'No membership assigned', 'super-mechanic' );
+		}
+
+		return (string) $business_id;
 	}
 }

@@ -77,6 +77,13 @@ No phase timeline and no schema details.
 - integrations/public-api
 - integrations/woocommerce (commercial snapshot scope)
 - businesses (multi-store context)
+- users (multi-business membership + access)
+  - `class-business-membership-installer`
+  - `class-business-membership-repository`
+  - `class-business-membership-service`
+  - `class-role-access-service`
+  - `class-admin-roles-controller`
+  - status: ACTIVE
 
 ## Automation Modules
 - automation rule engine (existing events layer)
@@ -111,6 +118,19 @@ No phase timeline and no schema details.
     - DB-backed rule configuration consumed by service layer
   - Status:
     - ACTIVE
+
+## Multi-Business Access Layer
+- Description:
+  - business membership model plus global-vs-membership access resolution
+- Inputs:
+  - WP users, businesses, memberships (`sm_business_user_roles`)
+- Outputs:
+  - default business resolution
+  - accessible businesses per user
+  - consistency warnings
+  - safe consistency repairs
+- Status:
+  - ACTIVE
 
 ## Boundary Rule
 Module-to-module interactions must go through Services, not repositories.

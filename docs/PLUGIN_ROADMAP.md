@@ -13,8 +13,8 @@ Use:
 
 ## Baseline
 
-- Current delivery baseline: **Fase 43**
-- Fase 43 status: **COMPLETA**
+- Current delivery baseline: **Fase 49**
+- Fase 49 status: **COMPLETA**
 
 ---
 
@@ -116,6 +116,48 @@ System capabilities after 43:
 
 - tenant-scoped persisted rule configuration
 - default fallback preserved when no tenant config is present
+
+---
+
+## Phase 49 — Multi-Business + Access Model (COMPLETED)
+
+Completed scope:
+- 49A: business membership base model (`sm_business_user_roles`)
+- 49B: global super admin scope vs membership-scoped access
+- 49C: Roles & Access UI by business (secure membership management)
+- 49D: membership transfer flows (`replace` / `add`)
+- 49E: consistency hardening (validation + safe repair)
+
+### Subphases Status
+
+#### 🔹 49A — Business Membership Model (COMPLETA)
+- installer, repository and service for business memberships
+- primary membership support and active-status resolution
+
+#### 🔹 49B — Super Admin / Global Access (COMPLETA)
+- centralized access scope in `Role_Access_Service`
+- canonical superadmin identity: `admin@mardisom.com`
+
+#### 🔹 49C — Roles & Access UI por negocio (COMPLETA)
+- per-user membership management in admin UI
+- nonce/capability protected write actions
+
+#### 🔹 49D — Membership Transfers (COMPLETA)
+- user transfer across businesses with safe `replace` / `add` modes
+- no aggressive destructive behavior
+
+#### 🔹 49E — Consistency Hardening (COMPLETA)
+- membership consistency validation methods
+- safe repair path for repairable inconsistencies
+- precise, actionable warnings in Roles & Access
+
+---
+
+## Next Continuity — Phase 50
+
+Target:
+- notifications/triggers/integrations over finalized multi-business access model
+- preserve access safety and tenant isolation guarantees from phases 43–49
 
 ---
 

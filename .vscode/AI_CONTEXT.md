@@ -60,9 +60,9 @@ This mirrors the bootstrap order and must be respected:
 
 - Plugin version: `0.1.0`
 - Schema version: `1.19.0`
-- Current confirmed baseline: **Fase 48D implementada (técnica), cierre runtime pendiente**
-- System state: **stable operational + multi-level automation execution + profiling-driven dashboard UX + per-user lightweight dashboard preferences**
-- Next continuity: **runtime validation and closure of 48D, then 48E continuity**
+- Current confirmed baseline: **Fase 49 COMPLETA**
+- System state: **stable operational + multi-level automation execution + finalized multi-business access model (49A–49E)**
+- Next continuity: **Fase 50 — notifications / triggers / integrations**
 
 ⚠️ Important:
 Before starting any task, confirm continuity in:
@@ -82,6 +82,12 @@ Operational status reminder:
 - no execution should bypass capability/nonce/business validation
 - dashboard supports lightweight per-user UI persistence for secondary sections without changing operational logic
 - roles/access administration page available for authorized admins (`super-mechanic-roles`) with safe operational role assignment and inconsistency visibility
+- business memberships are fully active through `Business_Membership_Service`
+- global vs membership-scoped access resolution is centralized in `Role_Access_Service`
+- Roles & Access supports secure membership management + transfer actions
+- consistency hardening is active:
+  - membership validation warnings
+  - safe repair path for repairable inconsistencies
 
 ---
 

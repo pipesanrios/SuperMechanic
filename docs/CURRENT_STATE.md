@@ -28,8 +28,8 @@ No future speculation beyond immediate continuity.
 
 ## Current Delivery Baseline
 
-- Last completed phase baseline: **Fase 47 (en progreso)**
-- Last completed block: **47A**
+- Last completed phase baseline: **Fase 49 (COMPLETA)**
+- Last completed block: **49E (COMPLETA)**
 - Block status:
   - `39B` COMPLETE
   - `39C` COMPLETE
@@ -56,6 +56,16 @@ No future speculation beyond immediate continuity.
   - `43E` COMPLETE
   - `47A` COMPLETE
   - `47B` PARTIAL
+  - `48A` COMPLETE
+  - `48B` COMPLETE
+  - `48C` COMPLETE
+  - `48D` COMPLETE
+  - `48E` COMPLETE
+  - `49A` COMPLETE
+  - `49B` COMPLETE
+  - `49C` COMPLETE
+  - `49D` COMPLETE
+  - `49E` COMPLETE
 
 ---
 
@@ -235,6 +245,45 @@ Validation state:
 
 ---
 
+## Fase 49 Multi-Business Access Model
+
+Status: **COMPLETA**
+
+Consolidated delivery:
+- 49A — Business Membership Model:
+  - table `sm_business_user_roles` active
+  - installer/repository/service available for memberships
+- 49B — Super Admin / Global Access:
+  - global scope centralized in `Role_Access_Service`
+  - canonical superadmin identity: `admin@mardisom.com`
+  - non-global users restricted to active memberships
+- 49C — Roles & Access UI by business:
+  - secure membership management UI in `super-mechanic-roles`
+  - membership actions protected by capability + nonce
+- 49D — Membership transfers:
+  - transfer modes `replace` and `add` available
+  - primary consistency preserved during transfer
+- 49E — Consistency hardening:
+  - centralized consistency validation methods:
+    - `validate_membership_consistency($user_id)`
+    - `get_membership_consistency_warnings($user_id)`
+  - safe repair method:
+    - `repair_membership_consistency($user_id)`
+  - precise warnings and safe repair action surfaced in Roles & Access
+
+Final model state:
+- memberships per business are operational
+- global vs membership-scoped access is explicit
+- admins/mechanics/clients can be managed by business scope
+- transfers are available without aggressive destructive behavior
+- consistency hardening protects ambiguous/invalid membership states
+
+Validation state:
+- technical checks: PASS
+- runtime/manual checks: validated for Fase 49 closure
+
+---
+
 ## Known Active Debt (Current)
 
 - Legacy placeholder files still present:
@@ -250,12 +299,12 @@ Validation state:
 
 ## Next Continuity
 
-### Fase 44 — Continuidad operativa (pending definition)
+### Fase 50 — Notificaciones / Triggers / Integraciones
 
 Continuity target:
-- preserve safety guarantees already active in 43
-- expand controlled automation coverage without regression
-- keep tenant isolation and execution guardrails as non-negotiable
+- leverage the finalized Fase 49 multi-business access model
+- add notifications/triggers without regressions in roles, memberships and dashboard
+- preserve tenant isolation and safety guarantees from Fases 43–49
 
 ---
 
