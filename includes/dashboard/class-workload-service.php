@@ -10,6 +10,7 @@ namespace Super_Mechanic\Dashboard;
 use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Automation\Execution_Log_Service;
 use Super_Mechanic\Automation\Operational_Rules_Service;
+use Super_Mechanic\Config\Operational_Config_Service;
 use Super_Mechanic\CRM\Crm_Pipeline_Service;
 use Super_Mechanic\CRM\Crm_Task_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
@@ -61,6 +62,12 @@ class Workload_Service {
 	 * @var Execution_Log_Service
 	 */
 	protected $execution_log_service;
+	/**
+	 * Operational config service.
+	 *
+	 * @var Operational_Config_Service
+	 */
+	protected $operational_config_service;
 
 	/**
 	 * Request-level memoization cache.
@@ -78,13 +85,14 @@ class Workload_Service {
 	 * @param Appointment_Service|null     $appointment_service Appointment service.
 	 * @param Business_Context_Service|null $business_context_service Business context service.
 	 */
-	public function __construct( Crm_Task_Service $task_service = null, Crm_Pipeline_Service $crm_pipeline_service = null, Process_Service $process_service = null, Appointment_Service $appointment_service = null, Business_Context_Service $business_context_service = null, Execution_Log_Service $execution_log_service = null ) {
+	public function __construct( Crm_Task_Service $task_service = null, Crm_Pipeline_Service $crm_pipeline_service = null, Process_Service $process_service = null, Appointment_Service $appointment_service = null, Business_Context_Service $business_context_service = null, Execution_Log_Service $execution_log_service = null, Operational_Config_Service $operational_config_service = null ) {
 		$this->task_service             = $task_service ? $task_service : new Crm_Task_Service();
 		$this->crm_pipeline_service     = $crm_pipeline_service ? $crm_pipeline_service : new Crm_Pipeline_Service();
 		$this->process_service          = $process_service ? $process_service : new Process_Service();
 		$this->appointment_service      = $appointment_service ? $appointment_service : new Appointment_Service();
 		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 		$this->execution_log_service    = $execution_log_service ? $execution_log_service : new Execution_Log_Service();
+		$this->operational_config_service = $operational_config_service ? $operational_config_service : new Operational_Config_Service();
 	}
 
 	/**
@@ -140,6 +148,40 @@ class Workload_Service {
 	 */
 	protected function clear_request_cache() {
 		$this->request_cache = array();
+	}
+
+	/**
+	 * Read one operational threshold with safe fallback.
+	 *
+	 * @param int    $business_id Business ID.
+	 * @param string $key Threshold key.
+	 * @param int    $fallback Fallback value.
+	 * @return int
+	 */
+	protected function get_operational_threshold( $business_id, $key, $fallback ) {
+		$value = $this->operational_config_service->get_threshold( $business_id, $key );
+		if ( null === $value ) {
+			$value = absint( $fallback );
+		}
+
+		return absint( $value );
+	}
+
+	/**
+	 * Read one operational feature flag with safe fallback.
+	 *
+	 * @param int    $business_id Business ID.
+	 * @param string $flag Flag key.
+	 * @param bool   $fallback Fallback value.
+	 * @return bool
+	 */
+	protected function is_operational_feature_enabled( $business_id, $flag, $fallback = true ) {
+		$value = $this->operational_config_service->get( $business_id, $flag, $fallback );
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+
+		return (bool) $fallback;
 	}
 
 	/**
@@ -312,6 +354,15 @@ class Workload_Service {
 		if ( $target_user_id <= 0 ) {
 			$target_user_id = $current_user_id;
 		}
+		if ( ! $this->is_operational_feature_enabled( $target_business_id, 'enable_internal_flags', true ) ) {
+			$payload['meta'] = array(
+				'business_id'    => $target_business_id,
+				'user_id'        => $target_user_id,
+				'generated_at'   => current_time( 'mysql' ),
+				'signals_policy' => 'disabled_by_operational_config',
+			);
+			return $this->set_request_cache( $cache_key, $payload );
+		}
 
 		$summary  = $this->get_global_operational_summary( $target_business_id );
 		$metrics  = $this->get_operational_metrics( $target_business_id );
@@ -328,39 +379,43 @@ class Workload_Service {
 		$processes_delayed   = isset( $metrics['processes']['delayed'] ) ? absint( $metrics['processes']['delayed'] ) : 0;
 		$alerts_critical     = isset( $metrics['alerts']['critical'] ) ? absint( $metrics['alerts']['critical'] ) : 0;
 		$user_critical_load  = isset( $workload['critical'] ) && is_array( $workload['critical'] ) ? count( $workload['critical'] ) : 0;
+		$overdue_threshold   = max( 1, $this->get_operational_threshold( $target_business_id, 'overdue_tasks_threshold', 1 ) );
+		$delayed_threshold   = max( 1, $this->get_operational_threshold( $target_business_id, 'delayed_process_threshold', 1 ) );
+		$critical_threshold  = max( 1, $this->get_operational_threshold( $target_business_id, 'critical_signal_threshold', 2 ) );
+		$saturation_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'user_saturation_threshold', 3 ) );
 
 		$flags = array(
 			array(
 				'code'      => 'overdue_open_tasks',
-				'active'    => $tasks_overdue_total > 0,
-				'level'     => $tasks_overdue_total > 0 ? 'critical' : 'normal',
+				'active'    => $tasks_overdue_total >= $overdue_threshold,
+				'level'     => $tasks_overdue_total >= $overdue_threshold ? 'critical' : 'normal',
 				'message'   => __( 'There are overdue CRM tasks still open.', 'super-mechanic' ),
 				'value'     => $tasks_overdue_total,
-				'threshold' => 1,
+				'threshold' => $overdue_threshold,
 			),
 			array(
 				'code'      => 'delayed_active_processes',
-				'active'    => $processes_delayed > 0,
-				'level'     => $processes_delayed > 0 ? 'warning' : 'normal',
+				'active'    => $processes_delayed >= $delayed_threshold,
+				'level'     => $processes_delayed >= $delayed_threshold ? 'warning' : 'normal',
 				'message'   => __( 'Active processes with operational delay detected.', 'super-mechanic' ),
 				'value'     => $processes_delayed,
-				'threshold' => 1,
+				'threshold' => $delayed_threshold,
 			),
 			array(
 				'code'      => 'user_critical_saturation',
-				'active'    => $user_critical_load >= 3,
-				'level'     => $user_critical_load >= 3 ? 'warning' : 'normal',
+				'active'    => $user_critical_load >= $saturation_threshold,
+				'level'     => $user_critical_load >= $saturation_threshold ? 'warning' : 'normal',
 				'message'   => __( 'User operational saturation by critical workload.', 'super-mechanic' ),
 				'value'     => $user_critical_load,
-				'threshold' => 3,
+				'threshold' => $saturation_threshold,
 			),
 			array(
 				'code'      => 'global_critical_escalation',
-				'active'    => $alerts_critical >= 2,
-				'level'     => $alerts_critical >= 2 ? 'critical' : 'normal',
+				'active'    => $alerts_critical >= $critical_threshold,
+				'level'     => $alerts_critical >= $critical_threshold ? 'critical' : 'normal',
 				'message'   => __( 'Multiple critical business signals require elevated operational state.', 'super-mechanic' ),
 				'value'     => $alerts_critical,
-				'threshold' => 2,
+				'threshold' => $critical_threshold,
 			),
 		);
 
@@ -424,6 +479,15 @@ class Workload_Service {
 		if ( $target_user_id <= 0 ) {
 			$target_user_id = $current_user_id;
 		}
+		if ( ! $this->is_operational_feature_enabled( $target_business_id, 'enable_escalation', true ) ) {
+			$payload['meta'] = array(
+				'business_id'  => $target_business_id,
+				'user_id'      => $target_user_id,
+				'generated_at' => current_time( 'mysql' ),
+				'source'       => 'disabled_by_operational_config',
+			);
+			return $this->set_request_cache( $cache_key, $payload );
+		}
 
 		$automation_flags = $this->get_operational_automation_flags( $target_business_id, $target_user_id );
 		$workload         = $this->get_user_workload(
@@ -437,6 +501,9 @@ class Workload_Service {
 		$summary          = $this->get_global_operational_summary( $target_business_id );
 		$metrics          = $this->get_operational_metrics( $target_business_id );
 		$flags            = isset( $automation_flags['flags'] ) && is_array( $automation_flags['flags'] ) ? $automation_flags['flags'] : array();
+		$overdue_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'overdue_tasks_threshold', 1 ) );
+		$delayed_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'delayed_process_threshold', 1 ) );
+		$saturation_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'user_saturation_threshold', 3 ) );
 		$active_flags     = array_values(
 			array_filter(
 				$flags,
@@ -462,7 +529,7 @@ class Workload_Service {
 			'user_id'         => $target_user_id,
 			'is_saturated'    => false,
 			'critical_load'   => $payload['critical_workload_count'],
-			'threshold'       => 3,
+			'threshold'       => $saturation_threshold,
 			'active_flag'     => '',
 			'suggested_level' => 'normal',
 		);
@@ -487,9 +554,9 @@ class Workload_Service {
 			}
 		}
 
-		if ( $has_critical_flag || $payload['critical_workload_count'] > 0 || ( isset( $summary['tasks_overdue_total'] ) && absint( $summary['tasks_overdue_total'] ) > 0 ) ) {
+		if ( $has_critical_flag || $payload['critical_workload_count'] > 0 || ( isset( $summary['tasks_overdue_total'] ) && absint( $summary['tasks_overdue_total'] ) >= $overdue_threshold ) ) {
 			$payload['global_level'] = 'critical';
-		} elseif ( $has_warning_flag || $payload['warning_workload_count'] > 0 || ( isset( $metrics['processes']['delayed'] ) && absint( $metrics['processes']['delayed'] ) > 0 ) ) {
+		} elseif ( $has_warning_flag || $payload['warning_workload_count'] > 0 || ( isset( $metrics['processes']['delayed'] ) && absint( $metrics['processes']['delayed'] ) >= $delayed_threshold ) ) {
 			$payload['global_level'] = 'warning';
 		}
 
@@ -534,6 +601,15 @@ class Workload_Service {
 		if ( $target_user_id <= 0 ) {
 			$target_user_id = $current_user_id;
 		}
+		if ( ! $this->is_operational_feature_enabled( $target_business_id, 'enable_recommendations', true ) ) {
+			$payload['meta'] = array(
+				'business_id'  => $target_business_id,
+				'user_id'      => $target_user_id,
+				'generated_at' => current_time( 'mysql' ),
+				'source'       => 'disabled_by_operational_config',
+			);
+			return $this->set_request_cache( $cache_key, $payload );
+		}
 
 		$automation      = $this->get_operational_automation_flags( $target_business_id, $target_user_id );
 		$escalation      = $this->get_operational_escalation_state( $target_business_id, $target_user_id );
@@ -548,9 +624,12 @@ class Workload_Service {
 		$global_summary  = $this->get_global_operational_summary( $target_business_id );
 		$metrics         = $this->get_operational_metrics( $target_business_id );
 		$recommendations = array();
+		$overdue_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'overdue_tasks_threshold', 1 ) );
+		$delayed_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'delayed_process_threshold', 1 ) );
+		$critical_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'critical_signal_threshold', 2 ) );
 
 		$tasks_overdue = isset( $global_summary['tasks_overdue_total'] ) ? absint( $global_summary['tasks_overdue_total'] ) : 0;
-		if ( $tasks_overdue > 0 ) {
+		if ( $tasks_overdue >= $overdue_threshold ) {
 			$recommendations[] = array(
 				'key'         => 'resolve_overdue_backlog',
 				'level'       => 'critical',
@@ -565,7 +644,7 @@ class Workload_Service {
 		}
 
 		$processes_delayed = isset( $metrics['processes']['delayed'] ) ? absint( $metrics['processes']['delayed'] ) : 0;
-		if ( $processes_delayed > 0 ) {
+		if ( $processes_delayed >= $delayed_threshold ) {
 			$recommendations[] = array(
 				'key'         => 'review_delayed_processes',
 				'level'       => 'warning',
@@ -596,7 +675,7 @@ class Workload_Service {
 		}
 
 		$critical_flags = isset( $automation['summary']['critical_flags'] ) ? absint( $automation['summary']['critical_flags'] ) : 0;
-		if ( $critical_flags >= 2 || ( isset( $escalation['global_level'] ) && 'critical' === $escalation['global_level'] ) ) {
+		if ( $critical_flags >= $critical_threshold || ( isset( $escalation['global_level'] ) && 'critical' === $escalation['global_level'] ) ) {
 			$recommendations[] = array(
 				'key'         => 'immediate_critical_intervention',
 				'level'       => 'critical',
@@ -679,6 +758,8 @@ class Workload_Service {
 		}
 
 		$global_metrics = $this->get_operational_metrics( $target_business_id );
+		$saturation_threshold = max( 1, $this->get_operational_threshold( $target_business_id, 'user_saturation_threshold', 3 ) );
+		$delayed_threshold    = max( 1, $this->get_operational_threshold( $target_business_id, 'delayed_process_threshold', 1 ) );
 		$overloaded     = array();
 		$available      = array();
 		$task_candidates_by_user = array();
@@ -707,7 +788,7 @@ class Workload_Service {
 				'total'         => $total,
 			);
 			$task_candidates_by_user[ $user_id ] = $this->extract_reassignable_task_ids_from_workload( $workload );
-			$is_saturated = ! empty( $escalation['user_saturation']['is_saturated'] ) || $critical >= 3 || $total >= 10;
+			$is_saturated = ! empty( $escalation['user_saturation']['is_saturated'] ) || $critical >= $saturation_threshold || $total >= 10;
 
 			if ( $is_saturated ) {
 				$overloaded[] = $row;
@@ -758,7 +839,7 @@ class Workload_Service {
 				$entity_id = absint( array_shift( $task_candidates_by_user[ $source_user_id ] ) );
 			}
 
-			if ( isset( $global_metrics['processes']['delayed'] ) && absint( $global_metrics['processes']['delayed'] ) > 0 && 'warning' === $level ) {
+			if ( isset( $global_metrics['processes']['delayed'] ) && absint( $global_metrics['processes']['delayed'] ) >= $delayed_threshold && 'warning' === $level ) {
 				$level = 'critical';
 			}
 

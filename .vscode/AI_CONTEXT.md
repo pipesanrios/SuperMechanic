@@ -60,9 +60,9 @@ This mirrors the bootstrap order and must be respected:
 
 - Plugin version: `0.1.0`
 - Schema version: `1.19.0`
-- Current confirmed baseline: **Fase 43 COMPLETA**
-- System state: **stable operational + multi-level automation execution**
-- Next continuity: **post-43 continuity planning**
+- Current confirmed baseline: **Fase 48D implementada (técnica), cierre runtime pendiente**
+- System state: **stable operational + multi-level automation execution + profiling-driven dashboard UX + per-user lightweight dashboard preferences**
+- Next continuity: **runtime validation and closure of 48D, then 48E continuity**
 
 ⚠️ Important:
 Before starting any task, confirm continuity in:
@@ -80,6 +80,8 @@ Operational status reminder:
   - controlled rollback
 - no cron-based uncontrolled execution
 - no execution should bypass capability/nonce/business validation
+- dashboard supports lightweight per-user UI persistence for secondary sections without changing operational logic
+- roles/access administration page available for authorized admins (`super-mechanic-roles`) with safe operational role assignment and inconsistency visibility
 
 ---
 
@@ -180,6 +182,17 @@ QA Runner does not replace manual validation.
 - Do not duplicate information
 - Do not mix history with current state
 - Follow `DOCUMENTATION_RULES.md`
+
+---
+
+## Demo Dataset Recovery Context
+
+- Canonical seed script: `scripts/seed-full-demo-multibusiness.php`
+- Canonical recovery guide:
+  - `docs/tasks/2026-04-demo-dataset-recovery-guide.md`
+- Superadmin reference identity:
+  - `admin@mardisom.com` (administrator + `sm_manage_plugin`)
+- Roles & Access lists WP users only (not all CRM clients)
 
 ---
 

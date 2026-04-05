@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Automation;
 
+use Super_Mechanic\Config\Operational_Config_Service;
 use Super_Mechanic\Dashboard\Workload_Service;
 
 defined( 'ABSPATH' ) || exit;
@@ -33,6 +34,12 @@ class Operational_Rules_Service {
 	 * @var Execution_Log_Service
 	 */
 	protected $execution_log_service;
+	/**
+	 * Operational config service dependency (read-only).
+	 *
+	 * @var Operational_Config_Service
+	 */
+	protected $operational_config_service;
 
 	/**
 	 * Request-level memoization cache.
@@ -46,10 +53,11 @@ class Operational_Rules_Service {
 	 *
 	 * @param Workload_Service|null $workload_service Workload service.
 	 */
-	public function __construct( Workload_Service $workload_service = null, Operational_Rules_Repository $repository = null, Execution_Log_Service $execution_log_service = null ) {
+	public function __construct( Workload_Service $workload_service = null, Operational_Rules_Repository $repository = null, Execution_Log_Service $execution_log_service = null, Operational_Config_Service $operational_config_service = null ) {
 		$this->workload_service     = $workload_service ? $workload_service : new Workload_Service();
 		$this->repository           = $repository ? $repository : new Operational_Rules_Repository();
 		$this->execution_log_service = $execution_log_service ? $execution_log_service : new Execution_Log_Service();
+		$this->operational_config_service = $operational_config_service ? $operational_config_service : new Operational_Config_Service();
 	}
 
 	/**
@@ -541,13 +549,18 @@ class Operational_Rules_Service {
 		$bulk_actions = $this->workload_service->get_operational_bulk_actions( $business_id, $user_id );
 		$assignments  = $this->workload_service->get_operational_assignments( $business_id );
 		$summary      = $this->workload_service->get_global_operational_summary( $business_id );
+		$feature_flags = array(
+			'enable_recommendations' => $this->operational_config_service->is_enabled( $business_id, 'enable_recommendations' ),
+			'enable_internal_flags'  => $this->operational_config_service->is_enabled( $business_id, 'enable_internal_flags' ),
+			'enable_escalation'      => $this->operational_config_service->is_enabled( $business_id, 'enable_escalation' ),
+		);
 
 		$overdue_group = $this->find_bulk_group( $bulk_actions, 'overdue_tasks' );
 		$critical_group = $this->find_bulk_group( $bulk_actions, 'critical_pending_tasks' );
 		$overdue_count = isset( $summary['tasks_overdue_total'] ) ? absint( $summary['tasks_overdue_total'] ) : 0;
 		$overloaded_users = isset( $assignments['summary']['overloaded_users'] ) ? absint( $assignments['summary']['overloaded_users'] ) : 0;
-		$critical_flags = isset( $console['flags']['summary']['critical_flags'] ) ? absint( $console['flags']['summary']['critical_flags'] ) : 0;
-		$global_level   = isset( $console['system_status']['global_level'] ) ? sanitize_key( (string) $console['system_status']['global_level'] ) : 'normal';
+		$critical_flags = $feature_flags['enable_internal_flags'] && isset( $console['flags']['summary']['critical_flags'] ) ? absint( $console['flags']['summary']['critical_flags'] ) : 0;
+		$global_level   = $feature_flags['enable_escalation'] && isset( $console['system_status']['global_level'] ) ? sanitize_key( (string) $console['system_status']['global_level'] ) : 'normal';
 
 		$evaluations = array();
 		foreach ( $rules as $rule ) {
@@ -710,6 +723,7 @@ class Operational_Rules_Service {
 				'business_id'  => $business_id,
 				'user_id'      => $user_id,
 				'generated_at' => current_time( 'mysql' ),
+				'feature_flags' => $feature_flags,
 				'mutations'    => 'none',
 			),
 		);

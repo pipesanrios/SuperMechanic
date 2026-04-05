@@ -10,6 +10,7 @@ namespace Super_Mechanic\Dashboard;
 use Super_Mechanic\Automation\Execution_Log_Service;
 use Super_Mechanic\Automation\Operational_Rules_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
+use Super_Mechanic\Users\Admin_Roles_Controller;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -113,6 +114,12 @@ class Admin_Dashboard_Controller {
 	 * @var array<string,string>|null
 	 */
 	protected $rules_notice;
+	/**
+	 * Roles and access admin controller.
+	 *
+	 * @var Admin_Roles_Controller
+	 */
+	protected $roles_controller;
 
 	/**
 	 * Constructor.
@@ -126,10 +133,13 @@ class Admin_Dashboard_Controller {
 		$this->execution_log_service = new Execution_Log_Service();
 		$this->operational_rules_service = new Operational_Rules_Service( $this->workload_service );
 		$this->business_context_service  = new Business_Context_Service();
+		$this->roles_controller          = new Admin_Roles_Controller();
+		$this->roles_controller->register_hooks();
 
 		add_action( 'admin_menu', array( $this, 'register_automation_submenu' ), 98 );
 		add_action( 'admin_menu', array( $this, 'register_logs_submenu' ), 99 );
 		add_action( 'wp_ajax_sm_dashboard_lazy_sections', array( $this, 'ajax_load_dashboard_heavy_sections' ) );
+		add_action( 'wp_ajax_sm_dashboard_save_preferences', array( $this, 'ajax_save_dashboard_preferences' ) );
 	}
 
 	/**
@@ -153,6 +163,10 @@ class Admin_Dashboard_Controller {
 		if ( $selected_workload_user_id <= 0 ) {
 			$selected_workload_user_id = get_current_user_id();
 		}
+		$role_context          = $this->get_operational_dashboard_role_context();
+		$is_admin_view         = ! empty( $role_context['is_admin'] );
+		$is_mechanic_view      = ! empty( $role_context['is_mechanic'] );
+		$ui_preferences        = $this->get_dashboard_ui_preferences( get_current_user_id() );
 		$this->enqueue_dashboard_lazy_assets( $selected_workload_user_id );
 		$business_id = $this->resolve_business_id_for_user( $selected_workload_user_id );
 		$timer    = $this->profile_mark_start();
@@ -226,7 +240,12 @@ class Admin_Dashboard_Controller {
 			$escalation_state
 		);
 
-		echo '<div class="wrap sm-admin-shell">';
+		$dashboard_shell_classes = 'wrap sm-admin-shell';
+		if ( ! empty( $ui_preferences['compact_mode'] ) ) {
+			$dashboard_shell_classes .= ' is-compact-mode';
+		}
+
+		echo '<div class="' . esc_attr( $dashboard_shell_classes ) . '">';
 		echo '<div class="sm-admin-header">';
 		echo '<div class="sm-admin-title">';
 		echo '<h1>' . esc_html__( 'Dashboard', 'super-mechanic' ) . '</h1>';
@@ -238,6 +257,7 @@ class Admin_Dashboard_Controller {
 		echo '</div>';
 
 		echo '<div class="sm-notice-card"><strong>' . esc_html__( 'Live summary', 'super-mechanic' ) . '</strong><p class="sm-card-copy">' . esc_html__( 'Real-time operational metrics with no flow changes.', 'super-mechanic' ) . '</p></div>';
+		$this->render_dashboard_preferences_panel( $ui_preferences );
 		if ( ! $has_operational_data ) {
 			echo '<div class="sm-notice-card">';
 			echo '<strong>' . esc_html__( 'This business has no operational data yet.', 'super-mechanic' ) . '</strong>';
@@ -250,15 +270,20 @@ class Admin_Dashboard_Controller {
 		echo '<div class="sm-page-actions">';
 		echo '<a class="button button-primary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'new' ) ) ) . '">' . esc_html__( 'Create process', 'super-mechanic' ) . '</a>';
 		echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'filter_process_type' => 'maintenance' ) ) ) . '">' . esc_html__( 'Open maintenance', 'super-mechanic' ) . '</a>';
-		echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'new', 'process_type' => 'maintenance' ) ) ) . '">' . esc_html__( 'Create quote', 'super-mechanic' ) . '</a>';
-		echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-financial-invoices' ) ) . '">' . esc_html__( 'Create invoice', 'super-mechanic' ) . '</a>';
-		echo '<a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=super-mechanic-automation' ) ) . '">' . esc_html__( 'Open Automation Center', 'super-mechanic' ) . '</a>';
+		if ( $is_admin_view ) {
+			echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-processes', array( 'action' => 'new', 'process_type' => 'maintenance' ) ) ) . '">' . esc_html__( 'Create quote', 'super-mechanic' ) . '</a>';
+			echo '<a class="button button-secondary" href="' . esc_url( $this->get_admin_page_url( 'super-mechanic-financial-invoices' ) ) . '">' . esc_html__( 'Create invoice', 'super-mechanic' ) . '</a>';
+			echo '<a class="button button-secondary" href="' . esc_url( admin_url( 'admin.php?page=super-mechanic-automation' ) ) . '">' . esc_html__( 'Open Automation Center', 'super-mechanic' ) . '</a>';
+		}
 		echo '</div>';
 		echo '</section>';
-		$timer = $this->profile_mark_start();
-		// 2) KPI header.
-		$this->render_operational_kpi_header( $global_summary );
-		$this->profile_mark_end( 'render.kpi_header', $timer );
+
+		if ( $is_admin_view ) {
+			$timer = $this->profile_mark_start();
+			// 2) KPI header.
+			$this->render_operational_kpi_header( $global_summary );
+			$this->profile_mark_end( 'render.kpi_header', $timer );
+		}
 		$timer = $this->profile_mark_start();
 		// 3) Critical strip.
 		$this->render_operational_critical_strip( $escalation_state );
@@ -275,25 +300,42 @@ class Admin_Dashboard_Controller {
 			$noise_coverage
 		);
 		$this->profile_mark_end( 'render.action_center', $timer );
+		$this->render_preference_managed_block_start( 'recommendations', __( 'Secondary block', 'super-mechanic' ), $ui_preferences );
 		$timer = $this->profile_mark_start();
 		// 5) Smart suggestions (max 3).
 		$this->render_operational_recommendations( $operational_recommendations, 3, $noise_coverage );
 		$this->profile_mark_end( 'render.recommendations', $timer );
+		$this->render_preference_managed_block_end();
 		$timer = $this->profile_mark_start();
 		// 6) My workload.
 		$this->render_workload_section( $workload );
 		$this->profile_mark_end( 'render.workload', $timer );
-		$timer = $this->profile_mark_start();
-		// 7) Automation summary compact.
-		$this->render_automation_summary_compact( $automation_flags );
-		$this->profile_mark_end( 'render.automation_summary', $timer );
-		echo '<section class="sm-card sm-section sm-lazy-shell" id="sm-dashboard-lazy-shell" data-sm-lazy="heavy-sections">';
-		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Secondary operational data', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Deferred by profiling', 'super-mechanic' ) . '</span></div>';
-		echo '<p class="sm-card-copy">' . esc_html__( 'Detailed sections load after core operational blocks to preserve focus and perceived speed.', 'super-mechanic' ) . '</p>';
-		echo '<div id="sm-dashboard-lazy-placeholder" class="sm-lazy-placeholder">' . esc_html__( 'Loading section...', 'super-mechanic' ) . '</div>';
-		echo '<div id="sm-dashboard-lazy-content" class="sm-lazy-content" aria-live="polite"></div>';
-		echo '<noscript><p class="description">' . esc_html__( 'Enable JavaScript to load extended operational sections.', 'super-mechanic' ) . '</p></noscript>';
-		echo '</section>';
+		if ( $is_mechanic_view ) {
+			echo '<div class="sm-notice-card sm-notice-card-inline">';
+			echo '<strong>' . esc_html__( 'Focused mechanic view enabled.', 'super-mechanic' ) . '</strong>';
+			echo '<p class="sm-card-copy">' . esc_html__( 'Detailed business and automation sections are hidden here to keep the dashboard focused on immediate operational work.', 'super-mechanic' ) . '</p>';
+			echo '</div>';
+		}
+
+		if ( $is_admin_view ) {
+			$this->render_preference_managed_block_start( 'automation_summary', __( 'Secondary block', 'super-mechanic' ), $ui_preferences );
+			$timer = $this->profile_mark_start();
+			// 7) Automation summary compact.
+			$this->render_automation_summary_compact( $automation_flags );
+			$this->profile_mark_end( 'render.automation_summary', $timer );
+			$this->render_preference_managed_block_end();
+		}
+		if ( $is_admin_view && ! $is_mechanic_view ) {
+			$this->render_preference_managed_block_start( 'secondary_data', __( 'Secondary block', 'super-mechanic' ), $ui_preferences );
+			echo '<section class="sm-card sm-section sm-lazy-shell" id="sm-dashboard-lazy-shell" data-sm-lazy="heavy-sections">';
+			echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Secondary operational data', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Deferred by profiling', 'super-mechanic' ) . '</span></div>';
+			echo '<p class="sm-card-copy">' . esc_html__( 'Detailed sections load after core operational blocks to preserve focus and perceived speed.', 'super-mechanic' ) . '</p>';
+			echo '<div id="sm-dashboard-lazy-placeholder" class="sm-lazy-placeholder">' . esc_html__( 'Loading section...', 'super-mechanic' ) . '</div>';
+			echo '<div id="sm-dashboard-lazy-content" class="sm-lazy-content" aria-live="polite"></div>';
+			echo '<noscript><p class="description">' . esc_html__( 'Enable JavaScript to load extended operational sections.', 'super-mechanic' ) . '</p></noscript>';
+			echo '</section>';
+			$this->render_preference_managed_block_end();
+		}
 
 		$this->render_profiling_panel();
 		echo '</div>';
@@ -309,6 +351,15 @@ class Admin_Dashboard_Controller {
 			wp_send_json_error(
 				array(
 					'message' => __( 'You are not allowed to load this dashboard section.', 'super-mechanic' ),
+				),
+				403
+			);
+		}
+		$role_context = $this->get_operational_dashboard_role_context();
+		if ( empty( $role_context['is_admin'] ) || ! empty( $role_context['is_mechanic'] ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'This dashboard section is only available for administrative operational views.', 'super-mechanic' ),
 				),
 				403
 			);
@@ -337,6 +388,55 @@ class Admin_Dashboard_Controller {
 			array(
 				'html'    => $html,
 				'profile' => $this->get_profile_export_payload(),
+			)
+		);
+	}
+
+	/**
+	 * Persist lightweight dashboard UI preferences for current user.
+	 *
+	 * @return void
+	 */
+	public function ajax_save_dashboard_preferences() {
+		if ( ! current_user_can( 'sm_manage_plugin' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'You are not allowed to update dashboard preferences.', 'super-mechanic' ),
+				),
+				403
+			);
+		}
+
+		$nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['nonce'] ) ) : '';
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'sm_dashboard_ui_preferences' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Security validation failed while saving preferences.', 'super-mechanic' ),
+				),
+				403
+			);
+		}
+
+		$raw_collapsed = isset( $_POST['collapsed_blocks'] ) ? wp_unslash( $_POST['collapsed_blocks'] ) : '[]';
+		$raw_hidden    = isset( $_POST['hidden_secondary_blocks'] ) ? wp_unslash( $_POST['hidden_secondary_blocks'] ) : '[]';
+		$raw_compact   = isset( $_POST['compact_mode'] ) ? wp_unslash( $_POST['compact_mode'] ) : '0';
+
+		$decoded_collapsed = json_decode( is_string( $raw_collapsed ) ? $raw_collapsed : '[]', true );
+		$decoded_hidden    = json_decode( is_string( $raw_hidden ) ? $raw_hidden : '[]', true );
+
+		$preferences = $this->sanitize_dashboard_ui_preferences(
+			array(
+				'collapsed_blocks'        => is_array( $decoded_collapsed ) ? $decoded_collapsed : array(),
+				'hidden_secondary_blocks' => is_array( $decoded_hidden ) ? $decoded_hidden : array(),
+				'compact_mode'            => absint( $raw_compact ),
+			)
+		);
+
+		update_user_meta( get_current_user_id(), 'sm_dashboard_ui_preferences', $preferences );
+
+		wp_send_json_success(
+			array(
+				'preferences' => $preferences,
 			)
 		);
 	}
@@ -869,7 +969,7 @@ class Admin_Dashboard_Controller {
 	protected function render_simple_summary_table( $rows, $label_header, $filter_key = '' ) {
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html( $label_header ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $rows ) ) {
-			echo '<tr><td colspan="2">' . esc_html__( 'No data.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="2">' . esc_html__( 'No data available for this section yet.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $rows as $row ) {
 				$label_markup = wp_kses_post( $this->render_status_badge( $row['label'] ) );
@@ -1574,7 +1674,7 @@ class Admin_Dashboard_Controller {
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Prioridad crítica', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Type', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $critical_actions ) && empty( $critical_flags ) ) {
-			echo '<tr><td colspan="4">' . esc_html__( 'No critical operational actions right now.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="4">' . esc_html__( 'No critical operational actions right now. This section activates when critical signals or critical assisted actions are detected.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $critical_actions as $action ) {
 				$label = isset( $action['label'] ) ? sanitize_text_field( (string) $action['label'] ) : __( 'Critical action', 'super-mechanic' );
@@ -1586,7 +1686,7 @@ class Admin_Dashboard_Controller {
 				if ( '' !== $url ) {
 					echo '<td><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Open', 'super-mechanic' ) . '</a></td>';
 				} else {
-					echo '<td>' . esc_html__( 'No direct action available', 'super-mechanic' ) . '</td>';
+					echo '<td>' . esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' ) . '</td>';
 				}
 				echo '</tr>';
 			}
@@ -1607,7 +1707,7 @@ class Admin_Dashboard_Controller {
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Reasignación', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'From', 'super-mechanic' ) . '</th><th>' . esc_html__( 'To', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $render_assignments ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No executable reassignment proposals.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'No executable reassignment proposals. Proposals appear when overloaded and available users have a valid reassignable task candidate.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $render_assignments as $proposal ) {
 				$from_name = isset( $proposal['from_name'] ) ? sanitize_text_field( (string) $proposal['from_name'] ) : '';
@@ -1642,7 +1742,7 @@ class Admin_Dashboard_Controller {
 		echo '<div class="sm-section-heading"><h3>' . esc_html__( 'Acciones masivas', 'super-mechanic' ) . '</h3></div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr><th>' . esc_html__( 'Group', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Entity', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Count', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Level', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Execute', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $render_groups ) ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'No executable bulk groups.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'No executable bulk groups. Bulk actions appear when a safe grouped candidate set is available.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $render_groups as $group ) {
 				$group_key      = isset( $group['group_key'] ) ? sanitize_key( (string) $group['group_key'] ) : 'group';
@@ -2166,19 +2266,19 @@ class Admin_Dashboard_Controller {
 						echo '<button type="submit" class="button button-secondary">' . esc_html( $button_label ) . '</button>';
 						echo '</form>';
 					} else {
-						echo esc_html__( 'No direct action available', 'super-mechanic' );
+						echo esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' );
 					}
 				} elseif ( $triggered && $executable && 'open_center' === $action_type ) {
 					$url = isset( $exec_payload['url'] ) ? esc_url_raw( (string) $exec_payload['url'] ) : '';
 					if ( '' !== $url ) {
 						echo '<a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Open center', 'super-mechanic' ) . '</a>';
 					} else {
-						echo esc_html__( 'No direct action available', 'super-mechanic' );
+						echo esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' );
 					}
 				} elseif ( ! $triggered ) {
 					echo esc_html__( 'Rule not triggered', 'super-mechanic' );
 				} else {
-					echo esc_html__( 'No direct action available', 'super-mechanic' );
+					echo esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' );
 				}
 				echo '</td>';
 				echo '</tr>';
@@ -2265,19 +2365,19 @@ class Admin_Dashboard_Controller {
 						echo '<button type="submit" class="button button-primary">' . esc_html__( 'Confirm and Run', 'super-mechanic' ) . '</button>';
 						echo '</form>';
 					} else {
-						echo esc_html__( 'No direct action available', 'super-mechanic' );
+						echo esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' );
 					}
 				} elseif ( $triggered && $executable && 'open_center' === $action_type ) {
 					$url = isset( $exec_payload['url'] ) ? esc_url_raw( (string) $exec_payload['url'] ) : '';
 					if ( '' !== $url ) {
 						echo '<a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Open center', 'super-mechanic' ) . '</a>';
 					} else {
-						echo esc_html__( 'No direct action available', 'super-mechanic' );
+						echo esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' );
 					}
 				} elseif ( ! $triggered ) {
 					echo esc_html__( 'Rule not triggered', 'super-mechanic' );
 				} else {
-					echo esc_html__( 'No direct action available', 'super-mechanic' );
+					echo esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' );
 				}
 				echo '</td>';
 				echo '</tr>';
@@ -2660,7 +2760,7 @@ class Admin_Dashboard_Controller {
 				if ( '' !== $url ) {
 					echo '<td><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Open', 'super-mechanic' ) . '</a></td>';
 				} else {
-					echo '<td>' . esc_html__( 'No direct action available', 'super-mechanic' ) . '</td>';
+					echo '<td>' . esc_html__( 'No direct action available yet. Review the related recommendation context.', 'super-mechanic' ) . '</td>';
 				}
 				echo '</tr>';
 			}
@@ -2951,7 +3051,7 @@ class Admin_Dashboard_Controller {
 		echo '<th>' . esc_html__( 'Context', 'super-mechanic' ) . '</th>';
 		echo '</tr></thead><tbody>';
 		if ( empty( $items ) ) {
-			echo '<tr><td colspan="10">' . esc_html__( 'No log rows found for current filters.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="10">' . esc_html__( 'No log rows found for current filters. Try widening date or result filters.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $items as $item ) {
 				$date           = isset( $item['date'] ) ? sanitize_text_field( (string) $item['date'] ) : '';
@@ -3091,6 +3191,23 @@ class Admin_Dashboard_Controller {
 	}
 
 	/**
+	 * Resolve role-based dashboard view context.
+	 *
+	 * @return array<string,bool>
+	 */
+	protected function get_operational_dashboard_role_context() {
+		$user             = wp_get_current_user();
+		$roles            = $user instanceof \WP_User ? array_map( 'sanitize_key', (array) $user->roles ) : array();
+		$is_admin_role    = in_array( 'administrator', $roles, true ) || in_array( 'sm_admin', $roles, true ) || current_user_can( 'manage_options' );
+		$is_mechanic_role = in_array( 'sm_mechanic', $roles, true ) && ! $is_admin_role;
+
+		return array(
+			'is_admin'    => $is_admin_role,
+			'is_mechanic' => $is_mechanic_role,
+		);
+	}
+
+	/**
 	 * Resolve current business context for one user without loading workload payload.
 	 *
 	 * @param int $user_id User ID.
@@ -3109,6 +3226,195 @@ class Admin_Dashboard_Controller {
 		}
 
 		return $business_id;
+	}
+
+	/**
+	 * Get allowed secondary dashboard blocks for lightweight user preferences.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function get_dashboard_secondary_blocks_map() {
+		return array(
+			'recommendations'   => __( 'Smart suggestions', 'super-mechanic' ),
+			'automation_summary' => __( 'Automation summary', 'super-mechanic' ),
+			'secondary_data'    => __( 'Secondary operational data', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	 * Default dashboard UI preferences.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function get_dashboard_ui_preferences_defaults() {
+		return array(
+			'collapsed_blocks'        => array(),
+			'hidden_secondary_blocks' => array(),
+			'compact_mode'            => 0,
+		);
+	}
+
+	/**
+	 * Sanitize dashboard preferences payload against allowed secondary blocks.
+	 *
+	 * @param array<string,mixed> $preferences Raw preference payload.
+	 * @return array<string,mixed>
+	 */
+	protected function sanitize_dashboard_ui_preferences( array $preferences ) {
+		$defaults     = $this->get_dashboard_ui_preferences_defaults();
+		$preferences  = wp_parse_args( $preferences, $defaults );
+		$allowed_ids  = array_keys( $this->get_dashboard_secondary_blocks_map() );
+		$allowed_keys = array_flip( $allowed_ids );
+
+		$collapsed = array();
+		if ( isset( $preferences['collapsed_blocks'] ) && is_array( $preferences['collapsed_blocks'] ) ) {
+			foreach ( $preferences['collapsed_blocks'] as $block_id ) {
+				$normalized = sanitize_key( (string) $block_id );
+				if ( isset( $allowed_keys[ $normalized ] ) ) {
+					$collapsed[ $normalized ] = true;
+				}
+			}
+		}
+
+		$hidden = array();
+		if ( isset( $preferences['hidden_secondary_blocks'] ) && is_array( $preferences['hidden_secondary_blocks'] ) ) {
+			foreach ( $preferences['hidden_secondary_blocks'] as $block_id ) {
+				$normalized = sanitize_key( (string) $block_id );
+				if ( isset( $allowed_keys[ $normalized ] ) ) {
+					$hidden[ $normalized ] = true;
+					unset( $collapsed[ $normalized ] );
+				}
+			}
+		}
+
+		return array(
+			'collapsed_blocks'        => array_values( array_keys( $collapsed ) ),
+			'hidden_secondary_blocks' => array_values( array_keys( $hidden ) ),
+			'compact_mode'            => empty( $preferences['compact_mode'] ) ? 0 : 1,
+		);
+	}
+
+	/**
+	 * Resolve dashboard preferences for one user.
+	 *
+	 * @param int $user_id User ID.
+	 * @return array<string,mixed>
+	 */
+	protected function get_dashboard_ui_preferences( $user_id ) {
+		$user_id = absint( $user_id );
+		if ( $user_id <= 0 ) {
+			$user_id = get_current_user_id();
+		}
+
+		$stored = get_user_meta( $user_id, 'sm_dashboard_ui_preferences', true );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+
+		return $this->sanitize_dashboard_ui_preferences( $stored );
+	}
+
+	/**
+	 * Check if one preference-managed dashboard block is hidden.
+	 *
+	 * @param string             $block_id Block identifier.
+	 * @param array<string,mixed> $preferences Dashboard preferences.
+	 * @return bool
+	 */
+	protected function is_dashboard_block_hidden( $block_id, array $preferences ) {
+		$block_id = sanitize_key( (string) $block_id );
+		$hidden   = isset( $preferences['hidden_secondary_blocks'] ) && is_array( $preferences['hidden_secondary_blocks'] )
+			? $preferences['hidden_secondary_blocks']
+			: array();
+
+		return in_array( $block_id, $hidden, true );
+	}
+
+	/**
+	 * Check if one preference-managed dashboard block is collapsed.
+	 *
+	 * @param string             $block_id Block identifier.
+	 * @param array<string,mixed> $preferences Dashboard preferences.
+	 * @return bool
+	 */
+	protected function is_dashboard_block_collapsed( $block_id, array $preferences ) {
+		$block_id   = sanitize_key( (string) $block_id );
+		$collapsed  = isset( $preferences['collapsed_blocks'] ) && is_array( $preferences['collapsed_blocks'] )
+			? $preferences['collapsed_blocks']
+			: array();
+
+		return in_array( $block_id, $collapsed, true );
+	}
+
+	/**
+	 * Render lightweight dashboard preferences panel.
+	 *
+	 * @param array<string,mixed> $preferences Dashboard preferences.
+	 * @return void
+	 */
+	protected function render_dashboard_preferences_panel( array $preferences ) {
+		$secondary_blocks = $this->get_dashboard_secondary_blocks_map();
+		echo '<section class="sm-card sm-section sm-dashboard-preferences" id="sm-dashboard-preferences">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Dashboard view preferences', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'Per user', 'super-mechanic' ) . '</span></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Collapse or hide only secondary sections. Critical operational blocks always remain visible.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-pref-visibility-grid">';
+		foreach ( $secondary_blocks as $block_id => $label ) {
+			$checked = ! $this->is_dashboard_block_hidden( $block_id, $preferences );
+			echo '<label class="sm-pref-toggle-row">';
+			echo '<input type="checkbox" class="sm-pref-visibility-toggle" data-sm-pref-visibility="1" data-sm-pref-block-id="' . esc_attr( $block_id ) . '" ' . checked( $checked, true, false ) . ' />';
+			echo '<span>' . esc_html( $label ) . '</span>';
+			echo '</label>';
+		}
+		echo '</div>';
+		echo '<div class="sm-pref-controls-row">';
+		echo '<label class="sm-pref-toggle-row">';
+		echo '<input type="checkbox" id="sm-pref-compact-mode" data-sm-pref-compact="1" ' . checked( ! empty( $preferences['compact_mode'] ), true, false ) . ' />';
+		echo '<span>' . esc_html__( 'Compact mode', 'super-mechanic' ) . '</span>';
+		echo '</label>';
+		echo '<button type="button" class="button button-secondary sm-pref-reset-layout">' . esc_html__( 'Reset layout', 'super-mechanic' ) . '</button>';
+		echo '</div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render start wrapper for one preference-managed dashboard block.
+	 *
+	 * @param string              $block_id Block identifier.
+	 * @param string              $badge_label Badge label.
+	 * @param array<string,mixed> $preferences Dashboard preferences.
+	 * @return void
+	 */
+	protected function render_preference_managed_block_start( $block_id, $badge_label, array $preferences ) {
+		$block_id   = sanitize_key( (string) $block_id );
+		$collapsed  = $this->is_dashboard_block_collapsed( $block_id, $preferences );
+		$is_hidden  = $this->is_dashboard_block_hidden( $block_id, $preferences );
+		$block_name = isset( $this->get_dashboard_secondary_blocks_map()[ $block_id ] ) ? $this->get_dashboard_secondary_blocks_map()[ $block_id ] : __( 'Secondary block', 'super-mechanic' );
+		$classes    = array( 'sm-pref-block' );
+
+		if ( $collapsed ) {
+			$classes[] = 'is-collapsed';
+		}
+
+		echo '<div class="' . esc_attr( implode( ' ', $classes ) ) . '" data-sm-pref-block-id="' . esc_attr( $block_id ) . '" data-sm-pref-secondary="1"' . ( $is_hidden ? ' hidden="hidden"' : '' ) . '>';
+		echo '<div class="sm-pref-block-toolbar">';
+		echo '<span class="sm-badge sm-badge-neutral">' . esc_html( $badge_label ) . '</span>';
+		echo '<span class="sm-pref-block-title">' . esc_html( $block_name ) . '</span>';
+		echo '<div class="sm-pref-block-actions">';
+		echo '<button type="button" class="button button-secondary button-small sm-pref-toggle-collapse" data-sm-pref-action="toggle-collapse" data-sm-pref-block-id="' . esc_attr( $block_id ) . '">' . esc_html( $collapsed ? __( 'Expand block', 'super-mechanic' ) : __( 'Collapse block', 'super-mechanic' ) ) . '</button>';
+		echo '<button type="button" class="button button-secondary button-small sm-pref-toggle-visibility" data-sm-pref-action="hide-block" data-sm-pref-block-id="' . esc_attr( $block_id ) . '">' . esc_html__( 'Hide block', 'super-mechanic' ) . '</button>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-pref-block-body">';
+	}
+
+	/**
+	 * Close one preference-managed dashboard block wrapper.
+	 *
+	 * @return void
+	 */
+	protected function render_preference_managed_block_end() {
+		echo '</div>';
+		echo '</div>';
 	}
 
 	/**
@@ -3134,13 +3440,23 @@ class Admin_Dashboard_Controller {
 			$handle,
 			'smDashboardLazy',
 			array(
-				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
-				'nonce'           => wp_create_nonce( 'sm_dashboard_lazy_sections' ),
-				'action'          => 'sm_dashboard_lazy_sections',
-				'profile'         => $this->is_profile_request_enabled() ? 1 : 0,
-				'workloadUserId'  => absint( $selected_workload_user_id ),
-				'loadingText'     => __( 'Loading section...', 'super-mechanic' ),
-				'errorText'       => __( 'Could not load this section right now.', 'super-mechanic' ),
+				'ajaxUrl'               => admin_url( 'admin-ajax.php' ),
+				'nonce'                 => wp_create_nonce( 'sm_dashboard_lazy_sections' ),
+				'action'                => 'sm_dashboard_lazy_sections',
+				'profile'               => $this->is_profile_request_enabled() ? 1 : 0,
+				'workloadUserId'        => absint( $selected_workload_user_id ),
+				'loadingText'           => __( 'Loading section...', 'super-mechanic' ),
+				'errorText'             => __( 'This section could not be loaded right now. You can retry from the message below.', 'super-mechanic' ),
+				'preferencesAction'     => 'sm_dashboard_save_preferences',
+				'preferencesNonce'      => wp_create_nonce( 'sm_dashboard_ui_preferences' ),
+				'preferences'           => $this->get_dashboard_ui_preferences( get_current_user_id() ),
+				'secondaryBlocks'       => $this->get_dashboard_secondary_blocks_map(),
+				'preferenceSaveError'   => __( 'Could not save dashboard preferences right now.', 'super-mechanic' ),
+				'collapseLabel'         => __( 'Collapse block', 'super-mechanic' ),
+				'expandLabel'           => __( 'Expand block', 'super-mechanic' ),
+				'hideLabel'             => __( 'Hide block', 'super-mechanic' ),
+				'showLabel'             => __( 'Show block', 'super-mechanic' ),
+				'resetPreferencesLabel' => __( 'Reset layout', 'super-mechanic' ),
 			)
 		);
 	}
