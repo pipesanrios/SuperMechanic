@@ -15,6 +15,7 @@ Use:
 
 - Current delivery baseline: **Fase 49**
 - Fase 49 status: **COMPLETA**
+- Fase 50 status: **PARCIAL**
 
 ---
 
@@ -153,7 +154,20 @@ Completed scope:
 
 ---
 
-## Next Continuity — Phase 50
+## Phase 50 — Notifications / Triggers / Integrations (IN PROGRESS)
+
+Current closure state:
+- 50A: PARTIAL
+- 50B: PARTIAL
+- 50C: PARTIAL
+- 50D: PARTIAL
+- 50E: PARTIAL
+- 50F: PARTIAL
+
+Blocking condition for COMPLETE:
+- consolidated runtime/manual closure is still pending (explicitly 50E and 50F, plus remaining subphase runtime confirmations).
+
+## Next Continuity — Phase 50 Closure
 
 Target:
 - notifications/triggers/integrations over finalized multi-business access model

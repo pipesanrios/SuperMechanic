@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Users;
 
 use Super_Mechanic\Businesses\Business_Repository;
+use Super_Mechanic\Notifications\Notification_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -219,6 +220,8 @@ class Business_Membership_Service {
 			$this->repository->update_membership_role( $membership_id, $role );
 			$this->repository->update_membership_status( $membership_id, 'active' );
 
+			$this->dispatch_membership_notification( 'membership_updated', $user_id, $business_id, $role, 'active' );
+
 			return array(
 				'success'       => true,
 				'membership_id' => $membership_id,
@@ -238,6 +241,9 @@ class Business_Membership_Service {
 		if ( $is_primary ) {
 			$this->repository->set_primary_membership( (int) $created_id );
 		}
+
+		$this->dispatch_membership_notification( 'membership_created', $user_id, $business_id, $role, 'active' );
+		$this->dispatch_membership_notification( 'user_assigned_to_business', $user_id, $business_id, $role, 'active' );
 
 		return array(
 			'success'       => true,
@@ -468,6 +474,8 @@ class Business_Membership_Service {
 			$this->repository->deactivate_active_memberships_by_user( $user_id, $target_membership_id );
 			$this->repository->set_primary_membership( $target_membership_id );
 
+			$this->dispatch_membership_notification( 'user_transferred', $user_id, $target_business_id, $role, 'active', array( 'mode' => 'replace' ) );
+
 			return array(
 				'success'       => true,
 				'membership_id' => $target_membership_id,
@@ -476,11 +484,51 @@ class Business_Membership_Service {
 			);
 		}
 
+		$this->dispatch_membership_notification( 'user_transferred', $user_id, $target_business_id, $role, 'active', array( 'mode' => 'add' ) );
+
 		return array(
 			'success'       => true,
 			'membership_id' => $target_membership_id,
 			'mode'          => 'add',
 			'message'       => __( 'User transferred in add mode.', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	/**
+	 * Dispatch membership notification in non-blocking mode.
+	 *
+	 * @param string              $type Notification type.
+	 * @param int                 $user_id User ID.
+	 * @param int                 $business_id Business ID.
+	 * @param string              $role Role.
+	 * @param string              $status Status.
+	 * @param array<string,mixed> $extra Extra payload.
+	 * @return void
+	 */
+	protected function dispatch_membership_notification( $type, $user_id, $business_id, $role, $status, array $extra = array() ) {
+		$type        = sanitize_key( (string) $type );
+		$user_id     = absint( $user_id );
+		$business_id = absint( $business_id );
+		$role        = sanitize_key( (string) $role );
+		$status      = sanitize_key( (string) $status );
+
+		if ( '' === $type || $user_id <= 0 ) {
+			return;
+		}
+
+		$service = new Notification_Service();
+		$service->send_notification(
+			$type,
+			$user_id,
+			array_merge(
+				array(
+					'business_id' => $business_id,
+					'role'        => $role,
+					'status'      => $status,
+				),
+				$extra
+			)
 		);
 	}
 
@@ -816,3 +864,19 @@ class Business_Membership_Service {
 		return false;
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

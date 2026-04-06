@@ -14,6 +14,7 @@ use Super_Mechanic\Config\Operational_Config_Service;
 use Super_Mechanic\CRM\Crm_Pipeline_Service;
 use Super_Mechanic\CRM\Crm_Task_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
+use Super_Mechanic\Notifications\Notification_Service;
 use Super_Mechanic\Processes\Process_Service;
 
 defined( 'ABSPATH' ) || exit;
@@ -444,6 +445,8 @@ class Workload_Service {
 
 		$payload['summary']['active_flags'] = $payload['summary']['critical_flags'] + $payload['summary']['warning_flags'] + $payload['summary']['normal_flags'];
 		$payload['summary']['global_state'] = $payload['summary']['critical_flags'] > 0 ? 'elevated' : ( $payload['summary']['warning_flags'] > 0 ? 'attention' : 'stable' );
+
+		$this->dispatch_operational_notifications( $target_business_id, $target_user_id, $flags );
 
 		return $this->set_request_cache( $cache_key, $payload );
 	}
@@ -3192,6 +3195,80 @@ class Workload_Service {
 	}
 
 	/**
+	 * Dispatch operational notifications from active automation flags.
+	 *
+	 * @param int                        $business_id Business ID.
+	 * @param int                        $user_id Target user ID.
+	 * @param array<int,array<string,mixed>> $flags Automation flags.
+	 * @return void
+	 */
+	protected function dispatch_operational_notifications( $business_id, $user_id, array $flags ) {
+		$business_id = absint( $business_id );
+		$user_id     = absint( $user_id );
+		if ( $business_id <= 0 || $user_id <= 0 || empty( $flags ) ) {
+			return;
+		}
+
+		$notification_service = new Notification_Service();
+
+		foreach ( $flags as $flag ) {
+			if ( ! is_array( $flag ) || empty( $flag['active'] ) ) {
+				continue;
+			}
+
+			$notification_type = $this->map_operational_flag_to_notification_type( isset( $flag['code'] ) ? (string) $flag['code'] : '' );
+			if ( '' === $notification_type ) {
+				continue;
+			}
+
+			$value     = isset( $flag['value'] ) ? absint( $flag['value'] ) : 0;
+			$threshold = isset( $flag['threshold'] ) ? absint( $flag['threshold'] ) : 0;
+			$dedupe_key = sanitize_key(
+				sprintf(
+					'%s_b%s_u%s_v%s_t%s',
+					$notification_type,
+					$business_id,
+					$user_id,
+					$value,
+					$threshold
+				)
+			);
+
+			$notification_service->send_notification(
+				$notification_type,
+				$user_id,
+				array(
+					'business_id' => $business_id,
+					'value'       => $value,
+					'threshold'   => $threshold,
+					'flag_code'   => isset( $flag['code'] ) ? sanitize_key( (string) $flag['code'] ) : '',
+					'level'       => isset( $flag['level'] ) ? sanitize_key( (string) $flag['level'] ) : 'normal',
+					'dedupe_key'  => $dedupe_key,
+					'dedupe_ttl'  => 90,
+				)
+			);
+		}
+	}
+
+	/**
+	 * Map operational flag code to notification type.
+	 *
+	 * @param string $flag_code Flag code.
+	 * @return string
+	 */
+	protected function map_operational_flag_to_notification_type( $flag_code ) {
+		$flag_code = sanitize_key( (string) $flag_code );
+		if ( 'overdue_open_tasks' === $flag_code ) {
+			return 'overdue_alert_detected';
+		}
+
+		if ( 'global_critical_escalation' === $flag_code ) {
+			return 'critical_signal_detected';
+		}
+
+		return '';
+	}
+	/**
 	 * Empty internal automation flags payload.
 	 *
 	 * @return array<string,mixed>
@@ -4105,3 +4182,4 @@ class Workload_Service {
 		);
 	}
 }
+

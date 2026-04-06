@@ -118,6 +118,25 @@ No phase timeline and no schema details.
     - DB-backed rule configuration consumed by service layer
   - Status:
     - ACTIVE
+- automation engine base (Phase 50):
+  - `includes/automation/class-automation-engine-service.php`
+  - role: centralized event -> action resolution/dispatch
+  - status: ACTIVE (phase closure pending)
+
+## Notification / Webhook Modules
+- notifications:
+  - `includes/notifications/class-notification-service.php`
+  - `includes/notifications/class-notification-template-service.php`
+  - `includes/notifications/class-email-delivery-service.php`
+  - `includes/notifications/class-notification-storage-service.php`
+  - admin UI: `includes/admin/class-notifications-admin-controller.php`
+  - status: ACTIVE (phase closure pending)
+- webhooks:
+  - `includes/webhooks/class-webhook-installer.php`
+  - `includes/webhooks/class-webhook-repository.php`
+  - `includes/webhooks/class-webhook-service.php`
+  - admin UI: `includes/admin/class-webhooks-admin-controller.php`
+  - status: ACTIVE (phase closure pending)
 
 ## Multi-Business Access Layer
 - Description:

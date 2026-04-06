@@ -9,6 +9,8 @@ namespace Super_Mechanic;
 
 use Super_Mechanic\Automation\Automation_Rule_Engine;
 use Super_Mechanic\Automation\Automation_Service;
+use Super_Mechanic\Admin\Notifications_Admin_Controller;
+use Super_Mechanic\Admin\Webhooks_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Service;
@@ -162,6 +164,8 @@ class Plugin {
 	protected $appointment_reminder_scheduler;
 	protected $automation_rule_engine;
 	protected $automation_service;
+	protected $notifications_admin_controller;
+	protected $webhooks_admin_controller;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -251,6 +255,8 @@ class Plugin {
 		$this->client_quote_shortcodes       = new Client_Quote_Shortcodes( $this->quote_service, $this->dashboard_service, $this->download_service );
 		$this->client_invoice_shortcodes     = new Client_Invoice_Shortcodes( $this->invoice_service, $this->dashboard_service, $this->download_service );
 		$this->client_comment_shortcodes     = new Client_Comment_Shortcodes( $this->comment_service, $this->notification_service, $this->dashboard_service, $this->client_dashboard_controller );
+		$this->notifications_admin_controller = new Notifications_Admin_Controller();
+		$this->webhooks_admin_controller      = new Webhooks_Admin_Controller();
 		$this->admin_menu                    = new Admin_Menu(
 			$this->settings,
 			$this->client_admin_controller,
@@ -307,6 +313,8 @@ class Plugin {
 			$this->mechanic_dashboard_controller->register_hooks();
 			$this->business_admin_controller->register_hooks();
 			$this->business_user_assignment_controller->register_hooks();
+			$this->notifications_admin_controller->register_hooks();
+			$this->webhooks_admin_controller->register_hooks();
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();
@@ -331,3 +339,5 @@ class Plugin {
 		}
 	}
 }
+
+

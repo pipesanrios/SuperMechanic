@@ -93,6 +93,24 @@ Source references:
     - membership service -> role access scope resolution
     - role access scope -> dashboard/admin access surfaces
     - roles UI -> secure membership mutations (nonce/capability)
+- Notifications and integrations (Phase 50 active, closure partial):
+  - email notifications base:
+    - `includes/notifications/class-notification-service.php`
+    - `includes/notifications/class-notification-template-service.php`
+    - `includes/notifications/class-email-delivery-service.php`
+  - notification center persistence:
+    - `includes/notifications/class-notification-storage-service.php`
+    - `includes/admin/class-notifications-admin-controller.php`
+  - webhook outbound layer:
+    - `includes/webhooks/class-webhook-service.php`
+    - `includes/webhooks/class-webhook-repository.php`
+    - `includes/admin/class-webhooks-admin-controller.php`
+  - automation event engine base:
+    - `includes/automation/class-automation-engine-service.php`
+  - relation flow:
+    - operational/membership events -> notification service
+    - notification service -> storage + email + webhook dispatch
+    - automation engine resolves action dispatch without controller coupling
 
 ## UI Entry Points
 - Admin menus under `Super Mechanic`

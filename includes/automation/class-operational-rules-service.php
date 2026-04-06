@@ -40,6 +40,12 @@ class Operational_Rules_Service {
 	 * @var Operational_Config_Service
 	 */
 	protected $operational_config_service;
+	/**
+	 * Automation engine service dependency.
+	 *
+	 * @var Automation_Engine_Service
+	 */
+	protected $automation_engine_service;
 
 	/**
 	 * Request-level memoization cache.
@@ -53,11 +59,12 @@ class Operational_Rules_Service {
 	 *
 	 * @param Workload_Service|null $workload_service Workload service.
 	 */
-	public function __construct( Workload_Service $workload_service = null, Operational_Rules_Repository $repository = null, Execution_Log_Service $execution_log_service = null, Operational_Config_Service $operational_config_service = null ) {
+	public function __construct( Workload_Service $workload_service = null, Operational_Rules_Repository $repository = null, Execution_Log_Service $execution_log_service = null, Operational_Config_Service $operational_config_service = null, Automation_Engine_Service $automation_engine_service = null ) {
 		$this->workload_service     = $workload_service ? $workload_service : new Workload_Service();
 		$this->repository           = $repository ? $repository : new Operational_Rules_Repository();
 		$this->execution_log_service = $execution_log_service ? $execution_log_service : new Execution_Log_Service();
 		$this->operational_config_service = $operational_config_service ? $operational_config_service : new Operational_Config_Service();
+		$this->automation_engine_service = $automation_engine_service ? $automation_engine_service : new Automation_Engine_Service();
 	}
 
 	/**
@@ -713,6 +720,18 @@ class Operational_Rules_Service {
 				'execution_state' => $execution_state,
 				'execution_reason' => $execution_reason,
 				'action_preview' => $preview,
+				'automation_actions' => $this->resolve_rule_automation_actions(
+					$rule_key,
+					$triggered,
+					array(
+						'event_type'      => $this->map_rule_key_to_engine_event( $rule_key ),
+						'user_id'         => $user_id,
+						'business_id'     => $business_id,
+						'rule_key'        => $rule_key,
+						'execution_state' => $execution_state,
+						'impact_level'    => $impact,
+					)
+				),
 			);
 		}
 
@@ -799,6 +818,47 @@ class Operational_Rules_Service {
 		}
 
 		return array();
+	}
+
+	/**
+	 * Resolve automation actions preview for one evaluated rule.
+	 *
+	 * @param string              $rule_key Rule key.
+	 * @param bool                $triggered Trigger state.
+	 * @param array<string,mixed> $payload Context payload.
+	 * @return array<int,array<string,mixed>>
+	 */
+	protected function resolve_rule_automation_actions( $rule_key, $triggered, array $payload = array() ) {
+		if ( ! $triggered ) {
+			return array();
+		}
+
+		$event_type = $this->map_rule_key_to_engine_event( $rule_key );
+		if ( '' === $event_type ) {
+			return array();
+		}
+
+		$payload['event_type'] = $event_type;
+		return $this->automation_engine_service->resolve_automation_actions( $event_type, $payload );
+	}
+
+	/**
+	 * Map rule key to initial automation engine event.
+	 *
+	 * @param string $rule_key Rule key.
+	 * @return string
+	 */
+	protected function map_rule_key_to_engine_event( $rule_key ) {
+		$rule_key = sanitize_key( (string) $rule_key );
+		if ( 'overdue_tasks_cleanup' === $rule_key ) {
+			return 'overdue_alert_detected';
+		}
+
+		if ( 'multi_critical_alert' === $rule_key ) {
+			return 'critical_signal_detected';
+		}
+
+		return '';
 	}
 
 	/**

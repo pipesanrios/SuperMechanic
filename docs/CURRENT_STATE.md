@@ -1,6 +1,6 @@
 # CURRENT_STATE.md
 
-Date: 2026-04-05
+Date: 2026-04-06
 
 ## Purpose
 
@@ -56,16 +56,23 @@ No future speculation beyond immediate continuity.
   - `43E` COMPLETE
   - `47A` COMPLETE
   - `47B` PARTIAL
+  - `47C` PARTIAL
   - `48A` COMPLETE
   - `48B` COMPLETE
   - `48C` COMPLETE
-  - `48D` COMPLETE
-  - `48E` COMPLETE
+  - `48D` PARTIAL
+  - `48E` PARTIAL
   - `49A` COMPLETE
   - `49B` COMPLETE
   - `49C` COMPLETE
   - `49D` COMPLETE
   - `49E` COMPLETE
+  - `50A` PARTIAL
+  - `50B` PARTIAL
+  - `50C` PARTIAL
+  - `50D` PARTIAL
+  - `50E` PARTIAL
+  - `50F` PARTIAL
 
 ---
 
@@ -284,6 +291,24 @@ Validation state:
 
 ---
 
+## Phase Closure Review 47-50 (2026-04-06)
+
+Consolidated closure status:
+- Fase 47: **PARCIAL**
+  - 47A closed
+  - 47B/47C remain partial in closure evidence
+- Fase 48: **PARCIAL**
+  - 48A/48B/48C delivered
+  - 48D/48E still documented as runtime/manual pending
+- Fase 49: **COMPLETA**
+  - consolidated closure documented and runtime validated
+- Fase 50: **PARCIAL**
+  - 50A-50F implemented at technical level
+  - no consolidated runtime/manual closure for 50A-50F
+  - 50E and 50F do not have documented runtime/manual closure yet
+
+---
+
 ## Known Active Debt (Current)
 
 - Legacy placeholder files still present:
@@ -305,6 +330,7 @@ Continuity target:
 - leverage the finalized Fase 49 multi-business access model
 - add notifications/triggers without regressions in roles, memberships and dashboard
 - preserve tenant isolation and safety guarantees from Fases 43–49
+- close pending runtime/manual validation for 50A-50F before marking Fase 50 as COMPLETA
 
 ---
 
@@ -328,3 +354,4 @@ This file reflects **only the current system state**.
 - Do not add historical narrative
 - Do not document future phases beyond immediate continuity
 - Do not duplicate roadmap content
+
