@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Automation;
 
+use Super_Mechanic\Logs\Log_Service;
 use Super_Mechanic\Notifications\Notification_Service;
 use Super_Mechanic\Webhooks\Webhook_Service;
 
@@ -31,6 +32,13 @@ class Automation_Engine_Service {
 	protected $webhook_service;
 
 	/**
+	 * Log service dependency.
+	 *
+	 * @var Log_Service|null
+	 */
+	protected $log_service;
+
+	/**
 	 * Supported initial event keys.
 	 *
 	 * @var array<int,string>
@@ -48,10 +56,12 @@ class Automation_Engine_Service {
 	 *
 	 * @param Notification_Service|null $notification_service Notification service.
 	 * @param Webhook_Service|null      $webhook_service Webhook service.
+	 * @param Log_Service|null          $log_service Log service.
 	 */
-	public function __construct( Notification_Service $notification_service = null, Webhook_Service $webhook_service = null ) {
+	public function __construct( Notification_Service $notification_service = null, Webhook_Service $webhook_service = null, Log_Service $log_service = null ) {
 		$this->notification_service = $notification_service ? $notification_service : new Notification_Service();
 		$this->webhook_service      = $webhook_service ? $webhook_service : new Webhook_Service();
+		$this->log_service          = $log_service;
 	}
 
 	/**
@@ -66,6 +76,7 @@ class Automation_Engine_Service {
 		$payload    = is_array( $payload ) ? $payload : array();
 
 		if ( '' === $event_type || ! in_array( $event_type, $this->supported_events, true ) ) {
+			$this->log_automation( 'handle_event', 'warning', 'Unsupported automation event received.', array( 'event_type' => $event_type ) );
 			return array(
 				'event_type' => $event_type,
 				'supported'  => false,
@@ -74,6 +85,7 @@ class Automation_Engine_Service {
 			);
 		}
 
+		$this->log_automation( 'handle_event', 'info', 'Automation event handling started.', array( 'event_type' => $event_type ) );
 		$actions = $this->resolve_automation_actions( $event_type, $payload );
 		$payload = array_merge(
 			array(
@@ -85,6 +97,17 @@ class Automation_Engine_Service {
 		foreach ( $actions as $action ) {
 			$results[] = $this->execute_automation_action( $action, $payload );
 		}
+
+		$this->log_automation(
+			'handle_event',
+			'success',
+			'Automation event handled.',
+			array(
+				'event_type'     => $event_type,
+				'actions_count'  => count( $actions ),
+				'results_count'  => count( $results ),
+			)
+		);
 
 		return array(
 			'event_type' => $event_type,
@@ -145,6 +168,7 @@ class Automation_Engine_Service {
 			: sanitize_key( (string) $action );
 
 		if ( '' === $action_type ) {
+			$this->log_automation( 'execute_action', 'error', 'Invalid automation action payload.', array( 'event_type' => $event_type ) );
 			return array(
 				'action'  => '',
 				'executed'=> false,
@@ -153,6 +177,7 @@ class Automation_Engine_Service {
 		}
 
 		if ( is_array( $action ) && array_key_exists( 'enabled', $action ) && ! $action['enabled'] ) {
+			$this->log_automation( 'execute_action', 'warning', 'Automation action skipped (disabled).', array( 'event_type' => $event_type, 'action_type' => $action_type ) );
 			return array(
 				'action'   => $action_type,
 				'executed' => false,
@@ -163,6 +188,7 @@ class Automation_Engine_Service {
 		if ( 'send_notification' === $action_type ) {
 			$user_id = isset( $payload['user_id'] ) ? absint( $payload['user_id'] ) : 0;
 			if ( $user_id <= 0 || '' === $event_type ) {
+				$this->log_automation( 'execute_action', 'error', 'Automation notification action missing user/event.', array( 'event_type' => $event_type, 'action_type' => $action_type ) );
 				return array(
 					'action'   => $action_type,
 					'executed' => false,
@@ -180,6 +206,16 @@ class Automation_Engine_Service {
 					)
 				)
 			);
+			$this->log_automation(
+				'execute_action',
+				! empty( $result['success'] ) ? 'success' : 'error',
+				'Automation notification action executed.',
+				array(
+					'event_type'  => $event_type,
+					'action_type' => $action_type,
+					'user_id'     => $user_id,
+				)
+			);
 
 			return array(
 				'action'   => $action_type,
@@ -190,6 +226,7 @@ class Automation_Engine_Service {
 
 		if ( 'dispatch_webhook' === $action_type ) {
 			if ( '' === $event_type ) {
+				$this->log_automation( 'execute_action', 'error', 'Automation webhook action missing event.', array( 'action_type' => $action_type ) );
 				return array(
 					'action'   => $action_type,
 					'executed' => false,
@@ -204,6 +241,15 @@ class Automation_Engine_Service {
 					'data'    => $payload,
 				)
 			);
+			$this->log_automation(
+				'execute_action',
+				'success',
+				'Automation webhook action executed.',
+				array(
+					'event_type'  => $event_type,
+					'action_type' => $action_type,
+				)
+			);
 
 			return array(
 				'action'   => $action_type,
@@ -213,6 +259,7 @@ class Automation_Engine_Service {
 		}
 
 		if ( in_array( $action_type, array( 'create_internal_flag', 'add_operational_note' ), true ) ) {
+			$this->log_automation( 'execute_action', 'warning', 'Automation action not integrated.', array( 'event_type' => $event_type, 'action_type' => $action_type ) );
 			return array(
 				'action'   => $action_type,
 				'executed' => false,
@@ -220,10 +267,47 @@ class Automation_Engine_Service {
 			);
 		}
 
+		$this->log_automation( 'execute_action', 'error', 'Unsupported automation action.', array( 'event_type' => $event_type, 'action_type' => $action_type ) );
 		return array(
 			'action'   => $action_type,
 			'executed' => false,
 			'reason'   => 'unsupported_action',
 		);
+	}
+
+	/**
+	 * Write automation log.
+	 *
+	 * @param string              $source Source.
+	 * @param string              $status Status.
+	 * @param string              $message Message.
+	 * @param array<string,mixed> $context Context.
+	 * @return void
+	 */
+	protected function log_automation( $source, $status, $message, array $context = array() ) {
+		$logger = $this->get_log_service();
+		if ( ! $logger instanceof Log_Service ) {
+			return;
+		}
+
+		$logger->log_automation_event( $source, $status, $message, $context );
+	}
+
+	/**
+	 * Resolve log service lazily.
+	 *
+	 * @return Log_Service|null
+	 */
+	protected function get_log_service() {
+		if ( $this->log_service instanceof Log_Service ) {
+			return $this->log_service;
+		}
+
+		try {
+			$this->log_service = new Log_Service();
+			return $this->log_service;
+		} catch ( \Throwable $throwable ) {
+			return null;
+		}
 	}
 }

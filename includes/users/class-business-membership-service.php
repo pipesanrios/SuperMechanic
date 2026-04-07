@@ -7,6 +7,7 @@
 
 namespace Super_Mechanic\Users;
 
+use Super_Mechanic\Audit\Audit_Service;
 use Super_Mechanic\Businesses\Business_Repository;
 use Super_Mechanic\Notifications\Notification_Service;
 
@@ -45,14 +46,23 @@ class Business_Membership_Service {
 	protected $business_repository;
 
 	/**
+	 * Audit service dependency.
+	 *
+	 * @var Audit_Service|null
+	 */
+	protected $audit_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Business_Membership_Repository|null $repository Repository dependency.
 	 * @param Business_Repository|null            $business_repository Business repository.
+	 * @param Audit_Service|null                  $audit_service Audit service dependency.
 	 */
-	public function __construct( Business_Membership_Repository $repository = null, Business_Repository $business_repository = null ) {
+	public function __construct( Business_Membership_Repository $repository = null, Business_Repository $business_repository = null, Audit_Service $audit_service = null ) {
 		$this->repository          = $repository ? $repository : new Business_Membership_Repository();
 		$this->business_repository = $business_repository ? $business_repository : new Business_Repository();
+		$this->audit_service       = $audit_service;
 	}
 
 	/**
@@ -217,8 +227,19 @@ class Business_Membership_Service {
 				);
 			}
 
+			$before = $this->get_membership_audit_snapshot( $existing );
 			$this->repository->update_membership_role( $membership_id, $role );
 			$this->repository->update_membership_status( $membership_id, 'active' );
+			$after = $this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( $membership_id ) );
+			$this->audit_membership_change(
+				'update',
+				$membership_id,
+				$before,
+				$after,
+				array(
+					'operation' => 'reactivate_existing_membership',
+				)
+			);
 
 			$this->dispatch_membership_notification( 'membership_updated', $user_id, $business_id, $role, 'active' );
 
@@ -241,6 +262,16 @@ class Business_Membership_Service {
 		if ( $is_primary ) {
 			$this->repository->set_primary_membership( (int) $created_id );
 		}
+
+		$this->audit_membership_change(
+			'create',
+			(int) $created_id,
+			array(),
+			$this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( (int) $created_id ) ),
+			array(
+				'operation' => 'create_membership',
+			)
+		);
 
 		$this->dispatch_membership_notification( 'membership_created', $user_id, $business_id, $role, 'active' );
 		$this->dispatch_membership_notification( 'user_assigned_to_business', $user_id, $business_id, $role, 'active' );
@@ -269,13 +300,25 @@ class Business_Membership_Service {
 			);
 		}
 
-		$ok = $this->repository->update_membership_role( $membership_id, $role );
+		$before = $this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( $membership_id ) );
+		$ok     = $this->repository->update_membership_role( $membership_id, $role );
 		if ( ! $ok ) {
 			return array(
 				'success' => false,
 				'message' => __( 'Could not update membership role.', 'super-mechanic' ),
 			);
 		}
+
+		$after = $this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( $membership_id ) );
+		$this->audit_membership_change(
+			'update',
+			$membership_id,
+			$before,
+			$after,
+			array(
+				'operation' => 'update_role',
+			)
+		);
 
 		return array(
 			'success'       => true,
@@ -316,13 +359,25 @@ class Business_Membership_Service {
 			);
 		}
 
-		$ok = $this->repository->update_membership_status( $membership_id, $status );
+		$before = $this->get_membership_audit_snapshot( $membership );
+		$ok     = $this->repository->update_membership_status( $membership_id, $status );
 		if ( ! $ok ) {
 			return array(
 				'success' => false,
 				'message' => __( 'Could not update membership status.', 'super-mechanic' ),
 			);
 		}
+
+		$after = $this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( $membership_id ) );
+		$this->audit_membership_change(
+			( 'active' === $status ) ? 'activate' : 'deactivate',
+			$membership_id,
+			$before,
+			$after,
+			array(
+				'operation' => 'set_status',
+			)
+		);
 
 		return array(
 			'success'       => true,
@@ -354,13 +409,25 @@ class Business_Membership_Service {
 			);
 		}
 
-		$ok = $this->repository->set_primary_membership( $membership_id );
+		$before = $this->get_membership_audit_snapshot( $membership );
+		$ok     = $this->repository->set_primary_membership( $membership_id );
 		if ( ! $ok ) {
 			return array(
 				'success' => false,
 				'message' => __( 'Could not set primary membership.', 'super-mechanic' ),
 			);
 		}
+
+		$after = $this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( $membership_id ) );
+		$this->audit_membership_change(
+			'update',
+			$membership_id,
+			$before,
+			$after,
+			array(
+				'operation' => 'set_primary_membership',
+			)
+		);
 
 		return array(
 			'success'       => true,
@@ -399,13 +466,24 @@ class Business_Membership_Service {
 			);
 		}
 
-		$ok = $this->repository->delete_membership( $membership_id );
+		$before = $this->get_membership_audit_snapshot( $membership );
+		$ok     = $this->repository->delete_membership( $membership_id );
 		if ( ! $ok ) {
 			return array(
 				'success' => false,
 				'message' => __( 'Could not remove membership.', 'super-mechanic' ),
 			);
 		}
+
+		$this->audit_membership_change(
+			'delete',
+			$membership_id,
+			$before,
+			array(),
+			array(
+				'operation' => 'remove_membership',
+			)
+		);
 
 		return array(
 			'success'       => true,
@@ -457,7 +535,8 @@ class Business_Membership_Service {
 			);
 		}
 
-		$create_result = $this->create_membership( $user_id, $target_business_id, $role );
+		$before_memberships = $this->get_user_memberships( $user_id );
+		$create_result      = $this->create_membership( $user_id, $target_business_id, $role );
 		if ( empty( $create_result['success'] ) ) {
 			return $create_result;
 		}
@@ -475,6 +554,24 @@ class Business_Membership_Service {
 			$this->repository->set_primary_membership( $target_membership_id );
 
 			$this->dispatch_membership_notification( 'user_transferred', $user_id, $target_business_id, $role, 'active', array( 'mode' => 'replace' ) );
+			$this->audit_membership_change(
+				'transfer',
+				$target_membership_id,
+				array(
+					'user_memberships' => $before_memberships,
+				),
+				array(
+					'user_memberships' => $this->get_user_memberships( $user_id ),
+				),
+				array(
+					'operation'  => 'transfer_user_to_business',
+					'mode'       => 'replace',
+					'user_id'    => $user_id,
+					'business_id'=> $target_business_id,
+				),
+				get_current_user_id(),
+				$target_business_id
+			);
 
 			return array(
 				'success'       => true,
@@ -485,6 +582,24 @@ class Business_Membership_Service {
 		}
 
 		$this->dispatch_membership_notification( 'user_transferred', $user_id, $target_business_id, $role, 'active', array( 'mode' => 'add' ) );
+		$this->audit_membership_change(
+			'transfer',
+			$target_membership_id,
+			array(
+				'user_memberships' => $before_memberships,
+			),
+			array(
+				'user_memberships' => $this->get_user_memberships( $user_id ),
+			),
+			array(
+				'operation'   => 'transfer_user_to_business',
+				'mode'        => 'add',
+				'user_id'     => $user_id,
+				'business_id' => $target_business_id,
+			),
+			get_current_user_id(),
+			$target_business_id
+		);
 
 		return array(
 			'success'       => true,
@@ -648,6 +763,7 @@ class Business_Membership_Service {
 		}
 
 		$memberships = $this->get_user_memberships( $user_id );
+		$before      = $memberships;
 		if ( empty( $memberships ) ) {
 			return array(
 				'success'        => true,
@@ -746,6 +862,26 @@ class Business_Membership_Service {
 		}
 
 		$after_warnings = $this->get_membership_consistency_warnings( $user_id );
+		$after_rows     = $this->get_user_memberships( $user_id );
+		$this->audit_membership_change(
+			'repair',
+			0,
+			array(
+				'user_id'     => $user_id,
+				'memberships' => $before,
+			),
+			array(
+				'user_id'     => $user_id,
+				'memberships' => $after_rows,
+			),
+			array(
+				'changes'       => array_values( array_unique( $changes ) ),
+				'warning_after' => $after_warnings,
+				'operation'     => 'repair_membership_consistency',
+			),
+			get_current_user_id(),
+			0
+		);
 
 		return array(
 			'success'      => true,
@@ -753,6 +889,82 @@ class Business_Membership_Service {
 			'changes'      => array_values( array_unique( $changes ) ),
 			'warning_keys' => $after_warnings,
 			'message'      => __( 'Safe consistency repair completed.', 'super-mechanic' ),
+		);
+	}
+
+	/**
+	 * Resolve audit service lazily.
+	 *
+	 * @return Audit_Service|null
+	 */
+	protected function get_audit_service() {
+		if ( $this->audit_service instanceof Audit_Service ) {
+			return $this->audit_service;
+		}
+
+		try {
+			$this->audit_service = new Audit_Service();
+			return $this->audit_service;
+		} catch ( \Throwable $throwable ) {
+			return null;
+		}
+	}
+
+	/**
+	 * Write one membership audit event.
+	 *
+	 * @param string              $action Action.
+	 * @param int                 $membership_id Membership ID.
+	 * @param array<string,mixed> $before Before payload.
+	 * @param array<string,mixed> $after After payload.
+	 * @param array<string,mixed> $context Context payload.
+	 * @param int                 $actor_user_id Actor user ID.
+	 * @param int                 $business_id Business ID.
+	 * @return void
+	 */
+	protected function audit_membership_change( $action, $membership_id, array $before, array $after, array $context = array(), $actor_user_id = 0, $business_id = 0 ) {
+		$audit = $this->get_audit_service();
+		if ( ! $audit instanceof Audit_Service ) {
+			return;
+		}
+
+		$resolved_business_id = absint( $business_id );
+		if ( $resolved_business_id <= 0 && isset( $after['business_id'] ) ) {
+			$resolved_business_id = absint( $after['business_id'] );
+		}
+		if ( $resolved_business_id <= 0 && isset( $before['business_id'] ) ) {
+			$resolved_business_id = absint( $before['business_id'] );
+		}
+
+		$audit->audit_membership_change(
+			sanitize_key( (string) $action ),
+			absint( $membership_id ),
+			$before,
+			$after,
+			$context,
+			absint( $actor_user_id ) > 0 ? absint( $actor_user_id ) : get_current_user_id(),
+			$resolved_business_id
+		);
+	}
+
+	/**
+	 * Build compact membership snapshot for audit.
+	 *
+	 * @param array<string,mixed>|null $membership Membership row.
+	 * @return array<string,mixed>
+	 */
+	protected function get_membership_audit_snapshot( $membership ) {
+		if ( ! is_array( $membership ) ) {
+			return array();
+		}
+
+		return array(
+			'id'               => isset( $membership['id'] ) ? absint( $membership['id'] ) : 0,
+			'business_id'      => isset( $membership['business_id'] ) ? absint( $membership['business_id'] ) : 0,
+			'user_id'          => isset( $membership['user_id'] ) ? absint( $membership['user_id'] ) : 0,
+			'operational_role' => isset( $membership['operational_role'] ) ? sanitize_key( (string) $membership['operational_role'] ) : '',
+			'status'           => isset( $membership['status'] ) ? sanitize_key( (string) $membership['status'] ) : '',
+			'is_primary'       => ! empty( $membership['is_primary'] ),
 		);
 	}
 

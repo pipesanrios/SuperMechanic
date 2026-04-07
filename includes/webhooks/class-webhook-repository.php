@@ -101,6 +101,41 @@ class Webhook_Repository {
 	}
 
 	/**
+	 * Count active webhooks.
+	 *
+	 * @param int $business_id Optional business scope (0 = global).
+	 * @return int
+	 */
+	public function count_active_webhooks( $business_id = 0 ) {
+		global $wpdb;
+
+		$business_id = absint( $business_id );
+		$table       = $this->installer->get_table_name();
+
+		if ( $business_id > 0 ) {
+			$query = $wpdb->prepare(
+				"SELECT COUNT(id) FROM {$table}
+				WHERE business_id = %d
+				AND (
+					is_active = 1
+					OR status = 'active'
+				)",
+				$business_id
+			);
+
+			return absint( $wpdb->get_var( $query ) );
+		}
+
+		$query = "SELECT COUNT(id) FROM {$table}
+			WHERE (
+				is_active = 1
+				OR status = 'active'
+			)";
+
+		return absint( $wpdb->get_var( $query ) );
+	}
+
+	/**
 	 * Get one webhook by id and current business scope.
 	 *
 	 * @param int $webhook_id Webhook ID.

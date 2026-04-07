@@ -1,6 +1,6 @@
 # CURRENT_STATE.md
 
-Date: 2026-04-06
+Date: 2026-04-07
 
 ## Purpose
 
@@ -331,6 +331,131 @@ Continuity target:
 - add notifications/triggers without regressions in roles, memberships and dashboard
 - preserve tenant isolation and safety guarantees from Fases 43–49
 - move continuity to next phase planning after Fase 50 closure
+
+---
+
+## Fase 51A Licensing System Base
+
+Status: **Applied (technical)**
+
+Delivered in current code:
+- local licensing table `sm_licenses` via installer/repository/service/admin controller pattern
+- status support:
+  - `active`, `inactive`, `expired`, `revoked`
+- plan support:
+  - `starter`, `pro`, `enterprise`
+- local activation/deactivation by admin page:
+  - `Super Mechanic -> License` (`super-mechanic-license`)
+- local domain binding using current WordPress site domain
+- non-blocking behavior preserved:
+  - no aggressive enforcement
+  - no CRM Pipeline impact
+
+Validation state:
+- `php-lint` PASS
+- validation contract automated checks PASS
+- runtime/manual pending for phase closure
+
+---
+
+## Fase 51B Branding / White-label Base
+
+Status: **Applied (technical)**
+
+Delivered in current code:
+- centralized branding settings service with defaults and WP option persistence:
+  - `system_name`
+  - `logo_url` / `logo_attachment_id`
+  - `primary_color`
+  - `secondary_color`
+  - `admin_footer_text`
+- dedicated admin page:
+  - `Super Mechanic -> Branding` (`super-mechanic-branding`)
+- secure save flow:
+  - capability `sm_manage_plugin`
+  - nonce-protected POST action
+  - strict sanitization
+- safe visual application across plugin admin pages:
+  - runtime color variables applied in plugin shells
+  - branded top banner (name/logo)
+  - optional branded admin footer text
+
+Validation state:
+- `php-lint` PASS
+- validation contract automated checks PASS
+- runtime/manual pending for phase closure
+
+---
+
+## Fase 51C Plan Limits / Pricing Base
+
+Status: **Applied (technical)**
+
+Delivered in current code:
+- centralized plan limits layer through `Plan_Limits_Service`:
+  - plan catalog: `starter`, `pro`, `enterprise`
+  - limits and usage status methods:
+    - `get_plan_limits()`
+    - `get_current_plan_type()`
+    - `get_current_usage()`
+    - `get_limit_status()`
+    - `is_within_limit()`
+    - `get_exceeded_limits()`
+- tracked resources for visible non-blocking limits:
+  - businesses
+  - internal users
+  - active processes
+  - active webhooks
+- global active webhook counting support in repository:
+  - `Webhook_Repository::count_active_webhooks($business_id = 0)`
+- License admin page extended with:
+  - effective plan
+  - limit matrix per resource
+  - current usage
+  - exceeded warning state
+  - starter fallback notice when license is inactive
+
+Validation state:
+- `php-lint` PASS
+- validation contract automated checks PASS
+- runtime/manual pending for phase closure
+
+---
+
+## Fase 51D Onboarding Base
+
+Status: **Applied (technical)**
+
+Delivered in current code:
+- centralized onboarding diagnostics through `Onboarding_Service`:
+  - `get_onboarding_state()`
+  - `is_onboarding_complete()`
+  - `get_next_recommended_step()`
+  - `mark_onboarding_complete()`
+  - `reset_onboarding_state()`
+- onboarding state checks include:
+  - `has_license`
+  - `has_branding_basic`
+  - `has_business`
+  - `has_business_admin`
+  - `is_onboarding_complete`
+- dedicated admin page:
+  - `Super Mechanic -> Onboarding` (`super-mechanic-onboarding`)
+- UI includes:
+  - setup checklist
+  - next recommended step
+  - direct links to existing pages:
+    - License
+    - Branding
+    - Businesses
+    - Roles & Access
+- optional admin warning notice on plugin pages when onboarding is incomplete
+- no duplicated setup forms; onboarding is orchestration/diagnostic only
+
+Validation state:
+- `php-lint` PASS
+- validation contract automated checks PASS
+- runtime/manual pending for phase closure
 
 ---
 

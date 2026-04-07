@@ -1306,3 +1306,41 @@
 	flex-wrap: wrap;
 	gap: 6px;
 }
+
+.sm-branding-banner {
+	background: #ffffff;
+	border: 1px solid #dbe3f0;
+	border-radius: 14px;
+	margin: 14px 20px 0 2px;
+	padding: 10px 14px;
+}
+
+.sm-branding-banner-inner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.sm-branding-logo {
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
+	object-fit: contain;
+}
+
+.sm-branding-system-name {
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.sm-branding-footer {
+	font-size: 12px;
+	color: #5f6b85;
+}
+
+.sm-branding-page .sm-filter-field input[type="text"],
+.sm-branding-page .sm-filter-field input[type="url"],
+.sm-branding-page .sm-filter-field input[type="number"] {
+	max-width: 100%;
+}

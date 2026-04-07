@@ -10,7 +10,11 @@ namespace Super_Mechanic;
 use Super_Mechanic\Automation\Automation_Rule_Engine;
 use Super_Mechanic\Automation\Automation_Service;
 use Super_Mechanic\Admin\Notifications_Admin_Controller;
+use Super_Mechanic\Admin\License_Admin_Controller;
+use Super_Mechanic\Admin\Branding_Admin_Controller;
+use Super_Mechanic\Admin\Onboarding_Admin_Controller;
 use Super_Mechanic\Admin\Webhooks_Admin_Controller;
+use Super_Mechanic\Admin\Export_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Service;
@@ -78,6 +82,7 @@ use Super_Mechanic\Processes\Process_Service;
 use Super_Mechanic\Quotes\Client_Quote_Shortcodes;
 use Super_Mechanic\Quotes\Quote_Admin_Controller;
 use Super_Mechanic\Quotes\Quote_Service;
+use Super_Mechanic\Queue\Queue_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Service;
 use Super_Mechanic\Reports\Report_Admin_Controller;
 use Super_Mechanic\Reports\Report_Service;
@@ -165,7 +170,12 @@ class Plugin {
 	protected $automation_rule_engine;
 	protected $automation_service;
 	protected $notifications_admin_controller;
+	protected $license_admin_controller;
+	protected $branding_admin_controller;
+	protected $onboarding_admin_controller;
 	protected $webhooks_admin_controller;
+	protected $export_admin_controller;
+	protected $queue_service;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -216,6 +226,7 @@ class Plugin {
 		$this->appointment_reminder_scheduler = new Appointment_Reminder_Scheduler( $this->appointment_service, $this->notification_service, $this->event_dispatcher, $this->settings_service );
 		$this->automation_rule_engine       = new Automation_Rule_Engine( $this->settings_service );
 		$this->automation_service           = new Automation_Service( $this->automation_rule_engine, $this->appointment_reminder_scheduler, $this->settings_service );
+		$this->queue_service               = new Queue_Service();
 		$this->comment_service               = new Comment_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service, $this->event_dispatcher );
 		$this->client_process_view_service   = new Client_Process_View_Service( $this->dashboard_service, $this->quote_service, $this->invoice_service, $this->comment_service );
 		$this->client_rest_controller        = new Client_REST_Controller( $this->dashboard_service, $this->client_process_view_service, null, $this->quote_service, $this->process_service, $this->invoice_service );
@@ -256,7 +267,11 @@ class Plugin {
 		$this->client_invoice_shortcodes     = new Client_Invoice_Shortcodes( $this->invoice_service, $this->dashboard_service, $this->download_service );
 		$this->client_comment_shortcodes     = new Client_Comment_Shortcodes( $this->comment_service, $this->notification_service, $this->dashboard_service, $this->client_dashboard_controller );
 		$this->notifications_admin_controller = new Notifications_Admin_Controller();
+		$this->license_admin_controller       = new License_Admin_Controller();
+		$this->branding_admin_controller      = new Branding_Admin_Controller();
+		$this->onboarding_admin_controller    = new Onboarding_Admin_Controller();
 		$this->webhooks_admin_controller      = new Webhooks_Admin_Controller();
+		$this->export_admin_controller        = new Export_Admin_Controller();
 		$this->admin_menu                    = new Admin_Menu(
 			$this->settings,
 			$this->client_admin_controller,
@@ -288,6 +303,7 @@ class Plugin {
 		$this->google_calendar_service->register_hooks();
 		$this->appointment_reminder_scheduler->register_hooks();
 		$this->automation_service->register_hooks();
+		$this->queue_service->register_hooks();
 		$this->crm_scheduler_service->register_hooks();
 
 		if ( is_admin() ) {
@@ -314,7 +330,11 @@ class Plugin {
 			$this->business_admin_controller->register_hooks();
 			$this->business_user_assignment_controller->register_hooks();
 			$this->notifications_admin_controller->register_hooks();
+			$this->license_admin_controller->register_hooks();
+			$this->branding_admin_controller->register_hooks();
+			$this->onboarding_admin_controller->register_hooks();
 			$this->webhooks_admin_controller->register_hooks();
+			$this->export_admin_controller->register_hooks();
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();
@@ -339,5 +359,7 @@ class Plugin {
 		}
 	}
 }
+
+
 
 

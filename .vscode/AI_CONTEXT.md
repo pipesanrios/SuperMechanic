@@ -93,6 +93,22 @@ Operational status reminder:
   - Fase 48: PARCIAL
   - Fase 49: COMPLETA
   - Fase 50: COMPLETA (runtime/manual closure consolidated in 50Z)
+- licensing baseline (51A) is now active at technical level:
+  - local table-backed license model (`sm_licenses`)
+  - local activation/deactivation UI (`super-mechanic-license`)
+  - no remote validation, billing, or aggressive enforcement yet
+- branding baseline (51B) is now active at technical level:
+  - centralized branding settings service (`Branding_Service`)
+  - admin management page (`super-mechanic-branding`)
+  - safe white-label visual application in plugin admin pages (name/logo/colors/footer)
+- plan limits baseline (51C) is now active at technical level:
+  - centralized limits/usage service (`Plan_Limits_Service`)
+  - starter/pro/enterprise limits catalog with starter fallback on inactive license
+  - limits and usage visibility integrated in License admin page (non-blocking warnings)
+- onboarding baseline (51D) is now active at technical level:
+  - centralized onboarding diagnostics (`Onboarding_Service`)
+  - admin onboarding checklist page (`super-mechanic-onboarding`)
+  - recommended next-step orchestration to existing setup pages (no wizard, no duplicated forms)
 
 ---
 

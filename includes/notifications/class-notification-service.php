@@ -8,6 +8,8 @@
 namespace Super_Mechanic\Notifications;
 
 use Super_Mechanic\Businesses\Business_Repository;
+use Super_Mechanic\Logs\Log_Service;
+use Super_Mechanic\Queue\Queue_Service;
 use Super_Mechanic\Webhooks\Webhook_Service;
 
 defined( 'ABSPATH' ) || exit;
@@ -52,6 +54,20 @@ class Notification_Service {
 	protected $webhook_service;
 
 	/**
+	 * Queue service dependency.
+	 *
+	 * @var Queue_Service|null
+	 */
+	protected $queue_service;
+
+	/**
+	 * Log service dependency.
+	 *
+	 * @var Log_Service|null
+	 */
+	protected $log_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Notification_Template_Service|null $template_service Template service.
@@ -59,13 +75,17 @@ class Notification_Service {
 	 * @param Business_Repository|null           $business_repository Business repository.
 	 * @param Notification_Storage_Service|null  $storage_service Storage service.
 	 * @param Webhook_Service|null               $webhook_service Webhook service.
+	 * @param Queue_Service|null                 $queue_service Queue service.
+	 * @param Log_Service|null                   $log_service Log service.
 	 */
-	public function __construct( Notification_Template_Service $template_service = null, Email_Delivery_Service $email_delivery_service = null, Business_Repository $business_repository = null, Notification_Storage_Service $storage_service = null, Webhook_Service $webhook_service = null ) {
+	public function __construct( Notification_Template_Service $template_service = null, Email_Delivery_Service $email_delivery_service = null, Business_Repository $business_repository = null, Notification_Storage_Service $storage_service = null, Webhook_Service $webhook_service = null, Queue_Service $queue_service = null, Log_Service $log_service = null ) {
 		$this->template_service       = $template_service ? $template_service : new Notification_Template_Service();
 		$this->email_delivery_service = $email_delivery_service ? $email_delivery_service : new Email_Delivery_Service();
 		$this->business_repository    = $business_repository ? $business_repository : new Business_Repository();
 		$this->storage_service        = $storage_service ? $storage_service : new Notification_Storage_Service();
 		$this->webhook_service        = $webhook_service ? $webhook_service : new Webhook_Service();
+		$this->queue_service          = $queue_service;
+		$this->log_service            = $log_service;
 	}
 
 	/**
@@ -82,6 +102,42 @@ class Notification_Service {
 
 		if ( '' === $type || $user_id <= 0 ) {
 			error_log( sprintf( '[SM_NOTIFY][ERROR] invalid payload type=%s user_id=%d', $type, $user_id ) );
+			$this->log_notification( 'fail', 'error', 'Invalid notification payload.', array( 'type' => $type, 'user_id' => $user_id ) );
+			return array(
+				'success' => false,
+				'message' => __( 'Invalid notification payload.', 'super-mechanic' ),
+			);
+		}
+
+		$queued = $this->enqueue_notification_job( $type, $user_id, $data );
+		if ( $queued > 0 ) {
+			$this->log_notification( 'send', 'info', 'Notification job queued.', array( 'type' => $type, 'user_id' => $user_id, 'job_id' => $queued ), $queued );
+			return array(
+				'success' => true,
+				'message' => __( 'Notification queued.', 'super-mechanic' ),
+				'job_id'  => $queued,
+			);
+		}
+
+		error_log( sprintf( '[SM_NOTIFY][ERROR] queue enqueue failed fallback immediate type=%s user_id=%d', $type, $user_id ) );
+		$this->log_notification( 'send', 'warning', 'Notification queue failed, fallback immediate execution.', array( 'type' => $type, 'user_id' => $user_id ) );
+		return $this->send_notification_from_queue( $type, $user_id, $data );
+	}
+
+	/**
+	 * Execute notification directly (used by queue worker).
+	 *
+	 * @param string              $type Notification type.
+	 * @param int                 $user_id User ID.
+	 * @param array<string,mixed> $data Dynamic data.
+	 * @return array<string,mixed>
+	 */
+	public function send_notification_from_queue( $type, $user_id, array $data = array() ) {
+		$type    = sanitize_key( (string) $type );
+		$user_id = absint( $user_id );
+
+		if ( '' === $type || $user_id <= 0 ) {
+			$this->log_notification( 'fail', 'error', 'Invalid notification payload.', array( 'type' => $type, 'user_id' => $user_id ) );
 			return array(
 				'success' => false,
 				'message' => __( 'Invalid notification payload.', 'super-mechanic' ),
@@ -99,6 +155,7 @@ class Notification_Service {
 		$template = $this->template_service->get_template( $type );
 		if ( ! is_array( $template ) ) {
 			error_log( sprintf( '[SM_NOTIFY][ERROR] invalid template type=%s user_id=%d', $type, $user_id ) );
+			$this->log_notification( 'fail', 'error', 'Notification template not found.', array( 'type' => $type, 'user_id' => $user_id ) );
 			return array(
 				'success' => false,
 				'message' => __( 'Unknown notification type.', 'super-mechanic' ),
@@ -108,6 +165,7 @@ class Notification_Service {
 		$user = get_userdata( $user_id );
 		if ( ! $user instanceof \WP_User ) {
 			error_log( sprintf( '[SM_NOTIFY][ERROR] user not found type=%s user_id=%d', $type, $user_id ) );
+			$this->log_notification( 'fail', 'error', 'Notification user not found.', array( 'type' => $type, 'user_id' => $user_id ) );
 			return array(
 				'success' => false,
 				'message' => __( 'Notification user not found.', 'super-mechanic' ),
@@ -118,6 +176,7 @@ class Notification_Service {
 		error_log( sprintf( '[SM_NOTIFY] type=%s user_id=%d to=%s', $type, $user_id, '' !== $to ? $to : 'n/a' ) );
 		if ( '' === $to ) {
 			error_log( sprintf( '[SM_NOTIFY][ERROR] missing destination email type=%s user_id=%d', $type, $user_id ) );
+			$this->log_notification( 'fail', 'error', 'Notification destination email missing.', array( 'type' => $type, 'user_id' => $user_id ) );
 			return array(
 				'success' => false,
 				'message' => __( 'Notification user has no valid email.', 'super-mechanic' ),
@@ -135,16 +194,101 @@ class Notification_Service {
 		$sent = $this->email_delivery_service->send_email( $to, $subject, $body );
 		if ( ! $sent ) {
 			error_log( sprintf( '[SM_NOTIFY][ERROR] email delivery failed type=%s user_id=%d to=%s', $type, $user_id, $to ) );
+			$this->log_notification( 'fail', 'error', 'Notification email delivery failed.', array( 'type' => $type, 'user_id' => $user_id ) );
 			return array(
 				'success' => false,
 				'message' => __( 'Email delivery failed.', 'super-mechanic' ),
 			);
 		}
 
+		$this->log_notification( 'send', 'success', 'Notification sent successfully.', array( 'type' => $type, 'user_id' => $user_id ) );
 		return array(
 			'success' => true,
 			'message' => __( 'Notification sent.', 'super-mechanic' ),
 		);
+	}
+
+	/**
+	 * Enqueue notification job.
+	 *
+	 * @param string              $type Notification type.
+	 * @param int                 $user_id User ID.
+	 * @param array<string,mixed> $data Dynamic data.
+	 * @return int
+	 */
+	protected function enqueue_notification_job( $type, $user_id, array $data ) {
+		$queue = $this->get_queue_service();
+		if ( ! $queue instanceof Queue_Service ) {
+			return 0;
+		}
+
+		return absint(
+			$queue->enqueue(
+				'notification',
+				array(
+					'type'    => sanitize_key( (string) $type ),
+					'user_id' => absint( $user_id ),
+					'data'    => $data,
+				)
+			)
+		);
+	}
+
+	/**
+	 * Resolve queue service lazily.
+	 *
+	 * @return Queue_Service|null
+	 */
+	protected function get_queue_service() {
+		if ( $this->queue_service instanceof Queue_Service ) {
+			return $this->queue_service;
+		}
+
+		try {
+			$this->queue_service = new Queue_Service();
+			return $this->queue_service;
+		} catch ( \Throwable $throwable ) {
+			error_log( sprintf( '[SM_NOTIFY][ERROR] queue service unavailable error=%s', $throwable->getMessage() ) );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Write notification log.
+	 *
+	 * @param string              $source Source.
+	 * @param string              $status Status.
+	 * @param string              $message Message.
+	 * @param array<string,mixed> $context Context.
+	 * @param int                 $reference_id Reference ID.
+	 * @return void
+	 */
+	protected function log_notification( $source, $status, $message, array $context = array(), $reference_id = 0 ) {
+		$logger = $this->get_log_service();
+		if ( ! $logger instanceof Log_Service ) {
+			return;
+		}
+
+		$logger->log_notification_event( $source, $status, $message, $context, $reference_id );
+	}
+
+	/**
+	 * Resolve log service lazily.
+	 *
+	 * @return Log_Service|null
+	 */
+	protected function get_log_service() {
+		if ( $this->log_service instanceof Log_Service ) {
+			return $this->log_service;
+		}
+
+		try {
+			$this->log_service = new Log_Service();
+			return $this->log_service;
+		} catch ( \Throwable $throwable ) {
+			return null;
+		}
 	}
 
 	/**
@@ -285,4 +429,3 @@ class Notification_Service {
 		return $context;
 	}
 }
-
