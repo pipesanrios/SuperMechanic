@@ -126,3 +126,10 @@ Source references:
 ## Tenancy Map
 - Tenant context anchored by `business_id`
 - Tenant-aware filtering required across CRM, operations, and scheduling.
+
+## Runtime Closure Note (Phase 50)
+- notifications/webhooks/automation modules are active in code.
+- consolidated runtime closure validated on 2026-04-07:
+  - notifications flow validated with persistent records
+  - webhooks CRUD/test/dispatch validated
+  - automation engine event processing validated

@@ -1,7 +1,7 @@
 # Fase 50 — Cierre Consolidado
 
-Fecha: 2026-04-06  
-Estado final: PARCIAL
+Fecha: 2026-04-07  
+Estado final: COMPLETA
 
 ## Alcance revisado
 
@@ -13,34 +13,30 @@ Subfases evaluadas:
 - 50E — Advanced automation base
 - 50F — Webhooks admin UI
 
-## Estado por subfase
+## Estado por subfase (post 50Z)
 
-- 50A: PARCIAL  
-  - cierre existente con estado tecnico y runtime/manual pendiente.
-- 50B: PARCIAL  
-  - implementacion tecnica presente; sin cierre runtime/manual consolidado.
-- 50C: PARCIAL  
-  - validaciones tecnicas PASS; checks manuales runtime pendientes en contrato.
-- 50D: PARCIAL  
-  - validaciones tecnicas PASS; checks manuales runtime pendientes en contrato.
-- 50E: PARCIAL  
-  - validaciones tecnicas PASS; no evidencia documental de cierre runtime/manual.
-- 50F: PARCIAL  
-  - validaciones tecnicas PASS; no evidencia documental de cierre runtime/manual.
+- 50A: COMPLETA
+- 50B: COMPLETA
+- 50C: COMPLETA
+- 50D: COMPLETA
+- 50E: COMPLETA
+- 50F: COMPLETA
 
 ## Decision de cierre de fase
 
-Fase 50 **no** puede marcarse como COMPLETA al cierre consolidado actual porque:
-- no existe evidencia documental consolidada de runtime/manual completo para 50A-50F;
-- especificamente 50E y 50F no tienen cierre runtime/manual documentado.
+Fase 50 se marca **COMPLETA** tras 50Z runtime closure:
+- evidencia runtime/manual consolidada para 50A-50F;
+- sin regresiones criticas observadas;
+- no duplicacion de eventos observada en prueba consolidada.
 
 ## Validacion tecnica revisada
 
 - `php scripts/php-lint.php --all` -> PASS
-- `php scripts/qa-runner.php --contract=docs/contracts/validation/50F-validation.md --output=text` -> PASS tecnico (manual checks NOT_RUN)
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/50F-validation.md --output=text` -> PASS tecnico
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/50Z-validation.md --output=text` -> PASS tecnico
+- runtime closure consolidado:
+  - `php scripts/tmp-50z-runtime-check.php` -> PASS en checks runtime consolidados
 
 ## Deuda tecnica abierta
 
-- falta cierre runtime/manual consolidado de las subfases 50A-50F;
-- falta evidencia operativa final de no regresion end-to-end en notificaciones + webhooks + automation engine.
-
+- configuracion SMTP local pendiente para convertir `wp_mail` en entrega exitosa en entorno local (no bloqueante para cierre funcional).

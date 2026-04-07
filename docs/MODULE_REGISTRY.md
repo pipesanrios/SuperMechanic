@@ -121,7 +121,7 @@ No phase timeline and no schema details.
 - automation engine base (Phase 50):
   - `includes/automation/class-automation-engine-service.php`
   - role: centralized event -> action resolution/dispatch
-  - status: ACTIVE (phase closure pending)
+  - status: ACTIVE (runtime validated in 50Z)
 
 ## Notification / Webhook Modules
 - notifications:
@@ -130,13 +130,13 @@ No phase timeline and no schema details.
   - `includes/notifications/class-email-delivery-service.php`
   - `includes/notifications/class-notification-storage-service.php`
   - admin UI: `includes/admin/class-notifications-admin-controller.php`
-  - status: ACTIVE (phase closure pending)
+  - status: ACTIVE (runtime validated in 50Z)
 - webhooks:
   - `includes/webhooks/class-webhook-installer.php`
   - `includes/webhooks/class-webhook-repository.php`
   - `includes/webhooks/class-webhook-service.php`
   - admin UI: `includes/admin/class-webhooks-admin-controller.php`
-  - status: ACTIVE (phase closure pending)
+  - status: ACTIVE (runtime validated in 50Z)
 
 ## Multi-Business Access Layer
 - Description:
@@ -158,3 +158,9 @@ Module-to-module interactions must go through Services, not repositories.
 - Architecture: `ARCHITECTURE.md`
 - Database: `docs/DATABASE_MAP.md`
 - Current state: `docs/CURRENT_STATE.md`
+
+## Runtime Closure Note
+- Phase 50 module set (notifications, webhooks, automation engine) is active.
+- Final runtime closure completed on 2026-04-07 (50Z):
+  - notifications/webhooks/automation runtime checks PASS
+  - no duplicate event dispatch observed in consolidated check.

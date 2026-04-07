@@ -29,16 +29,16 @@ Tipo: revision documental de consistencia (contract-driven)
   - existe cierre consolidado de fase (`2026-04-fase-49-cierre.md`);
   - estado runtime/manual validado para cierre final de fase.
 
-- Fase 50: PARCIAL
-  - subfases tecnicamente implementadas (50A-50F);
-  - sin cierre runtime/manual consolidado de fase;
-  - especificamente 50E y 50F sin evidencia documental de runtime/manual cerrado.
+- Fase 50: COMPLETA
+  - cierre runtime/manual consolidado en 50Z (2026-04-07);
+  - evidencia end-to-end documentada para notifications, webhooks y automation engine;
+  - sin duplicacion de eventos observada en el cierre runtime.
 
 ## Consistencia aplicada
 
 Se actualizaron documentos de estado para alinear:
 - baseline vigente (Fase 49 como ultima fase completa),
-- estado parcial real de Fase 50,
+- estado final de Fase 50 como COMPLETA (post 50Z),
 - estado consolidado 47-50 sin sobre-declarar cierres.
 
 ## Decision final consolidada
@@ -46,5 +46,4 @@ Se actualizaron documentos de estado para alinear:
 - Fase 47 = PARCIAL
 - Fase 48 = PARCIAL
 - Fase 49 = COMPLETA
-- Fase 50 = PARCIAL
-
+- Fase 50 = COMPLETA

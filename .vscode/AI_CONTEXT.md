@@ -60,9 +60,9 @@ This mirrors the bootstrap order and must be respected:
 
 - Plugin version: `0.1.0`
 - Schema version: `1.19.0`
-- Current confirmed baseline: **Fase 49 COMPLETA; Fase 50 en estado PARCIAL**
-- System state: **stable operational + multi-level automation execution + finalized multi-business access model (49A-49E) + notifications/webhooks/automation base (50A-50F technical)**
-- Next continuity: **cierre runtime/manual de Fase 50 y consolidacion documental 47-50**
+- Current confirmed baseline: **Fase 50 COMPLETA**
+- System state: **stable operational + multi-level automation execution + finalized multi-business access model (49A-49E) + notifications/webhooks/automation validated (50A-50F)**
+- Next continuity: **fase siguiente de roadmap (post-50)**
 
 ⚠️ Important:
 Before starting any task, confirm continuity in:
@@ -92,7 +92,7 @@ Operational status reminder:
   - Fase 47: PARCIAL
   - Fase 48: PARCIAL
   - Fase 49: COMPLETA
-  - Fase 50: PARCIAL (runtime/manual closure pending, explicitly 50E and 50F)
+  - Fase 50: COMPLETA (runtime/manual closure consolidated in 50Z)
 
 ---
 

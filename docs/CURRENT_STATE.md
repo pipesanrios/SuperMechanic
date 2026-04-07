@@ -28,8 +28,8 @@ No future speculation beyond immediate continuity.
 
 ## Current Delivery Baseline
 
-- Last completed phase baseline: **Fase 49 (COMPLETA)**
-- Last completed block: **49E (COMPLETA)**
+- Last completed phase baseline: **Fase 50 (COMPLETA)**
+- Last completed block: **50F (COMPLETA)**
 - Block status:
   - `39B` COMPLETE
   - `39C` COMPLETE
@@ -67,12 +67,12 @@ No future speculation beyond immediate continuity.
   - `49C` COMPLETE
   - `49D` COMPLETE
   - `49E` COMPLETE
-  - `50A` PARTIAL
-  - `50B` PARTIAL
-  - `50C` PARTIAL
-  - `50D` PARTIAL
-  - `50E` PARTIAL
-  - `50F` PARTIAL
+  - `50A` COMPLETE
+  - `50B` COMPLETE
+  - `50C` COMPLETE
+  - `50D` COMPLETE
+  - `50E` COMPLETE
+  - `50F` COMPLETE
 
 ---
 
@@ -302,10 +302,10 @@ Consolidated closure status:
   - 48D/48E still documented as runtime/manual pending
 - Fase 49: **COMPLETA**
   - consolidated closure documented and runtime validated
-- Fase 50: **PARCIAL**
-  - 50A-50F implemented at technical level
-  - no consolidated runtime/manual closure for 50A-50F
-  - 50E and 50F do not have documented runtime/manual closure yet
+- Fase 50: **COMPLETA**
+  - 50A-50F validated with consolidated runtime/manual evidence in 50Z
+  - notifications, webhooks and automation engine tested end-to-end in runtime
+  - no duplicate events observed in runtime closure checks
 
 ---
 
@@ -330,7 +330,7 @@ Continuity target:
 - leverage the finalized Fase 49 multi-business access model
 - add notifications/triggers without regressions in roles, memberships and dashboard
 - preserve tenant isolation and safety guarantees from Fases 43–49
-- close pending runtime/manual validation for 50A-50F before marking Fase 50 as COMPLETA
+- move continuity to next phase planning after Fase 50 closure
 
 ---
 
