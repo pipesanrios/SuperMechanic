@@ -68,12 +68,59 @@ class Export_Admin_Controller {
 		}
 
 		$datasets = $this->export_service->get_supported_datasets();
+		$ranges   = $this->export_service->get_supported_ranges();
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<h1>' . esc_html__( 'Data Export', 'super-mechanic' ) . '</h1>';
-		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Export operational datasets for portability and backup workflows.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Professional export layer with dataset, range, business scope and format filters.', 'super-mechanic' ) . '</p>';
 
 		$this->render_notice();
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Export filters', 'super-mechanic' ) . '</h2></div>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'sm_export_dataset' );
+		echo '<input type="hidden" name="action" value="sm_export_dataset" />';
+		echo '<div class="sm-filter-grid">';
+
+		echo '<label class="sm-filter-field">';
+		echo '<span>' . esc_html__( 'Dataset', 'super-mechanic' ) . '</span>';
+		echo '<select name="dataset_key" required>';
+		foreach ( $datasets as $dataset_key => $dataset_meta ) {
+			$dataset_label = isset( $dataset_meta['label'] ) ? (string) $dataset_meta['label'] : (string) $dataset_key;
+			echo '<option value="' . esc_attr( (string) $dataset_key ) . '">' . esc_html( $dataset_label ) . '</option>';
+		}
+		echo '</select>';
+		echo '</label>';
+
+		echo '<label class="sm-filter-field">';
+		echo '<span>' . esc_html__( 'Range', 'super-mechanic' ) . '</span>';
+		echo '<select name="range">';
+		foreach ( $ranges as $range_key => $range_label ) {
+			echo '<option value="' . esc_attr( (string) $range_key ) . '">' . esc_html( (string) $range_label ) . '</option>';
+		}
+		echo '</select>';
+		echo '</label>';
+
+		echo '<label class="sm-filter-field">';
+		echo '<span>' . esc_html__( 'Business ID (optional)', 'super-mechanic' ) . '</span>';
+		echo '<input type="number" min="0" name="business_id" value="0" />';
+		echo '</label>';
+
+		echo '<label class="sm-filter-field">';
+		echo '<span>' . esc_html__( 'Format', 'super-mechanic' ) . '</span>';
+		echo '<select name="format">';
+		echo '<option value="json">JSON</option>';
+		echo '<option value="csv">CSV</option>';
+		echo '</select>';
+		echo '</label>';
+
+		echo '</div>';
+		echo '<div class="sm-form-actions">';
+		echo '<button type="submit" class="button button-primary">' . esc_html__( 'Export', 'super-mechanic' ) . '</button>';
+		echo '</div>';
+		echo '</form>';
+		echo '</section>';
 
 		echo '<section class="sm-card sm-section">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Available datasets', 'super-mechanic' ) . '</h2></div>';
@@ -82,8 +129,6 @@ class Export_Admin_Controller {
 		echo '<thead><tr>';
 		echo '<th>' . esc_html__( 'Dataset', 'super-mechanic' ) . '</th>';
 		echo '<th>' . esc_html__( 'Description', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Format', 'super-mechanic' ) . '</th>';
-		echo '<th>' . esc_html__( 'Action', 'super-mechanic' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		foreach ( $datasets as $dataset_key => $dataset_meta ) {
@@ -93,17 +138,6 @@ class Export_Admin_Controller {
 			echo '<tr>';
 			echo '<td><strong>' . esc_html( $dataset_label ) . '</strong><br /><code>' . esc_html( (string) $dataset_key ) . '</code></td>';
 			echo '<td>' . esc_html( $dataset_description ) . '</td>';
-			echo '<td>';
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:flex;gap:8px;align-items:center;">';
-			wp_nonce_field( 'sm_export_dataset_' . $dataset_key );
-			echo '<input type="hidden" name="action" value="sm_export_dataset" />';
-			echo '<input type="hidden" name="dataset_key" value="' . esc_attr( (string) $dataset_key ) . '" />';
-			echo '<select name="format">';
-			echo '<option value="json">JSON</option>';
-			echo '<option value="csv">CSV</option>';
-			echo '</select>';
-			echo '</td>';
-			echo '<td><button type="submit" class="button button-primary">' . esc_html__( 'Export', 'super-mechanic' ) . '</button></form></td>';
 			echo '</tr>';
 		}
 
@@ -123,15 +157,18 @@ class Export_Admin_Controller {
 			wp_die( esc_html__( 'You do not have sufficient permissions to perform this action.', 'super-mechanic' ) );
 		}
 
+		check_admin_referer( 'sm_export_dataset' );
+
 		$dataset_key = isset( $_POST['dataset_key'] ) ? sanitize_key( (string) wp_unslash( $_POST['dataset_key'] ) ) : '';
 		$format      = isset( $_POST['format'] ) ? sanitize_key( (string) wp_unslash( $_POST['format'] ) ) : 'json';
+		$range       = isset( $_POST['range'] ) ? sanitize_key( (string) wp_unslash( $_POST['range'] ) ) : '30d';
+		$business_id = isset( $_POST['business_id'] ) ? absint( wp_unslash( $_POST['business_id'] ) ) : 0;
 
 		if ( '' === $dataset_key ) {
 			$this->redirect_with_notice( 'error', 'invalid_dataset' );
 		}
 
-		check_admin_referer( 'sm_export_dataset_' . $dataset_key );
-		$export = $this->export_service->export_dataset( $dataset_key, $format );
+		$export = $this->export_service->export_dataset( $dataset_key, $format, $range, $business_id );
 
 		if ( empty( $export['success'] ) ) {
 			$this->redirect_with_notice(

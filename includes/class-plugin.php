@@ -16,6 +16,8 @@ use Super_Mechanic\Admin\Onboarding_Admin_Controller;
 use Super_Mechanic\Admin\Webhooks_Admin_Controller;
 use Super_Mechanic\Admin\Export_Admin_Controller;
 use Super_Mechanic\Admin\Dashboard_Admin_Controller;
+use Super_Mechanic\Admin\Reporting_Admin_Controller;
+use Super_Mechanic\Admin\Demo_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Service;
@@ -87,6 +89,8 @@ use Super_Mechanic\Queue\Queue_Service;
 use Super_Mechanic\Relations\Client_Vehicle_Service;
 use Super_Mechanic\Reports\Report_Admin_Controller;
 use Super_Mechanic\Reports\Report_Service;
+use Super_Mechanic\Reporting\Reporting_Service;
+use Super_Mechanic\Demo\Demo_Service;
 use Super_Mechanic\Vehicles\Vehicle_Admin_Controller;
 
 defined( 'ABSPATH' ) || exit;
@@ -140,6 +144,8 @@ class Plugin {
 	protected $process_service;
 	protected $report_service;
 	protected $report_admin_controller;
+	protected $reporting_service;
+	protected $reporting_admin_controller;
 	protected $shortcode_admin_controller;
 	protected $invoice_finance_admin_controller;
 	protected $payment_finance_admin_controller;
@@ -177,6 +183,8 @@ class Plugin {
 	protected $webhooks_admin_controller;
 	protected $export_admin_controller;
 	protected $dashboard_admin_controller;
+	protected $demo_service;
+	protected $demo_admin_controller;
 	protected $queue_service;
 
 	public function __construct() {
@@ -214,6 +222,7 @@ class Plugin {
 		$this->pdf_service                   = new PDF_Service( $this->invoice_service, $this->quote_service );
 		$this->dashboard_service             = new Dashboard_Service( null, null, $this->process_service );
 		$this->report_service                = new Report_Service( null, $this->process_service );
+		$this->reporting_service             = new Reporting_Service();
 		$this->shortcode_admin_controller    = new Shortcode_Admin_Controller();
 		$this->attachment_service            = new Attachment_Service( null, $this->process_service, $this->dashboard_service, $this->quote_service, $this->invoice_service );
 		$this->document_service              = new Document_Service( $this->pdf_service, $this->attachment_service, $this->invoice_service, $this->quote_service );
@@ -275,6 +284,9 @@ class Plugin {
 		$this->webhooks_admin_controller      = new Webhooks_Admin_Controller();
 		$this->export_admin_controller        = new Export_Admin_Controller();
 		$this->dashboard_admin_controller     = new Dashboard_Admin_Controller( $this->dashboard_service );
+		$this->reporting_admin_controller     = new Reporting_Admin_Controller( $this->reporting_service );
+		$this->demo_service                   = new Demo_Service();
+		$this->demo_admin_controller          = new Demo_Admin_Controller( $this->demo_service );
 		$this->admin_menu                    = new Admin_Menu(
 			$this->settings,
 			$this->client_admin_controller,
@@ -339,6 +351,8 @@ class Plugin {
 			$this->webhooks_admin_controller->register_hooks();
 			$this->export_admin_controller->register_hooks();
 			$this->dashboard_admin_controller->register_hooks();
+			$this->reporting_admin_controller->register_hooks();
+			$this->demo_admin_controller->register_hooks();
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();

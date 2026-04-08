@@ -166,6 +166,36 @@
 	font-size: 13px;
 }
 
+.sm-report-trend-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.sm-trend-up {
+	background: #e7f7ef;
+	border-color: #bee7d0;
+	color: #166d53;
+}
+
+.sm-trend-down {
+	background: #fde9ea;
+	border-color: #f2c0c4;
+	color: #a43640;
+}
+
+.sm-trend-stable {
+	background: #edf2fa;
+	border-color: #d8e1ef;
+	color: #42526e;
+}
+
+.sm-report-comparison .sm-card-copy {
+	margin-bottom: 12px;
+}
+
 .sm-section {
 	margin-top: 26px;
 }
@@ -1407,4 +1437,30 @@
 .sm-branding-page .sm-filter-field input[type="url"],
 .sm-branding-page .sm-filter-field input[type="number"] {
 	max-width: 100%;
+}
+
+.sm-demo-mode-banner {
+	background: linear-gradient(135deg, #fff5df 0%, #ffe8bf 100%);
+	border: 1px solid #f0d394;
+	border-radius: 14px;
+	margin: 14px 20px 0 2px;
+	padding: 10px 14px;
+}
+
+.sm-demo-mode-banner-inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+}
+
+.sm-demo-mode-banner-inner p {
+	margin: 0;
+	color: #6f4f00;
+	font-weight: 600;
+}
+
+.sm-demo-page .sm-kpi-value-small {
+	font-size: 18px;
+	line-height: 1.3;
 }
