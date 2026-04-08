@@ -57,6 +57,7 @@ class Dashboard_Service {
 	protected $access_control_service;
 	protected $process_derived_state_service;
 	protected $appointment_service;
+	protected $dashboard_repository;
 
 	/**
 	 * Constructor.
@@ -66,7 +67,7 @@ class Dashboard_Service {
 	 * @param Process_Service|null           $process_service           Process service.
 	 * @param Client_Vehicle_Repository|null $client_vehicle_repository Client vehicle repository.
 	 */
-	public function __construct( Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Process_Service $process_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Access_Control_Service $access_control_service = null, Process_Derived_State_Service $process_derived_state_service = null, Appointment_Service $appointment_service = null ) {
+	public function __construct( Client_Service $client_service = null, Vehicle_Service $vehicle_service = null, Process_Service $process_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Access_Control_Service $access_control_service = null, Process_Derived_State_Service $process_derived_state_service = null, Appointment_Service $appointment_service = null, Dashboard_Repository $dashboard_repository = null ) {
 		$this->client_service            = $client_service ? $client_service : new Client_Service();
 		$this->vehicle_service           = $vehicle_service ? $vehicle_service : new Vehicle_Service();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
@@ -74,6 +75,27 @@ class Dashboard_Service {
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service();
 		$this->process_derived_state_service = $process_derived_state_service ? $process_derived_state_service : new Process_Derived_State_Service( $this->process_service );
 		$this->appointment_service       = $appointment_service ? $appointment_service : new Appointment_Service();
+		$this->dashboard_repository      = $dashboard_repository ? $dashboard_repository : new Dashboard_Repository();
+	}
+
+	/**
+	 * Get operational dashboard metrics.
+	 *
+	 * @param int $business_id Business ID.
+	 * @return array<string,int>
+	 */
+	public function get_dashboard_metrics( $business_id = 0 ) {
+		return $this->dashboard_repository->get_dashboard_metrics( $business_id );
+	}
+
+	/**
+	 * Get recent operational activity.
+	 *
+	 * @param int $limit Row limit.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function get_recent_activity( $limit = 10 ) {
+		return $this->dashboard_repository->get_recent_activity( 0, $limit );
 	}
 
 	/**

@@ -15,6 +15,7 @@ use Super_Mechanic\Admin\Branding_Admin_Controller;
 use Super_Mechanic\Admin\Onboarding_Admin_Controller;
 use Super_Mechanic\Admin\Webhooks_Admin_Controller;
 use Super_Mechanic\Admin\Export_Admin_Controller;
+use Super_Mechanic\Admin\Dashboard_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Admin_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Controller;
 use Super_Mechanic\Appointments\Appointment_Ical_Feed_Service;
@@ -175,6 +176,7 @@ class Plugin {
 	protected $onboarding_admin_controller;
 	protected $webhooks_admin_controller;
 	protected $export_admin_controller;
+	protected $dashboard_admin_controller;
 	protected $queue_service;
 
 	public function __construct() {
@@ -272,6 +274,7 @@ class Plugin {
 		$this->onboarding_admin_controller    = new Onboarding_Admin_Controller();
 		$this->webhooks_admin_controller      = new Webhooks_Admin_Controller();
 		$this->export_admin_controller        = new Export_Admin_Controller();
+		$this->dashboard_admin_controller     = new Dashboard_Admin_Controller( $this->dashboard_service );
 		$this->admin_menu                    = new Admin_Menu(
 			$this->settings,
 			$this->client_admin_controller,
@@ -335,6 +338,7 @@ class Plugin {
 			$this->onboarding_admin_controller->register_hooks();
 			$this->webhooks_admin_controller->register_hooks();
 			$this->export_admin_controller->register_hooks();
+			$this->dashboard_admin_controller->register_hooks();
 		}
 
 		$this->client_dashboard_shortcodes->register_hooks();
@@ -359,6 +363,9 @@ class Plugin {
 		}
 	}
 }
+
+
+
 
 
 

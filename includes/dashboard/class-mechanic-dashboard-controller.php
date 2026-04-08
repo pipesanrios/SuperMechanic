@@ -190,6 +190,8 @@ class Mechanic_Dashboard_Controller {
 		$kpis              = $this->dashboard_service->get_mechanic_kpis( $user_id );
 		$processes         = $this->get_filtered_processes( $user_id );
 		$appointments      = $this->dashboard_service->get_mechanic_upcoming_appointments( $user_id, 12 );
+		$quick_summary     = $this->build_mechanic_quick_summary( $kpis, $processes, $appointments );
+		$process_highlight = $this->build_mechanic_process_highlight( $processes );
 		$current_status    = isset( $_GET['filter_status'] ) ? sanitize_key( wp_unslash( $_GET['filter_status'] ) ) : '';
 		$current_type      = isset( $_GET['filter_process_type'] ) ? sanitize_key( wp_unslash( $_GET['filter_process_type'] ) ) : '';
 		$status_options    = $this->process_service->get_status_options();
@@ -200,6 +202,8 @@ class Mechanic_Dashboard_Controller {
 		$this->render_kpi_card( __( 'Pending approval', 'super-mechanic' ), $kpis['pending_approvals'] );
 		$this->render_kpi_card( __( 'Maintenance processes', 'super-mechanic' ), $kpis['maintenance_processes'] );
 		echo '</div>';
+		$this->render_mechanic_quick_summary_widget( $quick_summary );
+		$this->render_mechanic_process_summary_widget( $process_highlight );
 
 		echo '<form method="get" class="sm-card sm-filter-card" style="margin-bottom:16px;">';
 		if ( ! $this->frontend_render ) {
@@ -427,6 +431,148 @@ class Mechanic_Dashboard_Controller {
 		echo '<span class="sm-kpi-label">' . esc_html( $label ) . '</span>';
 		echo '<strong class="sm-kpi-value">' . esc_html( absint( $value ) ) . '</strong>';
 		echo '</article>';
+	}
+
+	/**
+	 * Build compact quick summary for mechanic dashboard.
+	 *
+	 * @param array<string,mixed>              $kpis KPI payload.
+	 * @param array<int,array<string,mixed>>   $processes Process rows.
+	 * @param array<int,array<string,mixed>>   $appointments Appointment rows.
+	 * @return array<string,mixed>
+	 */
+	protected function build_mechanic_quick_summary( array $kpis, array $processes, array $appointments ) {
+		$critical_count = 0;
+		foreach ( $processes as $process ) {
+			if ( ! is_array( $process ) ) {
+				continue;
+			}
+			if ( 'critical' === $this->resolve_process_priority_level( $process ) ) {
+				++$critical_count;
+			}
+		}
+
+		$next_appointment = __( 'No appointment scheduled', 'super-mechanic' );
+		if ( ! empty( $appointments ) && is_array( $appointments[0] ) ) {
+			$next_appointment = $this->format_datetime_label( isset( $appointments[0]['start_at'] ) ? (string) $appointments[0]['start_at'] : '' );
+		}
+
+		return array(
+			'assigned_processes' => count( $processes ),
+			'pending_approvals'  => isset( $kpis['pending_approvals'] ) ? absint( $kpis['pending_approvals'] ) : 0,
+			'critical_processes' => $critical_count,
+			'next_appointment'   => $next_appointment,
+		);
+	}
+
+	/**
+	 * Build highlighted process summary payload.
+	 *
+	 * @param array<int,array<string,mixed>> $processes Process rows.
+	 * @return array<string,mixed>
+	 */
+	protected function build_mechanic_process_highlight( array $processes ) {
+		if ( empty( $processes ) ) {
+			return array();
+		}
+
+		$selected = $processes[0];
+		foreach ( $processes as $process ) {
+			if ( ! is_array( $process ) ) {
+				continue;
+			}
+			if ( 'critical' === $this->resolve_process_priority_level( $process ) ) {
+				$selected = $process;
+				break;
+			}
+		}
+
+		$priority_level = $this->resolve_process_priority_level( $selected );
+		$priority_label = __( 'Normal', 'super-mechanic' );
+		$priority_badge = 'sm-badge sm-badge-success';
+		if ( 'critical' === $priority_level ) {
+			$priority_label = __( 'Critical', 'super-mechanic' );
+			$priority_badge = 'sm-badge sm-badge-danger';
+		} elseif ( 'warning' === $priority_level ) {
+			$priority_label = __( 'Warning', 'super-mechanic' );
+			$priority_badge = 'sm-badge sm-badge-warning';
+		}
+
+		return array(
+			'process_id'      => absint( isset( $selected['id'] ) ? $selected['id'] : 0 ),
+			'title'           => sanitize_text_field( isset( $selected['title'] ) ? (string) $selected['title'] : '' ),
+			'status'          => $this->get_process_status_display( $selected ),
+			'priority_label'  => $priority_label,
+			'priority_badge'  => $priority_badge,
+			'last_change'     => sanitize_text_field( ! empty( $selected['updated_at'] ) ? (string) $selected['updated_at'] : (string) ( isset( $selected['created_at'] ) ? $selected['created_at'] : '' ) ),
+			'cta_url'         => $this->get_page_url( array( 'process_id' => absint( isset( $selected['id'] ) ? $selected['id'] : 0 ) ) ),
+		);
+	}
+
+	/**
+	 * Render mechanic quick summary widget.
+	 *
+	 * @param array<string,mixed> $summary Summary payload.
+	 * @return void
+	 */
+	protected function render_mechanic_quick_summary_widget( array $summary ) {
+		echo '<section class="sm-card sm-section sm-summary-widget" style="margin-top:0;margin-bottom:14px;">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Mechanic quick summary', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-neutral">' . esc_html__( 'At a glance', 'super-mechanic' ) . '</span></div>';
+		echo '<div class="sm-widget-stat-grid">';
+		echo '<article class="sm-widget-stat"><span class="sm-widget-stat-label">' . esc_html__( 'Assigned', 'super-mechanic' ) . '</span><strong class="sm-widget-stat-value">' . esc_html( (string) absint( isset( $summary['assigned_processes'] ) ? $summary['assigned_processes'] : 0 ) ) . '</strong></article>';
+		echo '<article class="sm-widget-stat"><span class="sm-widget-stat-label">' . esc_html__( 'Pending', 'super-mechanic' ) . '</span><strong class="sm-widget-stat-value">' . esc_html( (string) absint( isset( $summary['pending_approvals'] ) ? $summary['pending_approvals'] : 0 ) ) . '</strong></article>';
+		echo '<article class="sm-widget-stat"><span class="sm-widget-stat-label">' . esc_html__( 'Critical', 'super-mechanic' ) . '</span><strong class="sm-widget-stat-value">' . esc_html( (string) absint( isset( $summary['critical_processes'] ) ? $summary['critical_processes'] : 0 ) ) . '</strong></article>';
+		echo '<article class="sm-widget-stat"><span class="sm-widget-stat-label">' . esc_html__( 'Next appointment', 'super-mechanic' ) . '</span><strong class="sm-widget-stat-value">' . esc_html( isset( $summary['next_appointment'] ) ? (string) $summary['next_appointment'] : '-' ) . '</strong></article>';
+		echo '</div>';
+		echo '</section>';
+	}
+
+	/**
+	 * Render process highlight widget.
+	 *
+	 * @param array<string,mixed> $summary Process summary payload.
+	 * @return void
+	 */
+	protected function render_mechanic_process_summary_widget( array $summary ) {
+		echo '<section class="sm-card sm-section sm-process-summary-widget" style="margin-top:0;margin-bottom:14px;">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Process summary', 'super-mechanic' ) . '</h2><span class="sm-badge sm-badge-primary">' . esc_html__( 'Priority card', 'super-mechanic' ) . '</span></div>';
+		if ( empty( $summary ) ) {
+			echo '<p>' . esc_html__( 'No process available for summary.', 'super-mechanic' ) . '</p>';
+			echo '</section>';
+			return;
+		}
+		echo '<p class="sm-widget-title"><strong>#' . esc_html( isset( $summary['process_id'] ) ? (string) absint( $summary['process_id'] ) : '' ) . '</strong> · ' . esc_html( isset( $summary['title'] ) ? (string) $summary['title'] : '' ) . '</p>';
+		echo '<div class="sm-summary-badges">';
+		echo '<span class="sm-badge sm-badge-neutral">' . esc_html( isset( $summary['status'] ) ? (string) $summary['status'] : '' ) . '</span>';
+		echo '<span class="' . esc_attr( isset( $summary['priority_badge'] ) ? (string) $summary['priority_badge'] : 'sm-badge sm-badge-neutral' ) . '">' . esc_html( isset( $summary['priority_label'] ) ? (string) $summary['priority_label'] : '' ) . '</span>';
+		echo '</div>';
+		echo '<div class="sm-widget-stat-grid sm-widget-stat-grid-compact">';
+		echo '<article class="sm-widget-stat"><span class="sm-widget-stat-label">' . esc_html__( 'Last change', 'super-mechanic' ) . '</span><strong class="sm-widget-stat-value">' . esc_html( isset( $summary['last_change'] ) ? (string) $summary['last_change'] : '-' ) . '</strong></article>';
+		echo '</div>';
+		echo '<p><a class="button button-primary" href="' . esc_url( isset( $summary['cta_url'] ) ? (string) $summary['cta_url'] : '#' ) . '">' . esc_html__( 'Open process details', 'super-mechanic' ) . '</a></p>';
+		echo '</section>';
+	}
+
+	/**
+	 * Resolve lightweight priority level from existing process metadata.
+	 *
+	 * @param array<string,mixed> $process Process row.
+	 * @return string
+	 */
+	protected function resolve_process_priority_level( array $process ) {
+		$priority = isset( $process['priority'] ) ? sanitize_key( (string) $process['priority'] ) : '';
+		$status   = isset( $process['status'] ) ? sanitize_key( (string) $process['status'] ) : '';
+		$derived  = isset( $process['derived_status'] ) ? sanitize_key( (string) $process['derived_status'] ) : '';
+
+		if ( 'critical' === $priority || in_array( $derived, array( 'waiting_payment', 'waiting_approval' ), true ) || 'waiting_approval' === $status ) {
+			return 'critical';
+		}
+
+		if ( 'warning' === $priority || in_array( $status, array( 'pending', 'in_progress' ), true ) ) {
+			return 'warning';
+		}
+
+		return 'normal';
 	}
 
 	protected function render_summary_row( $label, $value ) {

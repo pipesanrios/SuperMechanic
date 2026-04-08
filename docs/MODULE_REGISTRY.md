@@ -164,3 +164,12 @@ Module-to-module interactions must go through Services, not repositories.
 - Final runtime closure completed on 2026-04-07 (50Z):
   - notifications/webhooks/automation runtime checks PASS
   - no duplicate event dispatch observed in consolidated check.
+
+### UX / VISUAL MODULES
+
+- Dashboard Module
+- Client Portal Module
+- Mobile Layer
+- Widget System
+
+Estado: ESTABLE
