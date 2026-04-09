@@ -124,6 +124,102 @@ FASE 53 - COMPLETA
 - integracion externa
 - escalado comercial
 
+## 54E.2 STATUS
+- embedded TCPDF integrated in plugin path (`includes/libs/pdf/tcpdf`)
+- reporting PDF service configured to load embedded TCPDF and render HTML via `writeHTML`
+- runtime/manual closure still required for final phase completion
+
+## 55B STATUS
+- API formalization layer integrated in runtime (`includes/api/class-api-loader.php`)
+- versioned namespace available: `/wp-json/sm/v1/`
+- delivered endpoints:
+  - `GET /clients`
+  - `GET /vehicles`
+  - `GET /processes`
+  - `GET /processes/{id}`
+  - `GET /invoices`
+  - `GET /reporting/summary`
+  - `POST /quotes/{id}/approve`
+- ownership and business scope enforced through existing services (`Access_Control_Service` + `Business_Context_Service`)
+- automated validation PASS (`php-lint` + QA runner 55B); runtime/manual REST closure still required
+
+## 55C STATUS
+- webhook outbound dispatch formalized in `Webhook_Service`
+- canonical commercial/operational event names enabled with legacy alias compatibility:
+  - `process.created`
+  - `process.updated`
+  - `quote.approved`
+  - `invoice.paid`
+  - `payment.created`
+- standardized payload normalization added with stable structure:
+  - `event`, `timestamp`, `business_id`, `entity_type`, `entity_id`, `data`
+- queue/retry/logging behavior preserved (queue-first + immediate fallback)
+- automation engine event sanitization aligned for dotted canonical names without breaking existing flow
+- automated validation PASS (`php-lint` + QA runner 55C); runtime/manual webhook closure still required
+
+## 55D STATUS
+- external connectors base layer integrated in runtime:
+  - `includes/integrations/connectors/class-connector-repository.php`
+  - `includes/integrations/connectors/class-connector-service.php`
+- connectors admin management page integrated:
+  - `includes/admin/class-connectors-admin-controller.php`
+  - menu slug: `super-mechanic-connectors`
+- connector dispatch reused standardized webhook payload normalization through:
+  - `Webhook_Service::build_standard_event_payload(...)`
+- supported connector types:
+  - `webhook`
+  - `google_sheets`
+  - `email_trigger`
+- supported canonical events:
+  - `process.created`
+  - `process.updated`
+  - `quote.approved`
+  - `invoice.paid`
+  - `payment.created`
+- automated validation PASS (`php-lint` + QA runner 55D); runtime/manual connectors closure still required
+
+## 55E1 STATUS
+- commercial extensibility centralized through:
+  - `includes/commercial/class-commercial-hooks-service.php`
+- standardized commercial hooks available:
+  - `sm_quote_created`
+  - `sm_quote_approved`
+  - `sm_invoice_created`
+  - `sm_invoice_paid`
+  - `sm_payment_created`
+  - `sm_process_completed`
+
+## 55E2 STATUS
+- monetization core integrated in runtime:
+  - trial lifecycle support (`start`, `active`, `expired`)
+  - effective license state resolution:
+    - `active`
+    - `trial`
+    - `expired`
+    - `inactive`
+    - `revoked`
+- controlled creation enforcement enabled (no full read/list block):
+  - business creation
+  - process creation
+  - webhook creation
+  - membership creation
+- license admin UI extended with:
+  - effective state
+  - trial start/end
+  - trial remaining days
+  - creation restriction visibility
+
+## FASE 55 RULES
+- always use canonical events:
+  - `process.created`
+  - `process.updated`
+  - `quote.approved`
+  - `invoice.paid`
+  - `payment.created`
+- do not duplicate webhook logic; reuse `Webhook_Service` normalization/dispatch flow
+- use `Commercial_Hooks_Service` for commercial extensibility hooks
+- use `License_Service` (with `Plan_Limits_Service`) for controlled creation enforcement
+
 ---
 
 ## Execution Model

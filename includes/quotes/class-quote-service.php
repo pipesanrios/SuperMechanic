@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Quotes;
 
 use Super_Mechanic\Communication\Event_Dispatcher;
+use Super_Mechanic\Commercial\Commercial_Hooks_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
@@ -34,8 +35,9 @@ class Quote_Service {
 	protected $settings_service;
 	protected $business_context_service;
 	protected $woo_product_service;
+	protected $commercial_hooks_service;
 
-	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Woo_Product_Service $woo_product_service = null ) {
+	public function __construct( Quote_Repository $repository = null, Quote_Item_Repository $item_repository = null, Process_Service $process_service = null, Maintenance_Service $maintenance_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Quote_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Woo_Product_Service $woo_product_service = null, Commercial_Hooks_Service $commercial_hooks_service = null ) {
 		$this->repository                = $repository ? $repository : new Quote_Repository();
 		$this->item_repository           = $item_repository ? $item_repository : new Quote_Item_Repository();
 		$this->process_service           = $process_service ? $process_service : new Process_Service();
@@ -47,6 +49,7 @@ class Quote_Service {
 		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
 		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
 		$this->woo_product_service       = $woo_product_service ? $woo_product_service : new Woo_Product_Service();
+		$this->commercial_hooks_service  = $commercial_hooks_service ? $commercial_hooks_service : new Commercial_Hooks_Service();
 	}
 
 	/**
@@ -82,6 +85,21 @@ class Quote_Service {
 		}
 
 		$this->recalculate_totals( $inserted );
+		$this->commercial_hooks_service->dispatch(
+			'sm_quote_created',
+			array(
+				'business_id' => isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0,
+				'entity_id'   => absint( $inserted ),
+				'entity_type' => 'quote',
+				'data'        => array(
+					'quote_id'     => absint( $inserted ),
+					'process_id'   => isset( $data['process_id'] ) ? absint( $data['process_id'] ) : 0,
+					'client_id'    => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
+					'status'       => isset( $data['status'] ) ? sanitize_key( (string) $data['status'] ) : 'draft',
+					'triggered_by' => get_current_user_id(),
+				),
+			)
+		);
 
 		return $inserted;
 	}
@@ -489,6 +507,20 @@ class Quote_Service {
 					'process_id'    => absint( $quote['process_id'] ),
 					'client_id'     => absint( $quote['client_id'] ),
 					'triggered_by'  => absint( $user_id ),
+				)
+			);
+			$this->commercial_hooks_service->dispatch(
+				'sm_quote_approved',
+				array(
+					'business_id' => isset( $quote['business_id'] ) ? absint( $quote['business_id'] ) : 0,
+					'entity_id'   => absint( $quote_id ),
+					'entity_type' => 'quote',
+					'data'        => array(
+						'quote_id'     => absint( $quote_id ),
+						'process_id'   => absint( $quote['process_id'] ),
+						'client_id'    => absint( $quote['client_id'] ),
+						'triggered_by' => absint( $user_id ),
+					),
 				)
 			);
 		}

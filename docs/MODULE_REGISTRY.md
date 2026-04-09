@@ -75,6 +75,8 @@ No phase timeline and no schema details.
 - appointments
 - integrations/google-calendar
 - integrations/public-api
+- integrations/elementor
+- integrations/connectors
 - integrations/woocommerce (commercial snapshot scope)
 - businesses (multi-store context)
 - users (multi-business membership + access)
@@ -137,6 +139,17 @@ No phase timeline and no schema details.
   - `includes/webhooks/class-webhook-service.php`
   - admin UI: `includes/admin/class-webhooks-admin-controller.php`
   - status: ACTIVE (runtime validated in 50Z)
+
+## Integrations
+- Elementor Loader
+- API Loader
+- Webhook Service
+- Connector Service
+
+## Commercial
+- Commercial Hooks Service
+- License Service
+- Plan Limits Service
 
 ## Multi-Business Access Layer
 - Description:

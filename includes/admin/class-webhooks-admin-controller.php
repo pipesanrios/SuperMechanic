@@ -71,7 +71,7 @@ class Webhooks_Admin_Controller {
 		}
 
 		$webhooks        = $this->webhook_service->get_webhooks();
-		$events          = $this->webhook_service->get_supported_events();
+		$events          = $this->webhook_service->get_supported_events_for_admin();
 		$edit_webhook    = null;
 		$edit_webhook_id = isset( $_GET['edit_webhook_id'] ) ? absint( wp_unslash( $_GET['edit_webhook_id'] ) ) : 0;
 		if ( $edit_webhook_id > 0 ) {
@@ -102,7 +102,7 @@ class Webhooks_Admin_Controller {
 		$payload    = array(
 			'name'       => isset( $_POST['name'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['name'] ) ) : '',
 			'url'        => isset( $_POST['url'] ) ? esc_url_raw( (string) wp_unslash( $_POST['url'] ) ) : '',
-			'event_type' => isset( $_POST['event_type'] ) ? sanitize_key( (string) wp_unslash( $_POST['event_type'] ) ) : '',
+			'event_type' => isset( $_POST['event_type'] ) ? $this->sanitize_event_type( (string) wp_unslash( $_POST['event_type'] ) ) : '',
 			'secret_key' => isset( $_POST['secret_key'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['secret_key'] ) ) : '',
 			'is_active'  => ! empty( $_POST['is_active'] ) ? 1 : 0,
 		);
@@ -232,7 +232,7 @@ class Webhooks_Admin_Controller {
 		$webhook_id = is_array( $webhook ) && isset( $webhook['id'] ) ? absint( $webhook['id'] ) : 0;
 		$name       = is_array( $webhook ) && isset( $webhook['name'] ) ? sanitize_text_field( (string) $webhook['name'] ) : '';
 		$url        = is_array( $webhook ) && isset( $webhook['url'] ) ? esc_url_raw( (string) $webhook['url'] ) : '';
-		$event_type = is_array( $webhook ) && isset( $webhook['event_type'] ) ? sanitize_key( (string) $webhook['event_type'] ) : '';
+		$event_type = is_array( $webhook ) && isset( $webhook['event_type'] ) ? $this->webhook_service->get_canonical_event_name( (string) $webhook['event_type'] ) : '';
 		$secret_key = is_array( $webhook ) && isset( $webhook['secret_key'] ) ? sanitize_text_field( (string) $webhook['secret_key'] ) : '';
 		$is_active  = is_array( $webhook ) && isset( $webhook['is_active'] ) ? absint( $webhook['is_active'] ) : 1;
 
@@ -302,7 +302,7 @@ class Webhooks_Admin_Controller {
 				$webhook_id = isset( $webhook['id'] ) ? absint( $webhook['id'] ) : 0;
 				$name       = isset( $webhook['name'] ) ? sanitize_text_field( (string) $webhook['name'] ) : '';
 				$url        = isset( $webhook['url'] ) ? esc_url_raw( (string) $webhook['url'] ) : '';
-				$event_type = isset( $webhook['event_type'] ) ? sanitize_key( (string) $webhook['event_type'] ) : '';
+				$event_type = isset( $webhook['event_type'] ) ? $this->webhook_service->get_canonical_event_name( (string) $webhook['event_type'] ) : '';
 				$is_active  = isset( $webhook['is_active'] ) ? absint( $webhook['is_active'] ) : 0;
 				$secret_key = isset( $webhook['secret_key'] ) ? sanitize_text_field( (string) $webhook['secret_key'] ) : '';
 				$created_at = isset( $webhook['created_at'] ) ? sanitize_text_field( (string) $webhook['created_at'] ) : '';
@@ -416,6 +416,19 @@ class Webhooks_Admin_Controller {
 	}
 
 	/**
+	 * Sanitize event type while preserving canonical dot notation.
+	 *
+	 * @param string $event_type Raw event type.
+	 * @return string
+	 */
+	protected function sanitize_event_type( $event_type ) {
+		$event_type = strtolower( trim( (string) $event_type ) );
+		$event_type = preg_replace( '/[^a-z0-9._-]/', '', $event_type );
+
+		return is_string( $event_type ) ? $event_type : '';
+	}
+
+	/**
 	 * Redirect to page with notice.
 	 *
 	 * @param string              $type Type.
@@ -437,3 +450,11 @@ class Webhooks_Admin_Controller {
 		exit;
 	}
 }
+
+
+
+
+
+
+
+

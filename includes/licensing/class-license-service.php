@@ -16,6 +16,12 @@ defined( 'ABSPATH' ) || exit;
  */
 class License_Service {
 	/**
+	 * Trial option keys.
+	 */
+	const OPTION_TRIAL_START_AT = 'sm_license_trial_start_at';
+	const OPTION_TRIAL_END_AT   = 'sm_license_trial_end_at';
+
+	/**
 	 * Supported statuses.
 	 *
 	 * @var array<int,string>
@@ -44,14 +50,22 @@ class License_Service {
 	protected $audit_service;
 
 	/**
+	 * Plan limits dependency.
+	 *
+	 * @var Plan_Limits_Service|null
+	 */
+	protected $plan_limits_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param License_Repository|null $repository Repository dependency.
 	 * @param Audit_Service|null      $audit_service Audit service dependency.
 	 */
-	public function __construct( License_Repository $repository = null, Audit_Service $audit_service = null ) {
+	public function __construct( License_Repository $repository = null, Audit_Service $audit_service = null, Plan_Limits_Service $plan_limits_service = null ) {
 		$this->repository    = $repository ? $repository : new License_Repository();
 		$this->audit_service = $audit_service;
+		$this->plan_limits_service = $plan_limits_service;
 	}
 
 	/**
@@ -204,7 +218,140 @@ class License_Service {
 	 * @return bool
 	 */
 	public function has_usable_license() {
-		return $this->is_license_active();
+		return in_array( $this->get_effective_license_state(), array( 'active', 'trial' ), true );
+	}
+
+	/**
+	 * Check if trial is active based on local option dates.
+	 *
+	 * @return bool
+	 */
+	public function is_trial_active() {
+		$trial = $this->get_trial_state();
+
+		return ! empty( $trial['is_active'] );
+	}
+
+	/**
+	 * Start/restart trial window.
+	 *
+	 * @param int $days Trial days.
+	 * @return array<string,mixed>
+	 */
+	public function start_trial( $days = 14 ) {
+		$days = absint( $days );
+		if ( $days <= 0 ) {
+			$days = 14;
+		}
+
+		$start_at = current_time( 'mysql' );
+		$end_at   = gmdate( 'Y-m-d H:i:s', strtotime( gmdate( 'Y-m-d H:i:s' ) . ' +' . $days . ' days' ) );
+
+		update_option( self::OPTION_TRIAL_START_AT, $start_at, false );
+		update_option( self::OPTION_TRIAL_END_AT, $end_at, false );
+
+		return array(
+			'success'      => true,
+			'message'      => __( 'Trial started successfully.', 'super-mechanic' ),
+			'trial_start'  => $start_at,
+			'trial_end'    => $end_at,
+			'days'         => $days,
+		);
+	}
+
+	/**
+	 * Check license expiration against expires_at.
+	 *
+	 * @return bool
+	 */
+	public function is_license_expired() {
+		$license = $this->get_license();
+		$expires = isset( $license['expires_at'] ) ? trim( (string) $license['expires_at'] ) : '';
+		if ( '' === $expires ) {
+			return false;
+		}
+
+		$expires_ts = strtotime( $expires );
+		if ( false === $expires_ts ) {
+			return false;
+		}
+
+		return time() > $expires_ts;
+	}
+
+	/**
+	 * Resolve effective license state including trial/expiration.
+	 *
+	 * @return string
+	 */
+	public function get_effective_license_state() {
+		$status = $this->get_license_status();
+
+		if ( 'revoked' === $status ) {
+			return 'revoked';
+		}
+
+		if ( 'active' === $status && ! $this->is_license_expired() ) {
+			return 'active';
+		}
+
+		if ( $this->is_trial_active() ) {
+			return 'trial';
+		}
+
+		if ( 'expired' === $status || $this->is_license_expired() || $this->is_trial_expired() ) {
+			return 'expired';
+		}
+
+		return 'inactive';
+	}
+
+	/**
+	 * Check whether one resource creation is allowed.
+	 *
+	 * @param string $resource_key Resource key or alias.
+	 * @return bool
+	 */
+	public function can_create_resource( $resource_key ) {
+		$effective_state = $this->get_effective_license_state();
+		if ( ! in_array( $effective_state, array( 'active', 'trial' ), true ) ) {
+			return false;
+		}
+
+		return $this->get_plan_limits_service()->can_create_resource( $resource_key );
+	}
+
+	/**
+	 * Assert resource creation permission, return WP_Error when blocked.
+	 *
+	 * @param string $resource_key Resource key or alias.
+	 * @return true|\WP_Error
+	 */
+	public function assert_resource_creation_allowed( $resource_key ) {
+		if ( $this->can_create_resource( $resource_key ) ) {
+			return true;
+		}
+
+		$effective_state = $this->get_effective_license_state();
+		if ( ! in_array( $effective_state, array( 'active', 'trial' ), true ) ) {
+			return new \WP_Error(
+				'sm_license_creation_blocked_state',
+				__( 'Creation blocked: your license/trial is inactive or expired. Listing remains available.', 'super-mechanic' )
+			);
+		}
+
+		$limits         = $this->get_plan_limits_service();
+		$normalized_key = $limits->normalize_resource_key( $resource_key );
+		$status         = $limits->get_limit_status( $normalized_key );
+		$label          = isset( $status['label'] ) ? (string) $status['label'] : sanitize_text_field( (string) $resource_key );
+		$limit          = isset( $status['limit'] ) && null !== $status['limit'] ? absint( $status['limit'] ) : null;
+
+		return new \WP_Error(
+			'sm_plan_limit_creation_blocked',
+			null === $limit
+				? sprintf( __( 'Creation blocked for %s by current commercial rules.', 'super-mechanic' ), $label )
+				: sprintf( __( 'Creation blocked: %1$s limit reached (%2$d).', 'super-mechanic' ), $label, $limit )
+		);
 	}
 
 	/**
@@ -214,7 +361,7 @@ class License_Service {
 	 */
 	public function is_license_valid_for_current_site() {
 		$license = $this->get_license();
-		if ( 'active' !== $license['license_status'] ) {
+		if ( 'active' !== $this->get_effective_license_state() ) {
 			return false;
 		}
 		if ( '' === $license['domain'] ) {
@@ -259,6 +406,62 @@ class License_Service {
 			'created_at'      => '',
 			'updated_at'      => '',
 		);
+	}
+
+	/**
+	 * Resolve trial state.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function get_trial_state() {
+		$start_at = sanitize_text_field( (string) get_option( self::OPTION_TRIAL_START_AT, '' ) );
+		$end_at   = sanitize_text_field( (string) get_option( self::OPTION_TRIAL_END_AT, '' ) );
+		$now      = time();
+		$start_ts = '' !== $start_at ? strtotime( $start_at ) : false;
+		$end_ts   = '' !== $end_at ? strtotime( $end_at ) : false;
+
+		$is_active = false;
+		if ( false !== $start_ts && false !== $end_ts ) {
+			$is_active = $now >= $start_ts && $now <= $end_ts;
+		}
+
+		$days_remaining = 0;
+		if ( $is_active && false !== $end_ts ) {
+			$days_remaining = max( 0, (int) ceil( ( $end_ts - $now ) / DAY_IN_SECONDS ) );
+		}
+
+		return array(
+			'trial_start_at'  => $start_at,
+			'trial_end_at'    => $end_at,
+			'is_active'       => $is_active,
+			'is_expired'      => ( false !== $end_ts && $now > $end_ts ),
+			'days_remaining'  => $days_remaining,
+		);
+	}
+
+	/**
+	 * Check if trial was defined and has expired.
+	 *
+	 * @return bool
+	 */
+	protected function is_trial_expired() {
+		$trial = $this->get_trial_state();
+		return ! empty( $trial['is_expired'] );
+	}
+
+	/**
+	 * Resolve plan limits service lazily.
+	 *
+	 * @return Plan_Limits_Service
+	 */
+	protected function get_plan_limits_service() {
+		if ( $this->plan_limits_service instanceof Plan_Limits_Service ) {
+			return $this->plan_limits_service;
+		}
+
+		$this->plan_limits_service = new Plan_Limits_Service( $this );
+
+		return $this->plan_limits_service;
 	}
 
 	/**

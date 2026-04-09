@@ -254,6 +254,60 @@ class Plan_Limits_Service {
 	}
 
 	/**
+	 * Resolve canonical resource key for enforcement operations.
+	 *
+	 * @param string $resource_key Raw resource key.
+	 * @return string
+	 */
+	public function normalize_resource_key( $resource_key ) {
+		$resource_key = sanitize_key( (string) $resource_key );
+		$aliases      = array(
+			'business'          => 'businesses',
+			'businesses'        => 'businesses',
+			'user'              => 'users',
+			'users'             => 'users',
+			'internal_users'    => 'users',
+			'membership'        => 'users',
+			'memberships'       => 'users',
+			'process'           => 'active_processes',
+			'processes'         => 'active_processes',
+			'active_processes'  => 'active_processes',
+			'webhook'           => 'active_webhooks',
+			'webhooks'          => 'active_webhooks',
+			'active_webhooks'   => 'active_webhooks',
+		);
+
+		return isset( $aliases[ $resource_key ] ) ? $aliases[ $resource_key ] : '';
+	}
+
+	/**
+	 * Check whether creating one resource is allowed within the effective plan.
+	 *
+	 * @param string $resource_key Resource key or alias.
+	 * @return bool
+	 */
+	public function can_create_resource( $resource_key ) {
+		$normalized_key = $this->normalize_resource_key( $resource_key );
+		if ( '' === $normalized_key ) {
+			return false;
+		}
+
+		$status = $this->get_limit_status( $normalized_key );
+		if ( ! is_array( $status ) ) {
+			return false;
+		}
+
+		if ( ! empty( $status['is_unlimited'] ) ) {
+			return true;
+		}
+
+		$used  = isset( $status['used'] ) ? absint( $status['used'] ) : 0;
+		$limit = isset( $status['limit'] ) ? absint( $status['limit'] ) : 0;
+
+		return $used < $limit;
+	}
+
+	/**
 	 * Count businesses in site.
 	 *
 	 * @return int
@@ -330,4 +384,3 @@ class Plan_Limits_Service {
 		return absint( $this->webhook_repository->count_active_webhooks() );
 	}
 }
-

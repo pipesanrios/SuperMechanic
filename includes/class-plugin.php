@@ -9,11 +9,13 @@ namespace Super_Mechanic;
 
 use Super_Mechanic\Automation\Automation_Rule_Engine;
 use Super_Mechanic\Automation\Automation_Service;
+use Super_Mechanic\API\API_Loader;
 use Super_Mechanic\Admin\Notifications_Admin_Controller;
 use Super_Mechanic\Admin\License_Admin_Controller;
 use Super_Mechanic\Admin\Branding_Admin_Controller;
 use Super_Mechanic\Admin\Onboarding_Admin_Controller;
 use Super_Mechanic\Admin\Webhooks_Admin_Controller;
+use Super_Mechanic\Admin\Connectors_Admin_Controller;
 use Super_Mechanic\Admin\Export_Admin_Controller;
 use Super_Mechanic\Admin\Dashboard_Admin_Controller;
 use Super_Mechanic\Admin\Reporting_Admin_Controller;
@@ -74,6 +76,9 @@ use Super_Mechanic\Integrations\Public_API\Public_Webhook_Event_Catalog;
 use Super_Mechanic\Integrations\Public_API\Public_Webhook_Repository;
 use Super_Mechanic\Integrations\Public_API\Public_Webhook_Service;
 use Super_Mechanic\Integrations\Public_API\Public_REST_Controller;
+use Super_Mechanic\Integrations\Elementor\Elementor_Loader;
+use Super_Mechanic\Integrations\Connectors\Connector_Service;
+use Super_Mechanic\Licensing\License_Service;
 use Super_Mechanic\Maintenance\Maintenance_Admin_Controller;
 use Super_Mechanic\Maintenance\Maintenance_Service;
 use Super_Mechanic\Paperwork\Paperwork_Admin_Controller;
@@ -178,14 +183,19 @@ class Plugin {
 	protected $automation_service;
 	protected $notifications_admin_controller;
 	protected $license_admin_controller;
+	protected $license_service;
 	protected $branding_admin_controller;
 	protected $onboarding_admin_controller;
 	protected $webhooks_admin_controller;
+	protected $connector_service;
+	protected $connectors_admin_controller;
 	protected $export_admin_controller;
 	protected $dashboard_admin_controller;
 	protected $demo_service;
 	protected $demo_admin_controller;
 	protected $queue_service;
+	protected $elementor_loader;
+	protected $api_loader;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -278,15 +288,20 @@ class Plugin {
 		$this->client_invoice_shortcodes     = new Client_Invoice_Shortcodes( $this->invoice_service, $this->dashboard_service, $this->download_service );
 		$this->client_comment_shortcodes     = new Client_Comment_Shortcodes( $this->comment_service, $this->notification_service, $this->dashboard_service, $this->client_dashboard_controller );
 		$this->notifications_admin_controller = new Notifications_Admin_Controller();
+		$this->license_service                = new License_Service();
 		$this->license_admin_controller       = new License_Admin_Controller();
 		$this->branding_admin_controller      = new Branding_Admin_Controller();
 		$this->onboarding_admin_controller    = new Onboarding_Admin_Controller();
 		$this->webhooks_admin_controller      = new Webhooks_Admin_Controller();
+		$this->connector_service              = new Connector_Service();
+		$this->connectors_admin_controller    = new Connectors_Admin_Controller( $this->connector_service );
 		$this->export_admin_controller        = new Export_Admin_Controller();
 		$this->dashboard_admin_controller     = new Dashboard_Admin_Controller( $this->dashboard_service );
 		$this->reporting_admin_controller     = new Reporting_Admin_Controller( $this->reporting_service );
 		$this->demo_service                   = new Demo_Service();
 		$this->demo_admin_controller          = new Demo_Admin_Controller( $this->demo_service );
+		$this->elementor_loader               = did_action( 'elementor/loaded' ) ? new Elementor_Loader() : null;
+		$this->api_loader                     = new API_Loader();
 		$this->admin_menu                    = new Admin_Menu(
 			$this->settings,
 			$this->client_admin_controller,
@@ -320,8 +335,13 @@ class Plugin {
 		$this->automation_service->register_hooks();
 		$this->queue_service->register_hooks();
 		$this->crm_scheduler_service->register_hooks();
+		$this->connector_service->register_hooks();
 
 		if ( is_admin() ) {
+			add_action( 'admin_post_sm_business_save', array( $this, 'guard_business_creation_limit' ), 1 );
+			add_action( 'admin_post_sm_save_webhook', array( $this, 'guard_webhook_creation_limit' ), 1 );
+			add_action( 'admin_init', array( $this, 'guard_process_creation_limit' ), 1 );
+			add_action( 'wp_ajax_sm_roles_membership_action', array( $this, 'guard_membership_creation_limit' ), 1 );
 			add_action( 'admin_menu', array( $this->admin_menu, 'register_menu' ) );
 			add_action( 'admin_init', array( $this->settings, 'register_settings' ) );
 			$this->settings->register_hooks();
@@ -349,6 +369,7 @@ class Plugin {
 			$this->branding_admin_controller->register_hooks();
 			$this->onboarding_admin_controller->register_hooks();
 			$this->webhooks_admin_controller->register_hooks();
+			$this->connectors_admin_controller->register_hooks();
 			$this->export_admin_controller->register_hooks();
 			$this->dashboard_admin_controller->register_hooks();
 			$this->reporting_admin_controller->register_hooks();
@@ -365,8 +386,155 @@ class Plugin {
 		$this->client_rest_controller->register_hooks();
 		$this->admin_rest_controller->register_hooks();
 		$this->public_rest_controller->register_hooks();
+		$this->api_loader->register_hooks();
 		$this->appointment_ical_feed_controller->register_hooks();
 		$this->google_calendar_webhook_controller->register_hooks();
+
+		if ( $this->elementor_loader instanceof Elementor_Loader ) {
+			$this->elementor_loader->register_hooks();
+		}
+	}
+
+	/**
+	 * Block business create when monetization limits deny creation.
+	 *
+	 * @return void
+	 */
+	public function guard_business_creation_limit() {
+		if ( ! is_admin() || ! current_user_can( 'sm_manage_settings' ) ) {
+			return;
+		}
+
+		$business_id = isset( $_POST['business_id'] ) ? absint( wp_unslash( $_POST['business_id'] ) ) : 0;
+		if ( $business_id > 0 ) {
+			return;
+		}
+
+		$allowed = $this->license_service->assert_resource_creation_allowed( 'business' );
+		if ( ! is_wp_error( $allowed ) ) {
+			return;
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'                => 'super-mechanic-businesses',
+					'sm_business_notice'  => 'error',
+					'sm_business_message' => $allowed->get_error_message(),
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Block webhook create when monetization limits deny creation.
+	 *
+	 * @return void
+	 */
+	public function guard_webhook_creation_limit() {
+		if ( ! is_admin() || ! current_user_can( 'sm_manage_plugin' ) ) {
+			return;
+		}
+
+		$webhook_id = isset( $_POST['webhook_id'] ) ? absint( wp_unslash( $_POST['webhook_id'] ) ) : 0;
+		if ( $webhook_id > 0 ) {
+			return;
+		}
+
+		$allowed = $this->license_service->assert_resource_creation_allowed( 'webhook' );
+		if ( ! is_wp_error( $allowed ) ) {
+			return;
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'              => 'super-mechanic-webhooks',
+					'sm_notice_type'    => 'error',
+					'sm_notice_code'    => 'save_failed',
+					'sm_notice_message' => $allowed->get_error_message(),
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Block process create when monetization limits deny creation.
+	 *
+	 * @return void
+	 */
+	public function guard_process_creation_limit() {
+		if ( ! is_admin() || ! current_user_can( 'sm_manage_processes' ) ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['page'] ) || 'super-mechanic-processes' !== sanitize_key( (string) wp_unslash( $_GET['page'] ) ) ) {
+			return;
+		}
+
+		if ( 'POST' !== strtoupper( $_SERVER['REQUEST_METHOD'] ) ) {
+			return;
+		}
+
+		$operation = isset( $_POST['sm_process_operation'] ) ? sanitize_key( (string) wp_unslash( $_POST['sm_process_operation'] ) ) : '';
+		if ( 'create' !== $operation ) {
+			return;
+		}
+
+		$allowed = $this->license_service->assert_resource_creation_allowed( 'process' );
+		if ( ! is_wp_error( $allowed ) ) {
+			return;
+		}
+
+		set_transient(
+			'sm_process_errors_' . get_current_user_id(),
+			array( $allowed->get_error_message() ),
+			MINUTE_IN_SECONDS
+		);
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'      => 'super-mechanic-processes',
+					'action'    => 'new',
+					'sm_notice' => 'error',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Block membership create when monetization limits deny creation.
+	 *
+	 * @return void
+	 */
+	public function guard_membership_creation_limit() {
+		if ( ! is_admin() || ! current_user_can( 'sm_manage_plugin' ) ) {
+			return;
+		}
+
+		$membership_action = isset( $_POST['membership_action'] ) ? sanitize_key( (string) wp_unslash( $_POST['membership_action'] ) ) : '';
+		if ( 'create_membership' !== $membership_action ) {
+			return;
+		}
+
+		$allowed = $this->license_service->assert_resource_creation_allowed( 'users' );
+		if ( ! is_wp_error( $allowed ) ) {
+			return;
+		}
+
+		wp_send_json_error(
+			array(
+				'message' => $allowed->get_error_message(),
+			),
+			400
+		);
 	}
 
 	protected function maybe_upgrade_schema() {

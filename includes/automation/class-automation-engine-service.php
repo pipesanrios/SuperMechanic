@@ -72,7 +72,7 @@ class Automation_Engine_Service {
 	 * @return array<string,mixed>
 	 */
 	public function handle_event( $event_type, $payload = array() ) {
-		$event_type = sanitize_key( (string) $event_type );
+		$event_type = $this->sanitize_event_name( (string) $event_type );
 		$payload    = is_array( $payload ) ? $payload : array();
 
 		if ( '' === $event_type || ! in_array( $event_type, $this->supported_events, true ) ) {
@@ -125,7 +125,7 @@ class Automation_Engine_Service {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function resolve_automation_actions( $event_type, $payload = array() ) {
-		$event_type = sanitize_key( (string) $event_type );
+		$event_type = $this->sanitize_event_name( (string) $event_type );
 		$payload    = is_array( $payload ) ? $payload : array();
 
 		if ( '' === $event_type || ! in_array( $event_type, $this->supported_events, true ) ) {
@@ -162,7 +162,7 @@ class Automation_Engine_Service {
 	 */
 	public function execute_automation_action( $action, $payload = array() ) {
 		$payload     = is_array( $payload ) ? $payload : array();
-		$event_type  = isset( $payload['event_type'] ) ? sanitize_key( (string) $payload['event_type'] ) : '';
+		$event_type  = isset( $payload['event_type'] ) ? $this->sanitize_event_name( (string) $payload['event_type'] ) : '';
 		$action_type = is_array( $action )
 			? sanitize_key( isset( $action['type'] ) ? (string) $action['type'] : '' )
 			: sanitize_key( (string) $action );
@@ -309,5 +309,18 @@ class Automation_Engine_Service {
 		} catch ( \Throwable $throwable ) {
 			return null;
 		}
+	}
+
+	/**
+	 * Sanitize event name while preserving dots for canonical forms.
+	 *
+	 * @param string $event_name Raw event key.
+	 * @return string
+	 */
+	protected function sanitize_event_name( $event_name ) {
+		$event_name = strtolower( trim( (string) $event_name ) );
+		$event_name = preg_replace( '/[^a-z0-9._-]/', '', $event_name );
+
+		return is_string( $event_name ) ? $event_name : '';
 	}
 }

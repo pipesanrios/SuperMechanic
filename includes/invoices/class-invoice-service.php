@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Invoices;
 
 use Super_Mechanic\Communication\Event_Dispatcher;
+use Super_Mechanic\Commercial\Commercial_Hooks_Service;
 use Super_Mechanic\Helpers\Access_Control_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
@@ -72,6 +73,7 @@ class Invoice_Service {
 	protected $settings_service;
 	protected $business_context_service;
 	protected $woo_product_service;
+	protected $commercial_hooks_service;
 
 	/**
 	 * Constructor.
@@ -83,7 +85,7 @@ class Invoice_Service {
 	 * @param Event_Dispatcher|null               $event_dispatcher       Event dispatcher.
 	 * @param Invoice_Transaction_Repository|null $transaction_repository Transaction repository.
 	 */
-	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Woo_Product_Service $woo_product_service = null ) {
+	public function __construct( Invoice_Repository $repository = null, Invoice_Item_Repository $item_repository = null, Payment_Repository $payment_repository = null, Quote_Service $quote_service = null, Event_Dispatcher $event_dispatcher = null, Invoice_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Woo_Product_Service $woo_product_service = null, Commercial_Hooks_Service $commercial_hooks_service = null ) {
 		$this->repository             = $repository ? $repository : new Invoice_Repository();
 		$this->item_repository        = $item_repository ? $item_repository : new Invoice_Item_Repository();
 		$this->payment_repository     = $payment_repository ? $payment_repository : new Payment_Repository();
@@ -94,6 +96,7 @@ class Invoice_Service {
 		$this->settings_service       = $settings_service ? $settings_service : new Settings_Service();
 		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
 		$this->woo_product_service      = $woo_product_service ? $woo_product_service : new Woo_Product_Service();
+		$this->commercial_hooks_service = $commercial_hooks_service ? $commercial_hooks_service : new Commercial_Hooks_Service();
 	}
 
 	/**
@@ -137,6 +140,22 @@ class Invoice_Service {
 
 		$this->recalculate_totals( $inserted );
 		$this->recalculate_balance( $inserted );
+		$this->commercial_hooks_service->dispatch(
+			'sm_invoice_created',
+			array(
+				'business_id' => isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0,
+				'entity_id'   => absint( $inserted ),
+				'entity_type' => 'invoice',
+				'data'        => array(
+					'invoice_id'    => absint( $inserted ),
+					'process_id'    => isset( $data['process_id'] ) ? absint( $data['process_id'] ) : 0,
+					'quote_id'      => isset( $data['quote_id'] ) ? absint( $data['quote_id'] ) : 0,
+					'client_id'     => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
+					'status'        => isset( $data['status'] ) ? sanitize_key( (string) $data['status'] ) : 'draft',
+					'triggered_by'  => get_current_user_id(),
+				),
+			)
+		);
 
 		return $inserted;
 	}
@@ -502,6 +521,24 @@ class Invoice_Service {
 				'payment_date'  => $data['payment_date'],
 				'payment_method'=> $data['payment_method'],
 				'triggered_by'  => get_current_user_id(),
+			)
+		);
+		$this->commercial_hooks_service->dispatch(
+			'sm_payment_created',
+			array(
+				'business_id' => isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0,
+				'entity_id'   => absint( $inserted ),
+				'entity_type' => 'payment',
+				'data'        => array(
+					'payment_id'     => absint( $inserted ),
+					'invoice_id'     => absint( $invoice_id ),
+					'process_id'     => ! empty( $invoice['process_id'] ) ? absint( $invoice['process_id'] ) : 0,
+					'client_id'      => ! empty( $invoice['client_id'] ) ? absint( $invoice['client_id'] ) : 0,
+					'amount'         => $data['amount'],
+					'payment_date'   => $data['payment_date'],
+					'payment_method' => $data['payment_method'],
+					'triggered_by'   => get_current_user_id(),
+				),
 			)
 		);
 
@@ -1851,6 +1888,20 @@ class Invoice_Service {
 					'payment_id'   => absint( $payment_id ),
 					'invoice_id'   => absint( $invoice_id ),
 					'triggered_by' => absint( $triggered_by ),
+				)
+			);
+			$invoice = $this->repository->get_by_id( $invoice_id );
+			$this->commercial_hooks_service->dispatch(
+				'sm_invoice_paid',
+				array(
+					'business_id' => is_array( $invoice ) && isset( $invoice['business_id'] ) ? absint( $invoice['business_id'] ) : 0,
+					'entity_id'   => absint( $invoice_id ),
+					'entity_type' => 'invoice',
+					'data'        => array(
+						'invoice_id'   => absint( $invoice_id ),
+						'payment_id'   => absint( $payment_id ),
+						'triggered_by' => absint( $triggered_by ),
+					),
 				)
 			);
 		}

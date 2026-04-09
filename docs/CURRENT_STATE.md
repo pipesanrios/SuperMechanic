@@ -496,6 +496,217 @@ listo para escalado comercial.
 
 ---
 
+## Fase 54E.2 Embedded TCPDF (Applied technical)
+
+Delivered in current code:
+- embedded TCPDF library available inside plugin at:
+  - `includes/libs/pdf/tcpdf/tcpdf.php`
+- reporting PDF service loads embedded TCPDF from plugin path when present
+- reporting PDF generation uses HTML rendering flow (`writeHTML`) with:
+  - `AddPage()`
+  - `SetFont('dejavusans', '', 10)`
+- fallback message remains active when no PDF engine can be loaded
+
+Validation state:
+- `php-lint` PASS
+- QA runner (54E validation contract) PASS in automated checks
+- runtime/manual visual closure pending
+
+---
+
+## Fase 55B Public API Formalization (Applied technical)
+
+Delivered in current code:
+- formal API loader integrated in active runtime:
+  - `includes/api/class-api-loader.php`
+- new versioned namespace:
+  - `/wp-json/sm/v1/`
+- endpoints exposed:
+  - `GET /clients`
+  - `GET /vehicles`
+  - `GET /processes`
+  - `GET /processes/{id}`
+  - `GET /invoices`
+  - `GET /reporting/summary`
+  - `POST /quotes/{id}/approve` (optional endpoint delivered)
+- endpoint controller layer added in:
+  - `includes/api/controllers/class-public-api-controller.php`
+- integration wired from composition root:
+  - `includes/class-plugin.php`
+
+Security and scope behavior:
+- auth based on WordPress current user context (session/app-password compatible)
+- strict `business_id` normalization by user scope
+- explicit ownership checks via existing services/access-control
+- standardized JSON payloads for success/error responses
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/55B-validation.md`) PASS in automated checks
+- runtime/manual REST checklist pending for final closure
+
+---
+
+## Fase 55C Webhooks / Event Dispatch Formalization (Applied technical)
+
+Delivered in current code:
+- outbound webhook dispatch formalization in:
+  - `includes/webhooks/class-webhook-service.php`
+- automation event-name sanitization hardened in:
+  - `includes/automation/class-automation-engine-service.php`
+- canonical formal events supported (with legacy compatibility):
+  - `process.created` (legacy alias: `process_created`)
+  - `process.updated` (legacy alias: `process_updated`)
+  - `quote.approved` (legacy alias: `quote_approved`)
+  - `invoice.paid` (legacy alias: `invoice_paid`)
+  - `payment.created` (legacy alias: `payment_registered`)
+- standardized outbound payload normalization added:
+  - `event`
+  - `timestamp` (ISO-8601 UTC)
+  - `business_id`
+  - `entity_type`
+  - `entity_id`
+  - `data`
+- queue/retry/log integration preserved:
+  - queued dispatch when queue is available
+  - immediate fallback when queue enqueue fails
+  - webhook logging maintained
+
+Compatibility behavior:
+- existing webhook subscriptions using legacy event names continue to receive dispatches
+- formal event naming is now unified in outbound payloads
+- no invasive CRM Pipeline changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/55C-validation.md`) PASS in automated checks
+- runtime/manual webhook dispatch checklist pending for final closure
+
+---
+
+## Fase 55D External Connectors Base (Applied technical)
+
+Delivered in current code:
+- outbound connectors base layer added in:
+  - `includes/integrations/connectors/class-connector-repository.php`
+  - `includes/integrations/connectors/class-connector-service.php`
+- connectors admin UI/controller added in:
+  - `includes/admin/class-connectors-admin-controller.php`
+- composition root integration added in:
+  - `includes/class-plugin.php`
+- webhook payload reuse helper exposed for connector interoperability:
+  - `Webhook_Service::build_standard_event_payload(...)`
+
+Connector model persisted (WP option structured storage):
+- `id`
+- `name`
+- `connector_type`
+- `endpoint_url`
+- `status`
+- `event_name`
+- `config_json`
+- `created_at`
+- `updated_at`
+
+Supported connector types:
+- `webhook`
+- `google_sheets`
+- `email_trigger`
+
+55C event integration enabled:
+- `process.created`
+- `process.updated`
+- `quote.approved`
+- `invoice.paid`
+- `payment.created`
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/55D-validation.md`) PASS in automated checks
+- runtime/manual connectors checklist pending for final closure
+
+---
+
+## FASE 55 — INTEGRACIONES / ECOSISTEMA (COMPLETA)
+
+### Subfases incluidas
+- 55A — Elementor Integration
+- 55B — Public API
+- 55C — Webhooks & Events
+- 55D — External Connectors
+- 55E1 — Commercial Hooks
+- 55E2 — Monetization Core
+
+### Capacidades habilitadas
+
+#### UI / Frontend
+- Widgets Elementor nativos conectados a shortcodes
+- Portales cliente/mecánico integrables en páginas reales
+
+#### API
+- Namespace `/wp-json/sm/v1/`
+- Endpoints:
+  - clients
+  - vehicles
+  - processes
+  - invoices
+  - reporting
+
+#### Eventos
+- Sistema canónico:
+  - process.created
+  - process.updated
+  - quote.approved
+  - invoice.paid
+  - payment.created
+
+#### Webhooks
+- Dispatch externo funcional
+- Payload estandarizado
+- Compatibilidad legacy
+
+#### Conectores
+- webhook
+- google_sheets (webhook-style)
+- email_trigger
+
+#### Comercial
+- hooks comerciales:
+  - sm_quote_created
+  - sm_quote_approved
+  - sm_invoice_created
+  - sm_invoice_paid
+  - sm_payment_created
+  - sm_process_completed
+
+#### Monetización
+- estados de licencia:
+  - active
+  - trial
+  - expired
+  - inactive
+  - revoked
+- trial funcional
+- enforcement en creación:
+  - business
+  - processes
+  - webhooks
+  - memberships
+
+### Resultado arquitectónico
+
+El sistema pasa de:
+- plugin funcional
+
+a:
+
+- plataforma extensible
+- integrable
+- automatizable
+- monetizable
+
+---
+
 ## Demo Recovery Baseline (2026-04-05)
 
 - canonical dataset seeder: `scripts/seed-full-demo-multibusiness.php`

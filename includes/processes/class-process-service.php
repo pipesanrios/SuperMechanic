@@ -8,6 +8,7 @@
 namespace Super_Mechanic\Processes;
 
 use Super_Mechanic\Clients\Client_Service;
+use Super_Mechanic\Commercial\Commercial_Hooks_Service;
 use Super_Mechanic\Communication\Event_Dispatcher;
 use Super_Mechanic\Flows\Flow_Service;
 use Super_Mechanic\Flows\Flow_Step_Repository;
@@ -69,8 +70,9 @@ class Process_Service {
 	protected $access_control_service;
 	protected $settings_service;
 	protected $business_context_service;
+	protected $commercial_hooks_service;
 
-	public function __construct( Process_Repository $repository = null, Vehicle_Service $vehicle_service = null, Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Flow_Service $flow_service = null, Flow_Step_Service $flow_step_service = null, Flow_Step_Repository $flow_step_repository = null, Process_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null ) {
+	public function __construct( Process_Repository $repository = null, Vehicle_Service $vehicle_service = null, Client_Service $client_service = null, Client_Vehicle_Repository $client_vehicle_repository = null, Event_Dispatcher $event_dispatcher = null, Flow_Service $flow_service = null, Flow_Step_Service $flow_step_service = null, Flow_Step_Repository $flow_step_repository = null, Process_Transaction_Repository $transaction_repository = null, Access_Control_Service $access_control_service = null, Settings_Service $settings_service = null, Business_Context_Service $business_context_service = null, Commercial_Hooks_Service $commercial_hooks_service = null ) {
 		$this->repository                = $repository ? $repository : new Process_Repository();
 		$this->vehicle_service           = $vehicle_service ? $vehicle_service : new Vehicle_Service();
 		$this->client_service            = $client_service ? $client_service : new Client_Service();
@@ -83,6 +85,7 @@ class Process_Service {
 		$this->access_control_service    = $access_control_service ? $access_control_service : new Access_Control_Service( $this->client_service, $this->client_vehicle_repository, $this->repository );
 		$this->settings_service          = $settings_service ? $settings_service : new Settings_Service();
 		$this->business_context_service  = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->commercial_hooks_service  = $commercial_hooks_service ? $commercial_hooks_service : new Commercial_Hooks_Service();
 	}
 
 	public function create_process( array $data ) {
@@ -205,6 +208,22 @@ class Process_Service {
 						'triggered_by' => get_current_user_id(),
 					)
 				);
+				if ( 'completed' === sanitize_key( (string) $data['status'] ) ) {
+					$this->commercial_hooks_service->dispatch(
+						'sm_process_completed',
+						array(
+							'business_id' => isset( $current['business_id'] ) ? absint( $current['business_id'] ) : 0,
+							'entity_id'   => absint( $id ),
+							'entity_type' => 'process',
+							'data'        => array(
+								'process_id'   => absint( $id ),
+								'old_status'   => sanitize_key( (string) $current['status'] ),
+								'new_status'   => sanitize_key( (string) $data['status'] ),
+								'triggered_by' => get_current_user_id(),
+							),
+						)
+					);
+				}
 			} else {
 				$this->event_dispatcher->dispatch(
 					'process_status_changed',
@@ -622,6 +641,20 @@ class Process_Service {
 					'old_status'   => $previous_status,
 					'new_status'   => 'completed',
 					'triggered_by' => get_current_user_id(),
+				)
+			);
+			$this->commercial_hooks_service->dispatch(
+				'sm_process_completed',
+				array(
+					'business_id' => isset( $process['business_id'] ) ? absint( $process['business_id'] ) : 0,
+					'entity_id'   => absint( $process_id ),
+					'entity_type' => 'process',
+					'data'        => array(
+						'process_id'   => absint( $process_id ),
+						'old_status'   => sanitize_key( $previous_status ),
+						'new_status'   => 'completed',
+						'triggered_by' => get_current_user_id(),
+					),
 				)
 			);
 		}

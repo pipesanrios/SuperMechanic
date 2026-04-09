@@ -49,6 +49,7 @@ class License_Admin_Controller {
 		add_action( 'admin_menu', array( $this, 'register_submenu' ), 107 );
 		add_action( 'admin_post_sm_51a_license_activate', array( $this, 'handle_activate' ) );
 		add_action( 'admin_post_sm_51a_license_deactivate', array( $this, 'handle_deactivate' ) );
+		add_action( 'admin_post_sm_55e2_license_start_trial', array( $this, 'handle_start_trial' ) );
 	}
 
 	/**
@@ -77,13 +78,15 @@ class License_Admin_Controller {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'super-mechanic' ) );
 		}
 
-		$license = $this->license_service->get_license();
-		$status  = isset( $license['license_status'] ) ? (string) $license['license_status'] : 'inactive';
-		$valid   = $this->license_service->is_license_valid_for_current_site();
-		$plan    = $this->plan_limits_service->get_current_plan_type();
-		$limits  = $this->plan_limits_service->get_plan_limits( $plan );
-		$usage   = $this->plan_limits_service->get_current_usage();
-		$exceed  = $this->plan_limits_service->get_exceeded_limits();
+		$license         = $this->license_service->get_license();
+		$status          = isset( $license['license_status'] ) ? (string) $license['license_status'] : 'inactive';
+		$valid           = $this->license_service->is_license_valid_for_current_site();
+		$effective_state = $this->license_service->get_effective_license_state();
+		$trial_state     = $this->license_service->get_trial_state();
+		$plan            = $this->plan_limits_service->get_current_plan_type();
+		$limits          = $this->plan_limits_service->get_plan_limits( $plan );
+		$usage           = $this->plan_limits_service->get_current_usage();
+		$exceed          = $this->plan_limits_service->get_exceeded_limits();
 
 		echo '<div class="wrap sm-admin-shell">';
 		echo '<h1>' . esc_html__( 'License', 'super-mechanic' ) . '</h1>';
@@ -96,12 +99,17 @@ class License_Admin_Controller {
 		echo '<div class="sm-filter-grid">';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'License key', 'super-mechanic' ) . '</label><div>' . esc_html( $this->mask_license_key( isset( $license['license_key'] ) ? (string) $license['license_key'] : '' ) ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Status', 'super-mechanic' ) . '</label><div>' . esc_html( $status ) . '</div></div>';
+		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Effective state', 'super-mechanic' ) . '</label><div>' . esc_html( $effective_state ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Domain', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $license['domain'] ) ? (string) $license['domain'] : '' ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Plan', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $license['plan_type'] ) ? (string) $license['plan_type'] : 'starter' ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Expires at', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $license['expires_at'] ) ? (string) $license['expires_at'] : '' ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Activated at', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $license['activated_at'] ) ? (string) $license['activated_at'] : '' ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Current site domain', 'super-mechanic' ) . '</label><div>' . esc_html( $this->license_service->get_current_domain() ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Valid for current site', 'super-mechanic' ) . '</label><div>' . esc_html( $valid ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</div></div>';
+		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Trial start', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $trial_state['trial_start_at'] ) ? (string) $trial_state['trial_start_at'] : '' ) . '</div></div>';
+		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Trial end', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $trial_state['trial_end_at'] ) ? (string) $trial_state['trial_end_at'] : '' ) . '</div></div>';
+		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Trial active', 'super-mechanic' ) . '</label><div>' . esc_html( ! empty( $trial_state['is_active'] ) ? __( 'Yes', 'super-mechanic' ) : __( 'No', 'super-mechanic' ) ) . '</div></div>';
+		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Trial days remaining', 'super-mechanic' ) . '</label><div>' . esc_html( isset( $trial_state['days_remaining'] ) ? (string) absint( $trial_state['days_remaining'] ) : '0' ) . '</div></div>';
 		echo '</div>';
 		echo '</section>';
 
@@ -114,10 +122,14 @@ class License_Admin_Controller {
 		if ( ! empty( $exceed ) ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Some resources are currently above plan limits (warning only, no hard block).', 'super-mechanic' ) . '</p></div>';
 		}
+		if ( in_array( $effective_state, array( 'inactive', 'expired', 'revoked' ), true ) ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html__( 'Creation operations are currently restricted by effective license state.', 'super-mechanic' ) . '</p></div>';
+		}
 
 		echo '<div class="sm-filter-grid">';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Effective plan', 'super-mechanic' ) . '</label><div>' . esc_html( $plan ) . '</div></div>';
 		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Exceeded resources', 'super-mechanic' ) . '</label><div>' . esc_html( empty( $exceed ) ? '0' : (string) count( $exceed ) ) . '</div></div>';
+		echo '<div class="sm-filter-field"><label>' . esc_html__( 'Effective license state', 'super-mechanic' ) . '</label><div>' . esc_html( $effective_state ) . '</div></div>';
 		echo '</div>';
 
 		echo '<div class="sm-table-wrap">';
@@ -150,6 +162,19 @@ class License_Admin_Controller {
 
 		echo '</tbody></table>';
 		echo '</div>';
+		echo '</section>';
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Trial', 'super-mechanic' ) . '</h2></div>';
+		echo '<p class="sm-card-copy">' . esc_html__( 'Start/restart a local trial window. Reads remain available when expired; creation is controlled by limits/state.', 'super-mechanic' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'sm_55e2_license_start_trial' );
+		echo '<input type="hidden" name="action" value="sm_55e2_license_start_trial" />';
+		echo '<div class="sm-filter-grid">';
+		echo '<label class="sm-filter-field"><span>' . esc_html__( 'Trial days', 'super-mechanic' ) . '</span><input type="number" min="1" max="90" name="trial_days" value="14" /></label>';
+		echo '</div>';
+		echo '<div class="sm-form-actions"><button type="submit" class="button button-secondary">' . esc_html__( 'Start trial', 'super-mechanic' ) . '</button></div>';
+		echo '</form>';
 		echo '</section>';
 
 		echo '<section class="sm-card sm-section">';
@@ -213,6 +238,24 @@ class License_Admin_Controller {
 		$this->redirect_with_notice(
 			! empty( $result['success'] ) ? 'success' : 'error',
 			isset( $result['message'] ) ? (string) $result['message'] : __( 'License update finished.', 'super-mechanic' )
+		);
+	}
+
+	/**
+	 * Handle trial start action.
+	 *
+	 * @return void
+	 */
+	public function handle_start_trial() {
+		$this->assert_permission();
+		check_admin_referer( 'sm_55e2_license_start_trial' );
+
+		$days   = isset( $_POST['trial_days'] ) ? absint( wp_unslash( $_POST['trial_days'] ) ) : 14;
+		$result = $this->license_service->start_trial( $days );
+
+		$this->redirect_with_notice(
+			! empty( $result['success'] ) ? 'success' : 'error',
+			isset( $result['message'] ) ? (string) $result['message'] : __( 'Trial update finished.', 'super-mechanic' )
 		);
 	}
 
