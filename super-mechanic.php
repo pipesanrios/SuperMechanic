@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Super Mechanic
+ * Plugin Name: Mekvort
  * Plugin URI: https://mardisom.dev/super-mechanic
  * Description: Base modular plugin scaffold for workshop management.
  * Version: 0.1.0
@@ -45,6 +45,8 @@ register_deactivation_hook( SM_PLUGIN_FILE, 'sm_deactivate_plugin' );
  */
 function sm_activate_plugin() {
 	Super_Mechanic\Activator::activate();
+	$superadmin_bootstrap = new Super_Mechanic\Users\Superadmin_Bootstrap_Service();
+	$superadmin_bootstrap->ensure_bootstrap_superadmin();
 	Super_Mechanic\CRM\Crm_Scheduler_Service::ensure_scheduled_event();
 }
 

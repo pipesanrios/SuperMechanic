@@ -177,12 +177,43 @@ class Settings {
 			'sm_general_settings'
 		);
 
+		add_settings_section(
+			'sm_language_settings',
+			__( 'Language Settings', 'super-mechanic' ),
+			array( $this, 'render_language_section' ),
+			self::PAGE_SLUG
+		);
+
 		add_settings_field(
 			'language_locale',
 			__( 'Default locale', 'super-mechanic' ),
 			array( $this, 'render_field_language_locale' ),
 			self::PAGE_SLUG,
-			'sm_general_settings'
+			'sm_language_settings'
+		);
+
+		add_settings_field(
+			'language_current_default',
+			__( 'Current/default language', 'super-mechanic' ),
+			array( $this, 'render_field_language_current_default' ),
+			self::PAGE_SLUG,
+			'sm_language_settings'
+		);
+
+		add_settings_field(
+			'language_bundled_list',
+			__( 'Bundled languages', 'super-mechanic' ),
+			array( $this, 'render_field_language_bundled_list' ),
+			self::PAGE_SLUG,
+			'sm_language_settings'
+		);
+
+		add_settings_field(
+			'language_future_placeholder',
+			__( 'Future language expansion', 'super-mechanic' ),
+			array( $this, 'render_field_language_future_placeholder' ),
+			self::PAGE_SLUG,
+			'sm_language_settings'
 		);
 
 		add_settings_field(
@@ -491,6 +522,7 @@ class Settings {
 		$this->render_settings_sections(
 			array(
 				'sm_general_settings',
+				'sm_language_settings',
 				'sm_process_settings',
 				'sm_financial_settings',
 				'sm_portal_settings',
@@ -580,6 +612,15 @@ class Settings {
 	 */
 	public function render_process_section() {
 		echo '<p>' . esc_html__( 'These controls stay inside the current single-business runtime and only expose process rules already supported by services.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render language section introduction.
+	 *
+	 * @return void
+	 */
+	public function render_language_section() {
+		echo '<p>' . esc_html__( 'Visible language baseline for admin settings. Full translation coverage and advanced language management are intentionally deferred to a later subphase.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -696,6 +737,48 @@ class Settings {
 
 		echo '</select>';
 		echo '<p class="description">' . esc_html__( 'Keeps the base locale explicit for translations and future API payload localization.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render current/default language field.
+	 *
+	 * @return void
+	 */
+	public function render_field_language_current_default() {
+		$settings = $this->get_settings();
+		$locales  = array(
+			'en_US' => __( 'English', 'super-mechanic' ),
+			'es_ES' => __( 'Español', 'super-mechanic' ),
+			'it_IT' => __( 'Italiano', 'super-mechanic' ),
+		);
+		$locale   = isset( $settings['language_locale'] ) ? (string) $settings['language_locale'] : 'en_US';
+		$label    = isset( $locales[ $locale ] ) ? $locales[ $locale ] : $locales['en_US'];
+
+		echo '<p><strong>' . esc_html( $label ) . '</strong> <code>' . esc_html( $locale ) . '</code></p>';
+		echo '<p class="description">' . esc_html__( 'Reflects the currently configured default language used by the settings baseline.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render bundled language list.
+	 *
+	 * @return void
+	 */
+	public function render_field_language_bundled_list() {
+		echo '<ul style="margin:0;padding-left:18px;">';
+		echo '<li><strong>English</strong> <code>en_US</code></li>';
+		echo '<li><strong>Español</strong> <code>es_ES</code></li>';
+		echo '<li><strong>Italiano</strong> <code>it_IT</code></li>';
+		echo '</ul>';
+		echo '<p class="description">' . esc_html__( 'Bundled languages currently available in this baseline settings selector.', 'super-mechanic' ) . '</p>';
+	}
+
+	/**
+	 * Render future language placeholder field.
+	 *
+	 * @return void
+	 */
+	public function render_field_language_future_placeholder() {
+		echo '<div class="notice notice-info inline"><p><strong>' . esc_html__( 'Prepared for future languages', 'super-mechanic' ) . '</strong><br />' . esc_html__( 'Additional language onboarding and full translation coverage are planned for 56P1-C.', 'super-mechanic' ) . '</p></div>';
 	}
 
 	/**

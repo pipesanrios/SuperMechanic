@@ -414,6 +414,48 @@ class Business_Membership_Repository {
 	}
 
 	/**
+	 * Get distinct user IDs referenced by memberships.
+	 *
+	 * @return array<int,int>
+	 */
+	public function get_distinct_user_ids() {
+		global $wpdb;
+
+		$sql = "SELECT DISTINCT user_id FROM {$this->get_table_name()} ORDER BY user_id ASC";
+		$ids = $wpdb->get_col( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Static query over trusted table name.
+		if ( ! is_array( $ids ) ) {
+			return array();
+		}
+
+		$clean_ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+		sort( $clean_ids );
+
+		return $clean_ids;
+	}
+
+	/**
+	 * Delete memberships for a user ID list.
+	 *
+	 * @param array<int,int> $user_ids User IDs.
+	 * @return int
+	 */
+	public function delete_memberships_by_user_ids( array $user_ids ) {
+		global $wpdb;
+
+		$user_ids = array_values( array_unique( array_filter( array_map( 'absint', $user_ids ) ) ) );
+		if ( empty( $user_ids ) ) {
+			return 0;
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $user_ids ), '%d' ) );
+		$sql          = "DELETE FROM {$this->get_table_name()} WHERE user_id IN ({$placeholders})";
+		$query        = $wpdb->prepare( $sql, $user_ids );
+		$deleted      = $wpdb->query( $query );
+
+		return false === $deleted ? 0 : (int) $deleted;
+	}
+
+	/**
 	 * Normalize status filter.
 	 *
 	 * @param string $status Status value.

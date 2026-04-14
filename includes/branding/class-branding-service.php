@@ -175,7 +175,7 @@ class Branding_Service {
 	 */
 	protected function get_defaults() {
 		return array(
-			'system_name'        => 'Super Mechanic',
+			'system_name'        => 'Mekvort',
 			'logo_url'           => '',
 			'logo_attachment_id' => 0,
 			'primary_color'      => '#2271b1',

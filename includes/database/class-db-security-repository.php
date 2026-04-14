@@ -55,52 +55,9 @@ class DB_Security_Repository {
 	 * @return array<string, mixed>|\WP_Error
 	 */
 	public function reset_plugin_data( $default_business_name ) {
-		global $wpdb;
+		$reset_repository = new Reset_Engine_Repository();
 
-		$tables     = Schema::get_tables();
-		$delete_map = $this->get_reset_delete_order( $tables );
-		$deleted    = array();
-
-		$started = $wpdb->query( 'START TRANSACTION' );
-		if ( false === $started ) {
-			return new \WP_Error( 'sm_db_reset_transaction_start_failed', __( 'Could not start database transaction.', 'super-mechanic' ) );
-		}
-
-		foreach ( $delete_map as $key => $table_name ) {
-			$result = $wpdb->query( "DELETE FROM {$table_name}" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table names come from trusted schema map.
-
-			if ( false === $result ) {
-				$wpdb->query( 'ROLLBACK' );
-
-				return new \WP_Error(
-					'sm_db_reset_failed',
-					sprintf(
-						/* translators: %s: table key */
-						__( 'Could not reset table: %s.', 'super-mechanic' ),
-						(string) $key
-					)
-				);
-			}
-
-			$deleted[ $key ] = (int) $result;
-		}
-
-		$seeded = $this->seed_default_business( $tables, $default_business_name );
-		if ( ! $seeded ) {
-			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'sm_db_reset_seed_failed', __( 'Could not restore the default business baseline.', 'super-mechanic' ) );
-		}
-
-		$committed = $wpdb->query( 'COMMIT' );
-		if ( false === $committed ) {
-			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'sm_db_reset_commit_failed', __( 'Could not commit database reset.', 'super-mechanic' ) );
-		}
-
-		return array(
-			'deleted'               => $deleted,
-			'default_business_seed' => true,
-		);
+		return $reset_repository->reset_operational_data( $default_business_name );
 	}
 
 	/**

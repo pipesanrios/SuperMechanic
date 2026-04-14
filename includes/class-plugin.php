@@ -96,6 +96,7 @@ use Super_Mechanic\Reports\Report_Admin_Controller;
 use Super_Mechanic\Reports\Report_Service;
 use Super_Mechanic\Reporting\Reporting_Service;
 use Super_Mechanic\Demo\Demo_Service;
+use Super_Mechanic\Users\Superadmin_Bootstrap_Service;
 use Super_Mechanic\Vehicles\Vehicle_Admin_Controller;
 
 defined( 'ABSPATH' ) || exit;
@@ -196,6 +197,7 @@ class Plugin {
 	protected $queue_service;
 	protected $elementor_loader;
 	protected $api_loader;
+	protected $superadmin_bootstrap_service;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -302,6 +304,7 @@ class Plugin {
 		$this->demo_admin_controller          = new Demo_Admin_Controller( $this->demo_service );
 		$this->elementor_loader               = did_action( 'elementor/loaded' ) ? new Elementor_Loader() : null;
 		$this->api_loader                     = new API_Loader();
+		$this->superadmin_bootstrap_service   = new Superadmin_Bootstrap_Service();
 		$this->admin_menu                    = new Admin_Menu(
 			$this->settings,
 			$this->client_admin_controller,
@@ -321,6 +324,7 @@ class Plugin {
 
 	public function init() {
 		$this->maybe_upgrade_schema();
+		$this->superadmin_bootstrap_service->ensure_bootstrap_superadmin();
 		$this->register_hooks();
 	}
 

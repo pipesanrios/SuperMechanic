@@ -186,6 +186,11 @@ class Admin_Roles_Controller {
 				$business_id      = isset( $row['business_id'] ) ? absint( $row['business_id'] ) : 0;
 				$is_global        = ! empty( $row['is_global'] );
 				$memberships      = isset( $row['memberships'] ) && is_array( $row['memberships'] ) ? $row['memberships'] : array();
+				$is_locked_superadmin = ! empty( $row['is_locked_superadmin'] );
+				$superadmin_roles = isset( $row['superadmin_roles'] ) && is_array( $row['superadmin_roles'] ) ? array_map( 'sanitize_key', $row['superadmin_roles'] ) : array();
+				if ( $is_locked_superadmin && empty( $superadmin_roles ) ) {
+					$superadmin_roles = array( 'admin', 'mechanic', 'client' );
+				}
 				$consistency_repairable = ! empty( $row['consistency_repairable'] );
 				$dashboard_access = ! empty( $row['dashboard_access'] );
 				$automation_access = ! empty( $row['automation_access'] );
@@ -197,39 +202,50 @@ class Admin_Roles_Controller {
 				echo '<td data-col="name">' . esc_html( $display_name ) . '</td>';
 				echo '<td data-col="email">' . esc_html( $user_email ) . '</td>';
 				echo '<td data-col="wp_roles">' . esc_html( empty( $wp_roles ) ? '—' : implode( ', ', array_map( 'sanitize_key', $wp_roles ) ) ) . '</td>';
-				echo '<td data-col="operational_role">' . esc_html( $operational_role ) . '</td>';
+				echo '<td data-col="operational_role">';
+				if ( $is_locked_superadmin ) {
+					echo '<span class="sm-badge sm-badge-primary">' . esc_html__( 'Locked superadmin', 'super-mechanic' ) . '</span>';
+					echo '<div class="sm-list-meta">' . esc_html( implode( ' + ', $superadmin_roles ) ) . '</div>';
+				} else {
+					echo esc_html( $operational_role );
+				}
+				echo '</td>';
 				echo '<td data-col="business">' . esc_html( $this->format_business_label( $business_id, $is_global ) ) . '</td>';
-				echo '<td data-col="memberships">' . $this->render_memberships_cell( $user_id, $memberships, $businesses, $business_labels ) . '</td>';
+				echo '<td data-col="memberships">' . $this->render_memberships_cell( $user_id, $memberships, $businesses, $business_labels, $is_locked_superadmin, $superadmin_roles ) . '</td>';
 				echo '<td data-col="dashboard_access">' . wp_kses_post( $this->render_yes_no_badge( $dashboard_access ) ) . '</td>';
 				echo '<td data-col="automation_access">' . wp_kses_post( $this->render_yes_no_badge( $automation_access ) ) . '</td>';
 				echo '<td data-col="status">' . wp_kses_post( $this->render_status_badge( $status, $status_summary ) ) . '</td>';
 				echo '<td data-col="actions">';
 				echo '<div class="sm-role-actions">';
-				echo '<form method="post" class="sm-inline-form">';
-				wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
-				echo '<input type="hidden" name="sm_roles_access_action" value="assign_sm_admin" />';
-				echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign admin', 'super-mechanic' ) . '</button>';
-				echo '</form>';
-				echo '<form method="post" class="sm-inline-form">';
-				wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
-				echo '<input type="hidden" name="sm_roles_access_action" value="assign_sm_mechanic" />';
-				echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign mechanic', 'super-mechanic' ) . '</button>';
-				echo '</form>';
-				echo '<form method="post" class="sm-inline-form">';
-				wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
-				echo '<input type="hidden" name="sm_roles_access_action" value="remove_operational_role" />';
-				echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-				echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Remove role', 'super-mechanic' ) . '</button>';
-				echo '</form>';
-				if ( $consistency_repairable ) {
+				if ( $is_locked_superadmin ) {
+					echo '<span class="sm-list-meta">' . esc_html__( 'Locked superadmin: role controls disabled.', 'super-mechanic' ) . '</span>';
+				} else {
 					echo '<form method="post" class="sm-inline-form">';
 					wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
-					echo '<input type="hidden" name="sm_roles_access_action" value="repair_membership_consistency" />';
+					echo '<input type="hidden" name="sm_roles_access_action" value="assign_sm_admin" />';
 					echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
-					echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Run safe repair', 'super-mechanic' ) . '</button>';
+					echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign admin', 'super-mechanic' ) . '</button>';
 					echo '</form>';
+					echo '<form method="post" class="sm-inline-form">';
+					wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
+					echo '<input type="hidden" name="sm_roles_access_action" value="assign_sm_mechanic" />';
+					echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
+					echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Assign mechanic', 'super-mechanic' ) . '</button>';
+					echo '</form>';
+					echo '<form method="post" class="sm-inline-form">';
+					wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
+					echo '<input type="hidden" name="sm_roles_access_action" value="remove_operational_role" />';
+					echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
+					echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Remove role', 'super-mechanic' ) . '</button>';
+					echo '</form>';
+					if ( $consistency_repairable ) {
+						echo '<form method="post" class="sm-inline-form">';
+						wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
+						echo '<input type="hidden" name="sm_roles_access_action" value="repair_membership_consistency" />';
+						echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
+						echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Run safe repair', 'super-mechanic' ) . '</button>';
+						echo '</form>';
+					}
 				}
 				echo '</div>';
 				echo '</td>';
@@ -239,6 +255,8 @@ class Admin_Roles_Controller {
 
 		echo '</tbody></table></div>';
 		echo '</section>';
+
+		$this->render_superadmin_controls_section();
 		echo '</div>';
 	}
 
@@ -291,6 +309,10 @@ class Admin_Roles_Controller {
 			$result = $this->role_access_service->remove_operational_role( $user_id );
 		} elseif ( 'repair_membership_consistency' === $action ) {
 			$result = $this->role_access_service->repair_user_membership_consistency( $user_id );
+		} elseif ( 'assign_superadmin' === $action ) {
+			$result = $this->role_access_service->assign_superadmin( get_current_user_id(), $user_id );
+		} elseif ( 'revoke_superadmin' === $action ) {
+			$result = $this->role_access_service->revoke_superadmin( get_current_user_id(), $user_id );
 		}
 
 		$this->notice = array(
@@ -316,6 +338,16 @@ class Admin_Roles_Controller {
 			'success' => false,
 			'message' => __( 'Invalid membership action.', 'super-mechanic' ),
 		);
+
+		$target_user_id = isset( $_POST['user_id'] ) ? absint( wp_unslash( $_POST['user_id'] ) ) : 0;
+		if ( $target_user_id > 0 && $this->role_access_service->is_locked_superadmin( $target_user_id ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Locked superadmin memberships cannot be modified from this screen.', 'super-mechanic' ),
+				),
+				400
+			);
+		}
 
 		if ( 'create_membership' === $action_key ) {
 			$result = $this->membership_service->create_membership(
@@ -410,13 +442,32 @@ class Admin_Roles_Controller {
 	 * @param array<int,array<string,mixed>>    $businesses Businesses.
 	 * @return string
 	 */
-	protected function render_memberships_cell( $user_id, array $memberships, array $businesses, array $business_labels = array() ) {
+	protected function render_memberships_cell( $user_id, array $memberships, array $businesses, array $business_labels = array(), $is_locked_superadmin = false, array $superadmin_roles = array() ) {
 		$business_options = $this->render_business_select_options( $businesses );
 		$role_options     = $this->render_role_select_options();
 		$has_businesses   = '' !== trim( $business_options );
 		ob_start();
 
 		echo '<div class="sm-membership-panel">';
+		if ( $is_locked_superadmin ) {
+			echo '<div class="sm-membership-block sm-membership-current">';
+			echo '<h4 class="sm-membership-title">' . esc_html__( 'Current memberships', 'super-mechanic' ) . '</h4>';
+			echo '<div class="sm-membership-cards">';
+			echo '<div class="sm-membership-item">';
+			echo '<div class="sm-membership-meta">';
+			echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Scope:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html__( 'Global scope', 'super-mechanic' ) . '</span></div>';
+			echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Roles:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html( implode( ' + ', $superadmin_roles ) ) . '</span></div>';
+			echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Mode:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html__( 'Locked superadmin', 'super-mechanic' ) . '</span></div>';
+			echo '</div>';
+			echo '</div>';
+			echo '</div>';
+			echo '<span class="sm-list-meta">' . esc_html__( 'Add membership and transfer controls are disabled for locked superadmin users.', 'super-mechanic' ) . '</span>';
+			echo '</div>';
+			echo '</div>';
+
+			return (string) ob_get_clean();
+		}
+
 		echo '<div class="sm-membership-block sm-membership-current">';
 		echo '<h4 class="sm-membership-title">' . esc_html__( 'Current memberships', 'super-mechanic' ) . '</h4>';
 		if ( empty( $memberships ) ) {
@@ -652,6 +703,101 @@ class Admin_Roles_Controller {
 		}
 
 		return '<span class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</span><div class="sm-list-meta">' . esc_html( $summary ) . '</div>';
+	}
+
+	/**
+	 * Render superadmin assignment/revocation controls.
+	 *
+	 * @return void
+	 */
+	protected function render_superadmin_controls_section() {
+		$is_actor_superadmin = $this->role_access_service->is_global_super_admin( get_current_user_id() );
+		$current_superadmins = $this->role_access_service->get_superadmin_rows();
+		$eligible_admins     = $this->role_access_service->get_superadmin_eligible_admin_rows();
+
+		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Superadmin assignment controls', 'super-mechanic' ) . '</h2></div>';
+		echo '<p class="sm-list-meta">' . esc_html__( 'Only existing Mekvort superadmins can assign or revoke superadmin status. Only WordPress administrators are eligible.', 'super-mechanic' ) . '</p>';
+
+		if ( ! $is_actor_superadmin ) {
+			echo '<p class="sm-list-meta">' . esc_html__( 'Current user is not a Mekvort superadmin. Controls are disabled.', 'super-mechanic' ) . '</p>';
+			echo '</section>';
+			return;
+		}
+
+		echo '<div class="sm-membership-panel">';
+		echo '<div class="sm-membership-block sm-membership-current">';
+		echo '<h4 class="sm-membership-title">' . esc_html__( 'Current Mekvort superadmins', 'super-mechanic' ) . '</h4>';
+		if ( empty( $current_superadmins ) ) {
+			echo '<div class="sm-list-meta">' . esc_html__( 'No superadmins detected.', 'super-mechanic' ) . '</div>';
+		} else {
+			echo '<div class="sm-membership-cards">';
+			foreach ( $current_superadmins as $superadmin_row ) {
+				if ( ! is_array( $superadmin_row ) ) {
+					continue;
+				}
+
+				$user_id              = isset( $superadmin_row['user_id'] ) ? absint( $superadmin_row['user_id'] ) : 0;
+				$display_name         = isset( $superadmin_row['display_name'] ) ? sanitize_text_field( (string) $superadmin_row['display_name'] ) : '';
+				$user_email           = isset( $superadmin_row['user_email'] ) ? sanitize_email( (string) $superadmin_row['user_email'] ) : '';
+				$is_bootstrap_superadmin = ! empty( $superadmin_row['is_bootstrap_superadmin'] );
+
+				echo '<div class="sm-membership-item">';
+				echo '<div class="sm-membership-meta">';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'User:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html( $display_name ) . ' (#' . esc_html( (string) $user_id ) . ')</span></div>';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Email:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html( $user_email ) . '</span></div>';
+				echo '<div class="sm-membership-line"><span class="sm-membership-label">' . esc_html__( 'Type:', 'super-mechanic' ) . '</span> <span class="sm-membership-value">' . esc_html( $is_bootstrap_superadmin ? __( 'Locked bootstrap superadmin', 'super-mechanic' ) : __( 'Managed superadmin', 'super-mechanic' ) ) . '</span></div>';
+				echo '</div>';
+				echo '<div class="sm-membership-item-actions">';
+				if ( ! $is_bootstrap_superadmin ) {
+					echo '<form method="post" class="sm-inline-form">';
+					wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
+					echo '<input type="hidden" name="sm_roles_access_action" value="revoke_superadmin" />';
+					echo '<input type="hidden" name="user_id" value="' . esc_attr( (string) $user_id ) . '" />';
+					echo '<button type="submit" class="button button-secondary button-small">' . esc_html__( 'Revoke superadmin', 'super-mechanic' ) . '</button>';
+					echo '</form>';
+				} else {
+					echo '<span class="sm-list-meta">' . esc_html__( 'Locked baseline user cannot be revoked here.', 'super-mechanic' ) . '</span>';
+				}
+				echo '</div>';
+				echo '</div>';
+			}
+			echo '</div>';
+		}
+		echo '</div>';
+
+		echo '<div class="sm-membership-block sm-membership-add">';
+		echo '<h4 class="sm-membership-title">' . esc_html__( 'Assign Mekvort superadmin', 'super-mechanic' ) . '</h4>';
+		if ( empty( $eligible_admins ) ) {
+			echo '<span class="sm-list-meta">' . esc_html__( 'No eligible WordPress administrators available for promotion.', 'super-mechanic' ) . '</span>';
+		} else {
+			echo '<form method="post">';
+			wp_nonce_field( 'sm_roles_access_update', 'sm_roles_access_nonce' );
+			echo '<input type="hidden" name="sm_roles_access_action" value="assign_superadmin" />';
+			echo '<label class="sm-membership-field">';
+			echo '<span class="sm-membership-field-label">' . esc_html__( 'WordPress administrator', 'super-mechanic' ) . '</span>';
+			echo '<select class="sm-membership-select" name="user_id">';
+			foreach ( $eligible_admins as $eligible_row ) {
+				if ( ! is_array( $eligible_row ) ) {
+					continue;
+				}
+				$user_id      = isset( $eligible_row['user_id'] ) ? absint( $eligible_row['user_id'] ) : 0;
+				$display_name = isset( $eligible_row['display_name'] ) ? sanitize_text_field( (string) $eligible_row['display_name'] ) : '';
+				$user_email   = isset( $eligible_row['user_email'] ) ? sanitize_email( (string) $eligible_row['user_email'] ) : '';
+				if ( $user_id <= 0 ) {
+					continue;
+				}
+				$label = $display_name . ' (' . $user_email . ')';
+				echo '<option value="' . esc_attr( (string) $user_id ) . '">' . esc_html( $label ) . '</option>';
+			}
+			echo '</select>';
+			echo '</label>';
+			echo '<button type="submit" class="button button-primary button-small">' . esc_html__( 'Assign superadmin', 'super-mechanic' ) . '</button>';
+			echo '</form>';
+		}
+		echo '</div>';
+		echo '</div>';
+		echo '</section>';
 	}
 
 	/**

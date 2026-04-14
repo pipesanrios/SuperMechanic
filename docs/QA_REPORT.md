@@ -478,3 +478,295 @@ Notas:
 - clasificado como bug puntual (no bloqueante)
 
 
+## 56A — PRE-SAAS RUNTIME AUDIT
+
+Estado: `PARCIAL`
+
+Resumen:
+
+- contrato creado: `docs/contracts/56A.md`
+- validation contract creado: `docs/contracts/validation/56A-validation.md`
+- auditoria runtime/manual ejecutada y documentada en:
+  - `docs/tasks/2026-04-pre-saas-runtime-audit.md`
+
+Resultado consolidado:
+
+- core/admin base: estable
+- portales: shortcodes funcionales, publicacion real pendiente
+- PDF reporting: descarga tecnica OK, cierre visual pendiente
+- Google Calendar: existe en runtime, no operativo hoy en esta instalacion
+- email cliente: pipeline/logica existente, entrega end-to-end no certificada en esta auditoria
+- recomendacion final:
+  - `CASI LISTO, REQUIERE MICROFASES DE CORRECCION`
+
+---
+
+## 56P1-A1 — PLUGIN VISIBLE BRANDING ONLY
+
+Fecha de ejecución: 2026-04-12
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P1-A1-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- plugin_visible_branding_is_mekvort -> NOT_RUN
+- branding_default_name_is_mekvort -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- visible branding only applied
+- technical identifiers intentionally unchanged
+- admin menu/settings/runtime-sensitive admin screens intentionally unchanged
+
+---
+
+## 56P1-A2 — ADMIN MENU VISIBLE RENAME
+
+Fecha de ejecución: 2026-04-12
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P1-A2-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- top_level_menu_is_mekvort -> NOT_RUN
+- safe_menu_titles_aligned -> NOT_RUN
+- no_roles_access_regression -> NOT_RUN
+
+Scope confirmation:
+- visible admin menu rename only applied
+- technical identifiers intentionally unchanged
+- settings internals / Roles & Access / CRM / reset logic / API untouched
+
+Rollback update (2026-04-12):
+- runtime real regression reported on `Roles & Access` after top-level menu rename
+- 56P1-A2 change reverted in `includes/class-admin-menu.php`
+- top-level admin menu label restored to `Super Mechanic`
+- phase status updated to `REVERTIDA / POSTERGADA`
+- 56P1-A1 remains intact (`Mekvort` plugin header + branding default system_name)
+
+---
+
+## 56P1-B — LANGUAGE SETTINGS
+
+Fecha de ejecución: 2026-04-12
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P1-B-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Manual runtime:
+- language_settings_visible -> NOT_RUN
+- language_selector_visible -> NOT_RUN
+- bundled_languages_visible -> NOT_RUN
+- future_language_placeholder_visible -> NOT_RUN
+- no_settings_regression -> NOT_RUN
+
+Scope confirmation:
+- Language Settings section visible in Settings
+- bundled languages visible (English, Español, Italiano)
+- future language expansion placeholder visible
+- full i18n system intentionally deferred to `56P1-C`
+
+---
+
+## 56P1-C — I18N HELPER BASE
+
+Fecha de ejecución: 2026-04-12
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P1-C-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- helper_uses_persisted_language -> NOT_RUN
+- english_fallback_works -> NOT_RUN
+- available_languages_correct -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- centralized i18n helper base implemented
+- persisted language resolution + English fallback baseline implemented
+- full translation rollout remains pending future phases
+
+---
+
+## 56P2-A — SUPERADMIN BOOTSTRAP
+
+Fecha de ejecución: 2026-04-12
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P2-A-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- primary_admin_bootstrapped -> NOT_RUN
+- other_admins_not_auto_promoted -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- superadmin bootstrap baseline implemented
+- only primary WP admin auto-promoted in bootstrap flow
+- broader superadmin management deferred to later subphases
+
+---
+
+## 56P2-B — SUPERADMIN ASSIGNMENT CONTROLS
+
+Fecha de ejecución: 2026-04-13
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P2-B-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- superadmin_can_promote_admin -> NOT_RUN
+- superadmin_can_revoke_promoted_superadmin -> NOT_RUN
+- non_superadmin_cannot_manage_superadmins -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- controlled assign/revoke flows added for Mekvort superadmin state
+- authorization restricted to existing superadmins
+- promotion eligibility restricted to WordPress administrators
+- no auto-promotion of all WP admins
+- broader role-management redesign remains deferred
+
+---
+
+## 56P2-B1 — MANAGED SUPERADMIN OPERATIONAL PARITY
+
+Fecha de ejecución: 2026-04-13
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P2-B1-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 6
+
+Manual runtime:
+- promoted_superadmin_locked_superadmin -> NOT_RUN
+- promoted_superadmin_global_scope -> NOT_RUN
+- promoted_superadmin_no_add_membership -> NOT_RUN
+- promoted_superadmin_no_membership_controls -> NOT_RUN
+- managed_superadmin_revocation_still_works -> NOT_RUN
+- admin_stable -> NOT_RUN
+
+Scope confirmation:
+- managed superadmin now follows locked/global superadmin operational parity in Roles & Access
+- normal membership controls are hidden/blocked for any superadmin
+- bootstrap remains non-revocable from normal flow
+- managed superadmin revocation path remains active
+
+---
+
+## 56P2-A1 — SUPERADMIN BOOTSTRAP COMPLETION FIX
+
+Fecha de ejecución: 2026-04-13
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P2-A1-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Manual runtime:
+- primary_admin_superadmin_real -> NOT_RUN
+- superadmin_global_total_scope -> NOT_RUN
+- roles_access_locked_superadmin -> NOT_RUN
+- other_admins_not_auto_promoted -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- locked superadmin runtime representation added (Global scope + admin/mechanic/client)
+- normal membership controls hidden/blocked for locked superadmin in Roles & Access
+- primary bootstrap superadmin state persistence hardened
+- non-primary WP admins remain non-auto-promoted
+
+---
+
+## 56P3-B — USER HANDLING
+
+Fecha de ejecución: 2026-04-14
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P3-B-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- protected_superadmins_remain -> NOT_RUN
+- non_protected_users_removed -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- reset user-handling service implemented and integrated into reset engine flow
+- protected Mekvort superadmins preserved per bootstrap/managed/global model
+- non-protected runtime/business users cleaned per reset policy
+- broader user/integrity runtime validation deferred to `56P3-C`
+
+56P3-B fix update (2026-04-14):
+- issue confirmed: normal WordPress administrators could survive reset due to policy preserving all WP admins and incomplete candidate selection.
+- fix applied:
+  - only protected Mekvort superadmins remain protected
+  - non-protected WordPress administrators are now included in reset cleanup and removed
+- technical validation:
+  - `php scripts/php-lint.php --all` -> PASS
+
+---
+
+## 56P3-A — RESET ENGINE
+
+Fecha de ejecución: 2026-04-13
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P3-A-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- operational_data_reset_works -> NOT_RUN
+- crm_task_notification_reset_works -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- centralized reset engine implemented in helpers/database scope
+- reset orchestration delegated from DB Security service to centralized engine
+- reset cleanup now explicitly includes CRM pipeline/tasks/alerts and notification/webhook runtime data
+- reset entrypoint/capability/nonce flow in Settings preserved (backward compatibility)
+- user cleanup/full integrity reset intentionally deferred to later 56P3 subphases

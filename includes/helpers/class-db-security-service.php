@@ -51,6 +51,12 @@ class DB_Security_Service {
 	 * @var DB_Import_Validator
 	 */
 	protected $import_validator;
+	/**
+	 * Reset engine service.
+	 *
+	 * @var Reset_Engine_Service
+	 */
+	protected $reset_engine_service;
 
 	/**
 	 * Constructor.
@@ -63,6 +69,7 @@ class DB_Security_Service {
 		$this->repository            = $repository ? $repository : new DB_Security_Repository();
 		$this->export_format_service = new DB_Export_Format_Service();
 		$this->import_validator      = new DB_Import_Validator();
+		$this->reset_engine_service  = new Reset_Engine_Service( $this->settings_service );
 	}
 
 	/**
@@ -228,8 +235,7 @@ class DB_Security_Service {
 			return new \WP_Error( 'sm_db_reset_confirm_phrase_invalid', __( 'The reset confirmation phrase is invalid.', 'super-mechanic' ) );
 		}
 
-		$default_name = (string) $this->settings_service->get_setting( 'business', 'business_name', 'Super Mechanic' );
-		$result       = $this->repository->reset_plugin_data( $default_name );
+		$result = $this->reset_engine_service->reset_operational_data();
 
 		if ( is_wp_error( $result ) ) {
 			return $result;

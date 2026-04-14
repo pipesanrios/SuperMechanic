@@ -728,3 +728,256 @@ This file reflects **only the current system state**.
 - Do not document future phases beyond immediate continuity
 - Do not duplicate roadmap content
 
+---
+
+## Fase 56P1-A1 Visible Branding (Applied technical)
+
+Delivered in current code:
+- plugin visible header identity renamed to `Mekvort` in:
+  - `super-mechanic.php` (`Plugin Name`)
+- branding default visible system name updated to `Mekvort` in:
+  - `includes/branding/class-branding-service.php` (`system_name` default)
+
+Intentional non-changes for backward compatibility:
+- technical identifiers unchanged:
+  - file name `super-mechanic.php`
+  - text domain `super-mechanic`
+  - namespaces/classes/constants/options/slugs/hooks
+- admin navigation labels and runtime-sensitive admin screens intentionally unchanged in this subphase
+
+---
+
+## Fase 56P1-A2 Admin Menu Visible Rename (Reverted / Postponed)
+
+Status:
+- `REVERTIDA / POSTERGADA`
+
+Runtime decision:
+- top-level admin menu visible rename to `Mekvort` was rolled back after runtime regression evidence affecting `Roles & Access`.
+- top-level admin menu label restored to stable pre-56P1-A2 value:
+  - `Super Mechanic` in `includes/class-admin-menu.php` (`add_menu_page` page/menu labels)
+
+Confirmed preserved state:
+- 56P1-A1 remains active and unchanged:
+  - plugin visible header identity = `Mekvort`
+  - branding default `system_name` = `Mekvort`
+- technical identifiers remain unchanged (slug/text domain/namespaces/options/REST identifiers).
+
+---
+
+## Fase 56P1-B Language Settings (Applied technical)
+
+Delivered in current code:
+- visible `Language Settings` section added in Settings UI:
+  - `includes/class-settings.php`
+- current/default language is visible in settings:
+  - label + locale code shown from current persisted `language_locale`
+- selector remains available with bundled languages:
+  - `English (en_US)`
+  - `Español (es_ES)`
+  - `Italiano (it_IT)`
+- visible future expansion placeholder added:
+  - explicit prepared area indicating additional languages planned for `56P1-C`
+
+Persistence and compatibility:
+- language selection persists safely in existing settings option (`wp_options`) through existing sanitize/sync flow
+- no admin menu/roles/CRM/reset/API/schema changes in this subphase
+- full i18n system remains pending for `56P1-C`
+
+---
+
+## Fase 56P1-C I18N Helper Base (Applied technical)
+
+Delivered in current code:
+- centralized helper added in active runtime:
+  - `includes/helpers/class-i18n-helper.php`
+- helper baseline methods available:
+  - `get_current_language()`
+  - `set_current_language()`
+  - `get_available_languages()`
+  - `translate($key, $fallback = '')`
+- bundled language registry:
+  - `en_US` (English)
+  - `es_ES` (Español)
+  - `it_IT` (Italiano)
+- safe fallback behavior:
+  - unsupported/missing locale falls back to `en_US`
+
+Persistence and compatibility:
+- helper reads persisted language from existing settings baseline (`sm_settings.business.locale`)
+- helper write path preserves compatibility with legacy option (`super_mechanic_settings.language_locale`)
+- no full translation rollout, no mass label replacement, no frontend switching in this subphase
+
+---
+
+## Fase 56P2-A Superadmin Bootstrap (Applied technical)
+
+Delivered in current code:
+- centralized bootstrap service added in users layer:
+  - `includes/users/class-superadmin-bootstrap-service.php`
+- bootstrap execution wired in:
+  - activation path (`super-mechanic.php`)
+  - first safe runtime bootstrap (`includes/class-plugin.php`)
+- initial Mekvort superadmin baseline now resolves to primary WordPress administrator (lowest admin user ID)
+- bootstrap state persisted in `wp_options`:
+  - option key: `sm_superadmin_bootstrap_state`
+  - persisted payload includes `user_id`, `user_email`, `bootstrapped_at`, `source`
+
+Access model safeguards:
+- only primary WP admin is auto-bootstrapped with direct `sm_global_access`
+- other WP admins are not auto-promoted by default bootstrap path
+- global superadmin resolution no longer auto-promotes all `manage_options` users
+
+Deferred continuity:
+- broader superadmin assignment/reassignment management remains deferred to later controlled subphases
+
+---
+
+## Fase 56P2-A1 Superadmin Bootstrap Completion Fix (Applied technical)
+
+Delivered in current code:
+- primary bootstrap superadmin now resolves as locked runtime superadmin in Roles & Access:
+  - `includes/users/class-role-access-service.php`
+  - `includes/users/class-admin-roles-controller.php`
+- locked superadmin state is rendered as:
+  - `Locked superadmin`
+  - `Global scope`
+  - `admin + mechanic + client`
+- locked superadmin no longer depends on normal manual membership controls in Roles & Access:
+  - `Add membership` and transfer controls hidden for locked superadmin rows
+  - role action controls blocked for locked superadmin rows
+  - AJAX membership writes by `user_id` blocked for locked superadmin
+- bootstrap state normalization hardened:
+  - `includes/users/class-superadmin-bootstrap-service.php`
+  - persisted bootstrap payload is refreshed safely while preserving initial `bootstrapped_at`
+  - direct global capability remains enforced only for the primary bootstrapped admin
+  - other WP admins continue without auto-promotion
+
+Continuity notes:
+- broader manual promotion/reassignment of additional superadmins remains deferred to next subphase
+- no CRM/reset/rename-i18n/API/schema changes were introduced in this subphase
+
+---
+
+## Fase 56P2-B Superadmin Assignment Controls (Applied technical)
+
+Delivered in current code:
+- controlled superadmin assignment/revocation flows added in users layer:
+  - `includes/users/class-role-access-service.php`
+  - methods:
+    - `assign_superadmin($actor_user_id, $target_user_id)`
+    - `revoke_superadmin($actor_user_id, $target_user_id)`
+    - `get_superadmin_rows()`
+    - `get_superadmin_eligible_admin_rows()`
+- management authorization is now restricted:
+  - only existing Mekvort superadmins can assign/revoke superadmin
+- promotion eligibility is restricted:
+  - only WordPress administrators can be promoted
+  - no automatic promotion of all administrators
+- persistence model extended safely in existing bootstrap option:
+  - `sm_superadmin_bootstrap_state.managed_superadmin_ids`
+  - bootstrap refresh preserves `managed_superadmin_ids` and `bootstrapped_at`
+- safe control surface exposed in Roles & Access:
+  - `includes/users/class-admin-roles-controller.php`
+  - dedicated `Superadmin assignment controls` section
+  - assign form for eligible WP administrators
+  - revoke controls for managed superadmins
+  - locked bootstrap superadmin remains non-revokable from this flow
+  - self-revocation blocked to reduce lockout risk
+
+Continuity notes:
+- broader role-management redesign remains deferred
+- CRM/reset/language/API/schema remain untouched in this subphase
+
+---
+
+## Fase 56P2-B1 Managed Superadmin Operational Parity (Applied technical)
+
+Delivered in current code:
+- operational/visual parity applied to all Mekvort superadmins (bootstrap + managed) in Roles & Access:
+  - `includes/users/class-role-access-service.php`
+  - `includes/users/class-admin-roles-controller.php`
+- any Mekvort superadmin now resolves as locked superadmin for operational UI behavior:
+  - rendered as `Locked superadmin`
+  - rendered with `Global scope`
+  - rendered with `admin + mechanic + client`
+- normal membership controls remain disabled for all superadmins:
+  - no `Add membership`
+  - no transfer/normal membership controls
+  - no dependency on manual memberships for superadmin operation
+- safe revocation distinction preserved:
+  - bootstrap superadmin remains non-revocable from normal flow
+  - managed superadmin remains revocable by authorized superadmin
+
+Safety and compatibility notes:
+- promotion/revocation/non-superadmin restrictions from 56P2-B remain active
+- no CRM/reset/rename-i18n/API/schema changes in this subphase
+
+---
+
+## Fase 56P3-A Reset Engine (Applied technical)
+
+Delivered in current code:
+- centralized reset engine baseline added in active runtime:
+  - `includes/helpers/class-reset-engine-service.php`
+  - `includes/database/class-reset-engine-repository.php`
+- DB security reset flow now delegates reset orchestration to the centralized reset engine:
+  - `includes/helpers/class-db-security-service.php`
+- backward-compatible reset entrypoint remains unchanged in Settings:
+  - `sm_db_security_reset` in `includes/class-settings.php`
+
+Reset scope now covered by centralized engine:
+- operational/business runtime data:
+  - clients
+  - vehicles
+  - client-vehicle relations
+  - processes and process runtime logs/meta/parts
+  - appointments and sync runtime data
+  - maintenance/pre-delivery/paperwork runtime data
+  - quotes/invoices/payments runtime data
+- CRM runtime data:
+  - client CRM meta
+  - pipeline
+  - tasks
+  - alerts
+- notifications and webhook runtime data:
+  - notifications
+  - webhooks
+  - webhook deliveries
+- deterministic default business baseline re-seeded after reset
+
+Deferred continuity (next 56P3 subphases):
+- user cleanup/full user integrity reset remains deferred
+- full runtime/manual reset verification remains pending for closure
+
+---
+
+## Fase 56P3-B User Handling (Applied technical)
+
+Delivered in current code:
+- reset user-handling layer added in users runtime:
+  - `includes/users/class-reset-user-handling-service.php`
+- reset engine orchestration extended to include user cleanup after operational data reset:
+  - `includes/helpers/class-reset-engine-service.php`
+- membership repository extended for reset-support cleanup operations:
+  - `includes/users/class-business-membership-repository.php`
+
+User-handling reset policy now applied:
+- protected Mekvort superadmins are preserved:
+  - bootstrap superadmin (`sm_superadmin_bootstrap_state.user_id`)
+  - managed superadmins (`sm_superadmin_bootstrap_state.managed_superadmin_ids`)
+  - current global superadmins resolved by role-access model
+- non-protected runtime/business users are removed when they are part of plugin runtime scope:
+  - WordPress administrators without protected Mekvort superadmin status
+  - users with plugin runtime roles (`sm_admin`, `sm_mechanic`, `sm_client`)
+  - users referenced by business memberships table
+- stale managed superadmin IDs are normalized after cleanup
+
+56P3-B fix note:
+- previous policy incorrectly preserved normal WordPress administrators and could leave them outside reset cleanup scope
+- current policy now includes WordPress administrators in reset candidates and preserves only protected Mekvort superadmins
+
+Continuity notes:
+- broader reset integrity/runtime verification remains pending
+- broader user integrity hardening remains deferred to `56P3-C`
+
