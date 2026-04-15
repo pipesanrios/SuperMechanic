@@ -981,3 +981,277 @@ Continuity notes:
 - broader reset integrity/runtime verification remains pending
 - broader user integrity hardening remains deferred to `56P3-C`
 
+---
+
+## Fase 56P3-C Data Integrity Validation (Applied technical)
+
+Delivered in current code:
+- centralized integrity validation repository added:
+  - `includes/database/class-data-integrity-validation-repository.php`
+- centralized integrity validation service added:
+  - `includes/helpers/class-data-integrity-validation-service.php`
+
+Validation scope covered:
+- clients / vehicles / ownership relations:
+  - vehicles without client
+  - client-vehicle links with missing client or vehicle
+- processes / logs:
+  - processes with invalid core relations (client/vehicle and maintenance constraints)
+  - process logs without process or with cross-business mismatch
+- CRM relations:
+  - client CRM meta without client
+  - CRM pipeline with invalid client/vehicle/process references
+  - CRM tasks without pipeline
+  - CRM alerts without pipeline
+- invoices/payments integrity:
+  - payments without invoice or with cross-business mismatch
+  - invoice items without invoice or with cross-business mismatch
+
+Report model:
+- structured output includes:
+  - `overall_status`
+  - summary counters (`total_checks`, `passed_checks`, `failed_checks`, `total_issues`)
+  - per-check status + issue count + sample IDs
+- optional auto-fix flag supported but no destructive auto-fix is applied in 56P3-C (validation-only scope)
+
+Deferred integrity areas:
+- runtime/manual integrity execution evidence remains pending for closure
+- non-trivial repair workflows remain deferred (future subphases)
+
+---
+
+## Fase 56P4-A Dashboard Layout Fix (Applied technical)
+
+Delivered in current code:
+- dashboard admin layout restructured to card/grid sections in:
+  - `includes/admin/class-dashboard-admin-controller.php`
+- dashboard-specific visual styles extended in:
+  - `assets/css/admin.css`
+
+UI/layout changes applied:
+- metric cards grouped into clear visual sections:
+  - `Operations`
+  - `Platform Signals`
+- responsive two-column section shell for desktop, collapsing to one column on mobile
+- improved card spacing, borders, and subtle shadows for KPI readability
+- recent activity block aligned to section/card structure (inline style removed)
+
+Scope safeguards:
+- no data query changes
+- no service/repository/business logic changes
+- no cross-module runtime behavior changes
+
+---
+
+## Fase 56P4-B Reporting Layout Fix (Applied technical)
+
+Delivered in current code:
+- reporting metrics layout restructured to grouped card/grid sections in:
+  - `includes/admin/class-reporting-admin-controller.php`
+- reporting-specific visual styles extended in:
+  - `assets/css/admin.css`
+
+UI/layout changes applied:
+- reporting metrics grouped into clear visual sections:
+  - `Commercial`
+  - `Operations`
+- responsive two-column metrics shell for desktop, collapsing to one column on mobile
+- improved card spacing, borders, and subtle shadows for reporting KPI readability
+- trend and delta visual rendering preserved inside each metric card
+
+Scope safeguards:
+- no reporting service/repository/query changes
+- no PDF generation changes
+- no business logic changes
+
+56P4-B fix note:
+- runtime issue confirmed: reporting metric cards were still stacked because card wrappers did not activate CSS grid layout.
+- root cause: `sm-grid-cards` / `sm-grid-cards-compact` provide `grid-template-columns` but not `display:grid`.
+- fix applied: `assets/css/admin.css` now sets `display:grid` for `.sm-reporting-card-grid` (reporting-only scope), preserving desktop multi-column and mobile single-column behavior.
+
+56P4-B final fix note:
+- runtime issue persisted due to CSS-effective layout still relying on shared generic classes and insufficient autonomous reporting grid definition.
+- final fix hardened reporting selectors and container sizing:
+  - `.sm-reporting-metrics-grid`: explicit `width:100%`, grid + gap
+  - `.sm-reporting-metric-group`: explicit `width:100%` + `min-width:0`
+  - `.sm-reporting-metrics-shell .sm-reporting-card-grid`: explicit `display:grid`, `width:100%`, `grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))`
+  - `.sm-reporting-kpi-card`: explicit `width:auto` + `min-width:0`
+- mobile collapse preserved with explicit reporting card-grid override to one column in `@media (max-width: 782px)`.
+
+---
+
+## Fase 56P4-C Branding UX Cleanup (Applied technical)
+
+Delivered in current code:
+- branding admin UX structure improved in:
+  - `includes/admin/class-branding-admin-controller.php`
+- branding-specific UI styles extended in:
+  - `assets/css/admin.css`
+
+UI/layout changes applied:
+- branding page now uses clearer two-column structure:
+  - settings form area
+  - dedicated preview area
+- form readability improved with grouped cards:
+  - `Brand identity`
+  - `Color theme`
+  - `Footer text`
+- labels and helper descriptions improved for all branding inputs without changing payload/save behavior
+- preview panel added for current branding snapshot:
+  - brand name/logo block
+  - primary/secondary color swatches
+  - footer text preview state
+- responsive behavior hardened for tablet/mobile:
+  - preview stacks below form
+  - color fields collapse to one column on small screens
+
+Scope safeguards:
+- no branding business-logic changes
+- no save/action/nonce/capability flow changes
+- no rename/i18n/roles-access/CRM/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P4-C-validation.md`) PASS in automated checks
+- runtime/manual branding closure pending
+
+---
+
+## Fase 56P4-D Settings / License Consistency (Applied technical)
+
+Delivered in current code:
+- settings/license UX consistency cleanup in:
+  - `includes/class-settings.php`
+- settings/license UI helper styles extended in:
+  - `assets/css/admin.css`
+
+UI/layout changes applied:
+- Settings license card refocused as `License summary` (read-only intent)
+- duplicated license action controls removed from Settings:
+  - activate
+  - validate
+  - deactivate
+- clear guidance added in Settings to use dedicated License page for management
+- direct CTA links added from Settings to:
+  - `admin.php?page=super-mechanic-license`
+- summary clarity improved in Settings with visible license/plan snapshot:
+  - current status
+  - masked license key
+  - provider
+  - effective plan + source
+  - activation/last validation timestamps
+- plan section copy clarified as diagnostic/read-only in Settings
+
+Scope safeguards:
+- no license business logic changes
+- no trial/enforcement flow changes
+- no roles/CRM/reset/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P4-D-validation.md`) PASS in automated checks
+- runtime/manual settings-license closure pending
+
+---
+
+## Fase 56P5-A CRM Bulk Actions (Applied technical)
+
+Delivered in current code:
+- CRM pipeline bulk-action support added in:
+  - `includes/crm/class-crm-pipeline-admin-controller.php`
+- CRM bulk-action UI styles added in:
+  - `assets/css/admin.css`
+
+UI/layout changes applied:
+- list view now supports row-level multi-select:
+  - one checkbox per opportunity row
+- select-all control added in list header
+- bulk actions bar added above CRM list table:
+  - action dropdown
+  - apply button
+- first supported bulk action:
+  - `Delete selected`
+- post-action summary notices added:
+  - deleted count
+  - failed count
+
+Flow/safety behavior:
+- bulk flow is list-view scoped (kanban unchanged)
+- nonce-protected POST flow:
+  - `sm_crm_pipeline_bulk_action`
+- selected IDs are sanitized/unique-filtered before processing
+- bulk delete reuses existing service delete path:
+  - `Crm_Pipeline_Service::delete_opportunity(...)`
+- no cascade delete for related tasks introduced in this subphase
+
+Scope safeguards:
+- no CRM stage/state redesign
+- no API/schema/reset/roles changes
+- existing single-item CRM actions preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P5-A-validation.md`) PASS in automated checks
+- runtime/manual CRM bulk closure pending
+
+---
+
+## Fase 56P5-B CRM Cascade Delete (Applied technical)
+
+Delivered in current code:
+- CRM delete cascade support added in:
+  - `includes/crm/class-crm-pipeline-service.php`
+  - `includes/crm/class-crm-task-service.php`
+  - `includes/crm/class-crm-task-repository.php`
+
+Delete flow changes applied:
+- single opportunity delete now cascades to CRM tasks:
+  - pipeline service deletes tasks by `crm_pipeline_id` before deleting opportunity
+- bulk opportunity delete now cascades to CRM tasks through same service path:
+  - bulk action reuses `delete_opportunity(...)`
+  - cascade is applied per selected opportunity
+- task cleanup is scoped by active `business_id`
+- no orphan CRM tasks should remain after supported opportunity delete flows
+
+Scope safeguards:
+- no CRM redesign
+- no task model redesign
+- no API/schema/reset/roles/settings changes
+- existing notices/UX preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P5-B-validation.md`) PASS in automated checks
+- runtime/manual cascade closure pending
+
+---
+
+## Fase 56P5-C CRM State Consistency (Applied technical)
+
+Delivered in current code:
+- CRM consistency hardening for delete flows added in:
+  - `includes/crm/class-crm-pipeline-service.php`
+  - `includes/crm/class-crm-alert-service.php`
+  - `includes/crm/class-crm-alert-repository.php`
+
+State-consistency changes applied:
+- single opportunity delete now enforces full CRM relation cleanup in service flow:
+  - delete related CRM tasks by `crm_pipeline_id`
+  - resolve active CRM alerts by `crm_pipeline_id`
+  - delete opportunity row only after related cleanup succeeds
+- bulk delete inherits the same consistency hardening because it reuses `delete_opportunity(...)` per selected row
+- tenant safety preserved:
+  - task cleanup remains scoped by active `business_id`
+  - alert resolution is scoped by active `business_id`
+
+Scope safeguards:
+- no CRM/kanban redesign
+- no schema changes
+- no API/reset/roles/settings changes
+- existing admin notices/UX preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P5-C-validation.md`) PASS in automated checks
+- runtime/manual consistency closure pending
+

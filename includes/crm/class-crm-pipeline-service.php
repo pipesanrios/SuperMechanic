@@ -183,6 +183,15 @@ class Crm_Pipeline_Service {
 			return new WP_Error( 'sm_crm_pipeline_not_found', __( 'CRM opportunity does not exist.', 'super-mechanic' ) );
 		}
 
+		$task_delete_result = $this->task_service->delete_tasks_by_pipeline_id( $id );
+		if ( is_wp_error( $task_delete_result ) ) {
+			return $task_delete_result;
+		}
+
+		if ( ! $this->alert_service->resolve_active_alerts_by_pipeline_id( $id ) ) {
+			return new WP_Error( 'sm_crm_pipeline_alert_cleanup_failed', __( 'Could not resolve CRM alerts for this opportunity.', 'super-mechanic' ) );
+		}
+
 		if ( ! $this->repository->delete( $id ) ) {
 			return new WP_Error( 'sm_crm_pipeline_delete_failed', __( 'Could not delete CRM opportunity.', 'super-mechanic' ) );
 		}

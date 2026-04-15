@@ -770,3 +770,253 @@ Scope confirmation:
 - reset cleanup now explicitly includes CRM pipeline/tasks/alerts and notification/webhook runtime data
 - reset entrypoint/capability/nonce flow in Settings preserved (backward compatibility)
 - user cleanup/full integrity reset intentionally deferred to later 56P3 subphases
+
+---
+
+## 56P3-C — DATA INTEGRITY VALIDATION
+
+Fecha de ejecución: 2026-04-14
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P3-C-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- orphan_detection_coherent -> NOT_RUN
+- consistency_output_coherent -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- integrity validation service/repository implemented in allowed helpers/database scope
+- structured report added with per-check PASS/FAIL + counts + sample IDs
+- covered integrity checks:
+  - clients/vehicles/ownership
+  - processes/logs
+  - CRM relations
+  - payments/invoices links
+- validation-only scope respected:
+  - no schema redesign
+  - no aggressive cleanup
+  - auto-fix path remains non-destructive and skipped by design
+
+---
+
+## 56P4-A — DASHBOARD LAYOUT FIX
+
+Fecha de ejecución: 2026-04-14
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P4-A-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- dashboard_renders -> NOT_RUN
+- cards_layout_applied -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- dashboard metrics rendering updated to grouped card/grid layout
+- responsive layout adjustments added in admin CSS
+- data/query/business logic intentionally unchanged
+
+---
+
+## 56P4-B — REPORTING LAYOUT FIX
+
+Fecha de ejecución: 2026-04-14
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P4-B-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- reporting_renders -> NOT_RUN
+- reporting_cards_layout_applied -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- reporting metrics rendering updated to grouped card/grid layout
+- responsive layout adjustments added in admin CSS
+- reporting service/repository/query/PDF logic intentionally unchanged
+
+56P4-B fix update (2026-04-14):
+- issue confirmed in runtime: reporting metric cards remained stacked vertically.
+- root cause: reporting card wrappers relied on `sm-grid-cards` / `sm-grid-cards-compact` (no `display:grid`), so column templates were not applied.
+- fix applied:
+  - `assets/css/admin.css`
+  - `.sm-reporting-card-grid` now enforces `display:grid` + `gap`
+  - reporting layout now applies columns in desktop and keeps single-column collapse in mobile.
+
+56P4-B final fix update (2026-04-14):
+- issue persisted in runtime due to CSS-effective layout still depending on generic shared grid behavior and insufficient autonomous reporting grid definition/sizing.
+- final fix applied in `assets/css/admin.css`:
+  - reporting grid wrappers hardened with explicit width/min-width constraints
+  - reporting card-grid now has full standalone definition:
+    - `display:grid`
+    - `width:100%`
+    - `grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))`
+    - `gap`
+  - reporting KPI cards constrained for grid flow (`width:auto`, `min-width:0`)
+  - explicit mobile one-column collapse preserved for reporting card-grid
+
+56P4-B runtime asset audit update (2026-04-14):
+- reporting page style source confirmed:
+  - handle: `sm-admin-ui`
+  - file: `assets/css/admin.css`
+  - enqueue path: `includes/class-assets.php`
+- no later plugin stylesheet override detected for reporting page.
+- root cause for non-reflecting CSS in runtime:
+  - admin stylesheet version was fixed to `SM_PLUGIN_VERSION` (`0.1.0`), allowing stale browser/proxy cache to keep serving old CSS.
+- fix applied:
+  - `includes/class-assets.php`
+  - `sm-admin-ui` version now uses `filemtime(assets/css/admin.css)` fallback to `SM_PLUGIN_VERSION`.
+
+---
+
+## 56P4-C — BRANDING UX CLEANUP
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P4-C-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- branding_page_renders -> NOT_RUN
+- branding_layout_improved -> NOT_RUN
+- branding_preview_works -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- branding page UI reorganized into clearer layout (form + preview) in allowed admin controller scope
+- fields grouped for readability:
+  - Brand identity
+  - Color theme
+  - Footer text
+- helper descriptions and spacing hierarchy improved without changing save payload or business logic
+- branding preview card added for current values (logo/name/colors/footer) with responsive behavior
+- no branding service logic changes and no changes in rename/i18n/roles-access/CRM/API/schema scope
+
+---
+
+## 56P4-D — SETTINGS / LICENSE CONSISTENCY
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P4-D-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- settings_clearer -> NOT_RUN
+- license_page_still_works -> NOT_RUN
+- duplication_reduced -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- Settings page licensing area converted to read-only summary + guidance UX
+- duplicated license action controls removed from Settings (activation/validation/deactivation actions no longer rendered there)
+- clear navigation to canonical License page added in Settings
+- plan-related copy in Settings clarified as diagnostic/read-only
+- no changes in licensing business logic, trial/enforcement, roles/CRM/reset/API/schema
+
+---
+
+## 56P5-A — CRM BULK ACTIONS
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P5-A-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- multi_select_works -> NOT_RUN
+- select_all_works -> NOT_RUN
+- bulk_action_executes -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- CRM list view now includes row checkboxes + select-all control
+- bulk action dropdown/control added in CRM list view with POST+nonce protection
+- supported bulk action in this subphase: delete selected opportunities
+- bulk delete reuses existing opportunity delete service path; no cascade task-delete layer introduced
+- existing CRM list/kanban and single-item actions preserved without schema/API changes
+
+---
+
+## 56P5-B — CRM CASCADE DELETE
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P5-B-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- single_delete_cascades_tasks -> NOT_RUN
+- bulk_delete_cascades_tasks -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- CRM opportunity delete path now performs task cleanup by `crm_pipeline_id` before deleting opportunity row
+- bulk delete inherits cascade through existing service delete path used per selected opportunity
+- task cleanup is business-scoped (active `business_id`) to preserve tenant safety
+- no CRM/task model redesign, no API/schema/reset/roles/settings changes
+
+---
+
+## 56P5-C — CRM STATE CONSISTENCY
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P5-C-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- single_delete_state_consistent -> NOT_RUN
+- bulk_delete_state_consistent -> NOT_RUN
+- update_flows_consistent -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- CRM delete consistency hardened in service/repository layer:
+  - tasks cleanup by `crm_pipeline_id`
+  - active alerts resolution by `crm_pipeline_id`
+  - opportunity delete proceeds only after related cleanup succeeds
+- bulk delete remains aligned because it reuses the same service delete flow per opportunity
+- tenant scope preserved (`business_id`) for task and alert cleanup
+- no CRM redesign, no schema/API/reset/roles/settings changes

@@ -42,7 +42,7 @@ class Assets {
 			self::ADMIN_STYLE,
 			SM_PLUGIN_URL . 'assets/css/admin.css',
 			array(),
-			SM_PLUGIN_VERSION
+			file_exists( SM_PLUGIN_PATH . 'assets/css/admin.css' ) ? (string) filemtime( SM_PLUGIN_PATH . 'assets/css/admin.css' ) : SM_PLUGIN_VERSION
 		);
 		wp_register_style(
 			self::MECHANIC_STYLE,

@@ -119,6 +119,9 @@ class Crm_Pipeline_Admin_Controller {
 			if ( 'link_process' === $operation ) {
 				$this->handle_link_existing_process_action();
 			}
+			if ( 'bulk_action' === $operation ) {
+				$this->handle_bulk_action();
+			}
 		}
 
 		if ( isset( $_GET['action'] ) && 'quick_stage' === sanitize_key( wp_unslash( $_GET['action'] ) ) ) {
@@ -156,6 +159,33 @@ class Crm_Pipeline_Admin_Controller {
 
 		if ( 'deleted' === $notice ) {
 			$this->render_notice( __( 'CRM opportunity deleted successfully.', 'super-mechanic' ), 'success' );
+		}
+
+		if ( 'bulk_deleted' === $notice ) {
+			$deleted_count = isset( $_GET['sm_bulk_deleted'] ) ? absint( $_GET['sm_bulk_deleted'] ) : 0;
+			$failed_count  = isset( $_GET['sm_bulk_failed'] ) ? absint( $_GET['sm_bulk_failed'] ) : 0;
+
+			if ( $deleted_count > 0 ) {
+				$this->render_notice(
+					sprintf(
+						/* translators: %d opportunities deleted */
+						_n( '%d CRM opportunity deleted.', '%d CRM opportunities deleted.', $deleted_count, 'super-mechanic' ),
+						$deleted_count
+					),
+					'success'
+				);
+			}
+
+			if ( $failed_count > 0 ) {
+				$this->render_notice(
+					sprintf(
+						/* translators: %d opportunities failed */
+						_n( '%d CRM opportunity could not be deleted.', '%d CRM opportunities could not be deleted.', $failed_count, 'super-mechanic' ),
+						$failed_count
+					),
+					'warning'
+				);
+			}
 		}
 
 		if ( 'stage_updated' === $notice ) {
@@ -286,12 +316,29 @@ class Crm_Pipeline_Admin_Controller {
 		submit_button( __( 'Filter', 'super-mechanic' ), 'secondary', '', false );
 		echo '</p>';
 		echo '</form>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=super-mechanic-crm-pipeline' ) ) . '" class="sm-crm-bulk-form">';
+		echo '<input type="hidden" name="sm_crm_pipeline_operation" value="bulk_action" />';
+		echo '<input type="hidden" name="view_mode" value="list" />';
+		echo '<input type="hidden" name="s" value="' . esc_attr( $search ) . '" />';
+		echo '<input type="hidden" name="stage" value="' . esc_attr( $stage ) . '" />';
+		echo '<input type="hidden" name="assigned_user_id" value="' . esc_attr( (string) $assigned_user_id ) . '" />';
+		echo '<input type="hidden" name="requires_attention" value="' . esc_attr( $requires_attention ? '1' : '' ) . '" />';
+		echo '<input type="hidden" name="overdue" value="' . esc_attr( $overdue ? '1' : '' ) . '" />';
+		wp_nonce_field( 'sm_crm_pipeline_bulk_action', 'sm_crm_pipeline_bulk_nonce' );
+		echo '<div class="sm-crm-bulk-actions">';
+		echo '<label for="sm-crm-bulk-action" class="screen-reader-text">' . esc_html__( 'Bulk action', 'super-mechanic' ) . '</label>';
+		echo '<select id="sm-crm-bulk-action" name="sm_crm_bulk_action">';
+		echo '<option value="">' . esc_html__( 'Bulk actions', 'super-mechanic' ) . '</option>';
+		echo '<option value="delete">' . esc_html__( 'Delete selected', 'super-mechanic' ) . '</option>';
+		echo '</select> ';
+		echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Apply', 'super-mechanic' ) . '</button>';
+		echo '</div>';
 		echo '<div class="sm-table-wrap"><table class="sm-table"><thead><tr>';
-		echo '<th>ID</th><th>' . esc_html__( 'Stage', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Phone', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Email', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estimated value', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Position', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th>';
+		echo '<th class="sm-crm-col-check"><input type="checkbox" id="sm-crm-select-all" aria-label="' . esc_attr__( 'Select all opportunities', 'super-mechanic' ) . '" /></th><th>ID</th><th>' . esc_html__( 'Stage', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Title', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Client', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Phone', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Email', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Estimated value', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Position', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Actions', 'super-mechanic' ) . '</th>';
 		echo '</tr></thead><tbody>';
 
 		if ( empty( $items ) ) {
-			echo '<tr><td colspan="9">' . esc_html__( 'No CRM opportunities found.', 'super-mechanic' ) . '</td></tr>';
+			echo '<tr><td colspan="10">' . esc_html__( 'No CRM opportunities found.', 'super-mechanic' ) . '</td></tr>';
 		} else {
 			foreach ( $items as $item ) {
 				$view_url   = $this->get_page_url( array( 'action' => 'view', 'id' => absint( $item['id'] ) ) );
@@ -300,6 +347,7 @@ class Crm_Pipeline_Admin_Controller {
 				$item_signals = isset( $signals_by_id[ absint( $item['id'] ) ] ) ? $signals_by_id[ absint( $item['id'] ) ] : array();
 				$row_class    = $this->get_priority_row_class( $item_signals );
 				echo '<tr class="' . esc_attr( $row_class ) . '">';
+				echo '<td class="sm-crm-col-check"><input type="checkbox" class="sm-crm-item-check" name="sm_crm_selected_ids[]" value="' . esc_attr( (string) absint( $item['id'] ) ) . '" aria-label="' . esc_attr__( 'Select opportunity', 'super-mechanic' ) . '" /></td>';
 				echo '<td>#' . esc_html( absint( $item['id'] ) ) . '</td>';
 				echo '<td>' . $this->render_stage_cell( $item, $item_signals ) . '</td>';
 				echo '<td>' . esc_html( (string) $item['title'] ) . $this->render_automation_badges( $item_signals, 'list' ) . '</td>';
@@ -313,7 +361,10 @@ class Crm_Pipeline_Admin_Controller {
 			}
 		}
 
-		echo '</tbody></table></div></div></div>';
+		echo '</tbody></table></div>';
+		echo '</form>';
+		echo '<script>document.addEventListener("DOMContentLoaded",function(){var a=document.getElementById("sm-crm-select-all");if(!a){return;}var b=Array.prototype.slice.call(document.querySelectorAll(".sm-crm-item-check"));a.addEventListener("change",function(){b.forEach(function(c){c.checked=a.checked;});});b.forEach(function(c){c.addEventListener("change",function(){if(!c.checked){a.checked=false;return;}a.checked=b.length>0&&b.every(function(d){return d.checked;});});});});</script>';
+		echo '</div></div>';
 	}
 
 	/**
@@ -1318,6 +1369,59 @@ class Crm_Pipeline_Admin_Controller {
 	}
 
 	/**
+	 * Handle bulk list actions.
+	 *
+	 * @return void
+	 */
+	protected function handle_bulk_action() {
+		check_admin_referer( 'sm_crm_pipeline_bulk_action', 'sm_crm_pipeline_bulk_nonce' );
+
+		$action = isset( $_POST['sm_crm_bulk_action'] ) ? sanitize_key( wp_unslash( $_POST['sm_crm_bulk_action'] ) ) : '';
+		$raw_ids = isset( $_POST['sm_crm_selected_ids'] ) && is_array( $_POST['sm_crm_selected_ids'] ) ? wp_unslash( $_POST['sm_crm_selected_ids'] ) : array();
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $raw_ids ) ) ) );
+
+		$redirect_args = $this->get_bulk_redirect_args();
+
+		if ( '' === $action ) {
+			$this->store_errors( new WP_Error( 'sm_crm_bulk_action_required', __( 'Select a bulk action first.', 'super-mechanic' ) ) );
+			$this->redirect( array_merge( $redirect_args, array( 'sm_notice' => 'error' ) ) );
+		}
+
+		if ( empty( $ids ) ) {
+			$this->store_errors( new WP_Error( 'sm_crm_bulk_selection_required', __( 'Select at least one CRM opportunity.', 'super-mechanic' ) ) );
+			$this->redirect( array_merge( $redirect_args, array( 'sm_notice' => 'error' ) ) );
+		}
+
+		if ( 'delete' !== $action ) {
+			$this->store_errors( new WP_Error( 'sm_crm_bulk_action_invalid', __( 'Selected bulk action is not supported.', 'super-mechanic' ) ) );
+			$this->redirect( array_merge( $redirect_args, array( 'sm_notice' => 'error' ) ) );
+		}
+
+		$deleted = 0;
+		$failed  = 0;
+
+		foreach ( $ids as $id ) {
+			$result = $this->service->delete_opportunity( $id );
+			if ( is_wp_error( $result ) ) {
+				++$failed;
+				continue;
+			}
+			++$deleted;
+		}
+
+		$this->redirect(
+			array_merge(
+				$redirect_args,
+				array(
+					'sm_notice'       => 'bulk_deleted',
+					'sm_bulk_deleted' => $deleted,
+					'sm_bulk_failed'  => $failed,
+				)
+			)
+		);
+	}
+
+	/**
 	 * Ensure permissions.
 	 *
 	 * @return void
@@ -1504,6 +1608,42 @@ class Crm_Pipeline_Admin_Controller {
 			$args['requires_attention'] = '1';
 		}
 		if ( isset( $_GET['overdue'] ) && '1' === sanitize_key( wp_unslash( $_GET['overdue'] ) ) ) {
+			$args['overdue'] = '1';
+		}
+
+		return $args;
+	}
+
+	/**
+	 * Get safe redirect args from bulk form.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function get_bulk_redirect_args() {
+		$args = array( 'view_mode' => 'list' );
+
+		$search = isset( $_POST['s'] ) ? sanitize_text_field( (string) wp_unslash( $_POST['s'] ) ) : '';
+		if ( '' !== $search ) {
+			$args['s'] = $search;
+		}
+
+		$stage = isset( $_POST['stage'] ) ? sanitize_key( (string) wp_unslash( $_POST['stage'] ) ) : '';
+		if ( '' !== $stage ) {
+			$args['stage'] = $stage;
+		}
+
+		$assigned_user_id = isset( $_POST['assigned_user_id'] ) ? absint( wp_unslash( $_POST['assigned_user_id'] ) ) : 0;
+		if ( $assigned_user_id > 0 ) {
+			$args['assigned_user_id'] = (string) $assigned_user_id;
+		}
+
+		$requires_attention = isset( $_POST['requires_attention'] ) ? sanitize_key( (string) wp_unslash( $_POST['requires_attention'] ) ) : '';
+		if ( '1' === $requires_attention ) {
+			$args['requires_attention'] = '1';
+		}
+
+		$overdue = isset( $_POST['overdue'] ) ? sanitize_key( (string) wp_unslash( $_POST['overdue'] ) ) : '';
+		if ( '1' === $overdue ) {
 			$args['overdue'] = '1';
 		}
 

@@ -534,7 +534,7 @@ class Settings {
 		echo '</form>';
 		echo '</div>';
 		echo '<div class="sm-card sm-form-card sm-settings-card">';
-		echo '<h2>' . esc_html__( 'License', 'super-mechanic' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'License summary', 'super-mechanic' ) . '</h2>';
 		$this->render_license_section();
 		$this->render_field_license_status();
 		echo '</div>';
@@ -647,7 +647,9 @@ class Settings {
 	 * @return void
 	 */
 	public function render_license_section() {
-		echo '<p>' . esc_html__( 'Local licensing baseline for activation, validation and deactivation. Remote provider integration is intentionally deferred.', 'super-mechanic' ) . '</p>';
+		$license_url = admin_url( 'admin.php?page=super-mechanic-license' );
+		echo '<p>' . esc_html__( 'This Settings page provides a read-only summary. License activation, trial controls and plan management are handled in the dedicated License page.', 'super-mechanic' ) . '</p>';
+		echo '<p><a class="button button-secondary" href="' . esc_url( $license_url ) . '">' . esc_html__( 'Open License page', 'super-mechanic' ) . '</a></p>';
 	}
 
 	/**
@@ -665,7 +667,7 @@ class Settings {
 	 * @return void
 	 */
 	public function render_plan_access_section() {
-		echo '<p>' . esc_html__( 'Centralized effective plan and feature flags baseline. This phase does not implement billing or real subscriptions.', 'super-mechanic' ) . '</p>';
+		echo '<p>' . esc_html__( 'Read-only plan and feature snapshot for diagnostics. Use the License page for lifecycle actions and plan-related management.', 'super-mechanic' ) . '</p>';
 	}
 
 	/**
@@ -1029,13 +1031,17 @@ class Settings {
 	 * @return void
 	 */
 	public function render_field_license_status() {
-		$state = $this->license_service->get_license_state();
-		$label = $this->get_license_status_label( $state['status'] );
+		$state      = $this->license_service->get_license_state();
+		$plan_state = $this->plan_access_service->get_effective_plan();
+		$label      = $this->get_license_status_label( $state['status'] );
+		$license_url = admin_url( 'admin.php?page=super-mechanic-license' );
 
 		echo '<div class="sm-license-panel">';
 		echo '<p><strong>' . esc_html__( 'Current status:', 'super-mechanic' ) . '</strong> ' . esc_html( $label ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'License key:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->license_service->mask_license_key( $state['license_key'] ) ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Provider:', 'super-mechanic' ) . '</strong> ' . esc_html( $state['provider'] ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Effective plan:', 'super-mechanic' ) . '</strong> ' . esc_html( strtoupper( (string) $plan_state['plan_key'] ) ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Plan source:', 'super-mechanic' ) . '</strong> ' . esc_html( (string) $plan_state['source'] ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Activated at:', 'super-mechanic' ) . '</strong> ' . esc_html( $state['activated_at'] ? $state['activated_at'] : '-' ) . '</p>';
 		echo '<p><strong>' . esc_html__( 'Last validated at:', 'super-mechanic' ) . '</strong> ' . esc_html( $state['last_validated_at'] ? $state['last_validated_at'] : '-' ) . '</p>';
 
@@ -1043,25 +1049,10 @@ class Settings {
 			echo '<p class="description">' . esc_html( $state['message'] ) . '</p>';
 		}
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
-		echo '<input type="hidden" name="action" value="sm_license_activate" />';
-		wp_nonce_field( 'sm_license_action', 'sm_license_nonce' );
-		echo '<input type="password" class="regular-text" name="sm_license_key" value="" autocomplete="off" placeholder="' . esc_attr__( 'Enter license key', 'super-mechanic' ) . '" />';
-		echo '&nbsp;';
-		submit_button( __( 'Activate', 'super-mechanic' ), 'secondary', 'submit', false );
-		echo '</form>';
-
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
-		echo '<input type="hidden" name="action" value="sm_license_validate" />';
-		wp_nonce_field( 'sm_license_action', 'sm_license_nonce' );
-		submit_button( __( 'Validate', 'super-mechanic' ), 'secondary', 'submit', false );
-		echo '</form>';
-
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:8px;">';
-		echo '<input type="hidden" name="action" value="sm_license_deactivate" />';
-		wp_nonce_field( 'sm_license_action', 'sm_license_nonce' );
-		submit_button( __( 'Deactivate', 'super-mechanic' ), 'delete', 'submit', false );
-		echo '</form>';
+		echo '<div class="sm-license-summary-callout">';
+		echo '<p><strong>' . esc_html__( 'License management moved to dedicated page', 'super-mechanic' ) . '</strong><br />' . esc_html__( 'Use the License page for activation/deactivation, trial actions and detailed limits.', 'super-mechanic' ) . '</p>';
+		echo '<p class="sm-settings-license-actions"><a class="button button-primary" href="' . esc_url( $license_url ) . '">' . esc_html__( 'Manage license', 'super-mechanic' ) . '</a></p>';
+		echo '</div>';
 		echo '</div>';
 	}
 

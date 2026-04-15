@@ -92,29 +92,85 @@ class Branding_Admin_Controller {
 		}
 
 		$settings = $this->branding_service->get_settings();
+		$logo_url = isset( $settings['logo_url'] ) ? (string) $settings['logo_url'] : '';
+		$primary  = isset( $settings['primary_color'] ) ? (string) $settings['primary_color'] : '#2271b1';
+		$secondary = isset( $settings['secondary_color'] ) ? (string) $settings['secondary_color'] : '#135e96';
+		$primary   = sanitize_hex_color( $primary );
+		$secondary = sanitize_hex_color( $secondary );
+		$primary   = $primary ? $primary : '#2271b1';
+		$secondary = $secondary ? $secondary : '#135e96';
+		$system_name = isset( $settings['system_name'] ) ? (string) $settings['system_name'] : '';
+		$footer_text = isset( $settings['admin_footer_text'] ) ? (string) $settings['admin_footer_text'] : '';
 
 		echo '<div class="wrap sm-admin-shell sm-branding-page">';
 		echo '<h1>' . esc_html__( 'Branding', 'super-mechanic' ) . '</h1>';
 		echo '<p class="sm-admin-subtitle">' . esc_html__( 'Configure base white-label settings for Super Mechanic admin pages.', 'super-mechanic' ) . '</p>';
 		$this->render_notice();
 
-		echo '<section class="sm-card sm-section">';
+		echo '<div class="sm-branding-layout">';
+		echo '<section class="sm-card sm-section sm-branding-main">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Brand settings', 'super-mechanic' ) . '</h2></div>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="sm-branding-form">';
+		echo '<p class="sm-branding-intro">' . esc_html__( 'Update visible identity values used across Mekvort admin pages. These settings are visual only and keep current behavior unchanged.', 'super-mechanic' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="sm-branding-form" novalidate>';
 		wp_nonce_field( 'sm_51b_branding_save' );
 		echo '<input type="hidden" name="action" value="sm_51b_branding_save" />';
-		echo '<div class="sm-filter-grid">';
-		echo '<label class="sm-filter-field"><span>' . esc_html__( 'System name', 'super-mechanic' ) . '</span><input type="text" name="system_name" value="' . esc_attr( isset( $settings['system_name'] ) ? (string) $settings['system_name'] : '' ) . '" /></label>';
-		echo '<label class="sm-filter-field"><span>' . esc_html__( 'Logo URL', 'super-mechanic' ) . '</span><input type="url" name="logo_url" value="' . esc_attr( isset( $settings['logo_url'] ) ? (string) $settings['logo_url'] : '' ) . '" placeholder="https://example.com/logo.png" /></label>';
-		echo '<label class="sm-filter-field"><span>' . esc_html__( 'Logo attachment ID (optional)', 'super-mechanic' ) . '</span><input type="number" min="0" step="1" name="logo_attachment_id" value="' . esc_attr( (string) ( isset( $settings['logo_attachment_id'] ) ? absint( $settings['logo_attachment_id'] ) : 0 ) ) . '" /></label>';
-		echo '<label class="sm-filter-field"><span>' . esc_html__( 'Primary color', 'super-mechanic' ) . '</span><input type="text" name="primary_color" class="sm-color-picker" value="' . esc_attr( isset( $settings['primary_color'] ) ? (string) $settings['primary_color'] : '' ) . '" placeholder="#2271b1" /></label>';
-		echo '<label class="sm-filter-field"><span>' . esc_html__( 'Secondary color', 'super-mechanic' ) . '</span><input type="text" name="secondary_color" class="sm-color-picker" value="' . esc_attr( isset( $settings['secondary_color'] ) ? (string) $settings['secondary_color'] : '' ) . '" placeholder="#135e96" /></label>';
-		echo '<label class="sm-filter-field"><span>' . esc_html__( 'Admin footer text', 'super-mechanic' ) . '</span><input type="text" name="admin_footer_text" value="' . esc_attr( isset( $settings['admin_footer_text'] ) ? (string) $settings['admin_footer_text'] : '' ) . '" /></label>';
+		echo '<div class="sm-branding-form-grid">';
+
+		echo '<div class="sm-branding-group sm-card">';
+		echo '<h3>' . esc_html__( 'Brand identity', 'super-mechanic' ) . '</h3>';
+		echo '<p class="sm-branding-group-description">' . esc_html__( 'Main identity values shown in plugin headers and references.', 'super-mechanic' ) . '</p>';
+		echo '<label class="sm-filter-field sm-branding-field"><span class="sm-branding-label">' . esc_html__( 'System name', 'super-mechanic' ) . '</span><input type="text" name="system_name" value="' . esc_attr( $system_name ) . '" /><small>' . esc_html__( 'Primary visible name used by branding banner and admin surfaces.', 'super-mechanic' ) . '</small></label>';
+		echo '<label class="sm-filter-field sm-branding-field"><span class="sm-branding-label">' . esc_html__( 'Logo URL', 'super-mechanic' ) . '</span><input type="url" name="logo_url" value="' . esc_attr( $logo_url ) . '" placeholder="https://example.com/logo.png" /><small>' . esc_html__( 'Optional public URL for the brand logo image.', 'super-mechanic' ) . '</small></label>';
+		echo '<label class="sm-filter-field sm-branding-field"><span class="sm-branding-label">' . esc_html__( 'Logo attachment ID (optional)', 'super-mechanic' ) . '</span><input type="number" min="0" step="1" name="logo_attachment_id" value="' . esc_attr( (string) ( isset( $settings['logo_attachment_id'] ) ? absint( $settings['logo_attachment_id'] ) : 0 ) ) . '" /><small>' . esc_html__( 'Use a WordPress media attachment ID when you need a managed media reference.', 'super-mechanic' ) . '</small></label>';
+		echo '</div>';
+
+		echo '<div class="sm-branding-group sm-card">';
+		echo '<h3>' . esc_html__( 'Color theme', 'super-mechanic' ) . '</h3>';
+		echo '<p class="sm-branding-group-description">' . esc_html__( 'Accent colors used by plugin UI shells and highlights.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-branding-color-grid">';
+		echo '<label class="sm-filter-field sm-branding-field"><span class="sm-branding-label">' . esc_html__( 'Primary color', 'super-mechanic' ) . '</span><input type="text" name="primary_color" class="sm-color-picker" value="' . esc_attr( isset( $settings['primary_color'] ) ? (string) $settings['primary_color'] : '' ) . '" placeholder="#2271b1" /><small>' . esc_html__( 'Main accent used for standard UI highlights.', 'super-mechanic' ) . '</small></label>';
+		echo '<label class="sm-filter-field sm-branding-field"><span class="sm-branding-label">' . esc_html__( 'Secondary color', 'super-mechanic' ) . '</span><input type="text" name="secondary_color" class="sm-color-picker" value="' . esc_attr( isset( $settings['secondary_color'] ) ? (string) $settings['secondary_color'] : '' ) . '" placeholder="#135e96" /><small>' . esc_html__( 'Stronger accent used for headings and emphasized elements.', 'super-mechanic' ) . '</small></label>';
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="sm-branding-group sm-card">';
+		echo '<h3>' . esc_html__( 'Footer text', 'super-mechanic' ) . '</h3>';
+		echo '<p class="sm-branding-group-description">' . esc_html__( 'Optional admin footer override shown on plugin pages.', 'super-mechanic' ) . '</p>';
+		echo '<label class="sm-filter-field sm-branding-field"><span class="sm-branding-label">' . esc_html__( 'Admin footer text', 'super-mechanic' ) . '</span><input type="text" name="admin_footer_text" value="' . esc_attr( $footer_text ) . '" /><small>' . esc_html__( 'Leave empty to keep the default WordPress footer text.', 'super-mechanic' ) . '</small></label>';
+		echo '</div>';
+
 		echo '</div>';
 		echo '<div class="sm-form-actions"><button type="submit" class="button button-primary">' . esc_html__( 'Save branding', 'super-mechanic' ) . '</button></div>';
 		echo '</form>';
 		echo '</section>';
 
+		echo '<aside class="sm-card sm-section sm-branding-preview-card">';
+		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Preview', 'super-mechanic' ) . '</h2></div>';
+		echo '<p class="sm-branding-preview-description">' . esc_html__( 'Snapshot of the current visual branding output for plugin admin pages.', 'super-mechanic' ) . '</p>';
+		echo '<div class="sm-branding-preview-frame" style="--sm-preview-primary:' . esc_attr( $primary ) . ';--sm-preview-secondary:' . esc_attr( $secondary ) . ';">';
+		echo '<div class="sm-branding-preview-banner">';
+		if ( '' !== $logo_url ) {
+			echo '<img class="sm-branding-preview-logo" src="' . esc_url( $logo_url ) . '" alt="' . esc_attr__( 'Brand logo preview', 'super-mechanic' ) . '" />';
+		} else {
+			echo '<div class="sm-branding-preview-logo-fallback" aria-hidden="true">SM</div>';
+		}
+		echo '<div class="sm-branding-preview-copy">';
+		echo '<div class="sm-branding-preview-name">' . esc_html( '' !== $system_name ? $system_name : __( 'Mekvort', 'super-mechanic' ) ) . '</div>';
+		echo '<div class="sm-branding-preview-meta">' . esc_html__( 'Admin branding banner', 'super-mechanic' ) . '</div>';
+		echo '</div>';
+		echo '</div>';
+		echo '<div class="sm-branding-preview-swatches">';
+		echo '<span class="sm-branding-swatch"><i style="background:' . esc_attr( $primary ) . ';"></i>' . esc_html__( 'Primary', 'super-mechanic' ) . ': ' . esc_html( $primary ) . '</span>';
+		echo '<span class="sm-branding-swatch"><i style="background:' . esc_attr( $secondary ) . ';"></i>' . esc_html__( 'Secondary', 'super-mechanic' ) . ': ' . esc_html( $secondary ) . '</span>';
+		echo '</div>';
+		echo '<div class="sm-branding-preview-footer">';
+		echo '<strong>' . esc_html__( 'Footer text:', 'super-mechanic' ) . '</strong> ';
+		echo '<span>' . esc_html( '' !== $footer_text ? $footer_text : __( 'WordPress default footer (when empty).', 'super-mechanic' ) ) . '</span>';
+		echo '</div>';
+		echo '</div>';
+		echo '</aside>';
+
+		echo '</div>';
 		echo '</div>';
 	}
 

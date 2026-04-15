@@ -125,6 +125,93 @@
 	overflow: hidden;
 }
 
+.sm-dashboard-metrics-shell {
+	padding: 22px;
+}
+
+.sm-dashboard-metrics-grid {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: 16px;
+}
+
+.sm-dashboard-metric-group {
+	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+	border: 1px solid #dbe3f0;
+	border-radius: 18px;
+	padding: 14px;
+}
+
+.sm-dashboard-group-title {
+	margin: 0 0 10px;
+	font-size: 15px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: #42526e;
+}
+
+.sm-dashboard-card-grid {
+	margin-bottom: 0;
+}
+
+.sm-dashboard-kpi-card {
+	min-height: 116px;
+	padding: 16px;
+	border-radius: 16px;
+	border: 1px solid #d7e3f2;
+	box-shadow: 0 12px 24px rgba(20, 33, 61, 0.06);
+}
+
+.sm-dashboard-activity-card {
+	margin-top: 16px;
+}
+
+.sm-reporting-metrics-shell {
+	padding: 22px;
+}
+
+.sm-reporting-metrics-grid {
+	width: 100%;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.sm-reporting-metric-group {
+	width: 100%;
+	min-width: 0;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+	border: 1px solid #dbe3f0;
+	border-radius: 18px;
+	padding: 14px;
+}
+
+.sm-reporting-group-title {
+	margin: 0 0 10px;
+	font-size: 15px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: #42526e;
+}
+
+.sm-grid-cards.sm-grid-cards-compact.sm-reporting-card-grid {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+	gap: 14px;
+	width: 100%;
+	margin-bottom: 0;
+}
+
+.sm-reporting-kpi-card {
+	width: auto;
+	min-width: 0;
+	min-height: 116px;
+	padding: 16px;
+	border-radius: 16px;
+	border: 1px solid #d7e3f2;
+	box-shadow: 0 12px 24px rgba(20, 33, 61, 0.06);
+}
+
 .sm-kpi-header-compact .sm-kpi-card {
 	padding: 14px;
 }
@@ -731,6 +818,23 @@
 	gap: 8px;
 }
 
+.sm-license-summary-callout {
+	margin-top: 12px;
+	padding: 12px 14px;
+	border: 1px solid #dbe3f0;
+	border-radius: 10px;
+	background: #f8fbff;
+}
+
+.sm-license-summary-callout p {
+	margin: 0;
+	color: #334155;
+}
+
+.sm-settings-license-actions {
+	margin-top: 10px !important;
+}
+
 .sm-shortcode-card {
 	display: grid;
 	gap: 16px;
@@ -812,6 +916,23 @@
 	margin: 0;
 }
 
+.sm-crm-bulk-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 12px;
+}
+
+.sm-crm-bulk-form .sm-crm-col-check {
+	width: 36px;
+	text-align: center;
+}
+
+.sm-crm-bulk-form .sm-crm-col-check input[type="checkbox"] {
+	margin: 0;
+}
+
 .sm-calendar-selection .description {
 	margin-top: 8px;
 }
@@ -853,6 +974,18 @@
 @media (max-width: 782px) {
 	.sm-admin-shell {
 		padding: 18px;
+	}
+
+	.sm-dashboard-metrics-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.sm-reporting-metrics-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.sm-reporting-metrics-shell .sm-grid-cards.sm-grid-cards-compact.sm-reporting-card-grid {
+		grid-template-columns: 1fr !important;
 	}
 
 	.sm-grid-cards,
@@ -1437,6 +1570,195 @@
 .sm-branding-page .sm-filter-field input[type="url"],
 .sm-branding-page .sm-filter-field input[type="number"] {
 	max-width: 100%;
+}
+
+.sm-branding-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+	gap: 18px;
+	align-items: start;
+}
+
+.sm-branding-main {
+	margin: 0;
+}
+
+.sm-branding-intro {
+	margin: 6px 0 14px;
+	color: #52627a;
+	max-width: 80ch;
+}
+
+.sm-branding-form {
+	display: grid;
+	gap: 16px;
+}
+
+.sm-branding-form-grid {
+	display: grid;
+	gap: 14px;
+}
+
+.sm-branding-group {
+	padding: 16px;
+	border: 1px solid #dbe3f0;
+	border-radius: 12px;
+	background: #fbfdff;
+}
+
+.sm-branding-group h3 {
+	margin: 0;
+	font-size: 15px;
+	color: #1f2937;
+}
+
+.sm-branding-group-description {
+	margin: 6px 0 12px;
+	color: #5f6b85;
+	font-size: 12px;
+}
+
+.sm-branding-field {
+	display: grid;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.sm-branding-field:last-child {
+	margin-bottom: 0;
+}
+
+.sm-branding-label {
+	font-weight: 600;
+	color: #1f2937;
+}
+
+.sm-branding-field small {
+	color: #5f6b85;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.sm-branding-color-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.sm-branding-preview-card {
+	margin: 0;
+	position: sticky;
+	top: 48px;
+}
+
+.sm-branding-preview-description {
+	margin: 6px 0 12px;
+	color: #5f6b85;
+}
+
+.sm-branding-preview-frame {
+	background: #f8faff;
+	border: 1px solid #d8e4f5;
+	border-radius: 12px;
+	padding: 14px;
+	display: grid;
+	gap: 12px;
+}
+
+.sm-branding-preview-banner {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: #fff;
+	border: 1px solid #e2e8f5;
+	border-left: 4px solid var(--sm-preview-secondary, #135e96);
+	border-radius: 10px;
+	padding: 10px;
+}
+
+.sm-branding-preview-logo,
+.sm-branding-preview-logo-fallback {
+	width: 34px;
+	height: 34px;
+	border-radius: 8px;
+	flex: 0 0 34px;
+}
+
+.sm-branding-preview-logo {
+	object-fit: contain;
+	background: #fff;
+	border: 1px solid #dbe3f0;
+}
+
+.sm-branding-preview-logo-fallback {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	font-size: 12px;
+	color: #fff;
+	background: var(--sm-preview-primary, #2271b1);
+}
+
+.sm-branding-preview-copy {
+	min-width: 0;
+}
+
+.sm-branding-preview-name {
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: var(--sm-preview-secondary, #135e96);
+}
+
+.sm-branding-preview-meta {
+	font-size: 12px;
+	color: #64748b;
+}
+
+.sm-branding-preview-swatches {
+	display: grid;
+	gap: 8px;
+}
+
+.sm-branding-swatch {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	color: #344054;
+}
+
+.sm-branding-swatch i {
+	display: inline-block;
+	width: 13px;
+	height: 13px;
+	border-radius: 999px;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.sm-branding-preview-footer {
+	font-size: 12px;
+	color: #344054;
+	line-height: 1.5;
+	padding-top: 8px;
+	border-top: 1px dashed #cbd5e1;
+}
+
+@media (max-width: 1050px) {
+	.sm-branding-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.sm-branding-preview-card {
+		position: static;
+	}
+}
+
+@media (max-width: 782px) {
+	.sm-branding-color-grid {
+		grid-template-columns: 1fr;
+	}
 }
 
 .sm-demo-mode-banner {

@@ -87,6 +87,21 @@ class Crm_Alert_Service {
 	}
 
 	/**
+	 * Resolve active alerts for one pipeline in active business.
+	 *
+	 * @param int $pipeline_id Pipeline ID.
+	 * @return bool
+	 */
+	public function resolve_active_alerts_by_pipeline_id( $pipeline_id ) {
+		$pipeline_id = absint( $pipeline_id );
+		if ( $pipeline_id <= 0 ) {
+			return false;
+		}
+
+		return $this->alert_repository->resolve_active_alerts_by_pipeline_id( $pipeline_id );
+	}
+
+	/**
 	 * Recalculate alerts with controlled batch limits.
 	 *
 	 * @return array<string,int>

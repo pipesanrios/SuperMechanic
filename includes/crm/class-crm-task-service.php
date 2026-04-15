@@ -179,6 +179,26 @@ class Crm_Task_Service {
 	}
 
 	/**
+	 * Delete all tasks for one opportunity.
+	 *
+	 * @param int $crm_pipeline_id Opportunity ID.
+	 * @return bool|WP_Error
+	 */
+	public function delete_tasks_by_pipeline_id( $crm_pipeline_id ) {
+		$crm_pipeline_id = absint( $crm_pipeline_id );
+
+		if ( $crm_pipeline_id <= 0 ) {
+			return new WP_Error( 'sm_crm_task_pipeline_required', __( 'CRM opportunity is required.', 'super-mechanic' ) );
+		}
+
+		if ( ! $this->repository->delete_by_pipeline_id( $crm_pipeline_id ) ) {
+			return new WP_Error( 'sm_crm_task_delete_failed', __( 'Could not delete CRM tasks for this opportunity.', 'super-mechanic' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get one task.
 	 *
 	 * @param int $id Task ID.

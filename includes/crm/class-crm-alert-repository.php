@@ -244,5 +244,31 @@ class Crm_Alert_Repository {
 
 		return false !== $result;
 	}
-}
 
+	/**
+	 * Resolve all active alerts for one pipeline scoped to active business.
+	 *
+	 * @param int $crm_pipeline_id Pipeline ID.
+	 * @return bool
+	 */
+	public function resolve_active_alerts_by_pipeline_id( $crm_pipeline_id ) {
+		global $wpdb;
+
+		$result = $wpdb->update(
+			$this->get_table_name(),
+			array(
+				'status'     => 'resolved',
+				'updated_at' => current_time( 'mysql' ),
+			),
+			array(
+				'crm_pipeline_id' => absint( $crm_pipeline_id ),
+				'business_id'     => $this->resolve_business_id(),
+				'status'          => 'active',
+			),
+			array( '%s', '%s' ),
+			array( '%d', '%d', '%s' )
+		);
+
+		return false !== $result;
+	}
+}

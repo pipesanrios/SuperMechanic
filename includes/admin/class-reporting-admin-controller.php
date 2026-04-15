@@ -214,27 +214,33 @@ class Reporting_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_metric_cards( array $metrics, array $comparison ) {
-		$cards = array(
+		$financial_cards = array(
 			'total_revenue'                    => __( 'Total Revenue', 'super-mechanic' ),
 			'total_payments_count'             => __( 'Total Payments', 'super-mechanic' ),
 			'average_ticket'                   => __( 'Average Ticket', 'super-mechanic' ),
+			'quote_to_invoice_conversion_rate' => __( 'Quote to Invoice Conversion', 'super-mechanic' ),
+		);
+		$operations_cards = array(
 			'active_clients'                   => __( 'Active Clients', 'super-mechanic' ),
 			'active_processes'                 => __( 'Active Processes', 'super-mechanic' ),
 			'completed_processes'              => __( 'Completed Processes', 'super-mechanic' ),
 			'quotes_count'                     => __( 'Quotes', 'super-mechanic' ),
 			'invoices_count'                   => __( 'Invoices', 'super-mechanic' ),
-			'quote_to_invoice_conversion_rate' => __( 'Quote to Invoice Conversion', 'super-mechanic' ),
 		);
 
-		echo '<section class="sm-card sm-section">';
+		echo '<section class="sm-card sm-section sm-reporting-metrics-shell">';
 		echo '<div class="sm-section-heading"><h2>' . esc_html__( 'Reporting Metrics', 'super-mechanic' ) . '</h2></div>';
-		echo '<div class="sm-grid-cards sm-grid-cards-compact">';
 		$comparison_rows = isset( $comparison['metrics'] ) && is_array( $comparison['metrics'] ) ? $comparison['metrics'] : array();
-		foreach ( $cards as $metric_key => $metric_label ) {
+		echo '<div class="sm-reporting-metrics-grid">';
+
+		echo '<div class="sm-reporting-metric-group">';
+		echo '<h3 class="sm-reporting-group-title">' . esc_html__( 'Commercial', 'super-mechanic' ) . '</h3>';
+		echo '<div class="sm-grid-cards sm-grid-cards-compact sm-reporting-card-grid">';
+		foreach ( $financial_cards as $metric_key => $metric_label ) {
 			$value = isset( $metrics[ $metric_key ] ) ? $metrics[ $metric_key ] : 0;
 			$comparison_row = isset( $comparison_rows[ $metric_key ] ) && is_array( $comparison_rows[ $metric_key ] ) ? $comparison_rows[ $metric_key ] : array();
 			$trend_class = isset( $comparison_row['trend'] ) ? sanitize_html_class( 'sm-trend-' . (string) $comparison_row['trend'] ) : 'sm-trend-stable';
-			echo '<div class="sm-kpi-card">';
+			echo '<article class="sm-kpi-card sm-reporting-kpi-card">';
 			echo '<div class="sm-kpi-label">' . esc_html( $metric_label ) . '</div>';
 			echo '<div class="sm-kpi-value">' . esc_html( $this->format_metric_value( $metric_key, $value ) ) . '</div>';
 			if ( ! empty( $comparison_row ) ) {
@@ -243,8 +249,33 @@ class Reporting_Admin_Controller {
 				echo '<span class="sm-kpi-footnote">' . esc_html( $this->format_delta_value( $metric_key, $comparison_row ) ) . '</span>';
 				echo '</div>';
 			}
-			echo '</div>';
+			echo '</article>';
 		}
+
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="sm-reporting-metric-group">';
+		echo '<h3 class="sm-reporting-group-title">' . esc_html__( 'Operations', 'super-mechanic' ) . '</h3>';
+		echo '<div class="sm-grid-cards sm-grid-cards-compact sm-reporting-card-grid">';
+		foreach ( $operations_cards as $metric_key => $metric_label ) {
+			$value = isset( $metrics[ $metric_key ] ) ? $metrics[ $metric_key ] : 0;
+			$comparison_row = isset( $comparison_rows[ $metric_key ] ) && is_array( $comparison_rows[ $metric_key ] ) ? $comparison_rows[ $metric_key ] : array();
+			$trend_class = isset( $comparison_row['trend'] ) ? sanitize_html_class( 'sm-trend-' . (string) $comparison_row['trend'] ) : 'sm-trend-stable';
+			echo '<article class="sm-kpi-card sm-reporting-kpi-card">';
+			echo '<div class="sm-kpi-label">' . esc_html( $metric_label ) . '</div>';
+			echo '<div class="sm-kpi-value">' . esc_html( $this->format_metric_value( $metric_key, $value ) ) . '</div>';
+			if ( ! empty( $comparison_row ) ) {
+				echo '<div class="sm-report-trend-row">';
+				echo '<span class="sm-badge ' . esc_attr( $trend_class ) . '">' . esc_html( $this->get_trend_label( isset( $comparison_row['trend'] ) ? (string) $comparison_row['trend'] : 'stable' ) ) . '</span>';
+				echo '<span class="sm-kpi-footnote">' . esc_html( $this->format_delta_value( $metric_key, $comparison_row ) ) . '</span>';
+				echo '</div>';
+			}
+			echo '</article>';
+		}
+
+		echo '</div>';
+		echo '</div>';
 		echo '</div>';
 		echo '</section>';
 	}

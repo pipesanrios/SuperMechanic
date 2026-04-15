@@ -86,25 +86,48 @@ class Dashboard_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_metric_cards( array $metrics ) {
-		$cards = array(
+		$operational_cards = array(
 			'total_clients'       => __( 'Total Clients', 'super-mechanic' ),
 			'total_vehicles'      => __( 'Total Vehicles', 'super-mechanic' ),
 			'active_processes'    => __( 'Active Processes', 'super-mechanic' ),
 			'completed_processes' => __( 'Completed Processes', 'super-mechanic' ),
 			'pending_processes'   => __( 'Pending Processes', 'super-mechanic' ),
+		);
+		$platform_cards = array(
 			'active_webhooks'     => __( 'Active Webhooks', 'super-mechanic' ),
 			'notifications_today' => __( 'Notifications Today', 'super-mechanic' ),
 		);
 
-		echo '<div class="sm-grid-cards sm-grid-cards-compact">';
-		foreach ( $cards as $key => $label ) {
+		echo '<section class="sm-card sm-section sm-dashboard-metrics-shell">';
+		echo '<div class="sm-dashboard-metrics-grid">';
+		echo '<div class="sm-dashboard-metric-group">';
+		echo '<h2 class="sm-dashboard-group-title">' . esc_html__( 'Operations', 'super-mechanic' ) . '</h2>';
+		echo '<div class="sm-grid-cards sm-grid-cards-compact sm-dashboard-card-grid">';
+		foreach ( $operational_cards as $key => $label ) {
 			$value = isset( $metrics[ $key ] ) ? absint( $metrics[ $key ] ) : 0;
-			echo '<div class="sm-kpi-card">';
+			echo '<article class="sm-kpi-card sm-dashboard-kpi-card">';
 			echo '<div class="sm-kpi-label">' . esc_html( $label ) . '</div>';
 			echo '<div class="sm-kpi-value">' . esc_html( (string) $value ) . '</div>';
-			echo '</div>';
+			echo '</article>';
 		}
 		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="sm-dashboard-metric-group">';
+		echo '<h2 class="sm-dashboard-group-title">' . esc_html__( 'Platform Signals', 'super-mechanic' ) . '</h2>';
+		echo '<div class="sm-grid-cards sm-grid-cards-compact sm-dashboard-card-grid">';
+		foreach ( $platform_cards as $key => $label ) {
+			$value = isset( $metrics[ $key ] ) ? absint( $metrics[ $key ] ) : 0;
+			echo '<article class="sm-kpi-card sm-dashboard-kpi-card">';
+			echo '<div class="sm-kpi-label">' . esc_html( $label ) . '</div>';
+			echo '<div class="sm-kpi-value">' . esc_html( (string) $value ) . '</div>';
+			echo '</article>';
+		}
+
+		echo '</div>';
+		echo '</div>';
+		echo '</div>';
+		echo '</section>';
 	}
 
 	/**
@@ -114,7 +137,7 @@ class Dashboard_Admin_Controller {
 	 * @return void
 	 */
 	protected function render_recent_activity( array $rows ) {
-		echo '<div class="sm-card" style="margin-top:16px;">';
+		echo '<section class="sm-card sm-section sm-dashboard-activity-card">';
 		echo '<h2>' . esc_html__( 'Recent Activity', 'super-mechanic' ) . '</h2>';
 		echo '<div class="sm-table-wrap">';
 		echo '<table class="sm-table">';
@@ -142,6 +165,6 @@ class Dashboard_Admin_Controller {
 
 		echo '</tbody></table>';
 		echo '</div>';
-		echo '</div>';
+		echo '</section>';
 	}
 }

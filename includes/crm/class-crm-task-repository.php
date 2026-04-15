@@ -306,6 +306,27 @@ class Crm_Task_Repository {
 	}
 
 	/**
+	 * Delete tasks by CRM opportunity id scoped to active business.
+	 *
+	 * @param int $crm_pipeline_id CRM opportunity ID.
+	 * @return bool
+	 */
+	public function delete_by_pipeline_id( $crm_pipeline_id ) {
+		global $wpdb;
+
+		$result = $wpdb->delete(
+			$this->get_table_name(),
+			array(
+				'crm_pipeline_id' => absint( $crm_pipeline_id ),
+				'business_id'     => $this->resolve_business_id(),
+			),
+			array( '%d', '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
 	 * Mark task as completed scoped to active business.
 	 *
 	 * @param int $id Task ID.
