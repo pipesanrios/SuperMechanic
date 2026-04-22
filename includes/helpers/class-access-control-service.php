@@ -21,6 +21,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class Access_Control_Service {
 	/**
+	 * User meta key for client linkage.
+	 */
+	const USER_META_CLIENT_ID = 'sm_client_id';
+
+	/**
 	 * Client service.
 	 *
 	 * @var Client_Service
@@ -102,20 +107,129 @@ class Access_Control_Service {
 	 * @return int
 	 */
 	public function get_client_id_by_user_id( $user_id ) {
-		$user_id   = absint( $user_id );
+		$user_id = absint( $user_id );
+
+		if ( $user_id <= 0 ) {
+			return 0;
+		}
+
 		if ( isset( $this->client_id_cache[ $user_id ] ) ) {
 			return $this->client_id_cache[ $user_id ];
 		}
 
-		$client_id = absint( get_user_meta( $user_id, 'sm_client_id', true ) );
+		$client_id = $this->get_valid_client_id_from_user_meta( $user_id );
 
-		if ( $client_id && $this->get_client_service()->get_client( $client_id ) ) {
+		if ( $client_id > 0 ) {
+			$this->client_id_cache[ $user_id ] = $client_id;
+			return $client_id;
+		}
+
+		$client_id = $this->resolve_client_id_from_exact_email_fallback( $user_id );
+		if ( $client_id > 0 ) {
+			$this->persist_client_link_for_user( $user_id, $client_id );
 			$this->client_id_cache[ $user_id ] = $client_id;
 			return $client_id;
 		}
 
 		$this->client_id_cache[ $user_id ] = 0;
 		return 0;
+	}
+
+	/**
+	 * Resolve a valid linked client ID from user meta.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int
+	 */
+	protected function get_valid_client_id_from_user_meta( $user_id ) {
+		$client_id = absint( get_user_meta( $user_id, self::USER_META_CLIENT_ID, true ) );
+
+		if ( $client_id <= 0 ) {
+			return 0;
+		}
+
+		return $this->get_client_service()->get_client( $client_id ) ? $client_id : 0;
+	}
+
+	/**
+	 * Resolve client ID by exact WP user email as a safe migration fallback.
+	 *
+	 * @param int $user_id User ID.
+	 * @return int
+	 */
+	protected function resolve_client_id_from_exact_email_fallback( $user_id ) {
+		$user = get_userdata( $user_id );
+		if ( ! $user || empty( $user->user_email ) ) {
+			return 0;
+		}
+
+		$email = sanitize_email( (string) $user->user_email );
+		if ( '' === $email ) {
+			return 0;
+		}
+
+		$matches = $this->get_client_service()->get_clients(
+			array(
+				'business_id' => $this->resolve_business_id_for_user_cached( $user_id ),
+				'exact_email' => $email,
+				'per_page'    => 2,
+				'orderby'     => 'id',
+				'order'       => 'ASC',
+			)
+		);
+
+		if ( 1 !== count( $matches ) ) {
+			return 0;
+		}
+
+		$client_id = ! empty( $matches[0]['id'] ) ? absint( $matches[0]['id'] ) : 0;
+		if ( $client_id <= 0 ) {
+			return 0;
+		}
+
+		// Avoid auto-linking when another WP user is already linked to this client.
+		if ( $this->has_client_link_conflict( $user_id, $client_id ) ) {
+			return 0;
+		}
+
+		return $client_id;
+	}
+
+	/**
+	 * Persist client link for a user in WP user meta.
+	 *
+	 * @param int $user_id   User ID.
+	 * @param int $client_id Client ID.
+	 * @return void
+	 */
+	protected function persist_client_link_for_user( $user_id, $client_id ) {
+		update_user_meta( $user_id, self::USER_META_CLIENT_ID, absint( $client_id ) );
+	}
+
+	/**
+	 * Check if a client is already linked to another user.
+	 *
+	 * @param int $user_id   User ID.
+	 * @param int $client_id Client ID.
+	 * @return bool
+	 */
+	protected function has_client_link_conflict( $user_id, $client_id ) {
+		$linked_user_ids = get_users(
+			array(
+				'fields'     => 'ids',
+				'number'     => 2,
+				'meta_key'   => self::USER_META_CLIENT_ID,
+				'meta_value' => (string) absint( $client_id ),
+			)
+		);
+
+		foreach ( $linked_user_ids as $linked_user_id ) {
+			if ( absint( $linked_user_id ) !== absint( $user_id ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

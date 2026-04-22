@@ -1,6 +1,22 @@
 (function ($) {
 	'use strict';
 
+	var primaryVisibilityKey = 'sm_roles_access_visible_columns';
+	var legacyVisibilityKeys = ['smRolesAccessVisibleColumns', 'smRolesVisibleColumns'];
+	var defaultVisibilityState = {
+		id: false,
+		name: true,
+		email: false,
+		wp_roles: false,
+		operational_role: true,
+		business: true,
+		memberships: true,
+		dashboard_access: false,
+		automation_access: false,
+		status: false,
+		actions: true
+	};
+
 	function getSuccessMessage(action, fallback) {
 		if ('create_membership' === action) {
 			return 'Membership added successfully.';
@@ -62,20 +78,102 @@
 		$(selector).toggle(!!visible);
 	}
 
+	function readPersistedVisibilityState() {
+		var keys = [primaryVisibilityKey].concat(legacyVisibilityKeys);
+		var i;
+		var raw = '';
+		var sourceKey = '';
+
+		try {
+			for (i = 0; i < keys.length; i += 1) {
+				raw = window.localStorage.getItem(keys[i]);
+				if (raw) {
+					sourceKey = keys[i];
+					break;
+				}
+			}
+		} catch (e) {
+			return { hasState: false, state: {}, source: '' };
+		}
+
+		if (!raw) {
+			return { hasState: false, state: {}, source: '' };
+		}
+
+		try {
+			var parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				var fromArray = {};
+				parsed.forEach(function (columnKey) {
+					var key = String(columnKey || '');
+					if (key) {
+						fromArray[key] = true;
+					}
+				});
+				return { hasState: true, state: fromArray, source: sourceKey };
+			}
+
+			if (parsed && typeof parsed === 'object') {
+				return { hasState: true, state: parsed, source: sourceKey };
+			}
+		} catch (e2) {
+			return { hasState: false, state: {}, source: '' };
+		}
+
+		return { hasState: false, state: {}, source: '' };
+	}
+
+	function persistVisibilityState(state) {
+		try {
+			window.localStorage.setItem(primaryVisibilityKey, JSON.stringify(state || {}));
+		} catch (e) {
+			return;
+		}
+	}
+
 	function initRolesColumnFilters() {
 		var $toggles = $('.sm-roles-column-toggle');
 		if (!$toggles.length) {
 			return;
 		}
 
+		var persistedPayload = readPersistedVisibilityState();
+		var persistedState = persistedPayload.state || {};
+		var currentState = {};
+		var hadPersistedState = !!persistedPayload.hasState;
+		var needsMigration = hadPersistedState && persistedPayload.source && persistedPayload.source !== primaryVisibilityKey;
+
 		$toggles.each(function () {
 			var $toggle = $(this);
-			applyRolesColumnVisibility(String($toggle.val() || ''), $toggle.is(':checked'));
+			var key = String($toggle.val() || '');
+			var visible = $toggle.is(':checked');
+
+			if (hadPersistedState) {
+				if (Object.prototype.hasOwnProperty.call(persistedState, key)) {
+					visible = !!persistedState[key];
+				} else if (Object.prototype.hasOwnProperty.call(defaultVisibilityState, key)) {
+					visible = !!defaultVisibilityState[key];
+				}
+			} else if (Object.prototype.hasOwnProperty.call(defaultVisibilityState, key)) {
+				visible = !!defaultVisibilityState[key];
+			}
+
+			$toggle.prop('checked', visible);
+			currentState[key] = visible;
+			applyRolesColumnVisibility(key, visible);
 		});
+
+		if (needsMigration) {
+			persistVisibilityState(currentState);
+		}
 
 		$(document).on('change', '.sm-roles-column-toggle', function () {
 			var $toggle = $(this);
-			applyRolesColumnVisibility(String($toggle.val() || ''), $toggle.is(':checked'));
+			var key = String($toggle.val() || '');
+			var visible = $toggle.is(':checked');
+			applyRolesColumnVisibility(key, visible);
+			currentState[key] = visible;
+			persistVisibilityState(currentState);
 		});
 	}
 

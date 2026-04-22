@@ -1255,3 +1255,405 @@ Validation state:
 - QA runner (`docs/contracts/validation/56P5-C-validation.md`) PASS in automated checks
 - runtime/manual consistency closure pending
 
+---
+
+## Fase 56P6-A Roles & Access UI Stabilization (Applied technical)
+
+Delivered in current code:
+- Roles & Access UI stabilization updates in:
+  - `includes/users/class-admin-roles-controller.php`
+  - `assets/css/admin.css`
+
+UI/layout changes applied:
+- readability/hierarchy stabilized in users summary section:
+  - column-visibility toolbar restored (original behavior preserved)
+  - added explicit guidance note for protected superadmin behavior
+- superadmin rendering clarity improved:
+  - dedicated row styling for locked superadmin users
+  - clear protected superadmin badge in user identity cell
+  - clearer visual distinction of global/protected status
+- normal user rendering preserved and made more legible:
+  - operational role labels humanized (`sm_admin` -> `Admin`, etc.)
+  - action controls layout improved for scanability and reduced crowding
+  - responsive roles-table overrides added for mobile stability
+
+Scope safeguards:
+- no role-system redesign
+- no membership/superadmin business-logic changes
+- no CRM/reset/i18n/API/schema changes
+- existing promote/revoke/membership flows preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P6-A-validation.md`) PASS in automated checks
+- runtime/manual Roles & Access closure pending
+
+56P6-A fix note (regression hotfix):
+- detected regression corrected:
+  - `WP roles` column no longer stacks vertically
+  - column filter toolbar restored with prior behavior (render + JS toggle flow)
+- fix scope remained UI-only in:
+  - `includes/users/class-admin-roles-controller.php`
+  - `assets/css/admin.css`
+
+---
+
+## Fase 56P6-B Roles & Access Visible Columns Extension (Applied technical)
+
+Delivered in current code:
+- visible-columns extension in:
+  - `includes/users/class-admin-roles-controller.php`
+  - `assets/js/admin-roles-access.js`
+
+UI/behavior changes applied:
+- `Visible columns` toolbar now includes:
+  - `ID`
+  - `Name`
+  - `Email`
+- existing supported columns remain available:
+  - `WP roles`
+  - `Operational role`
+  - `Business`
+  - `Memberships`
+  - `Dashboard access`
+  - `Automation/Logs`
+  - `Status`
+  - `Actions`
+- column toggle mapping remains 1:1 through shared `data-col` keys across:
+  - toolbar checkbox values
+  - table header cells (`th[data-col]`)
+  - row cells (`td[data-col]`)
+- visible-columns persistence hardened using localStorage with compatibility fallback for legacy keys
+
+Scope safeguards:
+- no role/membership business-logic changes
+- no superadmin action-flow changes
+- no CRM/reset/settings/admin-menu/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- runtime/manual checklist pending
+
+56P6-B adjustment note (default visible columns + persistence):
+- default first-load visible set is now restricted to:
+  - `name`
+  - `operational_role`
+  - `business`
+  - `memberships`
+  - `actions`
+- default first-load hidden set now includes:
+  - `id`
+  - `email`
+  - `wp_roles`
+  - `dashboard_access`
+  - `automation_access`
+  - `status`
+- persistence behavior refined:
+  - defaults apply only when no stored preference exists
+  - manual user selection is persisted and respected on reload
+  - legacy localStorage keys are read and migrated safely to primary key format
+
+---
+
+## Fase 56P6-C Roles & Access Backend Enforcement (Applied technical)
+
+Delivered in current code:
+- backend enforcement hardening in:
+  - `includes/users/class-admin-roles-controller.php`
+  - `includes/users/class-business-membership-service.php`
+  - `includes/users/class-role-access-service.php`
+
+Backend enforcement changes applied:
+- membership AJAX actions now resolve the effective target user server-side, including actions driven by `membership_id`:
+  - `update_membership_role`
+  - `set_membership_status`
+  - `set_primary_membership`
+  - `remove_membership`
+- protected superadmin membership restrictions are now enforced consistently for all membership action paths (not only payloads with direct `user_id`)
+- membership service now exposes safe read accessor `get_membership_by_id(...)` for backend validation/ownership resolution
+- role-sensitive hardening added in access service:
+  - membership consistency repair is blocked for locked superadmins
+  - superadmin revocation flow is restricted to managed superadmins only
+
+Scope safeguards:
+- no role model redesign
+- no UI redesign
+- no CRM/reset/i18n/API/schema changes
+- existing authorized membership/role flows preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P6-C-validation.md`) PASS in automated checks
+- runtime/manual backend enforcement closure pending
+
+---
+
+## Fase 56P6-C1 Membership Action Consistency (Applied technical)
+
+Delivered in current code:
+- roles/memberships consistency hardening in:
+  - `includes/users/class-admin-roles-controller.php`
+  - `includes/users/class-role-access-service.php`
+
+Consistency changes applied:
+- actions column now hides role assignment controls that no longer apply:
+  - `Assign admin` hidden when user already has admin-level role
+  - `Assign mechanic` hidden when user already has mechanic role
+  - `Assign client` hidden when user already has client role
+- operational role assignment flow now supports `sm_client` and keeps final state consistent by clearing prior operational roles before applying new one
+- operational role assignment/removal flow was further refined in 56P6-C2 for one-role-at-a-time removal without replacing unrelated roles
+- memberships UI now blocks invalid primary deactivation attempts before submit:
+  - primary active memberships no longer render direct `Deactivate` action
+  - guidance message is shown to set another primary first
+- `Add membership` card now renders only when at least one active business still has missing role coverage (`admin`/`mechanic`/`client`)
+
+Scope safeguards:
+- no superadmin model redesign
+- no CRM/reset/i18n/API/schema changes
+- no broad Roles & Access redesign
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P6-C1-validation.md`) PASS in automated checks
+- runtime/manual checklist pending
+
+---
+
+## Fase 56P6-C2 Multi-role Membership Consistency (Applied technical)
+
+Delivered in current code:
+- multi-role consistency hardening in:
+  - `includes/users/class-business-membership-service.php`
+  - `includes/users/class-admin-roles-controller.php`
+  - `includes/users/class-role-access-service.php`
+
+Model consistency changes applied:
+- membership creation no longer replaces existing role in same business:
+  - add/reactivate now resolves by exact tuple `(user_id, business_id, role)`
+  - adding `client` no longer removes `mechanic` (and vice versa)
+- primary-membership handling now supports valid role removal/deactivation paths:
+  - deactivating/removing a primary membership auto-reassigns primary when another active membership exists
+  - operation remains blocked only when no valid replacement active membership is available
+- membership consistency/repair rules no longer collapse valid multi-role memberships per business:
+  - duplicate check moved from `same business` to `same business + same role`
+  - repair deactivates only true duplicates of the same role, preserving distinct active roles in one business
+- Roles & Access membership UI now aligns add options with missing roles:
+  - `Add membership` renders quick-add entries for missing `(business, role)` combinations only
+  - businesses with complete active role coverage (`admin`, `mechanic`, `client`) no longer expose add options
+- role actions service alignment:
+  - assign role adds target role without removing other operational roles
+  - remove role flow removes one resolved operational role at a time
+
+Scope safeguards:
+- no superadmin model redesign
+- no CRM/reset/i18n/API/schema changes
+- no broad Roles & Access redesign
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P6-C2-validation.md`) PASS in automated checks
+- runtime/manual checklist pending
+
+---
+
+## Fase 56P6-C3 Per-business Membership UI Consolidation (Applied technical)
+
+Delivered in current code:
+- memberships UI consolidation updates in:
+  - `includes/users/class-admin-roles-controller.php`
+- supporting consistency model retained from:
+  - `includes/users/class-business-membership-service.php`
+  - `includes/users/class-role-access-service.php`
+
+UI consolidation changes applied:
+- `Current memberships` now renders one card per business (instead of per-role card)
+- roles are displayed as readable badges/text inside each business card
+- role state view no longer uses role dropdown for current membership rendering
+- per-membership action controls remain available but grouped inside the business card context
+- primary action guidance remains guarded:
+  - primary deactivation is only offered when an alternative active membership exists
+
+Add-membership UX changes:
+- compact dropdown flow restored:
+  - one dropdown with missing `(business, role)` targets
+  - standard submit flow (no per-combination button grid)
+- options include only missing roles for each business
+- businesses with full role coverage (`admin`, `mechanic`, `client`) no longer generate add-target options
+
+Scope safeguards:
+- no CRM/reset/i18n/API changes
+- no superadmin model redesign
+- no schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P6-C3-validation.md`) PASS in automated checks
+- runtime/manual checklist pending
+
+56P6-C3 fix note (membership consolidation + transfer regression):
+- corrected regression in `Current memberships` business card consolidation:
+  - roles are now merged from all membership rows in the business card scope (not from a single row source)
+  - role badges now reflect both presence and effective status per role in that business
+- corrected transfer form runtime warnings in controller render:
+  - restored initialization of `$has_businesses`
+  - restored initialization of `$role_options`
+  - transfer block now renders safely with/without businesses available
+- primary controls remain available per membership row where applicable and still protected by primary handoff validation
+
+---
+
+## Fase 56P6-C4 Actions State Sync (Applied technical)
+
+Delivered in current code:
+- actions-state sync corrective updates in:
+  - `includes/users/class-admin-roles-controller.php`
+  - `includes/users/class-business-membership-service.php`
+
+Actions sync changes applied:
+- Actions column now evaluates role visibility from persisted active memberships in the target business scope (not from WP role flags)
+- role assignment actions in `Actions` now post explicit business-role payload:
+  - `assign_business_role` + `business_id` + `role`
+- role removal actions in `Actions` now remove the exact target role in the exact target business:
+  - `remove_business_role` + `business_id` + `role`
+  - membership service resolves tuple `(user_id, business_id, role)` and removes that membership safely
+- after remove/add, visible action buttons are recomputed from refreshed persisted membership state, restoring expected `Assign <Role>` visibility
+
+Scope safeguards:
+- consolidated per-business membership card UI preserved
+- primary handoff safety preserved through existing membership service validation
+- no CRM/reset/i18n/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P6-C4-validation.md`) PASS in automated checks
+- runtime/manual checklist pending for closure
+
+---
+
+## Fase 56P7-A Client Panel Base (Applied technical)
+
+Delivered in current code:
+- unified client panel shortcode composition in:
+  - `includes/dashboard/class-client-dashboard-shortcodes.php`
+- client panel composition styles in:
+  - `assets/css/portal.css`
+
+Client panel base changes applied:
+- new unified private entrypoint shortcode:
+  - `[sm_client_panel]`
+- coherent section navigation added for authenticated client users:
+  - Process hub
+  - Vehicles
+  - Processes
+  - Quotes
+  - Invoices
+  - Notifications
+  - Documents (context-based)
+- panel composition reuses existing client-facing render/services without duplicating business logic:
+  - `Client_Portal_Controller::render_portal(...)`
+  - `Client_Dashboard_Controller` render methods for vehicles/processes/quotes/invoices/notifications
+  - existing document/timeline shortcodes for process-specific context
+- existing shortcode behavior preserved:
+  - `[sm_client_dashboard]`
+  - `[sm_client_vehicles]`
+  - `[sm_client_processes]`
+
+Scope safeguards:
+- no mechanic panel redesign
+- no CRM/reset/API/schema changes
+- no business-logic rewrite in quotes/invoices/processes/documents
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P7-A-validation.md`) PASS in automated checks
+- runtime/manual checklist pending for closure
+
+---
+
+## Fase 56P7-B Client Panel Data Resolution (Applied technical)
+
+Delivered in current code:
+- client-link resolution hardening in:
+  - `includes/helpers/class-access-control-service.php`
+
+Identity resolution changes applied:
+- primary resolution preserved through canonical user meta link:
+  - `sm_client_id`
+- safe fallback migration added for missing links:
+  - resolve by exact authenticated WP user email in current tenant scope
+  - require a unique exact client match
+  - block auto-link if matched client is already linked to another WP user
+  - persist `sm_client_id` automatically after successful unique fallback
+
+Scope safeguards:
+- no schema changes
+- no legacy module usage
+- no CRM/process/business-logic redesign
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P7-B-validation.md`) PASS in automated checks
+- runtime/manual checklist pending for closure
+
+---
+
+## Fase 56P7-C Mechanic Panel UX (Applied technical)
+
+Delivered in current code:
+- mechanic panel UX cleanup in:
+  - `includes/dashboard/class-mechanic-dashboard-controller.php`
+- mechanic panel frontend readability styles in:
+  - `assets/css/portal.css`
+
+UX changes applied:
+- corrupted/confusing mechanic labels corrected (titles, table headers, form labels, action text)
+- clearer section flow with quick navigation anchors:
+  - filters
+  - process list
+  - appointments
+- action visibility improved with button-style quick actions in process/attachment tables
+- filter panel guidance note added to reduce ambiguity in workload filtering
+- maintenance/detail wording normalized for readability without changing mechanic actions
+
+Scope safeguards:
+- no mechanic business-logic redesign
+- no CRM/reset/API/schema changes
+- no logic duplication introduced
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P7-C-validation.md`) PASS in automated checks
+- runtime/manual checklist pending for closure
+
+---
+
+## Fase 56P7-D Shortcode Registry Alignment (Applied technical)
+
+Delivered in current code:
+- mechanic shortcode registry extension in:
+  - `includes/dashboard/class-mechanic-dashboard-shortcodes.php`
+- shortcode catalog alignment in:
+  - `includes/class-shortcode-admin-controller.php`
+
+Shortcode alignment changes applied:
+- new general mechanic panel alias shortcode added:
+  - `[mekvort_mechanic_panel]`
+  - reuses existing mechanic panel render flow (`render_mechanic_dashboard`)
+- existing client panel alias remains active and now catalog-aligned:
+  - `[mekvort_client_panel]`
+- catalog metadata aligned with active panel shortcodes:
+  - mechanic group includes `sm_mechanic_dashboard`, `sm_mechanic_processes`, `mekvort_mechanic_panel`
+  - client group now includes `sm_client_panel` and `mekvort_client_panel` in addition to existing `sm_client_*`
+- compatibility preserved for existing shortcodes:
+  - `sm_client_*`
+  - `sm_mechanic_*`
+
+Scope safeguards:
+- no panel business-logic duplication
+- no CRM/reset/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P7-D-validation.md`) PASS in automated checks
+- runtime/manual checklist pending for closure
+

@@ -137,6 +137,115 @@
 	padding: 0 12px;
 }
 
+.sm-client-panel-base {
+	display: grid;
+	gap: 16px;
+}
+
+.sm-client-panel-header h2 {
+	margin: 0 0 6px;
+}
+
+.sm-client-panel-header p {
+	margin: 0;
+	color: #50575e;
+}
+
+.sm-client-panel-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px;
+	background: #ffffff;
+	border: 1px solid #d9e3f0;
+	border-radius: 10px;
+}
+
+.sm-client-panel-nav a {
+	display: inline-flex;
+	align-items: center;
+	min-height: 34px;
+	padding: 0 12px;
+	border-radius: 999px;
+	text-decoration: none;
+	background: #f4f7fc;
+	color: #1b2640;
+	font-weight: 600;
+}
+
+.sm-client-panel-nav a:hover,
+.sm-client-panel-nav a:focus {
+	background: #e8eef8;
+	color: #1b2640;
+}
+
+.sm-client-panel-section {
+	display: grid;
+	gap: 10px;
+	padding: 14px;
+	background: #ffffff;
+	border: 1px solid #d9e3f0;
+	border-radius: 12px;
+}
+
+.sm-client-panel-section > h3 {
+	margin: 0;
+	color: #1b2640;
+}
+
+.sm-client-panel-note {
+	margin: 0;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.sm-mechanic-panel-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 14px;
+	padding: 10px;
+	background: #ffffff;
+	border: 1px solid #d9e3f0;
+	border-radius: 10px;
+}
+
+.sm-mechanic-panel-nav a {
+	display: inline-flex;
+	align-items: center;
+	min-height: 34px;
+	padding: 0 12px;
+	border-radius: 999px;
+	text-decoration: none;
+	background: #f4f7fc;
+	color: #1b2640;
+	font-weight: 600;
+}
+
+.sm-mechanic-panel-nav a:hover,
+.sm-mechanic-panel-nav a:focus {
+	background: #e8eef8;
+	color: #1b2640;
+}
+
+.sm-mechanic-filter-card {
+	display: grid;
+	gap: 8px;
+}
+
+.sm-mechanic-filter-note {
+	margin: 0;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.sm-mechanic-action-link {
+	min-height: 34px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
 @media (max-width: 782px) {
 	.sm-client-portal-enhanced .sm-portal-kpis,
 	.sm-client-portal-enhanced .sm-grid-two,
@@ -194,5 +303,25 @@
 	.sm-client-portal-enhanced .button,
 	.sm-client-portal-enhanced .sm-portal-action-link {
 		min-height: 44px;
+	}
+
+	.sm-client-panel-nav {
+		padding: 8px;
+	}
+
+	.sm-client-panel-nav a {
+		min-height: 40px;
+	}
+
+	.sm-mechanic-panel-nav {
+		padding: 8px;
+	}
+
+	.sm-mechanic-panel-nav a {
+		min-height: 40px;
+	}
+
+	.sm-client-panel-section {
+		padding: 12px;
 	}
 }

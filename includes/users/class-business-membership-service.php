@@ -148,12 +148,46 @@ class Business_Membership_Service {
 	 * @return string
 	 */
 	public function get_user_role_in_business( $user_id, $business_id ) {
-		$membership = $this->get_user_membership_in_business( $user_id, $business_id );
-		if ( ! is_array( $membership ) ) {
+		$roles = $this->get_user_roles_in_business( $user_id, $business_id );
+		if ( empty( $roles ) ) {
 			return '';
 		}
 
-		return ( 'active' === $membership['status'] ) ? (string) $membership['operational_role'] : '';
+		return (string) $roles[0];
+	}
+
+	/**
+	 * Get active operational roles for user in business.
+	 *
+	 * @param int $user_id User ID.
+	 * @param int $business_id Business ID.
+	 * @return array<int,string>
+	 */
+	public function get_user_roles_in_business( $user_id, $business_id ) {
+		$user_id     = absint( $user_id );
+		$business_id = absint( $business_id );
+		if ( $user_id <= 0 || $business_id <= 0 ) {
+			return array();
+		}
+
+		$memberships = $this->get_user_memberships( $user_id );
+		$roles       = array();
+		foreach ( $memberships as $membership ) {
+			if ( ! is_array( $membership ) ) {
+				continue;
+			}
+
+			$row_business_id = isset( $membership['business_id'] ) ? absint( $membership['business_id'] ) : 0;
+			$status          = isset( $membership['status'] ) ? sanitize_key( (string) $membership['status'] ) : 'inactive';
+			$role            = isset( $membership['operational_role'] ) ? sanitize_key( (string) $membership['operational_role'] ) : '';
+			if ( $row_business_id !== $business_id || 'active' !== $status || ! in_array( $role, self::ALLOWED_ROLES, true ) ) {
+				continue;
+			}
+
+			$roles[] = $role;
+		}
+
+		return array_values( array_unique( $roles ) );
 	}
 
 	/**
@@ -181,6 +215,26 @@ class Business_Membership_Service {
 	 */
 	public function get_user_membership_in_business( $user_id, $business_id ) {
 		return $this->resolve_user_membership_in_business( $user_id, $business_id );
+	}
+
+	/**
+	 * Get one membership by ID.
+	 *
+	 * @param int $membership_id Membership ID.
+	 * @return array<string,mixed>|null
+	 */
+	public function get_membership_by_id( $membership_id ) {
+		$membership_id = absint( $membership_id );
+		if ( $membership_id <= 0 ) {
+			return null;
+		}
+
+		$membership = $this->repository->get_membership_by_id( $membership_id );
+		if ( ! is_array( $membership ) ) {
+			return null;
+		}
+
+		return $this->sanitize_membership_row( $membership );
 	}
 
 	/**
@@ -217,7 +271,7 @@ class Business_Membership_Service {
 			);
 		}
 
-		$existing = $this->repository->get_user_membership_in_business( $user_id, $business_id );
+		$existing = $this->resolve_user_membership_by_business_role( $user_id, $business_id, $role );
 		if ( is_array( $existing ) ) {
 			$membership_id = isset( $existing['id'] ) ? absint( $existing['id'] ) : 0;
 			if ( $membership_id <= 0 ) {
@@ -228,8 +282,23 @@ class Business_Membership_Service {
 			}
 
 			$before = $this->get_membership_audit_snapshot( $existing );
-			$this->repository->update_membership_role( $membership_id, $role );
 			$this->repository->update_membership_status( $membership_id, 'active' );
+
+			$has_active_primary = false;
+			$all_rows           = $this->get_user_memberships( $user_id );
+			foreach ( $all_rows as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				if ( ! empty( $row['is_primary'] ) && isset( $row['status'] ) && 'active' === $row['status'] ) {
+					$has_active_primary = true;
+					break;
+				}
+			}
+			if ( ! $has_active_primary ) {
+				$this->repository->set_primary_membership( $membership_id );
+			}
+
 			$after = $this->get_membership_audit_snapshot( $this->repository->get_membership_by_id( $membership_id ) );
 			$this->audit_membership_change(
 				'update',
@@ -237,7 +306,7 @@ class Business_Membership_Service {
 				$before,
 				$after,
 				array(
-					'operation' => 'reactivate_existing_membership',
+					'operation' => 'reactivate_existing_membership_role',
 				)
 			);
 
@@ -246,7 +315,7 @@ class Business_Membership_Service {
 			return array(
 				'success'       => true,
 				'membership_id' => $membership_id,
-				'message'       => __( 'Membership already existed and was reactivated.', 'super-mechanic' ),
+				'message'       => __( 'Role membership already existed and was reactivated.', 'super-mechanic' ),
 			);
 		}
 
@@ -353,10 +422,15 @@ class Business_Membership_Service {
 		}
 
 		if ( ! empty( $membership['is_primary'] ) && 'inactive' === $status ) {
-			return array(
-				'success' => false,
-				'message' => __( 'Primary membership cannot be inactive. Set another primary membership first.', 'super-mechanic' ),
-			);
+			$replacement = $this->resolve_replacement_primary_membership( $membership );
+			if ( ! is_array( $replacement ) || ! isset( $replacement['id'] ) ) {
+				return array(
+					'success' => false,
+					'message' => __( 'Primary membership cannot be inactive. Set another primary membership first.', 'super-mechanic' ),
+				);
+			}
+
+			$this->repository->set_primary_membership( absint( $replacement['id'] ) );
 		}
 
 		$before = $this->get_membership_audit_snapshot( $membership );
@@ -460,10 +534,15 @@ class Business_Membership_Service {
 		}
 
 		if ( ! empty( $membership['is_primary'] ) ) {
-			return array(
-				'success' => false,
-				'message' => __( 'Primary membership cannot be removed. Set another primary membership first.', 'super-mechanic' ),
-			);
+			$replacement = $this->resolve_replacement_primary_membership( $membership );
+			if ( ! is_array( $replacement ) || ! isset( $replacement['id'] ) ) {
+				return array(
+					'success' => false,
+					'message' => __( 'Primary membership cannot be removed. Set another primary membership first.', 'super-mechanic' ),
+				);
+			}
+
+			$this->repository->set_primary_membership( absint( $replacement['id'] ) );
 		}
 
 		$before = $this->get_membership_audit_snapshot( $membership );
@@ -610,6 +689,44 @@ class Business_Membership_Service {
 	}
 
 	/**
+	 * Remove one user role in one business.
+	 *
+	 * @param int    $user_id User ID.
+	 * @param int    $business_id Business ID.
+	 * @param string $role Role.
+	 * @return array<string,mixed>
+	 */
+	public function remove_user_role_in_business( $user_id, $business_id, $role ) {
+		$user_id     = absint( $user_id );
+		$business_id = absint( $business_id );
+		$role        = sanitize_key( (string) $role );
+		if ( $user_id <= 0 || $business_id <= 0 || ! in_array( $role, self::ALLOWED_ROLES, true ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Invalid role removal payload.', 'super-mechanic' ),
+			);
+		}
+
+		$membership = $this->resolve_user_membership_by_business_role( $user_id, $business_id, $role );
+		if ( ! is_array( $membership ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Role membership not found in target business.', 'super-mechanic' ),
+			);
+		}
+
+		$membership_id = isset( $membership['id'] ) ? absint( $membership['id'] ) : 0;
+		if ( $membership_id <= 0 ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Role membership could not be resolved.', 'super-mechanic' ),
+			);
+		}
+
+		return $this->remove_membership( $membership_id );
+	}
+
+	/**
 	/**
 	 * Dispatch membership notification in non-blocking mode.
 	 *
@@ -699,7 +816,7 @@ class Business_Membership_Service {
 		$warnings          = array();
 		$primary_rows      = array();
 		$active_rows       = array();
-		$active_by_business = array();
+		$active_by_business_role = array();
 
 		foreach ( $memberships as $membership ) {
 			if ( ! is_array( $membership ) ) {
@@ -720,11 +837,15 @@ class Business_Membership_Service {
 
 			if ( 'active' === $status ) {
 				$active_rows[] = $membership;
-				if ( $business_id > 0 ) {
-					if ( ! isset( $active_by_business[ $business_id ] ) ) {
-						$active_by_business[ $business_id ] = array();
+				$role = isset( $membership['operational_role'] ) ? sanitize_key( (string) $membership['operational_role'] ) : '';
+				if ( $business_id > 0 && '' !== $role ) {
+					if ( ! isset( $active_by_business_role[ $business_id ] ) ) {
+						$active_by_business_role[ $business_id ] = array();
 					}
-					$active_by_business[ $business_id ][] = $membership_id;
+					if ( ! isset( $active_by_business_role[ $business_id ][ $role ] ) ) {
+						$active_by_business_role[ $business_id ][ $role ] = array();
+					}
+					$active_by_business_role[ $business_id ][ $role ][] = $membership_id;
 				}
 			}
 		}
@@ -737,10 +858,15 @@ class Business_Membership_Service {
 			$warnings[] = 'missing_active_primary_membership';
 		}
 
-		foreach ( $active_by_business as $membership_ids ) {
-			if ( is_array( $membership_ids ) && count( $membership_ids ) > 1 ) {
-				$warnings[] = 'duplicate_active_membership_simple';
-				break;
+		foreach ( $active_by_business_role as $roles_map ) {
+			if ( ! is_array( $roles_map ) ) {
+				continue;
+			}
+			foreach ( $roles_map as $membership_ids ) {
+				if ( is_array( $membership_ids ) && count( $membership_ids ) > 1 ) {
+					$warnings[] = 'duplicate_active_membership_role';
+					break 2;
+				}
 			}
 		}
 
@@ -778,7 +904,7 @@ class Business_Membership_Service {
 		$active_memberships      = array();
 		$active_primary_id       = 0;
 		$primary_membership_ids  = array();
-		$active_by_business      = array();
+		$active_by_business_role = array();
 
 		foreach ( $memberships as $membership ) {
 			if ( ! is_array( $membership ) ) {
@@ -803,11 +929,15 @@ class Business_Membership_Service {
 
 			if ( 'active' === $status ) {
 				$active_memberships[] = $membership;
-				if ( $business_id > 0 ) {
-					if ( ! isset( $active_by_business[ $business_id ] ) ) {
-						$active_by_business[ $business_id ] = array();
+				$role = isset( $membership['operational_role'] ) ? sanitize_key( (string) $membership['operational_role'] ) : '';
+				if ( $business_id > 0 && '' !== $role ) {
+					if ( ! isset( $active_by_business_role[ $business_id ] ) ) {
+						$active_by_business_role[ $business_id ] = array();
 					}
-					$active_by_business[ $business_id ][] = $membership_id;
+					if ( ! isset( $active_by_business_role[ $business_id ][ $role ] ) ) {
+						$active_by_business_role[ $business_id ][ $role ] = array();
+					}
+					$active_by_business_role[ $business_id ][ $role ][] = $membership_id;
 				}
 			}
 		}
@@ -827,26 +957,31 @@ class Business_Membership_Service {
 			}
 		}
 
-		foreach ( $active_by_business as $business_id => $membership_ids ) {
-			if ( ! is_array( $membership_ids ) || count( $membership_ids ) <= 1 ) {
+		foreach ( $active_by_business_role as $business_id => $roles_map ) {
+			if ( ! is_array( $roles_map ) ) {
 				continue;
 			}
-
-			$keep_id = 0;
-			if ( $target_primary_id > 0 && in_array( $target_primary_id, $membership_ids, true ) ) {
-				$keep_id = $target_primary_id;
-			}
-			if ( $keep_id <= 0 ) {
-				$keep_id = absint( $membership_ids[0] );
-			}
-
-			foreach ( $membership_ids as $membership_id ) {
-				$membership_id = absint( $membership_id );
-				if ( $membership_id <= 0 || $membership_id === $keep_id ) {
+			foreach ( $roles_map as $role => $membership_ids ) {
+				if ( ! is_array( $membership_ids ) || count( $membership_ids ) <= 1 ) {
 					continue;
 				}
-				if ( $this->repository->update_membership_status( $membership_id, 'inactive' ) ) {
-					$changes[] = 'deactivated_duplicate_active_membership_business_' . absint( $business_id );
+
+				$keep_id = 0;
+				if ( $target_primary_id > 0 && in_array( $target_primary_id, $membership_ids, true ) ) {
+					$keep_id = $target_primary_id;
+				}
+				if ( $keep_id <= 0 ) {
+					$keep_id = absint( $membership_ids[0] );
+				}
+
+				foreach ( $membership_ids as $membership_id ) {
+					$membership_id = absint( $membership_id );
+					if ( $membership_id <= 0 || $membership_id === $keep_id ) {
+						continue;
+					}
+					if ( $this->repository->update_membership_status( $membership_id, 'inactive' ) ) {
+						$changes[] = 'deactivated_duplicate_active_membership_business_' . absint( $business_id ) . '_role_' . sanitize_key( (string) $role );
+					}
 				}
 			}
 		}
@@ -1063,7 +1198,7 @@ class Business_Membership_Service {
 			'multiple_primary_memberships',
 			'inactive_primary_membership',
 			'missing_active_primary_membership',
-			'duplicate_active_membership_simple',
+			'duplicate_active_membership_role',
 		);
 
 		foreach ( $warning_keys as $warning_key ) {
@@ -1074,6 +1209,76 @@ class Business_Membership_Service {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Resolve existing membership by exact user/business/role tuple.
+	 *
+	 * @param int    $user_id User ID.
+	 * @param int    $business_id Business ID.
+	 * @param string $role Role.
+	 * @return array<string,mixed>|null
+	 */
+	protected function resolve_user_membership_by_business_role( $user_id, $business_id, $role ) {
+		$user_id     = absint( $user_id );
+		$business_id = absint( $business_id );
+		$role        = sanitize_key( (string) $role );
+		if ( $user_id <= 0 || $business_id <= 0 || ! in_array( $role, self::ALLOWED_ROLES, true ) ) {
+			return null;
+		}
+
+		$rows = $this->get_user_memberships( $user_id );
+		$fallback = null;
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$row_business_id = isset( $row['business_id'] ) ? absint( $row['business_id'] ) : 0;
+			$row_role        = isset( $row['operational_role'] ) ? sanitize_key( (string) $row['operational_role'] ) : '';
+			$row_status      = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'inactive';
+			if ( $row_business_id === $business_id && $row_role === $role ) {
+				if ( 'active' === $row_status ) {
+					return $row;
+				}
+				if ( ! is_array( $fallback ) ) {
+					$fallback = $row;
+				}
+			}
+		}
+
+		return is_array( $fallback ) ? $fallback : null;
+	}
+
+	/**
+	 * Resolve replacement primary membership candidate.
+	 *
+	 * @param array<string,mixed> $membership Membership row being changed.
+	 * @return array<string,mixed>|null
+	 */
+	protected function resolve_replacement_primary_membership( array $membership ) {
+		$user_id       = isset( $membership['user_id'] ) ? absint( $membership['user_id'] ) : 0;
+		$membership_id = isset( $membership['id'] ) ? absint( $membership['id'] ) : 0;
+		if ( $user_id <= 0 || $membership_id <= 0 ) {
+			return null;
+		}
+
+		$rows = $this->get_user_memberships( $user_id );
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$row_id  = isset( $row['id'] ) ? absint( $row['id'] ) : 0;
+			$status  = isset( $row['status'] ) ? sanitize_key( (string) $row['status'] ) : 'inactive';
+			if ( $row_id <= 0 || $row_id === $membership_id || 'active' !== $status ) {
+				continue;
+			}
+
+			return $row;
+		}
+
+		return null;
 	}
 }
 

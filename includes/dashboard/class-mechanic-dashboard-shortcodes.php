@@ -48,6 +48,7 @@ class Mechanic_Dashboard_Shortcodes {
 	 */
 	public function register_hooks() {
 		add_shortcode( 'sm_mechanic_dashboard', array( $this, 'render_mechanic_dashboard' ) );
+		add_shortcode( 'mekvort_mechanic_panel', array( $this, 'render_mekvort_mechanic_panel' ) );
 		add_shortcode( 'sm_mechanic_processes', array( $this, 'render_mechanic_processes' ) );
 	}
 
@@ -67,6 +68,26 @@ class Mechanic_Dashboard_Shortcodes {
 		}
 
 		return $this->mechanic_dashboard_controller->render_frontend_dashboard();
+	}
+
+	/**
+	 * Render Mekvort mechanic panel shortcode with auth redirect.
+	 *
+	 * @param array<string, mixed> $atts Shortcode attributes.
+	 * @return string
+	 */
+	public function render_mekvort_mechanic_panel( $atts = array() ) {
+		if ( ! is_user_logged_in() ) {
+			$redirect_url = home_url( '/my-account/' );
+			if ( ! headers_sent() ) {
+				wp_safe_redirect( $redirect_url );
+				exit;
+			}
+
+			return '<script>window.location.href="' . esc_js( $redirect_url ) . '";</script>';
+		}
+
+		return $this->render_mechanic_dashboard( $atts );
 	}
 
 	/**

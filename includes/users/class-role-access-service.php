@@ -273,6 +273,13 @@ class Role_Access_Service {
 			);
 		}
 
+		if ( ! $this->is_managed_superadmin( $target_user_id ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Only managed superadmins can be revoked from this flow.', 'super-mechanic' ),
+			);
+		}
+
 		if ( ! $this->is_global_super_admin( $target_user_id ) ) {
 			return array(
 				'success' => true,
@@ -542,6 +549,13 @@ class Role_Access_Service {
 			);
 		}
 
+		if ( $this->is_locked_superadmin( $user_id ) ) {
+			return array(
+				'success' => false,
+				'message' => __( 'Locked superadmin memberships cannot be repaired from this flow.', 'super-mechanic' ),
+			);
+		}
+
 		return $this->membership_service->repair_membership_consistency( $user_id );
 	}
 
@@ -562,7 +576,7 @@ class Role_Access_Service {
 			);
 		}
 
-		if ( ! in_array( $role_key, array( 'sm_admin', 'sm_mechanic' ), true ) ) {
+		if ( ! in_array( $role_key, array( 'sm_admin', 'sm_mechanic', 'sm_client' ), true ) ) {
 			return array(
 				'success' => false,
 				'message' => __( 'Invalid operational role.', 'super-mechanic' ),
@@ -584,8 +598,6 @@ class Role_Access_Service {
 			);
 		}
 
-		$user->remove_role( 'sm_admin' );
-		$user->remove_role( 'sm_mechanic' );
 		$user->add_role( $role_key );
 
 		return array(
@@ -600,8 +612,9 @@ class Role_Access_Service {
 	 * @param int $user_id User ID.
 	 * @return array<string,mixed>
 	 */
-	public function remove_operational_role( $user_id ) {
+	public function remove_operational_role( $user_id, $role_key = '' ) {
 		$user_id = absint( $user_id );
+		$role_key = sanitize_key( (string) $role_key );
 		if ( $user_id <= 0 ) {
 			return array(
 				'success' => false,
@@ -624,8 +637,25 @@ class Role_Access_Service {
 			);
 		}
 
-		$user->remove_role( 'sm_admin' );
-		$user->remove_role( 'sm_mechanic' );
+		if ( ! in_array( $role_key, array( 'sm_admin', 'sm_mechanic', 'sm_client' ), true ) ) {
+			$user_roles = array_map( 'sanitize_key', (array) $user->roles );
+			if ( in_array( 'sm_admin', $user_roles, true ) ) {
+				$role_key = 'sm_admin';
+			} elseif ( in_array( 'sm_mechanic', $user_roles, true ) ) {
+				$role_key = 'sm_mechanic';
+			} elseif ( in_array( 'sm_client', $user_roles, true ) ) {
+				$role_key = 'sm_client';
+			}
+		}
+
+		if ( '' === $role_key ) {
+			return array(
+				'success' => false,
+				'message' => __( 'No operational role found to remove.', 'super-mechanic' ),
+			);
+		}
+
+		$user->remove_role( $role_key );
 
 		return array(
 			'success' => true,
@@ -759,6 +789,27 @@ class Role_Access_Service {
 	}
 
 	/**
+	 * Resolve if user is listed as managed superadmin.
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	protected function is_managed_superadmin( $user_id ) {
+		$user_id = absint( $user_id );
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+
+		$bootstrap_state = get_option( Superadmin_Bootstrap_Service::OPTION_KEY, array() );
+		if ( ! is_array( $bootstrap_state ) ) {
+			return false;
+		}
+
+		$managed_superadmin_ids = isset( $bootstrap_state['managed_superadmin_ids'] ) && is_array( $bootstrap_state['managed_superadmin_ids'] ) ? array_map( 'absint', $bootstrap_state['managed_superadmin_ids'] ) : array();
+		return in_array( $user_id, $managed_superadmin_ids, true );
+	}
+
+	/**
 	 * Verify if one user is a WordPress administrator.
 	 *
 	 * @param \WP_User $user User object.
@@ -840,6 +891,7 @@ class Role_Access_Service {
 			'inactive_primary_membership'             => __( 'Primary membership is inactive', 'super-mechanic' ),
 			'missing_active_primary_membership'       => __( 'Active membership exists but no active primary is set', 'super-mechanic' ),
 			'duplicate_active_membership_simple'      => __( 'Duplicate active membership detected for same business', 'super-mechanic' ),
+			'duplicate_active_membership_role'        => __( 'Duplicate active membership detected for same business and role', 'super-mechanic' ),
 		);
 
 		$summary = array();

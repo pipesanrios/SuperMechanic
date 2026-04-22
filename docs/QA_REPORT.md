@@ -1020,3 +1020,355 @@ Scope confirmation:
 - bulk delete remains aligned because it reuses the same service delete flow per opportunity
 - tenant scope preserved (`business_id`) for task and alert cleanup
 - no CRM redesign, no schema/API/reset/roles/settings changes
+
+---
+
+## 56P6-A — ROLES & ACCESS UI STABILIZATION
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P6-A-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Manual runtime:
+- roles_access_page_renders -> NOT_RUN
+- roles_access_readable -> NOT_RUN
+- superadmin_clearly_differentiated -> NOT_RUN
+- roles_actions_still_work -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- Roles & Access UI stabilized in allowed scope (`includes/users/*`, `assets/css/*`)
+- readability improvements applied without changing role/membership backend logic:
+  - column-toggle toolbar preserved/restored in page surface
+  - improved table/action spacing and responsive stability
+- superadmin clarity improvements applied:
+  - protected superadmin badge in user identity area
+  - dedicated visual row differentiation for locked superadmin users
+  - guidance note clarifying protected/global behavior and disabled controls
+- regular user rendering preserved with clearer labels and unchanged action flows
+- no CRM/reset/i18n/API/schema changes
+
+56P6-A fix update (regression hotfix, 2026-04-15):
+- issue: `WP roles` column rendered vertically (stacked text).
+- issue: column filter toolbar had been removed from Roles & Access.
+- fix applied:
+  - restored column filter toolbar rendering in `class-admin-roles-controller.php` (same behavior path with existing JS toggles)
+  - applied minimal CSS for `data-col="wp_roles"` to prevent vertical stacking and keep readable horizontal rendering
+- technical validation:
+  - `php scripts/php-lint.php --all` -> PASS
+
+---
+
+## 56P6-B — EXTEND VISIBLE COLUMNS
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+
+Manual runtime:
+- visible_columns_has_id_name_email -> NOT_RUN
+- toggle_id_works -> NOT_RUN
+- toggle_name_works -> NOT_RUN
+- toggle_email_works -> NOT_RUN
+- existing_toggles_work -> NOT_RUN
+- table_readable_no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- `Visible columns` extended with `ID`, `Name`, `Email` in Roles & Access toolbar
+- existing column toggles preserved, including:
+  - `WP roles`
+  - `Operational role`
+  - `Business`
+  - `Memberships`
+  - `Dashboard access`
+  - `Automation/Logs access`
+  - `Status`
+  - `Actions`
+- checkbox value ↔ `th[data-col]` ↔ `td[data-col]` mapping kept aligned
+- localStorage persistence added with compatibility fallback for legacy keys; existing saved preferences are reused when present
+- no role logic, memberships logic, superadmin flows, CRM/reset/settings/admin-menu changes
+
+56P6-B adjustment update (2026-04-15):
+- default first-load visible columns adjusted to:
+  - `Name`
+  - `Operational role`
+  - `Business`
+  - `Memberships`
+  - `Actions`
+- default first-load hidden columns adjusted to:
+  - `ID`
+  - `Email`
+  - `WP roles`
+  - `Dashboard access`
+  - `Automation/Logs access`
+  - `Status`
+- persistence behavior updated:
+  - if no stored preference exists, defaults are applied
+  - if stored preference exists, stored user selection is applied on reload
+  - legacy localStorage states are read and migrated to primary key safely
+
+---
+
+## 56P6-C — BACKEND ENFORCEMENT
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P6-C-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- protected_superadmin_backend_blocked -> NOT_RUN
+- invalid_membership_ops_blocked -> NOT_RUN
+- authorized_ops_still_work -> NOT_RUN
+- no_admin_regression -> NOT_RUN
+
+Scope confirmation:
+- server-side membership-action target resolution hardened for `membership_id`-based operations in Roles & Access AJAX flow
+- protected superadmin restrictions are now enforced in backend even when payload attempts bypass direct `user_id` checks
+- `repair_membership_consistency` is blocked for locked superadmins in backend service flow
+- superadmin revocation hardened to managed-superadmin targets only in backend flow
+- no UI redesign, no role-model redesign, no CRM/reset/i18n/API/schema changes
+
+---
+
+## 56P6-C1 — MEMBERSHIP ACTION CONSISTENCY
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P6-C1-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 7
+
+Manual runtime:
+- assign_admin_hidden_if_already_admin -> NOT_RUN
+- assign_mechanic_hidden_if_already_mechanic -> NOT_RUN
+- assign_client_hidden_if_already_client -> NOT_RUN
+- add_membership_hidden_if_all_roles_present -> NOT_RUN
+- primary_membership_invalid_deactivation_blocked_in_ui -> NOT_RUN
+- role_removal_consistent_final_state -> NOT_RUN
+- admin_stable -> NOT_RUN
+
+Scope confirmation:
+- actions card now hides role buttons that do not apply to current user role state
+- assign-client flow added to role actions with backend support and consistent operational-role replacement behavior
+- remove-role flow was later refined in 56P6-C2 to remove one resolved role at a time without replacing unrelated roles
+- primary membership invalid deactivation path is blocked from UI before submit
+- add-membership card is shown only when at least one business still has missing active role coverage
+- no CRM/reset/i18n/API/schema changes
+
+---
+
+## 56P6-C2 — MULTI-ROLE MEMBERSHIP CONSISTENCY
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P6-C2-validation.md --output=text` -> PASS
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 6
+
+Manual runtime:
+- add_mechanic_keeps_admin -> NOT_RUN
+- add_client_keeps_mechanic -> NOT_RUN
+- remove_admin_keeps_other_roles -> NOT_RUN
+- current_memberships_matches_state -> NOT_RUN
+- add_membership_only_missing_roles -> NOT_RUN
+- admin_stable -> NOT_RUN
+
+Scope confirmation:
+- create-membership flow changed from business-level replacement to tuple-level add/reactivate (`user + business + role`)
+- multi-role coexistence by business preserved; adding one role no longer removes another role in same business
+- primary membership deactivate/remove now supports automatic valid primary handoff when another active membership exists
+- consistency warning/repair logic now targets duplicates by `business + role` (not by business only), preserving valid multi-role rows
+- add-membership UI now offers only missing role options per business using quick-add entries
+- role-access service role assignment no longer removes other operational roles; remove-role flow removes one resolved role
+- no CRM/reset/i18n/API/schema changes
+
+---
+
+## 56P6-C3 — PER-BUSINESS MEMBERSHIP UI CONSOLIDATION
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P6-C3-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 6
+
+Manual runtime:
+- one_business_one_card -> NOT_RUN
+- roles_badges_not_dropdown -> NOT_RUN
+- compact_add_membership_dropdown -> NOT_RUN
+- only_missing_roles_offered -> NOT_RUN
+- actions_visibility_consistent -> NOT_RUN
+- admin_stable -> NOT_RUN
+
+Scope confirmation:
+- Current memberships render consolidated per business (single card per business)
+- role state in Current memberships now uses badges/text, not role dropdown selectors
+- add-membership flow changed from quick-add button grid to compact dropdown submit
+- dropdown options include only missing role targets per business
+- per-membership action controls remain in-card and primary-safety guidance remains enforced
+- no CRM/reset/i18n/API/schema changes
+
+56P6-C3 fix update (regression hotfix, 2026-04-15):
+- issue: consolidated business card could show incomplete role set (runtime observed as only one role visible).
+- issue: transfer block emitted runtime warnings:
+  - `Undefined variable $has_businesses`
+  - `Undefined variable $role_options`
+- fix applied in `class-admin-roles-controller.php`:
+  - restored render initialization for transfer dependencies (`$has_businesses`, `$role_options`, business options source)
+  - adjusted business-card role merge to aggregate role-state from all membership rows in each business card scope
+  - preserved per-membership row action rendering inside consolidated business card
+- technical validation:
+  - `php scripts/php-lint.php --all` -> PASS
+
+---
+
+## 56P6-C4 — ACTIONS STATE SYNC FIX
+
+Fecha de ejecución: 2026-04-15
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P6-C4-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Manual runtime:
+- remove_role_persists -> NOT_RUN
+- assign_button_reappears -> NOT_RUN
+- buttons_match_state -> NOT_RUN
+- primary_handoff_stable -> NOT_RUN
+- admin_stable -> NOT_RUN
+
+Scope confirmation:
+- Actions column now uses persisted membership state by business to determine assign/remove visibility
+- Actions POST flow now supports:
+  - `assign_business_role` (`user_id`, `business_id`, `role`)
+  - `remove_business_role` (`user_id`, `business_id`, `role`)
+- role removal now targets exact business-role tuple via membership service and updates persisted state (not UI-only toggle)
+- consolidated membership card, compact add-membership flow, and primary handoff validation remain preserved
+
+---
+
+## 56P7-A — CLIENT PANEL BASE
+
+Fecha de ejecución: 2026-04-16
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P7-A-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- client_panel_loads -> NOT_RUN
+- client_sections_work -> NOT_RUN
+- client_data_renders -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- unified client panel base shortcode added: `sm_client_panel`
+- panel composes existing client-facing blocks from existing controllers/shortcodes:
+  - enhanced process hub portal
+  - vehicles
+  - processes
+  - quotes
+  - invoices
+  - notifications
+  - process-context documents/timeline
+- existing shortcodes remain intact and reusable; no business-logic duplication introduced
+- scope stayed UI composition oriented with no CRM/reset/API/schema changes
+
+---
+
+## 56P7-C — MECHANIC PANEL UX
+
+Fecha de ejecución: 2026-04-22
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P7-C-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- mechanic_panel_loads -> NOT_RUN
+- mechanic_labels_clear -> NOT_RUN
+- mechanic_actions_work -> NOT_RUN
+- no_console_errors -> NOT_RUN
+
+Scope confirmation:
+- mechanic panel UX readability improved without changing mechanic business logic
+- corrected multiple confusing/corrupted mechanic labels in:
+  - overview
+  - process detail
+  - maintenance block
+  - attachments/comments/appointments blocks
+- action visibility improved with consistent button-style quick actions (`Open details`, `Open`, `Open process`)
+- lightweight section-flow clarity added with mechanic quick navigation anchors and filter guidance text
+- frontend mechanic panel styling extended in `assets/css/portal.css` for navigation, filter, and action-link readability
+- no CRM/reset/API/schema changes
+
+---
+
+## 56P7-D — SHORTCODE REGISTRY ALIGNMENT
+
+Fecha de ejecución: 2026-04-22
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P7-D-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- mekvort_client_panel_in_catalog -> NOT_RUN
+- mekvort_mechanic_panel_exists_and_works -> NOT_RUN
+- catalog_reflects_active_shortcodes -> NOT_RUN
+- legacy_sm_shortcodes_compatible -> NOT_RUN
+
+Scope confirmation:
+- new alias shortcode added: `mekvort_mechanic_panel`
+  - registration in `Mechanic_Dashboard_Shortcodes::register_hooks()`
+  - render path reuses existing mechanic panel logic (`render_mechanic_dashboard`)
+- catalog metadata updated to include missing active panel shortcodes:
+  - `sm_client_panel`
+  - `mekvort_client_panel`
+  - `mekvort_mechanic_panel`
+- grouping preserved coherently:
+  - Cliente
+  - Mecánico
+  - General (still reserved when no active neutral/public shortcode exists)
+- no CRM/reset/i18n/API/schema changes
