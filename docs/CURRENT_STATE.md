@@ -1657,3 +1657,174 @@ Validation state:
 - QA runner (`docs/contracts/validation/56P7-D-validation.md`) PASS in automated checks
 - runtime/manual checklist pending for closure
 
+---
+
+## Fase 56P8-A Email Trigger System (Applied technical)
+
+Delivered in current code:
+- centralized email trigger service in:
+  - `includes/services/class-email-trigger-service.php`
+- composition-root wiring in:
+  - `includes/class-plugin.php`
+
+Trigger system changes applied:
+- new `Email_Trigger_Service` listens to existing domain events and emits structured notification intents (no real email sending yet)
+- required trigger methods added:
+  - `trigger_process_status_change(...)`
+  - `trigger_quote_status_change(...)`
+  - `trigger_invoice_status_change(...)`
+- integration points covered through existing event flow:
+  - process status transitions (`sm_event_process_status_changed`, `sm_event_process_finalized`)
+  - quote approval/rejection (`sm_event_quote_approved`, `sm_event_quote_rejected`)
+  - invoice collection transitions via payment events (`sm_event_payment_registered`, `sm_event_invoice_paid`)
+- debug-friendly intent persistence enabled through existing structured logs:
+  - `Log_Service::log_notification_event(...)` with source `email_trigger`
+
+Scope safeguards:
+- no business-flow redesign
+- no email provider/SMTP integration
+- no template rendering layer changes
+- no CRM/reset/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P8-A-validation.md`) PASS in automated checks
+- runtime/manual checklist pending
+
+---
+
+## Fase 56P8-B Email Templates (Applied technical)
+
+Delivered in current code:
+- centralized email template service in:
+  - `includes/services/class-email-template-service.php`
+- trigger-template integration in:
+  - `includes/services/class-email-trigger-service.php`
+
+Template layer changes applied:
+- reusable template builder introduced through `Email_Template_Service`
+- event-to-template mapping implemented for:
+  - process status change
+  - quote approved
+  - quote rejected
+  - invoice paid
+  - invoice partial
+- output payload now includes reusable template contract:
+  - `template_key`
+  - `subject`
+  - `body`
+  - `metadata` (`delivery_channel`, `template_version`, `ready_for_send`)
+- trigger intents from 56P8-A now include rendered template output, preserving delivery/provider separation
+
+Scope safeguards:
+- no SMTP/provider integration
+- no business-flow changes
+- no CRM/reset/API/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P8-B-validation.md`) PASS in automated checks
+- runtime/manual checklist pending
+
+---
+
+## Fase 56P8-C Email Delivery Wiring (Applied technical)
+
+Delivered in current code:
+- centralized service-layer email delivery added in:
+  - `includes/services/class-email-delivery-service.php`
+- email trigger flow now uses the service-layer delivery class for real `wp_mail(...)` attempts
+- existing template payloads are used as delivery source:
+  - `subject`
+  - `body`
+  - `metadata.ready_for_send`
+- recipient resolution is handled from current domain entities through existing services:
+  - process -> client
+  - quote -> client
+  - invoice -> client
+  - linked WP user fallback by `sm_client_id`
+- delivery outcomes are logged through `Log_Service::log_notification_event(...)` with source `email_delivery`
+
+Scope safeguards:
+- no external provider SDK integration
+- no queue/retry redesign
+- no admin email settings UI
+- no CRM/reset/API/schema changes
+- existing trigger/template separation preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P8-C-validation.md`) PASS in automated checks
+- runtime/manual email delivery checklist pending
+
+---
+
+## Fase 56P9-A Google Calendar Config Validation (Applied technical)
+
+Delivered in current code:
+- centralized Google Calendar configuration service added in:
+  - `includes/services/class-google-calendar-config-service.php`
+- service methods available:
+  - `get_config()`
+  - `save_config()`
+  - `validate_config()`
+  - `is_ready()`
+- configuration keys covered:
+  - `client_id`
+  - `client_secret`
+  - `redirect_uri`
+  - `calendar_id`
+- storage reuses the existing settings option/group through `Settings_Service` (`google_calendar`)
+- validation is limited to local completeness and basic string sanity
+
+Scope safeguards:
+- no OAuth execution
+- no token exchange
+- no Google API calls
+- no event sync
+- no frontend/admin UI changes
+- no schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P9-A-validation.md`) PASS in automated checks
+- manual config save/validation/readiness checks pending
+
+---
+
+## Fase 56P9-B Google Calendar Sync Logic (Applied technical)
+
+Delivered in current code:
+- centralized Google Calendar payload builder added in:
+  - `includes/services/class-google-calendar-sync-service.php`
+- service methods available:
+  - `build_event_payload(...)`
+  - `build_appointment_event_payload(...)`
+  - `build_process_event_payload(...)`
+  - `validate_event_payload(...)`
+- normalized calendar-ready payload shape includes:
+  - `summary`
+  - `description`
+  - `start.datetime`
+  - `end.datetime`
+  - `timezone`
+  - `attendees`
+  - `metadata.source`
+  - `metadata.entity_type`
+  - `metadata.entity_id`
+- appointment payloads map existing appointment/client/vehicle/mechanic fields without changing appointment logic
+- process payloads map existing process/client/vehicle/date fields without changing process logic
+- validation returns structured missing-field errors for required calendar payload fields
+
+Scope safeguards:
+- no OAuth execution
+- no token exchange
+- no Google API calls
+- no real remote sync or external event ID persistence added
+- no frontend/API/CRM/reset/schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P9-B-validation.md`) PASS in automated checks
+- manual payload-build checks PASS for appointment, process and missing-field validation
+

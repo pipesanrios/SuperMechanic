@@ -1372,3 +1372,138 @@ Scope confirmation:
   - Mecánico
   - General (still reserved when no active neutral/public shortcode exists)
 - no CRM/reset/i18n/API/schema changes
+
+---
+
+## 56P8-A — EMAIL TRIGGER SYSTEM
+
+Fecha de ejecución: 2026-04-22
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P8-A-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- process_status_trigger -> NOT_RUN
+- quote_status_trigger -> NOT_RUN
+- invoice_status_trigger -> NOT_RUN
+
+Scope confirmation:
+- centralized `Email_Trigger_Service` added and wired from composition root
+- service listens to existing domain events (`sm_event_*`) without changing business flow
+- structured notification-intent payloads are built for process/quote/invoice status transitions
+- debug-friendly persistence implemented via `Log_Service::log_notification_event` (`source=email_trigger`)
+- no real email delivery/provider integration yet
+
+---
+
+## 56P8-B — EMAIL TEMPLATES
+
+Fecha de ejecución: 2026-04-22
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P8-B-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- process_template_builds -> NOT_RUN
+- quote_template_builds -> NOT_RUN
+- invoice_template_builds -> NOT_RUN
+
+Scope confirmation:
+- reusable template layer added in `includes/services/class-email-template-service.php`
+- mapping implemented for required events:
+  - process status change
+  - quote approved
+  - quote rejected
+  - invoice paid
+  - invoice partial
+- trigger intents now include reusable `template` payload (`template_key`, `subject`, `body`, `metadata`)
+- delivery concerns remain separated (no SMTP/provider sending)
+
+---
+
+## 56P8-C — EMAIL DELIVERY WIRING
+
+Fecha de ejecucion: 2026-04-30
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P8-C-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual runtime:
+- process_email_sent -> NOT_RUN
+- quote_email_sent -> NOT_RUN
+- invoice_email_sent -> NOT_RUN
+- delivery_logs_recorded -> NOT_RUN
+
+Scope confirmation:
+- service-layer `Email_Delivery_Service` added in `includes/services/class-email-delivery-service.php`
+- email trigger flow now attempts real delivery through WordPress `wp_mail(...)`
+- trigger/template flow remains centralized and existing template subject/body payloads are reused
+- delivery success/failure is recorded through structured notification logs with source `email_delivery`
+- no provider SDK, queue/retry redesign, admin settings UI, CRM/reset/API/schema changes
+
+---
+
+## 56P9-A — GOOGLE CALENDAR CONFIG VALIDATION
+
+Fecha de ejecucion: 2026-04-30
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P9-A-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- config_can_be_saved -> NOT_RUN
+- config_validation_works -> NOT_RUN
+- readiness_status_correct -> NOT_RUN
+
+Scope confirmation:
+- centralized `Google_Calendar_Config_Service` added in `includes/services/class-google-calendar-config-service.php`
+- service exposes `get_config()`, `save_config()`, `validate_config()` and `is_ready()`
+- config storage reuses existing `Settings_Service` group `google_calendar` in `wp_options`
+- required fields covered: `client_id`, `client_secret`, `redirect_uri`, `calendar_id`
+- validation is local only; no OAuth, Google API calls, event sync, frontend/UI, API, CRM, process or dashboard changes
+
+---
+
+## 56P9-B — GOOGLE CALENDAR SYNC LOGIC
+
+Fecha de ejecucion: 2026-05-05
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P9-B-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- appointment_payload_builds -> PASS
+- process_payload_builds -> PASS
+- missing_fields_detected -> PASS
+
+Scope confirmation:
+- centralized payload-only `Google_Calendar_Sync_Service` added in `includes/services/class-google-calendar-sync-service.php`
+- service builds normalized calendar-ready payloads with `summary`, `description`, `start.datetime`, `end.datetime`, `timezone`, `attendees` and `metadata`
+- appointment and process mapping use existing domain row fields only
+- validation returns structured missing-field errors
+- no OAuth, token exchange, Google API calls, real remote sync, external event ID persistence, frontend/API/CRM/reset/schema changes

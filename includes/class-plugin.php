@@ -96,6 +96,7 @@ use Super_Mechanic\Reports\Report_Admin_Controller;
 use Super_Mechanic\Reports\Report_Service;
 use Super_Mechanic\Reporting\Reporting_Service;
 use Super_Mechanic\Demo\Demo_Service;
+use Super_Mechanic\Services\Email_Trigger_Service;
 use Super_Mechanic\Users\Superadmin_Bootstrap_Service;
 use Super_Mechanic\Vehicles\Vehicle_Admin_Controller;
 
@@ -198,6 +199,7 @@ class Plugin {
 	protected $elementor_loader;
 	protected $api_loader;
 	protected $superadmin_bootstrap_service;
+	protected $email_trigger_service;
 
 	public function __construct() {
 		$this->assets                        = new Assets();
@@ -240,6 +242,7 @@ class Plugin {
 		$this->document_service              = new Document_Service( $this->pdf_service, $this->attachment_service, $this->invoice_service, $this->quote_service );
 		$this->download_service              = new Download_Service( $this->document_service );
 		$this->notification_service          = new Notification_Service( null, $this->dashboard_service, $this->process_service, $this->quote_service, $this->invoice_service, $this->attachment_service );
+		$this->email_trigger_service         = new Email_Trigger_Service( null, $this->invoice_service );
 		$this->public_webhook_repository     = new Public_Webhook_Repository();
 		$this->public_webhook_event_catalog  = new Public_Webhook_Event_Catalog();
 		$this->public_webhook_delivery_service = new Public_Webhook_Delivery_Service();
@@ -331,6 +334,7 @@ class Plugin {
 	public function register_hooks() {
 		$this->assets->register_hooks();
 		$this->event_dispatcher->register_hooks();
+		$this->email_trigger_service->register_hooks();
 		$this->public_webhook_service->register_hooks();
 		$this->download_service->register_hooks();
 		$this->update_service->register_hooks();
