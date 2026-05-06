@@ -141,7 +141,7 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_clients' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_read' ),
 				'args'                => $this->get_collection_args(),
 			)
 		);
@@ -152,7 +152,7 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_vehicles' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_read' ),
 				'args'                => $this->get_collection_args( true ),
 			)
 		);
@@ -163,7 +163,7 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_processes' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_read' ),
 				'args'                => $this->get_collection_args( false, true ),
 			)
 		);
@@ -174,7 +174,7 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_process' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_read' ),
 				'args'                => array(
 					'id'          => $this->get_id_arg(),
 					'business_id' => $this->get_business_id_arg(),
@@ -188,7 +188,7 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_invoices' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_read' ),
 				'args'                => $this->get_collection_args( false, true ),
 			)
 		);
@@ -199,7 +199,7 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_reporting_summary' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_read' ),
 				'args'                => array(
 					'business_id' => $this->get_business_id_arg(),
 					'range'       => $this->get_range_arg(),
@@ -213,13 +213,87 @@ class Public_API_Controller {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'approve_quote' ),
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( $this, 'permission_can_approve_quote' ),
 				'args'                => array(
 					'id'          => $this->get_id_arg(),
 					'business_id' => $this->get_business_id_arg(),
 				),
 			)
 		);
+	}
+
+	/**
+	 * Permission callback for authenticated read routes.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|\WP_Error
+	 */
+	public function permission_can_read( WP_REST_Request $request ) {
+		return $this->permission_user_can_access_business_scope( $request );
+	}
+
+	/**
+	 * Permission callback for authenticated write routes.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|\WP_Error
+	 */
+	public function permission_can_write( WP_REST_Request $request ) {
+		return $this->permission_user_can_access_business_scope( $request );
+	}
+
+	/**
+	 * Permission callback for quote approval.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|\WP_Error
+	 */
+	public function permission_can_approve_quote( WP_REST_Request $request ) {
+		$permission = $this->permission_can_write( $request );
+		if ( is_wp_error( $permission ) ) {
+			return $permission;
+		}
+
+		$user_id  = $this->get_authenticated_user_id();
+		$quote_id = absint( $request->get_param( 'id' ) );
+
+		if ( ! $this->quote_service->user_can_access_quote( $user_id, $quote_id ) ) {
+			return new \WP_Error(
+				'sm_api_quote_approve_forbidden',
+				__( 'You do not have access to this quote.', 'super-mechanic' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Validate current-user authentication and requested business scope.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|\WP_Error
+	 */
+	protected function permission_user_can_access_business_scope( WP_REST_Request $request ) {
+		$user_id = $this->get_authenticated_user_id();
+		if ( $user_id <= 0 ) {
+			return new \WP_Error(
+				'sm_api_authentication_required',
+				__( 'Authentication required.', 'super-mechanic' ),
+				array( 'status' => 401 )
+			);
+		}
+
+		$business_id = $this->resolve_business_scope( $request, $user_id );
+		if ( is_wp_error( $business_id ) ) {
+			return new \WP_Error(
+				$business_id->get_error_code(),
+				$business_id->get_error_message(),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
 	}
 
 	/**
@@ -770,4 +844,3 @@ class Public_API_Controller {
 		);
 	}
 }
-

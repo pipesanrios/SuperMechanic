@@ -22,22 +22,22 @@ class Google_Calendar_Webhook_Controller {
 	 *
 	 * @var string
 	 */
-	protected $namespace = Google_Calendar_Service::WEBHOOK_NAMESPACE;
+	protected $namespace = Google_Calendar_Client_Service::WEBHOOK_NAMESPACE;
 
 	/**
 	 * Integration service.
 	 *
-	 * @var Google_Calendar_Service
+	 * @var Google_Calendar_Client_Service
 	 */
 	protected $google_calendar_service;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Google_Calendar_Service|null $google_calendar_service Service.
+	 * @param Google_Calendar_Client_Service|null $google_calendar_service Service.
 	 */
-	public function __construct( Google_Calendar_Service $google_calendar_service = null ) {
-		$this->google_calendar_service = $google_calendar_service ? $google_calendar_service : new Google_Calendar_Service();
+	public function __construct( Google_Calendar_Client_Service $google_calendar_service = null ) {
+		$this->google_calendar_service = $google_calendar_service ? $google_calendar_service : new Google_Calendar_Client_Service();
 	}
 
 	/**
@@ -57,7 +57,7 @@ class Google_Calendar_Webhook_Controller {
 	public function register_routes() {
 		register_rest_route(
 			$this->namespace,
-			Google_Calendar_Service::WEBHOOK_ROUTE,
+			Google_Calendar_Client_Service::WEBHOOK_ROUTE,
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'handle_webhook' ),

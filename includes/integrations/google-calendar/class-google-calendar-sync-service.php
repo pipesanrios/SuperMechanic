@@ -9,6 +9,7 @@ namespace Super_Mechanic\Integrations\Google_Calendar;
 
 use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Helpers\Business_Context_Service;
+use Super_Mechanic\Services\Google_Calendar_Sync_Service as Calendar_Payload_Service;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -25,9 +26,16 @@ class Google_Calendar_Sync_Service {
 	/**
 	 * Integration service.
 	 *
-	 * @var Google_Calendar_Service
+	 * @var Google_Calendar_Client_Service
 	 */
 	protected $google_calendar_service;
+
+	/**
+	 * Canonical payload service.
+	 *
+	 * @var Calendar_Payload_Service
+	 */
+	protected $payload_service;
 
 	/**
 	 * Sync repository.
@@ -53,15 +61,16 @@ class Google_Calendar_Sync_Service {
 	/**
 	 * Constructor.
 	 *
-	 * @param Google_Calendar_Service|null                  $google_calendar_service Service.
+	 * @param Google_Calendar_Client_Service|null           $google_calendar_service Service.
 	 * @param Google_Calendar_Sync_Repository|null          $sync_repository Repository.
 	 * @param Google_Calendar_Inbound_Reconcile_Service|null $inbound_reconcile_service Inbound policy service.
 	 */
-	public function __construct( Google_Calendar_Service $google_calendar_service = null, Google_Calendar_Sync_Repository $sync_repository = null, Google_Calendar_Inbound_Reconcile_Service $inbound_reconcile_service = null ) {
-		$this->google_calendar_service    = $google_calendar_service ? $google_calendar_service : new Google_Calendar_Service();
+	public function __construct( Google_Calendar_Client_Service $google_calendar_service = null, Google_Calendar_Sync_Repository $sync_repository = null, Google_Calendar_Inbound_Reconcile_Service $inbound_reconcile_service = null ) {
+		$this->google_calendar_service    = $google_calendar_service ? $google_calendar_service : new Google_Calendar_Client_Service();
 		$this->sync_repository            = $sync_repository ? $sync_repository : new Google_Calendar_Sync_Repository();
 		$this->inbound_reconcile_service  = $inbound_reconcile_service ? $inbound_reconcile_service : new Google_Calendar_Inbound_Reconcile_Service();
 		$this->appointment_service        = null;
+		$this->payload_service            = new Calendar_Payload_Service();
 	}
 
 	/**
@@ -96,7 +105,9 @@ class Google_Calendar_Sync_Service {
 		$local_hash    = $this->build_sync_hash( $appointment );
 		$hash_pair     = is_array( $sync_row ) ? $this->parse_hash_pair( (string) $sync_row['last_sync_hash'] ) : array( 'local' => '', 'remote' => '' );
 		$last_hash     = (string) $hash_pair['local'];
-		$expected_data = $this->google_calendar_service->build_event_payload( $appointment );
+		$expected_data = $this->google_calendar_service->prepare_provider_event_payload(
+			$this->payload_service->build_appointment_event_payload( $appointment )
+		);
 
 		if ( '' !== $last_hash && hash_equals( $last_hash, $local_hash ) && is_array( $sync_row ) && 'synced' === (string) $sync_row['sync_status'] ) {
 			return true;
@@ -267,7 +278,9 @@ class Google_Calendar_Sync_Service {
 			return $remote_event;
 		}
 
-		$expected_payload = $this->google_calendar_service->build_event_payload( $appointment );
+		$expected_payload = $this->google_calendar_service->prepare_provider_event_payload(
+			$this->payload_service->build_appointment_event_payload( $appointment )
+		);
 		$hash_pair        = $this->parse_hash_pair( isset( $sync_row['last_sync_hash'] ) ? (string) $sync_row['last_sync_hash'] : '' );
 		$evaluation       = $this->inbound_reconcile_service->evaluate(
 			$appointment,

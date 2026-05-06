@@ -1828,3 +1828,151 @@ Validation state:
 - QA runner (`docs/contracts/validation/56P9-B-validation.md`) PASS in automated checks
 - manual payload-build checks PASS for appointment, process and missing-field validation
 
+---
+
+## Fase 56P9-C Google Calendar Architecture Consolidation (Applied technical)
+
+Delivered in current code:
+- Google Calendar integration architecture consolidated:
+  - canonical payload builder remains in `includes/services/class-google-calendar-sync-service.php`
+  - integration-facing service renamed/reoriented to `includes/integrations/google-calendar/class-google-calendar-client-service.php`
+- integration service class is now:
+  - `Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Client_Service`
+- removed duplicated domain payload builder from integration layer:
+  - no `build_event_payload(...)` method remains under `includes/integrations/google-calendar/*`
+- integration layer now prepares provider-ready event shape from canonical payloads through:
+  - `prepare_provider_event_payload_from_appointment(...)`
+  - `prepare_provider_event_payload(...)`
+- wiring updated for plugin bootstrap, settings, auth controller, webhook controller and existing integration sync orchestration
+
+Scope safeguards:
+- no OAuth implementation changes
+- no new Google API calls
+- no schema changes
+- no frontend/API/CRM/reset/dashboard changes
+- canonical payload logic remains service-layer owned
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P9-C-validation.md`) PASS in automated checks
+- manual architecture checks PASS:
+  - no duplicated payload builder in integration layer
+  - canonical sync service builds payloads
+  - integration client service loads and converts canonical payloads to provider-ready event shape
+
+---
+
+## Fase 56P10-A API Auth Model Audit (COMPLETA)
+
+Delivered audit:
+- REST route inventory completed across active API-related surfaces:
+  - formal API namespace `sm/v1`
+  - internal/admin namespace `super-mechanic/v1`
+  - public integration namespace `super-mechanic-public/v1`
+  - Google Calendar webhook route
+- formal `sm/v1` API auth behavior documented:
+  - all 7 routes currently register `permission_callback => __return_true`
+  - authentication is enforced inside callbacks via current WordPress user resolution
+  - business scope is resolved via `Business_Context_Service`
+  - entity ownership checks are delegated to existing services where implemented
+- adjacent auth models documented:
+  - internal/admin routes use login + capability or portal permission callbacks
+  - public integration API uses plugin-managed API keys with Bearer / `X-SM-API-Key`, scopes and business binding
+  - Google Calendar webhook uses public route registration with provider header/channel validation inside service layer
+
+Identified hardening gaps:
+- formal `sm/v1` routes lack strict route-level permission callbacks
+- formal `sm/v1` has no plugin-managed external API-key/token model
+- formal `sm/v1` has no explicit per-route capability policy
+- quote approval mutation should be prioritized for route-level hardening in 56P10-B
+
+Scope safeguards:
+- audit only
+- no endpoint behavior changes
+- no new auth implementation
+- no schema/frontend/business-logic changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P10-A-validation.md`) PASS in automated checks
+- manual audit checks PASS:
+  - routes inventoried
+  - permission callbacks reviewed
+  - auth gaps documented
+- runtime REST calls NOT_RUN (audit-only phase)
+
+---
+
+## Fase 56P10-B Endpoint Protection Hardening (COMPLETA)
+
+Delivered in current code:
+- formal `sm/v1` endpoint protection hardened in:
+  - `includes/api/controllers/class-public-api-controller.php`
+- all 7 formal `sm/v1` routes now use named permission callbacks instead of `__return_true`
+- read routes now use:
+  - `Public_API_Controller::permission_can_read(...)`
+- quote approval mutation now uses:
+  - `Public_API_Controller::permission_can_approve_quote(...)`
+- base write policy added for mutation routes:
+  - `Public_API_Controller::permission_can_write(...)`
+- shared permission helper added:
+  - authenticated WordPress current-user requirement
+  - requested `business_id` validation through existing `Business_Context_Service`
+- quote approval is protected at REST permission layer with existing `Quote_Service::user_can_access_quote(...)`
+
+Protected `sm/v1` route map:
+- `GET /clients` -> `permission_can_read`
+- `GET /vehicles` -> `permission_can_read`
+- `GET /processes` -> `permission_can_read`
+- `GET /processes/{id}` -> `permission_can_read`
+- `GET /invoices` -> `permission_can_read`
+- `GET /reporting/summary` -> `permission_can_read`
+- `POST /quotes/{id}/approve` -> `permission_can_approve_quote`
+
+Scope safeguards:
+- no external API-key system added to `sm/v1`
+- no changes to `super-mechanic-public/v1`
+- no route path or namespace changes
+- no endpoint redesign
+- existing callback-level auth, business-scope and ownership checks preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P10-B-validation.md`) PASS in automated checks
+- manual/static checks PASS:
+  - no `__return_true` remains under `includes/api`
+  - read route permission callbacks reviewed
+  - quote approval permission callback reviewed
+- runtime REST smoke calls NOT_RUN
+
+---
+
+## Fase 56P10-C External API QA (COMPLETA)
+
+Runtime QA executed:
+- unauthenticated HTTP requests against exact `/wp-json/sm/v1/...` routes:
+  - `GET /clients` -> `401 sm_api_authentication_required`
+  - `GET /vehicles` -> `401 sm_api_authentication_required`
+  - `GET /processes` -> `401 sm_api_authentication_required`
+  - `POST /quotes/1/approve` -> `401 sm_api_authentication_required`
+- authenticated WordPress runtime REST dispatch with administrator user `admin@mardisom.com`:
+  - `GET /clients` -> `200`, response keys `success,data,meta`
+  - `GET /vehicles` -> `200`, response keys `success,data,meta`
+  - `GET /processes` -> `200`, response keys `success,data,meta`
+  - `GET /reporting/summary` -> `200`, response keys `success,data,meta`
+- unauthorized mutation runtime dispatch with `sm_client` user `client@mekvort.local`:
+  - `POST /quotes/999999/approve` -> `403 sm_api_quote_approve_forbidden`
+
+Compatibility state:
+- namespace remains `sm/v1`
+- public REST path remains `/wp-json/sm/v1/...`
+- authenticated success payload shape remains `success`, `data`, `meta`
+- permission-layer error shape is standard WordPress REST error payload
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P10-C-validation.md`) executed successfully; contract is manual-only and reports NOT_RUN for runner manual checks
+- manual/runtime QA checks PASS
+- no critical bug discovered
+- no code changes required
+

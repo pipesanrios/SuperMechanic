@@ -65,7 +65,7 @@ use Super_Mechanic\Invoices\Payment_Finance_Admin_Controller;
 use Super_Mechanic\Invoices\Invoice_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Auth_Controller;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Client;
-use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Service;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Client_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Repository;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Webhook_Controller;
@@ -213,7 +213,7 @@ class Plugin {
 		$this->appointment_ical_feed_service = new Appointment_Ical_Feed_Service();
 		$this->feed_token_service            = new Feed_Token_Service();
 		$this->google_calendar_client        = new Google_Calendar_Client();
-		$this->google_calendar_service       = new Google_Calendar_Service( $this->settings_service, $this->google_calendar_client );
+		$this->google_calendar_service       = new Google_Calendar_Client_Service( $this->settings_service, $this->google_calendar_client );
 		$this->google_calendar_sync_repository = new Google_Calendar_Sync_Repository();
 		$this->google_calendar_sync_service  = new Google_Calendar_Sync_Service( $this->google_calendar_service, $this->google_calendar_sync_repository );
 		$this->google_calendar_service->set_sync_service( $this->google_calendar_sync_service );

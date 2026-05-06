@@ -1507,3 +1507,140 @@ Scope confirmation:
 - appointment and process mapping use existing domain row fields only
 - validation returns structured missing-field errors
 - no OAuth, token exchange, Google API calls, real remote sync, external event ID persistence, frontend/API/CRM/reset/schema changes
+
+---
+
+## 56P9-C — GOOGLE CALENDAR ARCHITECTURE CONSOLIDATION
+
+Fecha de ejecucion: 2026-05-05
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P9-C-validation.md --output=text` -> PASS
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual runtime:
+- no_duplicate_logic -> PASS
+- sync_service_is_canonical -> PASS
+- integration_is_client_only -> PASS
+
+Scope confirmation:
+- canonical calendar payload building remains in `includes/services/class-google-calendar-sync-service.php`
+- integration service renamed/reoriented to `Google_Calendar_Client_Service` in `includes/integrations/google-calendar/class-google-calendar-client-service.php`
+- duplicated `build_event_payload(...)` removed from `includes/integrations/google-calendar/*`
+- integration layer converts canonical payloads to provider-ready Google event shape without owning domain payload mapping
+- no OAuth implementation changes, new Google API calls, schema changes, frontend/API/CRM/reset/dashboard changes
+
+---
+
+## 56P10-A — API AUTH MODEL AUDIT
+
+Fecha de ejecucion: 2026-05-05
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P10-A-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Manual audit:
+- routes_inventoried -> PASS
+- permission_callbacks_reviewed -> PASS
+- auth_gaps_documented -> PASS
+
+Runtime:
+- REST runtime calls -> NOT_RUN
+
+Scope confirmation:
+- route inventory completed for:
+  - formal API `sm/v1`
+  - internal/admin REST `super-mechanic/v1`
+  - public integration API `super-mechanic-public/v1`
+  - Google Calendar webhook route
+- formal `sm/v1` routes currently use `permission_callback => __return_true` and enforce authentication inside callbacks via current WordPress user checks
+- internal/admin routes use stricter permission callbacks with login/capability or client portal permission checks
+- public integration API already has plugin-managed API key auth with Bearer / `X-SM-API-Key`, scopes and business binding
+- Google Calendar webhook remains intentionally public at route level and validates provider channel/resource/token headers inside the service
+- no endpoint behavior, auth behavior, schema, frontend, CRM, users or business logic changes were made
+
+---
+
+## 56P10-B — ENDPOINT PROTECTION HARDENING
+
+Fecha de ejecucion: 2026-05-05
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P10-B-validation.md --output=text` -> PASS
+  - PASS: 1
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Manual/static:
+- unauthenticated_sm_routes_blocked -> PASS (permission callbacks now require current WP user)
+- authenticated_reads_work -> PASS (read callbacks still delegate to unchanged endpoint callbacks after permission pass)
+- unauthorized_writes_blocked -> PASS (quote approval now checks quote ownership in permission callback)
+- quote_approve_protected -> PASS (`POST /sm/v1/quotes/{id}/approve` uses `permission_can_approve_quote`)
+
+Runtime:
+- REST runtime calls -> NOT_RUN
+
+Scope confirmation:
+- all 7 `sm/v1` route registrations now use named permission callbacks
+- `permission_can_read`, `permission_can_write` and `permission_can_approve_quote` were added to `Public_API_Controller`
+- unauthenticated users are blocked at REST permission layer with status `401`
+- invalid requested `business_id` is blocked at REST permission layer with status `403`
+- quote approval is checked at permission layer through existing `Quote_Service::user_can_access_quote(...)`
+- no external API key model, public integration API change, namespace rename, route redesign, schema change, frontend change or unrelated module change was introduced
+
+---
+
+## 56P10-C — EXTERNAL API QA
+
+Fecha de ejecucion: 2026-05-06
+
+Automated baseline:
+- `php scripts/php-lint.php --all` -> PASS
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P10-C-validation.md --output=text` -> executed successfully
+  - PASS: 0
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Runtime/manual:
+- unauthenticated_reads_blocked -> PASS
+- unauthenticated_quote_approve_blocked -> PASS
+- authenticated_reads_work -> PASS
+- unauthorized_quote_approve_blocked -> PASS
+- response_compatibility_preserved -> PASS
+
+Runtime matrix:
+- HTTP unauthenticated:
+  - `GET http://localhost/Mekvort/wp-json/sm/v1/clients` -> `401 sm_api_authentication_required`
+  - `GET http://localhost/Mekvort/wp-json/sm/v1/vehicles` -> `401 sm_api_authentication_required`
+  - `GET http://localhost/Mekvort/wp-json/sm/v1/processes` -> `401 sm_api_authentication_required`
+  - `POST http://localhost/Mekvort/wp-json/sm/v1/quotes/1/approve` -> `401 sm_api_authentication_required`
+- WordPress runtime authenticated dispatch:
+  - admin `GET /sm/v1/clients` -> `200`, keys `success,data,meta`
+  - admin `GET /sm/v1/vehicles` -> `200`, keys `success,data,meta`
+  - admin `GET /sm/v1/processes` -> `200`, keys `success,data,meta`
+  - admin `GET /sm/v1/reporting/summary` -> `200`, keys `success,data,meta`
+  - client `POST /sm/v1/quotes/999999/approve` -> `403 sm_api_quote_approve_forbidden`
+
+Compatibility confirmation:
+- namespace remains `sm/v1`
+- `/wp-json/sm/v1/...` routes remain active
+- authenticated success payload shape remains compatible (`success`, `data`, `meta`)
+- unauthenticated permission-layer failures return standard WordPress REST error shape (`code`, `message`, `data.status`)
+- no endpoint redesign, auth redesign, API key change or code change was made
+
+Notes:
+- WP-CLI was not available.
+- authenticated checks used runtime REST dispatch with `wp_set_current_user(...)`; no cookie/Application Password credentials were available for external authenticated HTTP transport.
+- quote ID `999999` was used for unauthorized mutation to avoid mutating real quote data.

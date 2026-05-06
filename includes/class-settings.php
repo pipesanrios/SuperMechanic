@@ -16,7 +16,7 @@ use Super_Mechanic\Helpers\Update_Service;
 use Super_Mechanic\Helpers\Plan_Access_Service;
 use Super_Mechanic\Helpers\Feature_Flags;
 use Super_Mechanic\Helpers\DB_Security_Service;
-use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Service;
+use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Client_Service;
 use Super_Mechanic\Integrations\Google_Calendar\Google_Calendar_Sync_Service;
 
 defined( 'ABSPATH' ) || exit;
@@ -67,7 +67,7 @@ class Settings {
 	/**
 	 * Google Calendar service.
 	 *
-	 * @var Google_Calendar_Service
+	 * @var Google_Calendar_Client_Service
 	 */
 	protected $google_calendar_service;
 	/**
@@ -103,7 +103,7 @@ class Settings {
 		$this->license_service  = new License_Service( $this->settings_service );
 		$this->update_service   = new Update_Service( $this->settings_service, null, $this->license_service );
 		$this->plan_access_service = new Plan_Access_Service( $this->settings_service, $this->license_service );
-		$this->google_calendar_service = new Google_Calendar_Service( $this->settings_service );
+		$this->google_calendar_service = new Google_Calendar_Client_Service( $this->settings_service );
 		$this->google_calendar_sync_service = new Google_Calendar_Sync_Service( $this->google_calendar_service );
 		$this->business_service = new Business_Service();
 		$this->business_context_service = new Business_Context_Service( $this->settings_service, $this->business_service );

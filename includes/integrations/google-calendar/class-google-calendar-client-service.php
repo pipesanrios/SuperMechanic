@@ -1,6 +1,6 @@
 <?php
 /**
- * Google Calendar integration service.
+ * Google Calendar client integration service.
  *
  * @package Super_Mechanic
  */
@@ -9,14 +9,15 @@ namespace Super_Mechanic\Integrations\Google_Calendar;
 
 use Super_Mechanic\Appointments\Appointment_Service;
 use Super_Mechanic\Helpers\Settings_Service;
+use Super_Mechanic\Services\Google_Calendar_Sync_Service as Calendar_Payload_Service;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Handles OAuth state, token lifecycle and event payload mapping.
+ * Handles Google Calendar OAuth state, token lifecycle and external client operations.
  */
-class Google_Calendar_Service {
+class Google_Calendar_Client_Service {
 	/**
 	 * Provider key.
 	 */
@@ -49,6 +50,13 @@ class Google_Calendar_Service {
 	protected $sync_service;
 
 	/**
+	 * Canonical payload service.
+	 *
+	 * @var Calendar_Payload_Service
+	 */
+	protected $payload_service;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Settings_Service|null      $settings_service Settings.
@@ -58,6 +66,7 @@ class Google_Calendar_Service {
 		$this->settings_service = $settings_service ? $settings_service : new Settings_Service();
 		$this->client           = $client ? $client : new Google_Calendar_Client();
 		$this->sync_service     = null;
+		$this->payload_service  = new Calendar_Payload_Service();
 	}
 
 	/**
@@ -258,7 +267,7 @@ class Google_Calendar_Service {
 
 		$settings    = $this->get_settings();
 		$calendar_id = ! empty( $settings['calendar_id'] ) ? (string) $settings['calendar_id'] : 'primary';
-		$event_data  = $this->build_event_payload( $appointment );
+		$event_data  = $this->prepare_provider_event_payload_from_appointment( $appointment );
 
 		if ( '' !== (string) $existing_event_id ) {
 			return $this->client->update_event( (string) $access_token, $calendar_id, (string) $existing_event_id, $event_data );
@@ -491,61 +500,6 @@ class Google_Calendar_Service {
 	}
 
 	/**
-	 * Build Calendar event payload from appointment.
-	 *
-	 * @param array<string,mixed> $appointment Appointment row.
-	 * @return array<string,mixed>
-	 */
-	public function build_event_payload( array $appointment ) {
-		$timezone  = wp_timezone_string();
-		if ( '' === $timezone ) {
-			$timezone = 'UTC';
-		}
-
-		$id        = isset( $appointment['id'] ) ? absint( $appointment['id'] ) : 0;
-		$status    = isset( $appointment['appointment_status'] ) ? sanitize_key( (string) $appointment['appointment_status'] ) : 'scheduled';
-		$client    = isset( $appointment['client_name'] ) ? sanitize_text_field( (string) $appointment['client_name'] ) : '';
-		$vehicle   = trim(
-			sprintf(
-				'%s %s',
-				isset( $appointment['vehicle_make'] ) ? (string) $appointment['vehicle_make'] : '',
-				isset( $appointment['vehicle_model'] ) ? (string) $appointment['vehicle_model'] : ''
-			)
-		);
-		$mechanic  = isset( $appointment['mechanic_name'] ) ? sanitize_text_field( (string) $appointment['mechanic_name'] ) : '';
-		$notes     = isset( $appointment['notes'] ) ? sanitize_textarea_field( (string) $appointment['notes'] ) : '';
-		$start_ts  = $this->normalize_datetime_timestamp( isset( $appointment['start_at'] ) ? $appointment['start_at'] : '' );
-		$start_iso = gmdate( 'Y-m-d\TH:i:s\Z', $start_ts );
-		$end_iso   = gmdate( 'Y-m-d\TH:i:s\Z', $start_ts + HOUR_IN_SECONDS );
-
-		$description = implode(
-			"\n",
-			array_filter(
-				array(
-					'Estado: ' . $status,
-					'' !== $client ? 'Cliente: ' . $client : '',
-					'' !== $vehicle ? 'Vehiculo: ' . $vehicle : '',
-					'' !== $mechanic ? 'Mecanico: ' . $mechanic : '',
-					'' !== $notes ? 'Notas: ' . $notes : '',
-				)
-			)
-		);
-
-		return array(
-			'summary'     => sprintf( 'Cita #%d - %s', $id, '' !== $vehicle ? $vehicle : __( 'Vehiculo', 'super-mechanic' ) ),
-			'description' => $description,
-			'start'       => array(
-				'dateTime' => $start_iso,
-				'timeZone' => $timezone,
-			),
-			'end'         => array(
-				'dateTime' => $end_iso,
-				'timeZone' => $timezone,
-			),
-		);
-	}
-
-	/**
 	 * Build and persist OAuth state.
 	 *
 	 * @param int $user_id User ID.
@@ -760,6 +714,45 @@ class Google_Calendar_Service {
 	}
 
 	/**
+	 * Prepare provider-ready payload from canonical appointment payload.
+	 *
+	 * @param array<string,mixed> $appointment Appointment row.
+	 * @return array<string,mixed>
+	 */
+	public function prepare_provider_event_payload_from_appointment( array $appointment ) {
+		$payload = $this->payload_service->build_appointment_event_payload( $appointment );
+
+		return $this->prepare_provider_event_payload( $payload );
+	}
+
+	/**
+	 * Convert canonical calendar payload to Google Calendar event shape.
+	 *
+	 * @param array<string,mixed> $payload Canonical payload.
+	 * @return array<string,mixed>
+	 */
+	public function prepare_provider_event_payload( array $payload ) {
+		$timezone = isset( $payload['timezone'] ) ? sanitize_text_field( (string) $payload['timezone'] ) : 'UTC';
+		if ( '' === $timezone ) {
+			$timezone = 'UTC';
+		}
+
+		return array(
+			'summary'     => isset( $payload['summary'] ) ? sanitize_text_field( (string) $payload['summary'] ) : '',
+			'description' => isset( $payload['description'] ) ? sanitize_textarea_field( (string) $payload['description'] ) : '',
+			'start'       => array(
+				'dateTime' => isset( $payload['start']['datetime'] ) ? sanitize_text_field( (string) $payload['start']['datetime'] ) : '',
+				'timeZone' => $timezone,
+			),
+			'end'         => array(
+				'dateTime' => isset( $payload['end']['datetime'] ) ? sanitize_text_field( (string) $payload['end']['datetime'] ) : '',
+				'timeZone' => $timezone,
+			),
+			'attendees'   => isset( $payload['attendees'] ) && is_array( $payload['attendees'] ) ? $payload['attendees'] : array(),
+		);
+	}
+
+	/**
 	 * Read header value from mixed header map.
 	 *
 	 * @param array<string,mixed> $headers Headers.
@@ -841,18 +834,4 @@ class Google_Calendar_Service {
 		}
 	}
 
-	/**
-	 * Normalize datetime value to timestamp.
-	 *
-	 * @param mixed $value Value.
-	 * @return int
-	 */
-	protected function normalize_datetime_timestamp( $value ) {
-		$timestamp = strtotime( sanitize_text_field( (string) $value ) );
-		if ( false === $timestamp ) {
-			$timestamp = time();
-		}
-
-		return (int) $timestamp;
-	}
 }

@@ -16,17 +16,17 @@ class Google_Calendar_Auth_Controller {
 	/**
 	 * Integration service.
 	 *
-	 * @var Google_Calendar_Service
+	 * @var Google_Calendar_Client_Service
 	 */
 	protected $google_calendar_service;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Google_Calendar_Service|null $google_calendar_service Service.
+	 * @param Google_Calendar_Client_Service|null $google_calendar_service Service.
 	 */
-	public function __construct( Google_Calendar_Service $google_calendar_service = null ) {
-		$this->google_calendar_service = $google_calendar_service ? $google_calendar_service : new Google_Calendar_Service();
+	public function __construct( Google_Calendar_Client_Service $google_calendar_service = null ) {
+		$this->google_calendar_service = $google_calendar_service ? $google_calendar_service : new Google_Calendar_Client_Service();
 	}
 
 	/**
