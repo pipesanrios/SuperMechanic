@@ -1976,3 +1976,323 @@ Validation state:
 - no critical bug discovered
 - no code changes required
 
+---
+
+## Fase 56P11-A PDF Layout Final (PARCIAL)
+
+Delivered in current code:
+- invoice printable/PDF HTML layout improved in:
+  - `includes/invoices/class-invoice-service.php`
+- quote printable/PDF HTML layout improved in:
+  - `includes/quotes/class-quote-service.php`
+- contract-required PDF directory placeholder added:
+  - `includes/pdf/.gitkeep`
+
+Layout changes applied:
+- stronger PDF header hierarchy with company brand and document title
+- structured document metadata tables for client, process, status and date fields
+- item tables updated for clearer column widths, readable spacing and right-aligned numeric columns
+- totals moved from loose paragraphs into a dedicated summary table
+- invoice payment summary and payment history made easier to scan
+- notes and footer sections separated from financial totals for print clarity
+
+Compatibility and scope safeguards:
+- no totals calculation, tax logic, discount logic or payment logic changed
+- no PDF engine replacement
+- no export/download flow redesign
+- quote and invoice PDF filenames and service entrypoints preserved
+- reporting PDF export compatibility validated through existing `Report_PDF_Service`
+- reporting visual renderer was not modified because active code lives in `includes/reporting/class-report-pdf-service.php`, which is outside the 56P11-A allowed file list
+- localized critical PDF bug fixed in allowed invoice file:
+  - `Invoice_Service::get_invoice_print_context()` now imports the existing `Super_Mechanic\Settings` class required by `Settings::OPTION_NAME`
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P11-A-validation.md`) PASS in automated check:
+  - `pdf_folder_exists` PASS
+  - manual checks NOT_RUN by runner
+- manual/runtime checks PASS:
+  - invoice PDF HTML readable with new layout classes and preserved total value
+  - quote PDF HTML readable with new layout classes and preserved total value
+- reporting PDF binary generated successfully with existing export flow
+- totals preserved in rendered output
+
+Closure state:
+- PARCIAL because invoice and quote PDF layouts were improved and validated, but reporting visual layout was not changed due the active renderer being outside contract allowed files
+
+---
+
+## Fase 56P11-A1 Reporting PDF Layout Final (COMPLETA)
+
+Delivered in current code:
+- reporting PDF visual layout finalized in:
+  - `includes/reporting/class-report-pdf-service.php`
+- 56P11-A reporting visual pending area completed under explicit A1 scope
+
+Layout changes applied:
+- professional reporting PDF header with Mekvort / Super Mechanic branding
+- clearer document title and export context subtitle
+- structured metadata table for:
+  - generated at
+  - range
+  - business scope
+- key metrics table improved with consistent spacing, column widths and right-aligned numeric values
+- period comparison table improved with clearer current/previous/delta/trend columns
+- visual hierarchy improved through section headings, borders and footer note
+
+Compatibility and scope safeguards:
+- same metrics and comparison rows preserved
+- same reporting service/data methods preserved
+- same PDF engine loading and generation flow preserved
+- same filename and response payload behavior preserved
+- no invoice or quote files touched in A1
+- no calculations, schema, API, CRM, reset, frontend or PDF library changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P11-A1-validation.md`) PASS in automated check:
+  - `report_pdf_service_exists` PASS
+  - manual checks NOT_RUN by runner
+- manual/runtime checks PASS:
+  - reporting PDF generated successfully
+  - reporting layout source contains new header/meta/table structure
+  - expected metrics remain present
+  - PDF binary does not expose raw HTML/CSS text
+
+---
+
+## Fase 56P11-B PDF Data Mapping Verification (COMPLETA)
+
+Verification completed:
+- invoice PDF data mapping audited from invoice context/source rows to rendered PDF HTML
+- quote PDF data mapping audited from quote context/source rows to rendered PDF HTML
+- reporting PDF data mapping audited from reporting summary/comparison payloads to rendered PDF HTML and generated PDF binary
+
+Invoice mapping verified:
+- invoice number, company, client, process, status, issued/due dates
+- item labels, descriptions, quantities, unit prices and line totals
+- subtotal, tax total, discount total and grand total
+- paid amount, remaining balance and payment history
+- empty item state
+
+Quote mapping verified:
+- quote number, company, client, process, status and created date
+- item labels, descriptions, quantities, unit prices and line totals
+- subtotal, tax total, discount total and grand total
+- empty item state
+
+Reporting mapping verified:
+- generated at, range label and business scope
+- all 9 reporting metric values
+- comparison current/previous/delta values where available
+- generated PDF binary remains valid
+
+Result:
+- no mapping mismatches found
+- no code changes required
+- calculations, taxes, discounts, payments, balances, PDF engine and export flows preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P11-B-validation.md`) PASS in automated checks:
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4 manual checks
+- manual/runtime checks PASS:
+  - invoice PDF data matches source
+  - quote PDF data matches source
+  - reporting PDF data matches source
+  - financial totals preserved
+
+---
+
+## Fase 56P11-C PDF Export Stability (PARCIAL)
+
+Stability audit completed:
+- invoice PDF repeated export stability checked
+- quote PDF repeated export stability checked
+- reporting PDF repeated export stability checked
+- download header handling audited
+- filenames checked for PDF extension and sanitized output
+- invalid/missing export targets checked for controlled failures
+
+Runtime/manual results:
+- repeated invoice export stable -> PASS
+  - invoice ID `1`
+  - filename `smi-20260422-0001.pdf`
+  - repeated byte size `9462`
+- repeated quote export stable -> PASS
+  - quote ID `2`
+  - filename `smq-20260425034507-1671.pdf`
+  - repeated byte size `8902`
+- repeated reporting export stable -> PASS
+  - business ID `1`, range `30d`
+  - generated filename pattern `sm-reporting-b1-30d-YYYYMMDD-HHMMSS.pdf`
+  - repeated byte size `59010`
+- quote empty item state -> PASS
+- reporting empty business scope -> PASS
+- invalid invoice ID -> PASS with `sm_invoice_not_found`
+- invalid quote ID -> PASS with `sm_quote_not_found`
+
+Header/export behavior:
+- invoice and quote exports use `PDF_Service::stream_pdf(...)`
+- reporting export uses `Reporting_Admin_Controller::handle_download_pdf(...)`
+- both emit PDF content type, attachment disposition and content length from generated content
+- filenames are sanitized before response
+
+Result:
+- no export instability found
+- no code changes required
+- calculations, mapping, PDF engine and export flow preserved
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P11-C-validation.md`) PASS in automated checks:
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- manual/runtime checks PASS for repeated exports, headers/filenames and invalid/missing errors
+
+Closure state:
+- PARCIAL because partial payment export stability could not be validated; the local dataset only contains invoice ID `1` fully paid (`paid=32`, `remaining=0`)
+
+---
+
+## Fase 56P11-C0 Embedded PDF Engine Restore (COMPLETA)
+
+Delivered in current code:
+- reporting PDF embedded-engine detection hardened in:
+  - `includes/reporting/class-report-pdf-service.php`
+- embedded TCPDF physical package confirmed at:
+  - `includes/libs/pdf/tcpdf/tcpdf.php`
+- reporting PDF service now treats embedded TCPDF loading as an explicit success/failure result before checking external engine classes
+- fallback message now points to the missing/unloadable bundled TCPDF package instead of asking users to install external PDF libraries/plugins
+
+Runtime/manual results:
+- embedded TCPDF file exists -> PASS
+- `Report_PDF_Service::can_generate_pdf()` -> PASS
+- `class_exists('TCPDF')` after service detection -> PASS
+- active reporting engine label -> `TCPDF`
+- reporting PDF generation -> PASS
+  - sample filename `sm-reporting-b1-30d-20260506-010158.pdf`
+  - MIME `application/pdf`
+  - binary header `%PDF-`
+  - no raw `<html` payload detected
+- Reporting admin page render -> PASS
+  - `Download PDF Report` button present and enabled
+  - engine notice reports `TCPDF`
+  - missing-engine/install message absent
+
+Scope safeguards:
+- no external plugin/library dependency added
+- no reporting calculations, data mapping, layout, filename behavior, response behavior, schema, API, invoices or quotes changed
+
+Validation state:
+- `php-lint` PASS
+
+---
+
+## Fase 56P11-C Retake After C0 PDF Export Stability (PARCIAL)
+
+Retake context:
+- 56P11-C0 restored embedded TCPDF for Reporting PDF
+- reporting engine detection reports `TCPDF`
+- reporting PDF generation produces valid `%PDF-` binary
+
+Runtime/manual results:
+- fresh shared PDF service check -> FAIL
+  - `Super_Mechanic\Helpers\PDF_Service::can_generate_pdf()` returns false in a fresh request
+  - invoice and quote exports fail before entity validation with `sm_pdf_engine_unavailable`
+- invoice PDF fresh request -> FAIL 3/3
+  - invoice ID `1`
+  - error `sm_pdf_engine_unavailable`
+- quote PDF fresh request -> FAIL 3/3
+  - quote ID `1`
+  - error `sm_pdf_engine_unavailable`
+- reporting PDF -> PASS 3/3
+  - business ID `1`, range `30d`
+  - filename pattern `sm-reporting-b1-30d-YYYYMMDD-HHMMSS.pdf`
+  - MIME `application/pdf`
+  - repeated byte size `59009`
+  - binary header `%PDF-`
+  - no raw HTML detected
+- reporting empty business scope -> PASS
+- reporting empty range -> PASS
+- invoice/quote conditional behavior after Reporting loads TCPDF -> PASS 3/3 each
+  - invoice filename `smi-20260422-0001.pdf`, bytes `9462`, total `32.00`
+  - quote filename `smq-20260422031820-1916.pdf`, bytes `9013`, total `32.00`
+
+Issue isolated:
+- 56P11-C0 restored embedded TCPDF loading in `Report_PDF_Service`
+- invoice/quote exports use the shared `PDF_Service`, which does not load embedded TCPDF by itself
+- required minimal fix is in `includes/helpers/class-pdf-service.php`, outside the 56P11-C allowed file list
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P11-C-validation.md`) PASS automated checks:
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+
+Closure state:
+- PARCIAL because reporting stability passes, but invoice/quote PDF exports fail in fresh requests until embedded TCPDF loading is centralized for the shared PDF service
+
+---
+
+## Fase 56P11-C1 Shared PDF Engine Loader (COMPLETA)
+
+Delivered in current code:
+- shared embedded PDF engine loader centralized in:
+  - `includes/helpers/class-pdf-service.php`
+- reporting PDF service aligned to the shared loader in:
+  - `includes/reporting/class-report-pdf-service.php`
+
+Root cause resolved:
+- Reporting loaded embedded TCPDF through `Report_PDF_Service`
+- invoice and quote exports use shared `PDF_Service`, which did not load embedded TCPDF in fresh requests
+- C1 makes shared `PDF_Service` load bundled TCPDF from:
+  - `includes/libs/pdf/tcpdf/tcpdf.php`
+  - `vendor/tecnickcom/tcpdf/tcpdf.php` when present
+  - `vendor/autoload.php` when present
+
+Runtime/manual results:
+- `PDF_Service::can_generate_pdf()` in fresh request -> PASS
+- `class_exists('TCPDF')` after detector -> PASS
+- invoice PDF fresh export -> PASS 3/3
+  - filename `smi-20260422-0001.pdf`
+  - MIME `application/pdf`
+  - bytes `9462`
+  - binary header `%PDF-`
+- quote PDF fresh export -> PASS 3/3
+  - filename `smq-20260422031820-1916.pdf`
+  - MIME `application/pdf`
+  - bytes `9013`
+  - binary header `%PDF-`
+- reporting PDF remains stable -> PASS 3/3
+  - engine `TCPDF`
+  - bytes `59009`
+  - binary header `%PDF-`
+- invalid invoice ID `999999` -> PASS controlled `sm_invoice_not_found`
+- invalid quote ID `999999` -> PASS controlled `sm_quote_not_found`
+
+Scope safeguards:
+- no calculation changes
+- no layout changes
+- no filename changes
+- no PDF engine replacement
+- no invoice/quote business logic changes
+- no schema changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P11-C1-validation.md`) PASS automated checks:
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+
+Closure state:
+- COMPLETA

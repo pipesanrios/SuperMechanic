@@ -75,9 +75,7 @@ class Report_PDF_Service extends PDF_Service {
 	 * @return bool
 	 */
 	public function can_generate_pdf() {
-		$this->maybe_load_embedded_pdf_engine();
-
-		return class_exists( '\Dompdf\Dompdf' ) || class_exists( '\Mpdf\Mpdf' ) || class_exists( '\TCPDF' );
+		return parent::can_generate_pdf();
 	}
 
 	/**
@@ -109,7 +107,7 @@ class Report_PDF_Service extends PDF_Service {
 	 * @return string
 	 */
 	public function get_missing_engine_message() {
-		return __( 'PDF engine unavailable. Embedded TCPDF could not be loaded and no external engine (Dompdf, mPDF, TCPDF) is available.', 'super-mechanic' );
+		return __( 'PDF engine unavailable. Embedded TCPDF is missing or could not be loaded from the plugin package.', 'super-mechanic' );
 	}
 
 	/**
@@ -128,34 +126,6 @@ class Report_PDF_Service extends PDF_Service {
 		}
 
 		return parent::generate_pdf_binary( $html, $filename );
-	}
-
-	/**
-	 * Embedded engine availability.
-	 *
-	 * @return bool
-	 */
-	protected function maybe_load_embedded_pdf_engine() {
-		if ( class_exists( '\TCPDF' ) ) {
-			return;
-		}
-
-		$candidates = array(
-			SM_PLUGIN_PATH . 'includes/libs/pdf/tcpdf/tcpdf.php',
-			SM_PLUGIN_PATH . 'vendor/tecnickcom/tcpdf/tcpdf.php',
-			SM_PLUGIN_PATH . 'vendor/autoload.php',
-		);
-
-		foreach ( $candidates as $candidate ) {
-			if ( ! file_exists( $candidate ) ) {
-				continue;
-			}
-
-			require_once $candidate;
-			if ( class_exists( '\TCPDF' ) ) {
-				return;
-			}
-		}
 	}
 
 	/**
@@ -238,46 +208,62 @@ class Report_PDF_Service extends PDF_Service {
 		$previous_label = $this->format_period_label( isset( $comparison['previous_period'] ) && is_array( $comparison['previous_period'] ) ? $comparison['previous_period'] : array() );
 
 		$html  = '<html><head><meta charset="utf-8" /><style>';
-		$html .= 'body{font-family:DejaVu Sans, Arial, sans-serif;font-size:12px;color:#1f2937;}';
-		$html .= '.sm-wrap{padding:16px;}h1{font-size:22px;margin:0 0 8px;color:#0f4fa8;}';
-		$html .= 'h2{font-size:16px;margin:22px 0 10px;color:#1f2937;}';
-		$html .= '.meta{margin:0 0 2px;color:#374151;}';
-		$html .= '.muted{color:#6b7280;font-size:11px;}';
-		$html .= 'table{width:100%;border-collapse:collapse;margin-top:8px;}';
-		$html .= 'th,td{border:1px solid #d1d5db;padding:8px;text-align:left;vertical-align:top;}';
-		$html .= 'th{background:#f3f4f6;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}';
-		$html .= '.num{text-align:right;}';
-		$html .= '.up{color:#166534;font-weight:700;}.down{color:#991b1b;font-weight:700;}.stable{color:#374151;font-weight:700;}';
-		$html .= '</style></head><body><div class="sm-wrap">';
-		$html .= '<h1>' . esc_html__( 'Commercial & Operational Reporting', 'super-mechanic' ) . '</h1>';
-		$html .= '<p class="meta"><strong>' . esc_html__( 'Generated at:', 'super-mechanic' ) . '</strong> ' . esc_html( $generated_at ) . '</p>';
-		$html .= '<p class="meta"><strong>' . esc_html__( 'Range:', 'super-mechanic' ) . '</strong> ' . esc_html( $range_label ) . '</p>';
-		$html .= '<p class="meta"><strong>' . esc_html__( 'Business scope:', 'super-mechanic' ) . '</strong> ' . esc_html( (string) $business_id ) . '</p>';
+		$html .= 'body{font-family:DejaVu Sans,Arial,sans-serif;font-size:10.5px;line-height:1.42;color:#1f2937;background:#ffffff;}';
+		$html .= '.sm-report-wrap{padding:8px 4px;}';
+		$html .= '.sm-report-header{border-bottom:3px solid #0f4fa8;margin-bottom:16px;padding-bottom:12px;}';
+		$html .= '.sm-report-brand{font-size:23px;font-weight:700;color:#0f4fa8;margin:0 0 4px;}';
+		$html .= '.sm-report-title{font-size:14px;font-weight:700;color:#111827;text-transform:uppercase;margin:0;}';
+		$html .= '.sm-report-subtitle{font-size:10px;color:#6b7280;margin:4px 0 0;}';
+		$html .= '.sm-report-meta{width:100%;border-collapse:collapse;margin:0 0 18px;}';
+		$html .= '.sm-report-meta td{border:1px solid #e5e7eb;padding:8px 10px;vertical-align:top;background:#f9fafb;}';
+		$html .= '.sm-report-label{display:block;font-size:8.5px;text-transform:uppercase;font-weight:700;color:#6b7280;margin-bottom:2px;}';
+		$html .= '.sm-report-section{font-size:14px;font-weight:700;color:#111827;margin:20px 0 8px;padding-bottom:5px;border-bottom:1px solid #d1d5db;}';
+		$html .= '.sm-report-note{font-size:9.5px;color:#6b7280;margin:0 0 8px;}';
+		$html .= '.sm-report-table{width:100%;border-collapse:collapse;margin-top:8px;}';
+		$html .= '.sm-report-table th{background:#eef2f7;color:#374151;border:1px solid #d1d5db;padding:8px 7px;font-size:8.5px;text-transform:uppercase;font-weight:700;}';
+		$html .= '.sm-report-table td{border:1px solid #e5e7eb;padding:8px 7px;vertical-align:top;}';
+		$html .= '.sm-report-table tbody tr:nth-child(even) td{background:#fbfdff;}';
+		$html .= '.sm-report-metric{font-weight:700;color:#111827;}';
+		$html .= '.sm-report-num{text-align:right;white-space:nowrap;font-weight:700;}';
+		$html .= '.sm-report-trend{text-align:center;font-weight:700;}';
+		$html .= '.up{color:#166534;}.down{color:#991b1b;}.stable{color:#374151;}';
+		$html .= '.sm-report-footer{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:9px;}';
+		$html .= '</style></head><body><div class="sm-report-wrap">';
+		$html .= '<div class="sm-report-header">';
+		$html .= '<h1 class="sm-report-brand">' . esc_html__( 'Mekvort / Super Mechanic', 'super-mechanic' ) . '</h1>';
+		$html .= '<p class="sm-report-title">' . esc_html__( 'Commercial & Operational Reporting', 'super-mechanic' ) . '</p>';
+		$html .= '<p class="sm-report-subtitle">' . esc_html__( 'Export-ready operational snapshot for the selected business scope.', 'super-mechanic' ) . '</p>';
+		$html .= '</div>';
+		$html .= '<table class="sm-report-meta"><tr>';
+		$html .= '<td><span class="sm-report-label">' . esc_html__( 'Generated at', 'super-mechanic' ) . '</span>' . esc_html( $generated_at ) . '</td>';
+		$html .= '<td><span class="sm-report-label">' . esc_html__( 'Range', 'super-mechanic' ) . '</span>' . esc_html( $range_label ) . '</td>';
+		$html .= '<td><span class="sm-report-label">' . esc_html__( 'Business scope', 'super-mechanic' ) . '</span>' . esc_html( (string) $business_id ) . '</td>';
+		$html .= '</tr></table>';
 
-		$html .= '<h2>' . esc_html__( 'Key Metrics', 'super-mechanic' ) . '</h2>';
-		$html .= '<table><thead><tr>';
-		$html .= '<th>' . esc_html__( 'Metric', 'super-mechanic' ) . '</th>';
-		$html .= '<th class="num">' . esc_html__( 'Value', 'super-mechanic' ) . '</th>';
+		$html .= '<h2 class="sm-report-section">' . esc_html__( 'Key Metrics', 'super-mechanic' ) . '</h2>';
+		$html .= '<table class="sm-report-table"><thead><tr>';
+		$html .= '<th width="68%">' . esc_html__( 'Metric', 'super-mechanic' ) . '</th>';
+		$html .= '<th width="32%" class="sm-report-num">' . esc_html__( 'Value', 'super-mechanic' ) . '</th>';
 		$html .= '</tr></thead><tbody>';
 
 		foreach ( $metric_labels as $metric_key => $metric_label ) {
 			$value = isset( $metrics[ $metric_key ] ) ? $metrics[ $metric_key ] : 0;
 			$html .= '<tr>';
-			$html .= '<td>' . esc_html( $metric_label ) . '</td>';
-			$html .= '<td class="num">' . esc_html( $this->format_metric_value( $metric_key, $value ) ) . '</td>';
+			$html .= '<td class="sm-report-metric">' . esc_html( $metric_label ) . '</td>';
+			$html .= '<td class="sm-report-num">' . esc_html( $this->format_metric_value( $metric_key, $value ) ) . '</td>';
 			$html .= '</tr>';
 		}
 		$html .= '</tbody></table>';
 
 		if ( $comparison_state && ! empty( $comparison_rows ) ) {
-			$html .= '<h2>' . esc_html__( 'Period Comparison', 'super-mechanic' ) . '</h2>';
-			$html .= '<p class="muted">' . esc_html( sprintf( __( 'Current: %1$s | Previous: %2$s', 'super-mechanic' ), $current_label, $previous_label ) ) . '</p>';
-			$html .= '<table><thead><tr>';
-			$html .= '<th>' . esc_html__( 'Metric', 'super-mechanic' ) . '</th>';
-			$html .= '<th class="num">' . esc_html__( 'Current', 'super-mechanic' ) . '</th>';
-			$html .= '<th class="num">' . esc_html__( 'Previous', 'super-mechanic' ) . '</th>';
-			$html .= '<th class="num">' . esc_html__( 'Delta', 'super-mechanic' ) . '</th>';
-			$html .= '<th>' . esc_html__( 'Trend', 'super-mechanic' ) . '</th>';
+			$html .= '<h2 class="sm-report-section">' . esc_html__( 'Period Comparison', 'super-mechanic' ) . '</h2>';
+			$html .= '<p class="sm-report-note">' . esc_html( sprintf( __( 'Current: %1$s | Previous: %2$s', 'super-mechanic' ), $current_label, $previous_label ) ) . '</p>';
+			$html .= '<table class="sm-report-table"><thead><tr>';
+			$html .= '<th width="34%">' . esc_html__( 'Metric', 'super-mechanic' ) . '</th>';
+			$html .= '<th width="17%" class="sm-report-num">' . esc_html__( 'Current', 'super-mechanic' ) . '</th>';
+			$html .= '<th width="17%" class="sm-report-num">' . esc_html__( 'Previous', 'super-mechanic' ) . '</th>';
+			$html .= '<th width="20%" class="sm-report-num">' . esc_html__( 'Delta', 'super-mechanic' ) . '</th>';
+			$html .= '<th width="12%" class="sm-report-trend">' . esc_html__( 'Trend', 'super-mechanic' ) . '</th>';
 			$html .= '</tr></thead><tbody>';
 
 			foreach ( $metric_labels as $metric_key => $metric_label ) {
@@ -290,16 +276,17 @@ class Report_PDF_Service extends PDF_Service {
 				$trend_class = in_array( $trend, array( 'up', 'down' ), true ) ? $trend : 'stable';
 
 				$html .= '<tr>';
-				$html .= '<td>' . esc_html( $metric_label ) . '</td>';
-				$html .= '<td class="num">' . esc_html( $this->format_metric_value( $metric_key, isset( $row['current'] ) ? $row['current'] : 0 ) ) . '</td>';
-				$html .= '<td class="num">' . esc_html( $this->format_metric_value( $metric_key, isset( $row['previous'] ) ? $row['previous'] : 0 ) ) . '</td>';
-				$html .= '<td class="num">' . esc_html( $this->format_delta_value( $metric_key, $row ) ) . '</td>';
-				$html .= '<td class="' . esc_attr( $trend_class ) . '">' . esc_html( ucfirst( $trend_class ) ) . '</td>';
+				$html .= '<td class="sm-report-metric">' . esc_html( $metric_label ) . '</td>';
+				$html .= '<td class="sm-report-num">' . esc_html( $this->format_metric_value( $metric_key, isset( $row['current'] ) ? $row['current'] : 0 ) ) . '</td>';
+				$html .= '<td class="sm-report-num">' . esc_html( $this->format_metric_value( $metric_key, isset( $row['previous'] ) ? $row['previous'] : 0 ) ) . '</td>';
+				$html .= '<td class="sm-report-num">' . esc_html( $this->format_delta_value( $metric_key, $row ) ) . '</td>';
+				$html .= '<td class="sm-report-trend ' . esc_attr( $trend_class ) . '">' . esc_html( ucfirst( $trend_class ) ) . '</td>';
 				$html .= '</tr>';
 			}
 			$html .= '</tbody></table>';
 		}
 
+		$html .= '<div class="sm-report-footer">' . esc_html__( 'Generated by Mekvort / Super Mechanic. Values reflect the selected reporting range and business scope at export time.', 'super-mechanic' ) . '</div>';
 		$html .= '</div></body></html>';
 
 		return $html;

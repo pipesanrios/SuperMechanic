@@ -14,6 +14,7 @@ use Super_Mechanic\Helpers\Business_Context_Service;
 use Super_Mechanic\Helpers\Settings_Service;
 use Super_Mechanic\Integrations\WooCommerce\Woo_Product_Service;
 use Super_Mechanic\Quotes\Quote_Service;
+use Super_Mechanic\Settings;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -1044,14 +1045,38 @@ class Invoice_Service {
 		$client   = isset( $context['client_name'] ) ? $context['client_name'] : __( 'Cliente no asignado', 'super-mechanic' );
 
 		ob_start();
+		echo '<style>';
+		echo 'body{font-family:DejaVu Sans,Arial,sans-serif;color:#1f2937;font-size:11px;line-height:1.45;}';
+		echo '.sm-invoice-print{padding:8px 4px;}';
+		echo '.sm-pdf-header{border-bottom:3px solid #0f4fa8;margin-bottom:18px;padding-bottom:12px;}';
+		echo '.sm-pdf-brand{font-size:22px;font-weight:700;color:#0f4fa8;margin:0 0 4px;}';
+		echo '.sm-pdf-title{font-size:15px;font-weight:700;color:#111827;margin:0;text-transform:uppercase;}';
+		echo '.sm-pdf-meta{width:100%;border-collapse:collapse;margin:12px 0 18px;}';
+		echo '.sm-pdf-meta td{border:1px solid #e5e7eb;padding:7px 9px;vertical-align:top;}';
+		echo '.sm-pdf-label{display:block;color:#6b7280;font-size:9px;text-transform:uppercase;font-weight:700;}';
+		echo '.sm-pdf-table{width:100%;border-collapse:collapse;margin-top:8px;}';
+		echo '.sm-pdf-table th{background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:8px 7px;font-size:9px;text-transform:uppercase;font-weight:700;}';
+		echo '.sm-pdf-table td{border:1px solid #e5e7eb;padding:8px 7px;vertical-align:top;}';
+		echo '.sm-pdf-num{text-align:right;white-space:nowrap;}';
+		echo '.sm-pdf-summary{width:42%;margin:16px 0 0 auto;border-collapse:collapse;}';
+		echo '.sm-pdf-summary td{border-bottom:1px solid #e5e7eb;padding:6px 4px;}';
+		echo '.sm-pdf-total td{font-size:13px;font-weight:700;color:#0f4fa8;border-top:2px solid #0f4fa8;}';
+		echo '.sm-pdf-notes{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;color:#374151;}';
+		echo '.sm-pdf-footer{margin-top:18px;color:#6b7280;font-size:9px;border-top:1px solid #e5e7eb;padding-top:8px;}';
+		echo '</style>';
 		echo '<div class="sm-invoice-print">';
-		echo '<h1>' . esc_html( $company ) . '</h1>';
-		echo '<h2>' . esc_html( sprintf( __( 'Factura %s', 'super-mechanic' ), $invoice['invoice_number'] ) ) . '</h2>';
-		echo '<p><strong>' . esc_html__( 'Cliente:', 'super-mechanic' ) . '</strong> ' . esc_html( $client ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Proceso:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['process_title'] ) ? $invoice['process_title'] : '#' . $invoice['process_id'] ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Estado:', 'super-mechanic' ) . '</strong> ' . esc_html( ucwords( str_replace( '_', ' ', $invoice['status'] ) ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Emitida:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['issued_at'] ) ? $invoice['issued_at'] : '-' ) . ' <strong>' . esc_html__( 'Vence:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $invoice['due_date'] ) ? $invoice['due_date'] : '-' ) . '</p>';
-		echo '<table border="1" cellpadding="8" cellspacing="0" width="100%"><thead><tr><th>' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Descripcion', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Precio', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-pdf-header">';
+		echo '<h1 class="sm-pdf-brand">' . esc_html( $company ) . '</h1>';
+		echo '<p class="sm-pdf-title">' . esc_html( sprintf( __( 'Factura %s', 'super-mechanic' ), $invoice['invoice_number'] ) ) . '</p>';
+		echo '</div>';
+		echo '<table class="sm-pdf-meta"><tr>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Cliente', 'super-mechanic' ) . '</span>' . esc_html( $client ) . '</td>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Proceso', 'super-mechanic' ) . '</span>' . esc_html( ! empty( $invoice['process_title'] ) ? $invoice['process_title'] : '#' . $invoice['process_id'] ) . '</td>';
+		echo '</tr><tr>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Estado', 'super-mechanic' ) . '</span>' . esc_html( ucwords( str_replace( '_', ' ', $invoice['status'] ) ) ) . '</td>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Emitida / Vence', 'super-mechanic' ) . '</span>' . esc_html( ! empty( $invoice['issued_at'] ) ? $invoice['issued_at'] : '-' ) . ' / ' . esc_html( ! empty( $invoice['due_date'] ) ? $invoice['due_date'] : '-' ) . '</td>';
+		echo '</tr></table>';
+		echo '<table class="sm-pdf-table"><thead><tr><th width="22%">' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th width="34%">' . esc_html__( 'Descripcion', 'super-mechanic' ) . '</th><th width="12%" class="sm-pdf-num">' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th width="16%" class="sm-pdf-num">' . esc_html__( 'Precio', 'super-mechanic' ) . '</th><th width="16%" class="sm-pdf-num">' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $items ) ) {
 			echo '<tr><td colspan="5">' . esc_html__( 'No hay items.', 'super-mechanic' ) . '</td></tr>';
 		} else {
@@ -1059,32 +1084,35 @@ class Invoice_Service {
 				echo '<tr>';
 				echo '<td>' . esc_html( $item['label'] ) . '</td>';
 				echo '<td>' . esc_html( $item['description'] ) . '</td>';
-				echo '<td>' . esc_html( $item['quantity'] ) . '</td>';
-				echo '<td>' . esc_html( $this->format_money( $item['unit_price'], $invoice['currency'] ) ) . '</td>';
-				echo '<td>' . esc_html( $this->format_money( $item['line_total'], $invoice['currency'] ) ) . '</td>';
+				echo '<td class="sm-pdf-num">' . esc_html( $item['quantity'] ) . '</td>';
+				echo '<td class="sm-pdf-num">' . esc_html( $this->format_money( $item['unit_price'], $invoice['currency'] ) ) . '</td>';
+				echo '<td class="sm-pdf-num">' . esc_html( $this->format_money( $item['line_total'], $invoice['currency'] ) ) . '</td>';
 				echo '</tr>';
 			}
 		}
 		echo '</tbody></table>';
-		echo '<p><strong>' . esc_html__( 'Subtotal:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $invoice['subtotal'], $invoice['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Impuestos:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $invoice['tax_total'], $invoice['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Descuento:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $invoice['discount_total'], $invoice['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Total:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $invoice['grand_total'], $invoice['currency'] ) ) . '</p>';
 		$payment_summary = $this->get_invoice_payment_summary( absint( $invoice['id'] ) );
 		$payment_total   = is_wp_error( $payment_summary ) ? 0 : $payment_summary['total_paid'];
 		$balance_due     = is_wp_error( $payment_summary ) ? ( isset( $invoice['grand_total'] ) ? (float) $invoice['grand_total'] : 0 ) : $payment_summary['remaining_balance'];
-		echo '<p><strong>' . esc_html__( 'Pagado:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $payment_total, $invoice['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Saldo pendiente:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $balance_due, $invoice['currency'] ) ) . '</p>';
+		echo '<table class="sm-pdf-summary">';
+		echo '<tr><td>' . esc_html__( 'Subtotal', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $invoice['subtotal'], $invoice['currency'] ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $invoice['tax_total'], $invoice['currency'] ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Descuento', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $invoice['discount_total'], $invoice['currency'] ) ) . '</td></tr>';
+		echo '<tr class="sm-pdf-total"><td>' . esc_html__( 'Total', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $invoice['grand_total'], $invoice['currency'] ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Pagado', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $payment_total, $invoice['currency'] ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Saldo pendiente', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $balance_due, $invoice['currency'] ) ) . '</td></tr>';
+		echo '</table>';
 		if ( ! empty( $invoice['notes'] ) ) {
-			echo '<p><strong>' . esc_html__( 'Notas:', 'super-mechanic' ) . '</strong> ' . esc_html( $invoice['notes'] ) . '</p>';
+			echo '<div class="sm-pdf-notes"><strong>' . esc_html__( 'Notas', 'super-mechanic' ) . '</strong><br />' . esc_html( $invoice['notes'] ) . '</div>';
 		}
 		if ( ! empty( $payments ) ) {
-			echo '<h3>' . esc_html__( 'Pagos', 'super-mechanic' ) . '</h3><ul>';
+			echo '<h3>' . esc_html__( 'Pagos', 'super-mechanic' ) . '</h3><table class="sm-pdf-table"><thead><tr><th>' . esc_html__( 'Fecha', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Metodo', 'super-mechanic' ) . '</th><th class="sm-pdf-num">' . esc_html__( 'Importe', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 			foreach ( $payments as $payment ) {
-				echo '<li>' . esc_html( $payment['payment_date'] . ' - ' . $payment['payment_method'] . ' - ' . $this->format_money( $payment['amount'], $invoice['currency'] ) ) . '</li>';
+				echo '<tr><td>' . esc_html( $payment['payment_date'] ) . '</td><td>' . esc_html( $payment['payment_method'] ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $payment['amount'], $invoice['currency'] ) ) . '</td></tr>';
 			}
-			echo '</ul>';
+			echo '</tbody></table>';
 		}
+		echo '<div class="sm-pdf-footer">' . esc_html__( 'Documento generado por Mekvort / Super Mechanic.', 'super-mechanic' ) . '</div>';
 		echo '</div>';
 
 		return (string) ob_get_clean();

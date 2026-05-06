@@ -633,14 +633,38 @@ class Quote_Service {
 		$client  = isset( $context['client_name'] ) ? $context['client_name'] : __( 'Cliente no asignado', 'super-mechanic' );
 
 		ob_start();
+		echo '<style>';
+		echo 'body{font-family:DejaVu Sans,Arial,sans-serif;color:#1f2937;font-size:11px;line-height:1.45;}';
+		echo '.sm-quote-print{padding:8px 4px;}';
+		echo '.sm-pdf-header{border-bottom:3px solid #0f4fa8;margin-bottom:18px;padding-bottom:12px;}';
+		echo '.sm-pdf-brand{font-size:22px;font-weight:700;color:#0f4fa8;margin:0 0 4px;}';
+		echo '.sm-pdf-title{font-size:15px;font-weight:700;color:#111827;margin:0;text-transform:uppercase;}';
+		echo '.sm-pdf-meta{width:100%;border-collapse:collapse;margin:12px 0 18px;}';
+		echo '.sm-pdf-meta td{border:1px solid #e5e7eb;padding:7px 9px;vertical-align:top;}';
+		echo '.sm-pdf-label{display:block;color:#6b7280;font-size:9px;text-transform:uppercase;font-weight:700;}';
+		echo '.sm-pdf-table{width:100%;border-collapse:collapse;margin-top:8px;}';
+		echo '.sm-pdf-table th{background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:8px 7px;font-size:9px;text-transform:uppercase;font-weight:700;}';
+		echo '.sm-pdf-table td{border:1px solid #e5e7eb;padding:8px 7px;vertical-align:top;}';
+		echo '.sm-pdf-num{text-align:right;white-space:nowrap;}';
+		echo '.sm-pdf-summary{width:42%;margin:16px 0 0 auto;border-collapse:collapse;}';
+		echo '.sm-pdf-summary td{border-bottom:1px solid #e5e7eb;padding:6px 4px;}';
+		echo '.sm-pdf-total td{font-size:13px;font-weight:700;color:#0f4fa8;border-top:2px solid #0f4fa8;}';
+		echo '.sm-pdf-notes{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;color:#374151;}';
+		echo '.sm-pdf-footer{margin-top:18px;color:#6b7280;font-size:9px;border-top:1px solid #e5e7eb;padding-top:8px;}';
+		echo '</style>';
 		echo '<div class="sm-quote-print">';
-		echo '<h1>' . esc_html( $company ) . '</h1>';
-		echo '<h2>' . esc_html( sprintf( __( 'Cotizacion %s', 'super-mechanic' ), $quote['quote_number'] ) ) . '</h2>';
-		echo '<p><strong>' . esc_html__( 'Cliente:', 'super-mechanic' ) . '</strong> ' . esc_html( $client ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Proceso:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $quote['process_title'] ) ? $quote['process_title'] : '#' . $quote['process_id'] ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Estado:', 'super-mechanic' ) . '</strong> ' . esc_html( ucwords( str_replace( '_', ' ', $quote['status'] ) ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Fecha:', 'super-mechanic' ) . '</strong> ' . esc_html( ! empty( $quote['created_at'] ) ? $quote['created_at'] : '-' ) . '</p>';
-		echo '<table border="1" cellpadding="8" cellspacing="0" width="100%"><thead><tr><th>' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Descripcion', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Precio', 'super-mechanic' ) . '</th><th>' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
+		echo '<div class="sm-pdf-header">';
+		echo '<h1 class="sm-pdf-brand">' . esc_html( $company ) . '</h1>';
+		echo '<p class="sm-pdf-title">' . esc_html( sprintf( __( 'Cotizacion %s', 'super-mechanic' ), $quote['quote_number'] ) ) . '</p>';
+		echo '</div>';
+		echo '<table class="sm-pdf-meta"><tr>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Cliente', 'super-mechanic' ) . '</span>' . esc_html( $client ) . '</td>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Proceso', 'super-mechanic' ) . '</span>' . esc_html( ! empty( $quote['process_title'] ) ? $quote['process_title'] : '#' . $quote['process_id'] ) . '</td>';
+		echo '</tr><tr>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Estado', 'super-mechanic' ) . '</span>' . esc_html( ucwords( str_replace( '_', ' ', $quote['status'] ) ) ) . '</td>';
+		echo '<td><span class="sm-pdf-label">' . esc_html__( 'Fecha', 'super-mechanic' ) . '</span>' . esc_html( ! empty( $quote['created_at'] ) ? $quote['created_at'] : '-' ) . '</td>';
+		echo '</tr></table>';
+		echo '<table class="sm-pdf-table"><thead><tr><th width="22%">' . esc_html__( 'Item', 'super-mechanic' ) . '</th><th width="34%">' . esc_html__( 'Descripcion', 'super-mechanic' ) . '</th><th width="12%" class="sm-pdf-num">' . esc_html__( 'Cantidad', 'super-mechanic' ) . '</th><th width="16%" class="sm-pdf-num">' . esc_html__( 'Precio', 'super-mechanic' ) . '</th><th width="16%" class="sm-pdf-num">' . esc_html__( 'Total', 'super-mechanic' ) . '</th></tr></thead><tbody>';
 		if ( empty( $items ) ) {
 			echo '<tr><td colspan="5">' . esc_html__( 'No hay items.', 'super-mechanic' ) . '</td></tr>';
 		} else {
@@ -648,20 +672,23 @@ class Quote_Service {
 				echo '<tr>';
 				echo '<td>' . esc_html( $item['label'] ) . '</td>';
 				echo '<td>' . esc_html( $item['description'] ) . '</td>';
-				echo '<td>' . esc_html( $item['quantity'] ) . '</td>';
-				echo '<td>' . esc_html( $this->format_money( $item['unit_price'], $quote['currency'] ) ) . '</td>';
-				echo '<td>' . esc_html( $this->format_money( $item['line_total'], $quote['currency'] ) ) . '</td>';
+				echo '<td class="sm-pdf-num">' . esc_html( $item['quantity'] ) . '</td>';
+				echo '<td class="sm-pdf-num">' . esc_html( $this->format_money( $item['unit_price'], $quote['currency'] ) ) . '</td>';
+				echo '<td class="sm-pdf-num">' . esc_html( $this->format_money( $item['line_total'], $quote['currency'] ) ) . '</td>';
 				echo '</tr>';
 			}
 		}
 		echo '</tbody></table>';
-		echo '<p><strong>' . esc_html__( 'Subtotal:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $quote['subtotal'], $quote['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Impuestos:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $quote['tax_total'], $quote['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Descuento:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $quote['discount_total'], $quote['currency'] ) ) . '</p>';
-		echo '<p><strong>' . esc_html__( 'Total:', 'super-mechanic' ) . '</strong> ' . esc_html( $this->format_money( $quote['grand_total'], $quote['currency'] ) ) . '</p>';
+		echo '<table class="sm-pdf-summary">';
+		echo '<tr><td>' . esc_html__( 'Subtotal', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $quote['subtotal'], $quote['currency'] ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Impuestos', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $quote['tax_total'], $quote['currency'] ) ) . '</td></tr>';
+		echo '<tr><td>' . esc_html__( 'Descuento', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $quote['discount_total'], $quote['currency'] ) ) . '</td></tr>';
+		echo '<tr class="sm-pdf-total"><td>' . esc_html__( 'Total', 'super-mechanic' ) . '</td><td class="sm-pdf-num">' . esc_html( $this->format_money( $quote['grand_total'], $quote['currency'] ) ) . '</td></tr>';
+		echo '</table>';
 		if ( ! empty( $quote['notes'] ) ) {
-			echo '<p><strong>' . esc_html__( 'Notas:', 'super-mechanic' ) . '</strong> ' . esc_html( $quote['notes'] ) . '</p>';
+			echo '<div class="sm-pdf-notes"><strong>' . esc_html__( 'Notas', 'super-mechanic' ) . '</strong><br />' . esc_html( $quote['notes'] ) . '</div>';
 		}
+		echo '<div class="sm-pdf-footer">' . esc_html__( 'Documento generado por Mekvort / Super Mechanic.', 'super-mechanic' ) . '</div>';
 		echo '</div>';
 
 		return (string) ob_get_clean();

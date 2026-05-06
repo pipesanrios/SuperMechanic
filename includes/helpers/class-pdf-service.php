@@ -48,7 +48,10 @@ class PDF_Service {
 	 * @return bool
 	 */
 	public function can_generate_pdf() {
-		return class_exists( '\Dompdf\Dompdf' ) || class_exists( '\Mpdf\Mpdf' ) || class_exists( '\TCPDF' );
+		return $this->maybe_load_embedded_pdf_engine()
+			|| class_exists( '\Dompdf\Dompdf' )
+			|| class_exists( '\Mpdf\Mpdf' )
+			|| class_exists( '\TCPDF' );
 	}
 
 	/**
@@ -251,6 +254,8 @@ class PDF_Service {
 	 * @return string|WP_Error
 	 */
 	protected function generate_pdf_binary( $html, $filename ) {
+		$this->maybe_load_embedded_pdf_engine();
+
 		if ( class_exists( '\Dompdf\Dompdf' ) ) {
 			return $this->generate_with_dompdf( $html );
 		}
@@ -266,6 +271,43 @@ class PDF_Service {
 		return new WP_Error(
 			'sm_pdf_engine_missing',
 			__( 'No se detecto un motor PDF compatible.', 'super-mechanic' )
+		);
+	}
+
+	/**
+	 * Load the bundled PDF engine when available.
+	 *
+	 * @return bool
+	 */
+	protected function maybe_load_embedded_pdf_engine() {
+		if ( class_exists( '\TCPDF' ) ) {
+			return true;
+		}
+
+		foreach ( $this->get_pdf_engine_candidates() as $candidate ) {
+			if ( ! file_exists( $candidate ) ) {
+				continue;
+			}
+
+			require_once $candidate;
+			if ( class_exists( '\TCPDF' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Get local PDF engine loader candidates.
+	 *
+	 * @return array<int, string>
+	 */
+	protected function get_pdf_engine_candidates() {
+		return array(
+			SM_PLUGIN_PATH . 'includes/libs/pdf/tcpdf/tcpdf.php',
+			SM_PLUGIN_PATH . 'vendor/tecnickcom/tcpdf/tcpdf.php',
+			SM_PLUGIN_PATH . 'vendor/autoload.php',
 		);
 	}
 
