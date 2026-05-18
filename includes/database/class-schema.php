@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.19.0';
+		return '1.21.0';
 	}
 
 	/**
@@ -38,6 +38,7 @@ class Schema {
 			'crm_tasks'         => $wpdb->prefix . 'sm_crm_tasks',
 			'crm_alerts'        => $wpdb->prefix . 'sm_crm_alerts',
 			'vehicles'          => $wpdb->prefix . 'sm_vehicles',
+			'vehicle_catalog'   => $wpdb->prefix . 'sm_vehicle_catalog',
 			'client_vehicles'   => $wpdb->prefix . 'sm_client_vehicles',
 			'flows'             => $wpdb->prefix . 'sm_flows',
 			'flow_steps'        => $wpdb->prefix . 'sm_flow_steps',
@@ -83,6 +84,7 @@ class Schema {
 		$crm_tasks_table      = $tables['crm_tasks'];
 		$crm_alerts_table     = $tables['crm_alerts'];
 		$vehicles_table        = $tables['vehicles'];
+		$vehicle_catalog_table = $tables['vehicle_catalog'];
 		$client_vehicles_table = $tables['client_vehicles'];
 		$flows_table           = $tables['flows'];
 		$flow_steps_table      = $tables['flow_steps'];
@@ -233,6 +235,12 @@ class Schema {
 				make varchar(100) NOT NULL,
 				model varchar(100) NOT NULL,
 				year smallint(5) unsigned DEFAULT NULL,
+				catalog_vehicle_id bigint(20) unsigned DEFAULT NULL,
+				trim_version varchar(150) DEFAULT NULL,
+				body_type varchar(80) DEFAULT NULL,
+				fuel_type varchar(80) DEFAULT NULL,
+				transmission varchar(80) DEFAULT NULL,
+				engine varchar(150) DEFAULT NULL,
 				vin varchar(100) DEFAULT NULL,
 				plate varchar(50) DEFAULT NULL,
 				color varchar(50) DEFAULT NULL,
@@ -244,9 +252,32 @@ class Schema {
 				PRIMARY KEY  (id),
 				KEY business_id (business_id),
 				KEY client_id (client_id),
+				KEY catalog_vehicle_id (catalog_vehicle_id),
 				KEY vin (vin),
 				KEY plate (plate),
 				KEY status (status)
+			) {$charset_collate};",
+			"CREATE TABLE {$vehicle_catalog_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				business_id bigint(20) unsigned NOT NULL default 1,
+				make varchar(100) NOT NULL,
+				model varchar(100) NOT NULL,
+				year smallint(5) unsigned DEFAULT NULL,
+				trim_version varchar(150) DEFAULT NULL,
+				body_type varchar(80) DEFAULT NULL,
+				fuel_type varchar(80) DEFAULT NULL,
+				transmission varchar(80) DEFAULT NULL,
+				engine varchar(150) DEFAULT NULL,
+				notes text DEFAULT NULL,
+				status varchar(50) NOT NULL default 'active',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY business_id (business_id),
+				KEY make_model (make,model),
+				KEY year (year),
+				KEY status (status),
+				KEY business_status (business_id,status)
 			) {$charset_collate};",
 			"CREATE TABLE {$client_vehicles_table} (
 				id bigint(20) unsigned NOT NULL auto_increment,

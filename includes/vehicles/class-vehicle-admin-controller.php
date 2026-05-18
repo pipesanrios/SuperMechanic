@@ -25,6 +25,12 @@ class Vehicle_Admin_Controller {
 	 * @var Vehicle_Service
 	 */
 	protected $service;
+	/**
+	 * Vehicle catalog service.
+	 *
+	 * @var Vehicle_Catalog_Service
+	 */
+	protected $catalog_service;
 	protected $process_service;
 	protected $client_vehicle_service;
 	protected $appointment_service;
@@ -37,6 +43,7 @@ class Vehicle_Admin_Controller {
 	 */
 	public function __construct( Vehicle_Service $service = null ) {
 		$this->service                = $service ? $service : new Vehicle_Service();
+		$this->catalog_service        = new Vehicle_Catalog_Service();
 		$this->process_service        = new Process_Service();
 		$this->client_vehicle_service = new Client_Vehicle_Service();
 		$this->appointment_service    = new Appointment_Service();
@@ -50,7 +57,32 @@ class Vehicle_Admin_Controller {
 	 */
 	public function register_hooks() {
 		add_action( 'admin_init', array( $this, 'maybe_handle_actions' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_catalog_assets' ) );
 		add_action( 'admin_notices', array( $this, 'render_admin_notices' ) );
+	}
+
+	/**
+	 * Enqueue catalog autofill assets on vehicle create/edit screens.
+	 *
+	 * @return void
+	 */
+	public function enqueue_catalog_assets() {
+		if ( ! $this->is_vehicles_screen() ) {
+			return;
+		}
+
+		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
+		if ( ! in_array( $action, array( 'new', 'edit' ), true ) ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'sm-vehicle-catalog',
+			SM_PLUGIN_URL . 'assets/js/vehicle-catalog.js',
+			array(),
+			file_exists( SM_PLUGIN_PATH . 'assets/js/vehicle-catalog.js' ) ? (string) filemtime( SM_PLUGIN_PATH . 'assets/js/vehicle-catalog.js' ) : SM_PLUGIN_VERSION,
+			true
+		);
 	}
 
 	/**
@@ -207,7 +239,14 @@ class Vehicle_Admin_Controller {
 			'model'     => '',
 			'year'      => '',
 			'color'     => '',
+			'mileage'   => '',
 			'notes'     => '',
+			'catalog_vehicle_id' => 0,
+			'trim_version' => '',
+			'body_type'    => '',
+			'fuel_type'    => '',
+			'transmission' => '',
+			'engine'       => '',
 		);
 
 		$stored = get_transient( $this->get_form_transient_key() );
@@ -219,6 +258,7 @@ class Vehicle_Admin_Controller {
 		$vehicle = wp_parse_args( $vehicle, $defaults );
 		$title   = $is_edit ? __( 'Edit vehicle', 'super-mechanic' ) : __( 'Create vehicle', 'super-mechanic' );
 		$clients = $this->service->get_client_options();
+		$catalog_vehicles = $this->get_catalog_options();
 		$return  = $this->get_process_return_context();
 
 		echo '<div class="wrap sm-admin-shell">';
@@ -242,12 +282,19 @@ class Vehicle_Admin_Controller {
 		echo '<input type="hidden" name="return_client_id" value="' . esc_attr( $return['client_id'] ) . '" />';
 		echo '<table class="form-table" role="presentation">';
 		$this->render_client_select_field( $vehicle['client_id'], $clients );
+		$this->render_catalog_select_field( $vehicle['catalog_vehicle_id'], $catalog_vehicles );
 		$this->render_text_field( 'vin', __( 'VIN', 'super-mechanic' ), $vehicle['vin'] );
 		$this->render_text_field( 'plate', __( 'Plate', 'super-mechanic' ), $vehicle['plate'] );
 		$this->render_text_field( 'brand', __( 'Brand', 'super-mechanic' ), $vehicle['brand'], true );
 		$this->render_text_field( 'model', __( 'Model', 'super-mechanic' ), $vehicle['model'], true );
 		$this->render_number_field( 'year', __( 'Year', 'super-mechanic' ), $vehicle['year'] );
+		$this->render_text_field( 'trim_version', __( 'Trim / Version', 'super-mechanic' ), $vehicle['trim_version'] );
+		$this->render_text_field( 'body_type', __( 'Body type', 'super-mechanic' ), $vehicle['body_type'] );
+		$this->render_text_field( 'fuel_type', __( 'Fuel', 'super-mechanic' ), $vehicle['fuel_type'] );
+		$this->render_text_field( 'transmission', __( 'Transmission', 'super-mechanic' ), $vehicle['transmission'] );
+		$this->render_text_field( 'engine', __( 'Engine', 'super-mechanic' ), $vehicle['engine'] );
 		$this->render_text_field( 'color', __( 'Color', 'super-mechanic' ), $vehicle['color'] );
+		$this->render_number_field( 'mileage', __( 'Mileage', 'super-mechanic' ), $vehicle['mileage'], 0, null );
 		$this->render_textarea_field( 'notes', __( 'Notes', 'super-mechanic' ), $vehicle['notes'] );
 		echo '</table>';
 		echo '<div class="sm-form-actions">';
@@ -338,6 +385,11 @@ class Vehicle_Admin_Controller {
 		$this->render_detail_row( __( 'Brand', 'super-mechanic' ), ! empty( $vehicle['brand'] ) ? (string) $vehicle['brand'] : '-' );
 		$this->render_detail_row( __( 'Model', 'super-mechanic' ), ! empty( $vehicle['model'] ) ? (string) $vehicle['model'] : '-' );
 		$this->render_detail_row( __( 'Year', 'super-mechanic' ), ! empty( $vehicle['year'] ) ? (string) $vehicle['year'] : '-' );
+		$this->render_detail_row( __( 'Trim / Version', 'super-mechanic' ), ! empty( $vehicle['trim_version'] ) ? (string) $vehicle['trim_version'] : '-' );
+		$this->render_detail_row( __( 'Body type', 'super-mechanic' ), ! empty( $vehicle['body_type'] ) ? (string) $vehicle['body_type'] : '-' );
+		$this->render_detail_row( __( 'Fuel', 'super-mechanic' ), ! empty( $vehicle['fuel_type'] ) ? (string) $vehicle['fuel_type'] : '-' );
+		$this->render_detail_row( __( 'Transmission', 'super-mechanic' ), ! empty( $vehicle['transmission'] ) ? (string) $vehicle['transmission'] : '-' );
+		$this->render_detail_row( __( 'Engine', 'super-mechanic' ), ! empty( $vehicle['engine'] ) ? (string) $vehicle['engine'] : '-' );
 		$this->render_detail_row( __( 'Color', 'super-mechanic' ), ! empty( $vehicle['color'] ) ? (string) $vehicle['color'] : '-' );
 		$this->render_detail_row( __( 'Notes', 'super-mechanic' ), ! empty( $vehicle['notes'] ) ? (string) $vehicle['notes'] : __( 'No notes', 'super-mechanic' ) );
 		echo '</tbody></table>';
@@ -633,7 +685,14 @@ class Vehicle_Admin_Controller {
 			'model'     => isset( $_POST['model'] ) ? wp_unslash( $_POST['model'] ) : '',
 			'year'      => isset( $_POST['year'] ) ? wp_unslash( $_POST['year'] ) : '',
 			'color'     => isset( $_POST['color'] ) ? wp_unslash( $_POST['color'] ) : '',
+			'mileage'   => isset( $_POST['mileage'] ) ? wp_unslash( $_POST['mileage'] ) : '',
 			'notes'     => isset( $_POST['notes'] ) ? wp_unslash( $_POST['notes'] ) : '',
+			'catalog_vehicle_id' => isset( $_POST['catalog_vehicle_id'] ) ? wp_unslash( $_POST['catalog_vehicle_id'] ) : 0,
+			'trim_version' => isset( $_POST['trim_version'] ) ? wp_unslash( $_POST['trim_version'] ) : '',
+			'body_type'    => isset( $_POST['body_type'] ) ? wp_unslash( $_POST['body_type'] ) : '',
+			'fuel_type'    => isset( $_POST['fuel_type'] ) ? wp_unslash( $_POST['fuel_type'] ) : '',
+			'transmission' => isset( $_POST['transmission'] ) ? wp_unslash( $_POST['transmission'] ) : '',
+			'engine'       => isset( $_POST['engine'] ) ? wp_unslash( $_POST['engine'] ) : '',
 		);
 
 		$result = $is_update
@@ -769,6 +828,46 @@ class Vehicle_Admin_Controller {
 	}
 
 	/**
+	 * Render optional vehicle catalog selector.
+	 *
+	 * @param int                              $selected_catalog_id Selected catalog ID.
+	 * @param array<int, array<string, mixed>> $catalog_vehicles    Catalog rows.
+	 * @return void
+	 */
+	protected function render_catalog_select_field( $selected_catalog_id, $catalog_vehicles ) {
+		echo '<tr>';
+		echo '<th scope="row"><label for="catalog_vehicle_id">' . esc_html__( 'Vehicle catalog', 'super-mechanic' ) . '</label></th>';
+		echo '<td>';
+		echo '<select name="catalog_vehicle_id" id="catalog_vehicle_id" data-sm-vehicle-catalog>';
+		echo '<option value="0">' . esc_html__( 'Select a catalog vehicle', 'super-mechanic' ) . '</option>';
+
+		foreach ( $catalog_vehicles as $catalog_vehicle ) {
+			$catalog_id = isset( $catalog_vehicle['id'] ) ? absint( $catalog_vehicle['id'] ) : 0;
+			if ( $catalog_id <= 0 ) {
+				continue;
+			}
+
+			echo '<option value="' . esc_attr( $catalog_id ) . '" '
+				. selected( absint( $selected_catalog_id ), $catalog_id, false )
+				. ' data-brand="' . esc_attr( isset( $catalog_vehicle['make'] ) ? (string) $catalog_vehicle['make'] : '' ) . '"'
+				. ' data-model="' . esc_attr( isset( $catalog_vehicle['model'] ) ? (string) $catalog_vehicle['model'] : '' ) . '"'
+				. ' data-year="' . esc_attr( isset( $catalog_vehicle['year'] ) ? (string) $catalog_vehicle['year'] : '' ) . '"'
+				. ' data-trim-version="' . esc_attr( isset( $catalog_vehicle['trim_version'] ) ? (string) $catalog_vehicle['trim_version'] : '' ) . '"'
+				. ' data-body-type="' . esc_attr( isset( $catalog_vehicle['body_type'] ) ? (string) $catalog_vehicle['body_type'] : '' ) . '"'
+				. ' data-fuel-type="' . esc_attr( isset( $catalog_vehicle['fuel_type'] ) ? (string) $catalog_vehicle['fuel_type'] : '' ) . '"'
+				. ' data-transmission="' . esc_attr( isset( $catalog_vehicle['transmission'] ) ? (string) $catalog_vehicle['transmission'] : '' ) . '"'
+				. ' data-engine="' . esc_attr( isset( $catalog_vehicle['engine'] ) ? (string) $catalog_vehicle['engine'] : '' ) . '"'
+				. '>' . esc_html( $this->format_catalog_option_label( $catalog_vehicle ) ) . '</option>';
+		}
+
+		echo '</select>';
+		echo '<p class="description">' . esc_html__( 'Selecting a catalog vehicle fills compatible vehicle fields. VIN, plate, color, mileage, client, and notes stay manual.', 'super-mechanic' ) . '</p>';
+		echo '<div id="sm-vehicle-catalog-preview" class="description" hidden></div>';
+		echo '</td>';
+		echo '</tr>';
+	}
+
+	/**
 	 * Render text field.
 	 *
 	 * @param string $name     Field name.
@@ -792,11 +891,46 @@ class Vehicle_Admin_Controller {
 	 * @param string|int $value Field value.
 	 * @return void
 	 */
-	protected function render_number_field( $name, $label, $value ) {
+	protected function render_number_field( $name, $label, $value, $min = 1900, $max = null ) {
+		$max = null === $max ? ( (int) gmdate( 'Y' ) + 1 ) : $max;
 		echo '<tr>';
 		echo '<th scope="row"><label for="' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label></th>';
-		echo '<td><input name="' . esc_attr( $name ) . '" type="number" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" class="small-text" min="1900" max="' . esc_attr( (string) ( (int) gmdate( 'Y' ) + 1 ) ) . '" /></td>';
+		echo '<td><input name="' . esc_attr( $name ) . '" type="number" id="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '" class="small-text" min="' . esc_attr( (string) $min ) . '"' . ( null !== $max ? ' max="' . esc_attr( (string) $max ) . '"' : '' ) . ' /></td>';
 		echo '</tr>';
+	}
+
+	/**
+	 * Get active catalog options scoped by the current business context.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	protected function get_catalog_options() {
+		return $this->catalog_service->list_catalog_vehicles(
+			array(
+				'status'   => 'active',
+				'per_page' => 200,
+				'orderby'  => 'make',
+				'order'    => 'ASC',
+			)
+		);
+	}
+
+	/**
+	 * Format catalog option label.
+	 *
+	 * @param array<string, mixed> $catalog_vehicle Catalog row.
+	 * @return string
+	 */
+	protected function format_catalog_option_label( $catalog_vehicle ) {
+		$parts = array();
+
+		foreach ( array( 'make', 'model', 'year', 'trim_version' ) as $key ) {
+			if ( ! empty( $catalog_vehicle[ $key ] ) ) {
+				$parts[] = (string) $catalog_vehicle[ $key ];
+			}
+		}
+
+		return ! empty( $parts ) ? implode( ' ', $parts ) : __( 'Catalog vehicle', 'super-mechanic' );
 	}
 
 	/**

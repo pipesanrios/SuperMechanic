@@ -170,7 +170,7 @@ class Vehicle_Repository {
 		$data['updated_at'] = $now;
 		$data['business_id'] = ! empty( $data['business_id'] ) ? absint( $data['business_id'] ) : $this->resolve_business_id();
 
-		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats() );
+		$result = $wpdb->insert( $this->get_table_name(), $data, $this->get_formats_for_data( $data ) );
 
 		if ( false === $result ) {
 			return false;
@@ -199,7 +199,7 @@ class Vehicle_Repository {
 				'id'          => absint( $id ),
 				'business_id' => $this->resolve_business_id(),
 			),
-			$this->get_update_formats(),
+			$this->get_formats_for_data( $data ),
 			array( '%d', '%d' )
 		);
 
@@ -378,48 +378,41 @@ class Vehicle_Repository {
 	}
 
 	/**
-	 * Get insert formats.
+	 * Get formats for the provided vehicle data.
 	 *
+	 * @param array<string, mixed> $data Vehicle data.
 	 * @return array<int, string>
 	 */
-	protected function get_formats() {
-		return array(
-			'%d',
-			'%d',
-			'%s',
-			'%s',
-			'%s',
-			'%d',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
+	protected function get_formats_for_data( array $data ) {
+		$format_map = array(
+			'business_id'        => '%d',
+			'client_id'          => '%d',
+			'type'               => '%s',
+			'make'               => '%s',
+			'model'              => '%s',
+			'year'               => '%d',
+			'catalog_vehicle_id' => '%d',
+			'trim_version'       => '%s',
+			'body_type'          => '%s',
+			'fuel_type'          => '%s',
+			'transmission'       => '%s',
+			'engine'             => '%s',
+			'vin'                => '%s',
+			'plate'              => '%s',
+			'color'              => '%s',
+			'mileage'            => '%d',
+			'notes'              => '%s',
+			'status'             => '%s',
+			'created_at'         => '%s',
+			'updated_at'         => '%s',
 		);
-	}
+		$formats    = array();
 
-	/**
-	 * Get update formats.
-	 *
-	 * @return array<int, string>
-	 */
-	protected function get_update_formats() {
-		return array(
-			'%d',
-			'%d',
-			'%s',
-			'%s',
-			'%s',
-			'%d',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-			'%s',
-		);
+		foreach ( array_keys( $data ) as $key ) {
+			$formats[] = isset( $format_map[ $key ] ) ? $format_map[ $key ] : '%s';
+		}
+
+		return $formats;
 	}
 
 	/**

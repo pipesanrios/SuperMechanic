@@ -18,6 +18,7 @@ use Super_Mechanic\Invoices\Payment_Finance_Admin_Controller;
 use Super_Mechanic\Processes\Process_Admin_Controller;
 use Super_Mechanic\Reports\Report_Admin_Controller;
 use Super_Mechanic\Vehicles\Vehicle_Admin_Controller;
+use Super_Mechanic\Admin\Vehicle_Catalog_Admin_Controller;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -38,6 +39,7 @@ class Admin_Menu {
 	protected $payment_finance_admin_controller;
 	protected $appointment_admin_controller;
 	protected $crm_pipeline_admin_controller;
+	protected $vehicle_catalog_admin_controller;
 
 	/**
 	 * Constructor.
@@ -70,6 +72,8 @@ class Admin_Menu {
 		$this->payment_finance_admin_controller = $payment_finance_admin_controller;
 		$this->appointment_admin_controller = $appointment_admin_controller;
 		$this->crm_pipeline_admin_controller = $crm_pipeline_admin_controller;
+		$this->vehicle_catalog_admin_controller = new Vehicle_Catalog_Admin_Controller();
+		$this->vehicle_catalog_admin_controller->register_hooks();
 	}
 
 	/**
@@ -133,6 +137,15 @@ class Admin_Menu {
 			'sm_manage_vehicles',
 			'super-mechanic-vehicles',
 			array( $this->vehicle_admin_controller, 'render_page' )
+		);
+
+		add_submenu_page(
+			'super-mechanic',
+			__( 'Vehicle Catalog', 'super-mechanic' ),
+			__( 'Vehicle Catalog', 'super-mechanic' ),
+			'sm_manage_vehicles',
+			'super-mechanic-vehicle-catalog',
+			array( $this->vehicle_catalog_admin_controller, 'render_page' )
 		);
 
 		add_submenu_page(

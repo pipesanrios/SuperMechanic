@@ -1858,6 +1858,254 @@ Final status:
 
 ---
 
+## 56P12-A — VEHICLE CATALOG SCHEMA/SERVICE
+
+Fecha de ejecucion: 2026-05-06
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 286
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P12-A-validation.md --output=text` -> PASS automated checks
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Schema/table:
+- schema version -> `1.20.0`
+- table name -> `wp_sm_vehicle_catalog`
+- catalog_table_exists -> PASS
+
+Runtime/manual:
+- catalog_service_create -> PASS
+- catalog_service_get -> PASS
+- catalog_service_update -> PASS
+- catalog_service_list -> PASS
+- catalog_service_deactivate -> PASS
+- status_after_deactivate -> `inactive`
+- business_scope_other -> PASS
+  - explicit `business_id=999999` does not return the business `1` record
+- invalid_business_create -> PASS controlled `business_required`
+
+Implemented files:
+- `includes/database/class-schema.php`
+- `includes/vehicles/class-vehicle-catalog-repository.php`
+- `includes/vehicles/class-vehicle-catalog-service.php`
+
+Scope confirmation:
+- no admin UI
+- no CSV import
+- no external connector
+- no API changes
+- no process/payment/CRM/users changes
+- no SQL in service/controller
+- existing vehicle logic preserved
+
+Deferred:
+- admin management UI
+- CSV/import tooling
+- catalog selection during vehicle creation
+- duplicate catalog detection
+- cleanup/materialization workflow for reusable catalog records
+
+Final status:
+- COMPLETA
+
+---
+
+## 56P12-B — VEHICLE CATALOG ADMIN UI
+
+Fecha de ejecucion: 2026-05-06
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 287
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P12-B-validation.md --output=text` -> PASS automated checks
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3
+
+Static/manual code verification:
+- admin page wiring -> PASS
+  - submenu slug `super-mechanic-vehicle-catalog`
+  - controller `includes/admin/class-vehicle-catalog-admin-controller.php`
+- service reuse -> PASS
+  - catalog create/update/list/deactivate goes through `Vehicle_Catalog_Service`
+  - no SQL added to admin controller
+- security -> PASS
+  - capability `sm_manage_vehicles`
+  - nonce checks for save/deactivate
+  - sanitized input and escaped output
+- business scope -> PASS static
+  - requested business is validated as active
+  - business options are filtered by current user business access
+
+Runtime/manual:
+- vehicle_catalog_admin_page_loads -> NOT_RUN
+- catalog_ui_crud_works -> NOT_RUN
+- business_scope_preserved -> NOT_RUN
+- WP-CLI runtime validation attempted but `wp` is not available in the current shell
+
+Scope confirmation:
+- no CSV import
+- no catalog-to-customer-vehicle creation
+- no schema changes
+- no REST/API changes
+- no CRM/users/process/payment/frontend changes
+
+Final status:
+- PARCIAL pending runtime real browser-admin validation
+
+---
+
+## 56P12-C — VEHICLE CREATION FROM CATALOG
+
+Fecha de ejecucion: 2026-05-17
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 287
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P12-C-validation.md --output=text` -> PASS automated checks
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Static/manual code verification:
+- vehicle create/edit selector -> PASS static
+  - `Vehicle_Admin_Controller` renders optional `catalog_vehicle_id` selector
+- service reuse -> PASS
+  - catalog options are loaded through `Vehicle_Catalog_Service::list_catalog_vehicles(...)`
+- compatible autofill -> PASS static
+  - JS fills `brand`, `model`, `year`
+  - trim/body/fuel/transmission/engine are exposed as preview because `sm_vehicles` does not store those fields
+- manual override -> PASS static
+  - filled fields remain normal editable inputs
+  - VIN, plate, color, mileage, client and notes are not filled from catalog
+- business scope -> PASS static
+  - catalog query uses active business context through `Vehicle_Catalog_Service`
+- persistence safety -> PASS static
+  - no catalog reference is persisted because the vehicle schema has no safe reference column
+
+Runtime/manual:
+- vehicle_create_catalog_selector_loads -> NOT_RUN
+- catalog_selection_prefills_fields -> NOT_RUN
+- manual_override_preserved -> NOT_RUN
+- business_scope_preserved -> NOT_RUN
+
+Scope confirmation:
+- no CSV import
+- no external connector
+- no CRM/users/process/payment/API/frontend portal changes
+- no schema changes
+- no SQL in admin controller
+
+Final status:
+- PARCIAL pending runtime real browser-admin validation
+
+---
+
+## 56P12-D — INVENTORY IMPORT BASE
+
+Fecha de ejecucion: 2026-05-19
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 288
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P12-D-validation.md --output=text` -> PASS automated checks
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Static/manual code verification:
+- CSV parser/service -> PASS static
+  - `parse_csv_file(...)`, `validate_rows(...)`, `dry_run(...)`, `import_rows(...)` are implemented in `Vehicle_Catalog_Import_Service`
+- dry-run safety -> PASS static
+  - dry-run parses and validates only; it does not call catalog persistence
+- import execution -> PASS static
+  - confirmed import writes through `Vehicle_Catalog_Service::create_catalog_vehicle(...)`
+- admin security -> PASS static
+  - import actions enforce capability through the existing catalog screen guard
+  - nonce checks are separate for dry-run and confirm import
+  - uploaded file must use `.csv`
+  - selected business is checked with current user business access
+- architecture -> PASS static
+  - no SQL or `$wpdb` usage detected in import service/admin controller
+
+Runtime/manual:
+- valid_csv_dry_run_works -> NOT_RUN
+- invalid_csv_reports_errors -> NOT_RUN
+- csv_import_creates_catalog_records -> NOT_RUN
+- business_scope_respected -> NOT_RUN
+
+Scope confirmation:
+- no external connector
+- no scheduled sync
+- no VIN decoder
+- no customer vehicle creation from import
+- no CRM/users/process/payment/API/frontend portal changes
+- no schema changes
+
+Final status:
+- PARCIAL pending runtime real browser-admin CSV dry-run/import validation
+
+---
+
+## 56P12-C1 — VEHICLE SCHEMA ENRICHMENT FROM CATALOG
+
+Fecha de ejecucion: 2026-05-18
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 287
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P12-C1-validation.md --output=text` -> PASS automated checks
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Static/manual code verification:
+- schema enrichment -> PASS static
+  - `Schema::get_schema_version()` now returns `1.21.0`
+  - `sm_vehicles` includes nullable `catalog_vehicle_id`, `trim_version`, `body_type`, `fuel_type`, `transmission`, `engine`
+  - `catalog_vehicle_id` index added
+- repository persistence -> PASS static
+  - vehicle create/update uses field-aware formats from payload keys
+- service persistence/security -> PASS static
+  - enriched fields are normalized
+  - selected catalog ID is checked through `Vehicle_Catalog_Service::get_catalog_vehicle(...)` for the resolved vehicle business
+- admin UI -> PASS static
+  - create/edit form exposes editable technical fields
+  - save payload includes enriched fields
+  - detail view displays technical fields
+- JS autofill -> PASS static
+  - catalog selection fills brand/model/year and technical fields
+
+Runtime/manual:
+- vehicle_schema_columns_exist -> NOT_RUN
+- catalog_selection_prefills_technical_fields -> NOT_RUN
+- technical_fields_persist -> NOT_RUN
+- manual_override_preserved -> NOT_RUN
+- business_scope_preserved -> NOT_RUN
+
+Scope confirmation:
+- no CSV import
+- no external connector
+- no CRM/users/process/payment/API/frontend portal changes
+- no SQL in admin controller or service
+
+Final status:
+- PARCIAL pending runtime schema/dbDelta and browser-admin persistence validation
+
+---
+
 ## 56P11-C0 — EMBEDDED PDF ENGINE RESTORE
 
 Fecha de ejecucion: 2026-05-06

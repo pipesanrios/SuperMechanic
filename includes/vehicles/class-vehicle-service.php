@@ -36,17 +36,26 @@ class Vehicle_Service {
 	 * @var Business_Context_Service
 	 */
 	protected $business_context_service;
+	/**
+	 * Vehicle catalog service.
+	 *
+	 * @var Vehicle_Catalog_Service
+	 */
+	protected $vehicle_catalog_service;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param Vehicle_Repository|null $repository     Vehicle repository.
-	 * @param Client_Service|null     $client_service Client service.
+	 * @param Client_Service|null          $client_service           Client service.
+	 * @param Business_Context_Service|null $business_context_service Business context service.
+	 * @param Vehicle_Catalog_Service|null $vehicle_catalog_service  Vehicle catalog service.
 	 */
-	public function __construct( Vehicle_Repository $repository = null, Client_Service $client_service = null, Business_Context_Service $business_context_service = null ) {
+	public function __construct( Vehicle_Repository $repository = null, Client_Service $client_service = null, Business_Context_Service $business_context_service = null, Vehicle_Catalog_Service $vehicle_catalog_service = null ) {
 		$this->repository               = $repository ? $repository : new Vehicle_Repository();
 		$this->client_service           = $client_service ? $client_service : new Client_Service();
 		$this->business_context_service = $business_context_service ? $business_context_service : new Business_Context_Service();
+		$this->vehicle_catalog_service  = $vehicle_catalog_service ? $vehicle_catalog_service : new Vehicle_Catalog_Service( null, $this->business_context_service );
 	}
 
 	/**
@@ -201,6 +210,10 @@ class Vehicle_Service {
 			}
 		}
 
+		if ( ! empty( $data['catalog_vehicle_id'] ) && ! $this->get_catalog_vehicle_for_business( $data['catalog_vehicle_id'], $data['business_id'] ) ) {
+			$errors->add( 'invalid_catalog_vehicle', __( 'El vehículo del catálogo seleccionado no pertenece al negocio actual.', 'super-mechanic' ) );
+		}
+
 		$client = null;
 		if ( $data['client_id'] > 0 ) {
 			$client = $this->client_service->get_client( $data['client_id'] );
@@ -253,22 +266,70 @@ class Vehicle_Service {
 	protected function normalize_vehicle_data( array $data ) {
 		$year = isset( $data['year'] ) ? absint( $data['year'] ) : 0;
 		$candidate_business_id = isset( $data['business_id'] ) ? absint( $data['business_id'] ) : 0;
+		$business_id = $candidate_business_id > 0
+			? $this->normalize_business_id( $candidate_business_id )
+			: $this->resolve_business_id_for_client( isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0 );
+		$catalog_vehicle_id = isset( $data['catalog_vehicle_id'] ) ? absint( $data['catalog_vehicle_id'] ) : 0;
+		$catalog_vehicle    = $catalog_vehicle_id > 0 ? $this->get_catalog_vehicle_for_business( $catalog_vehicle_id, $business_id ) : null;
 
 		return array(
-			'business_id' => $candidate_business_id > 0
-				? $this->normalize_business_id( $candidate_business_id )
-				: $this->resolve_business_id_for_client( isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0 ),
-			'client_id' => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
-			'type'      => 'vehicle',
-			'make'      => isset( $data['brand'] ) ? sanitize_text_field( $data['brand'] ) : '',
-			'model'     => isset( $data['model'] ) ? sanitize_text_field( $data['model'] ) : '',
-			'year'      => $year > 0 ? $year : null,
-			'vin'       => isset( $data['vin'] ) ? strtoupper( sanitize_text_field( $data['vin'] ) ) : '',
-			'plate'     => isset( $data['plate'] ) ? strtoupper( sanitize_text_field( $data['plate'] ) ) : '',
-			'color'     => isset( $data['color'] ) ? sanitize_text_field( $data['color'] ) : '',
-			'notes'     => isset( $data['notes'] ) ? sanitize_textarea_field( $data['notes'] ) : '',
-			'status'    => 'active',
+			'business_id'        => $business_id,
+			'client_id'          => isset( $data['client_id'] ) ? absint( $data['client_id'] ) : 0,
+			'type'               => 'vehicle',
+			'make'               => isset( $data['brand'] ) ? sanitize_text_field( $data['brand'] ) : '',
+			'model'              => isset( $data['model'] ) ? sanitize_text_field( $data['model'] ) : '',
+			'year'               => $year > 0 ? $year : null,
+			'catalog_vehicle_id' => $catalog_vehicle_id > 0 ? $catalog_vehicle_id : null,
+			'trim_version'       => $this->normalize_catalog_text_field( $data, $catalog_vehicle, 'trim_version' ),
+			'body_type'          => $this->normalize_catalog_text_field( $data, $catalog_vehicle, 'body_type' ),
+			'fuel_type'          => $this->normalize_catalog_text_field( $data, $catalog_vehicle, 'fuel_type' ),
+			'transmission'       => $this->normalize_catalog_text_field( $data, $catalog_vehicle, 'transmission' ),
+			'engine'             => $this->normalize_catalog_text_field( $data, $catalog_vehicle, 'engine' ),
+			'vin'                => isset( $data['vin'] ) ? strtoupper( sanitize_text_field( $data['vin'] ) ) : '',
+			'plate'              => isset( $data['plate'] ) ? strtoupper( sanitize_text_field( $data['plate'] ) ) : '',
+			'color'              => isset( $data['color'] ) ? sanitize_text_field( $data['color'] ) : '',
+			'mileage'            => isset( $data['mileage'] ) && '' !== (string) $data['mileage'] ? absint( $data['mileage'] ) : null,
+			'notes'              => isset( $data['notes'] ) ? sanitize_textarea_field( $data['notes'] ) : '',
+			'status'             => 'active',
 		);
+	}
+
+	/**
+	 * Normalize a catalog-derived technical text field.
+	 *
+	 * @param array<string, mixed>      $data            Raw vehicle data.
+	 * @param array<string, mixed>|null $catalog_vehicle Catalog vehicle.
+	 * @param string                    $field           Field name.
+	 * @return string
+	 */
+	protected function normalize_catalog_text_field( array $data, $catalog_vehicle, $field ) {
+		if ( array_key_exists( $field, $data ) ) {
+			return sanitize_text_field( (string) $data[ $field ] );
+		}
+
+		if ( is_array( $catalog_vehicle ) && isset( $catalog_vehicle[ $field ] ) ) {
+			return sanitize_text_field( (string) $catalog_vehicle[ $field ] );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Get a catalog vehicle only when it belongs to the provided business.
+	 *
+	 * @param int $catalog_vehicle_id Catalog vehicle ID.
+	 * @param int $business_id        Business ID.
+	 * @return array<string, mixed>|null
+	 */
+	protected function get_catalog_vehicle_for_business( $catalog_vehicle_id, $business_id ) {
+		$catalog_vehicle_id = absint( $catalog_vehicle_id );
+		$business_id        = absint( $business_id );
+
+		if ( $catalog_vehicle_id <= 0 || $business_id <= 0 ) {
+			return null;
+		}
+
+		return $this->vehicle_catalog_service->get_catalog_vehicle( $catalog_vehicle_id, $business_id );
 	}
 
 	/**

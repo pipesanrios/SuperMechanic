@@ -14,7 +14,7 @@ No future speculation beyond immediate continuity.
 ## Runtime Versions
 
 - Plugin: `0.1.0`
-- Schema: `1.19.0`
+- Schema: `1.21.0`
 
 ---
 
@@ -2293,6 +2293,302 @@ Validation state:
   - FAIL: 0
   - SKIPPED: 0
   - NOT_RUN: 5 manual checks
+
+Closure state:
+- COMPLETA
+
+---
+
+## Fase 56P12-D Inventory Import Base (PARCIAL)
+
+Delivered in current code:
+- CSV import foundation added for reusable vehicle catalog records
+- import service added:
+  - `includes/vehicles/class-vehicle-catalog-import-service.php`
+- Vehicle Catalog admin now includes CSV import flow:
+  - upload CSV
+  - dry-run validation and preview
+  - confirmed import of valid rows
+- dry-run reports:
+  - total rows
+  - valid rows
+  - invalid rows
+  - header/row errors
+  - preview rows
+- confirmed import writes catalog records through:
+  - `Vehicle_Catalog_Service::create_catalog_vehicle(...)`
+
+CSV format:
+- required columns:
+  - `make`
+  - `model`
+  - `year`
+- optional columns:
+  - `trim_version`
+  - `body_type`
+  - `fuel_type`
+  - `transmission`
+  - `engine`
+  - `notes`
+  - `status`
+
+Scope safeguards:
+- no external inventory connector added
+- no scheduled sync added
+- no VIN decoder added
+- no customer vehicle creation from import
+- no CRM/users/process/payment/API/frontend portal changes
+- no schema changes
+- no SQL added outside repository/database layers
+- import remains business-scoped and admin-only
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P12-D-validation.md`) PASS automated checks:
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4 manual checks
+
+Runtime/manual state:
+- Static code verification PASS:
+  - dry-run does not call persistence
+  - confirmed import uses `Vehicle_Catalog_Service`
+  - admin actions enforce nonce/capability/business scope and `.csv` extension
+  - no SQL detected in import service/admin controller
+- WordPress admin browser validation NOT_RUN
+
+Deferred:
+- runtime browser-admin upload/dry-run/import confirmation
+- duplicate catalog detection beyond current service validation
+- large-file/background import
+- external inventory connector/scheduled sync
+
+Closure state:
+- PARCIAL until runtime real admin CSV dry-run/import is validated
+
+---
+
+## Fase 56P12-B Vehicle Catalog Admin UI (PARCIAL)
+
+Delivered in current code:
+- Vehicle Catalog admin page added under Super Mechanic:
+  - `super-mechanic-vehicle-catalog`
+- admin controller added:
+  - `includes/admin/class-vehicle-catalog-admin-controller.php`
+- admin menu wiring added in:
+  - `includes/class-admin-menu.php`
+- catalog count exposed through:
+  - `Vehicle_Catalog_Service::count_catalog_vehicles(...)`
+
+Admin capabilities:
+- list catalog records by business
+- create catalog records
+- edit catalog records
+- deactivate catalog records
+- filter by business/status/search
+
+Scope safeguards:
+- no CSV import added
+- no catalog-to-customer-vehicle creation added
+- no schema changes
+- no API/frontend/CRM/users/process/payment changes
+- admin controller uses `Vehicle_Catalog_Service` for catalog persistence
+- no SQL added outside repository/database layers
+- business selector and requested business scope are filtered through current user business access
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P12-B-validation.md`) PASS automated checks:
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3 manual checks
+
+Runtime/manual state:
+- WordPress admin browser validation NOT_RUN
+- WP-CLI runtime validation attempted but `wp` command is unavailable in this shell
+
+Deferred:
+- CSV import
+- catalog-to-customer-vehicle workflow
+- duplicate catalog detection
+- external inventory connector
+
+Closure state:
+- PARCIAL until runtime real admin UI create/edit/deactivate is validated
+
+---
+
+## Fase 56P12-C Vehicle Creation From Catalog (PARCIAL)
+
+Delivered in current code:
+- vehicle create/edit admin UI now exposes an optional Vehicle Catalog selector
+- selector options are loaded through `Vehicle_Catalog_Service`
+- catalog list is active-record only and business-scoped by the current business context
+- selecting a catalog record pre-fills compatible persisted vehicle fields:
+  - brand/make
+  - model
+  - year
+- catalog-only details are surfaced as preview because the customer vehicle schema does not store them:
+  - trim/version
+  - body type
+  - fuel type
+  - transmission
+  - engine
+- vehicle-specific fields remain manual/editable:
+  - client
+  - VIN
+  - plate
+  - color
+  - mileage
+  - notes
+
+Scope safeguards:
+- no CSV import added
+- no external inventory connector added
+- no CRM/users/process/payment/API/frontend portal changes
+- no SQL added to the admin controller
+- no schema change introduced
+- catalog reference is not persisted because `sm_vehicles` has no safe `catalog_vehicle_id` or equivalent column
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P12-C-validation.md`) PASS automated checks:
+  - PASS: 3
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4 manual checks
+
+Runtime/manual state:
+- WordPress admin browser validation NOT_RUN
+
+Deferred:
+- persisted catalog reference for customer vehicles
+- persisted trim/body/fuel/transmission/engine vehicle attributes
+- richer duplicate/matching workflow
+
+Closure state:
+- PARCIAL until runtime real admin create/edit from catalog is validated
+
+---
+
+## Fase 56P12-C1 Vehicle Schema Enrichment From Catalog (PARCIAL)
+
+Delivered in current code:
+- customer vehicle schema enriched in `sm_vehicles`
+- schema version updated to `1.21.0`
+- new nullable vehicle fields:
+  - `catalog_vehicle_id`
+  - `trim_version`
+  - `body_type`
+  - `fuel_type`
+  - `transmission`
+  - `engine`
+- repository create/update persistence supports enriched vehicle fields
+- service normalization supports enriched fields and validates selected catalog ID through `Vehicle_Catalog_Service`
+- vehicle admin create/edit form exposes editable technical fields
+- catalog selection now fills:
+  - brand/make
+  - model
+  - year
+  - trim/version
+  - body type
+  - fuel
+  - transmission
+  - engine
+- vehicle detail view displays persisted technical fields
+
+Scope safeguards:
+- no CSV import added
+- no external inventory connector added
+- no CRM/users/process/payment/API/frontend portal changes
+- no SQL added to admin controller or service
+- existing vehicle records remain compatible through nullable fields
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P12-C1-validation.md`) PASS automated checks:
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+
+Runtime/manual state:
+- WordPress schema upgrade/runtime dbDelta validation NOT_RUN
+- WordPress admin browser validation NOT_RUN
+
+Deferred:
+- runtime confirmation that `sm_vehicles` columns were applied by dbDelta
+- historical vehicle backfill
+- duplicate/matching workflow
+
+Closure state:
+- PARCIAL until schema/runtime admin persistence is validated in WordPress
+
+---
+
+## Fase 56P12-A Vehicle Catalog Schema/Service (COMPLETA)
+
+Delivered in current code:
+- reusable business-scoped vehicle catalog foundation added
+- schema version updated to `1.20.0`
+- catalog table registered in schema:
+  - `sm_vehicle_catalog`
+- repository added:
+  - `includes/vehicles/class-vehicle-catalog-repository.php`
+- service added:
+  - `includes/vehicles/class-vehicle-catalog-service.php`
+
+Table fields:
+- `business_id`
+- `make`
+- `model`
+- `year`
+- `trim_version`
+- `body_type`
+- `fuel_type`
+- `transmission`
+- `engine`
+- `notes`
+- `status`
+- timestamps
+
+Service methods available:
+- `create_catalog_vehicle(...)`
+- `update_catalog_vehicle(...)`
+- `get_catalog_vehicle(...)`
+- `list_catalog_vehicles(...)`
+- `deactivate_catalog_vehicle(...)`
+
+Scope safeguards:
+- no admin UI added
+- no CSV import added
+- no external inventory connector added
+- no existing vehicle logic changed
+- no process/payment/CRM/users/API/frontend files touched
+- SQL remains in repository/database layer
+- explicit invalid business scope does not fall back to active business for catalog reads
+
+Runtime/manual results:
+- `wp_sm_vehicle_catalog` exists -> PASS
+- create/read/update/list/deactivate through service -> PASS
+- business scope respected -> PASS
+- invalid explicit business create fails with controlled `business_required`
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P12-A-validation.md`) PASS automated checks:
+  - PASS: 2
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 3 manual checks
+
+Deferred:
+- admin UI
+- CSV import
+- catalog-to-customer-vehicle workflow
+- duplicate catalog detection
 
 Closure state:
 - COMPLETA
