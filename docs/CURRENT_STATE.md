@@ -14,7 +14,7 @@ No future speculation beyond immediate continuity.
 ## Runtime Versions
 
 - Plugin: `0.1.0`
-- Schema: `1.21.0`
+- Schema: `1.22.0`
 
 ---
 
@@ -28,8 +28,8 @@ No future speculation beyond immediate continuity.
 
 ## Current Delivery Baseline
 
-- Last completed phase baseline: **Fase 50 (COMPLETA)**
-- Last completed block: **50F (COMPLETA)**
+- Last completed phase baseline: **Phase 57G-B Queue Retry Handling**
+- Last completed block: **57G-B manual SaaS queue retry handling**
 - Block status:
   - `39B` COMPLETE
   - `39C` COMPLETE
@@ -73,6 +73,683 @@ No future speculation beyond immediate continuity.
   - `50D` COMPLETE
   - `50E` COMPLETE
   - `50F` COMPLETE
+  - `56P1` COMPLETE technical
+  - `56P2` COMPLETE technical
+  - `56P3` PARTIAL runtime
+  - `56P4` COMPLETE technical
+  - `56P5` COMPLETE technical
+  - `56P6` COMPLETE technical
+  - `56P7` COMPLETE technical
+  - `56P8` COMPLETE technical
+  - `56P9` COMPLETE technical
+  - `56P10` COMPLETE
+  - `56P11` COMPLETE with minor fixture debt
+  - `56P12` PARTIAL runtime
+  - `56P13` COMPLETE
+  - `57A` COMPLETE
+  - `57B` COMPLETE
+  - `57C` COMPLETE
+  - `57D` COMPLETE
+  - `57D1` COMPLETE
+  - `57E` COMPLETE
+  - `57F` COMPLETE
+  - `57G-A` COMPLETA
+  - `57G-B` COMPLETA
+
+---
+
+## Phase 56P Final Closure (COMPLETA documental)
+
+Closure document:
+- `docs/PHASE_56P_FINAL_CLOSURE.md`
+
+Final baseline:
+- Phase 56P is considered the stable pre-SaaS Mekvort baseline.
+- Runtime validation was completed progressively through automated checks, targeted runtime checks, static/manual verification and QA evidence.
+- Architecture is stabilized around:
+  - `Controller -> Service -> Repository -> Database`
+  - business-scoped permission and ownership checks
+  - hardened API auth
+  - notification/email service separation
+  - embedded/shared PDF engine strategy
+  - Vehicle Catalog as reusable catalog foundation
+  - provider-agnostic inventory connector architecture
+
+Consolidated capabilities:
+- workshops, clients, mechanics, processes, quotes, invoices, reporting, PDFs, CRM, roles, catalog records, CSV catalog import and mock inventory connector simulation.
+
+Remaining macro debt:
+- real provider connectors
+- scheduled sync
+- webhook sync
+- media sync
+- retry queues
+- advanced duplicate matching
+- SaaS orchestration
+- multitenancy evolution
+- performance/indexing future work
+
+Next continuity:
+- Phase 57 — SaaS Foundation
+
+---
+
+## Phase 57 Roadmap Alignment (COMPLETA documental)
+
+Roadmap document:
+- `docs/PHASE_57_SAAS_FOUNDATION.md`
+
+Task contract:
+- `docs/contracts/57-ROADMAP-ALIGNMENT.md`
+
+Validation contract:
+- `docs/contracts/validation/57-ROADMAP-ALIGNMENT-validation.md`
+
+Official Phase 57 structure:
+- `57A — SaaS foundation bootstrap`
+- `57B — Tenant context layer`
+- `57C — SaaS licensing`
+- `57D — Async jobs / queues`
+- `57E — Connector runtime`
+- `57F — Queue persistence foundation`
+- `57G — Media architecture`
+- `57H — SaaS operations`
+
+Principles:
+- preserve `Controller -> Service -> Repository -> Database`
+- preserve Vehicle Catalog as canonical internal inventory model
+- preserve provider-agnostic connector strategy
+- preserve business scope isolation
+- prefer async-first future architecture
+- evolve toward SaaS without breaking current plugin runtime
+
+Deferred/not included:
+- no multiserver orchestration
+- no Kubernetes/container orchestration
+- no billing provider implementation
+- no real connector providers
+- no websocket/live sync
+- no queue workers implementation
+- no runtime/schema/API changes
+
+Scope safeguards:
+- documentation-only roadmap alignment
+- no `includes/*` changes
+- no `assets/*` changes
+- no schema/database changes
+- no runtime code changes
+
+---
+
+## Phase 57A SaaS Foundation Bootstrap (COMPLETA)
+
+Architecture document:
+- `docs/SAAS_FOUNDATION_ARCHITECTURE.md`
+
+Task contract:
+- `docs/contracts/57A.md`
+
+Validation contract:
+- `docs/contracts/validation/57A-validation.md`
+
+Delivered foundation layer:
+- passive SaaS namespace under `includes/saas/*`
+- runtime context abstraction:
+  - `self_hosted`
+  - `saas_future`
+  - `local_development`
+- tenant context abstraction:
+  - future `tenant_id`
+  - current `business_id`
+  - `business_id` remains the active scope boundary
+- license context abstraction:
+  - `license_key`
+  - `subscription_status`
+  - `plan_type`
+  - `instance_id`
+- queue/async placeholder contracts:
+  - queue jobs
+  - retry jobs
+  - scheduled sync jobs
+
+Scope safeguards:
+- no runtime bootstrap rewiring
+- no CRM/process/payment/API changes
+- no schema/database changes
+- no assets changes
+- no billing provider, OAuth provider, queue worker or external SaaS integration
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/57A-validation.md`) PASS automated checks:
+  - PASS: 8
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- static/manual scope verification PASS:
+  - runtime modes are defined
+  - tenant abstraction preserves current `business_id`
+  - license abstraction has no billing provider integration
+  - queue contracts are placeholders only
+  - no forbidden modules were touched by this phase
+
+Runtime/manual state:
+- runtime real NOT_APPLICABLE
+  - passive foundation layer only; no UI, schema, API, external provider or worker is wired in this phase
+
+---
+
+## Phase 57B Tenant Context Layer (COMPLETA)
+
+Task contract:
+- `docs/contracts/57B.md`
+
+Validation contract:
+- `docs/contracts/validation/57B-validation.md`
+
+Delivered bridge:
+- `Tenant_Context` enhanced as a passive bridge between future `tenant_id` and current `business_id`
+- `Runtime_Context::get_tenant_context()` added for future composition layers
+- `business_id` remains the canonical active runtime scope
+- `tenant_id` remains nullable/future-only unless explicitly derived for a future SaaS runtime context
+
+Scope safeguards:
+- no runtime hooks
+- no API changes
+- no frontend/assets changes
+- no schema/database changes
+- no users/roles, CRM, process or payment changes
+- no billing and no tenant DB split
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/57B-validation.md`) PASS automated checks:
+  - PASS: 9
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4 manual checks
+- static/manual scope verification PASS:
+  - `business_id` remains active scope
+  - tenant context remains passive
+  - no schema/database changes
+  - no API/frontend changes
+  - no runtime hooks
+
+Runtime/manual state:
+- runtime real NOT_APPLICABLE
+  - passive bridge only; not wired into current UI/API/schema/runtime hooks
+
+---
+
+## Phase 57C Licensing & Subscription Core (COMPLETA)
+
+Task contract:
+- `docs/contracts/57C.md`
+
+Validation contract:
+- `docs/contracts/validation/57C-validation.md`
+
+Delivered bridge:
+- `License_Context` enhanced as a passive bridge from current local license state to future SaaS subscription state
+- `Subscription_Context` added as passive subscription abstraction
+- entitlement snapshot normalized with:
+  - `max_businesses`
+  - `max_users`
+  - `max_vehicles`
+  - `max_webhooks`
+  - `feature_flags`
+- stable local `instance_id` prepared without external registration
+
+Scope safeguards:
+- no Stripe/payment provider
+- no external billing API
+- no webhooks
+- no schema/database changes
+- no runtime enforcement takeover
+- no CRM/process/payment/users/API/frontend/assets changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/57C-validation.md`) PASS automated checks:
+  - PASS: 9
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4 manual checks
+- static/manual scope verification PASS:
+  - subscription context is passive
+  - no Stripe/payment provider/API calls
+  - current license behavior preserved
+  - no schema/database changes
+  - no runtime enforcement takeover
+
+Runtime/manual state:
+- runtime real NOT_APPLICABLE
+  - passive subscription context only; not wired into UI/API/schema/billing/webhooks
+
+---
+
+## Phase 57D Async Queue Foundation (COMPLETA)
+
+Task contract:
+- `docs/contracts/57D.md`
+
+Validation contract:
+- `docs/contracts/validation/57D-validation.md`
+
+Architecture document:
+- `docs/ASYNC_QUEUE_FOUNDATION.md`
+
+Delivered foundation:
+- passive async job contract under `includes/saas/*`
+- queue job normalization with:
+  - `job_id`
+  - `job_type`
+  - `business_id`
+  - nullable `tenant_id`
+  - `payload`
+  - `status`
+  - `attempts`
+  - `max_attempts`
+  - `scheduled_at`
+  - `created_at`
+  - `last_error`
+- passive queue context, dispatcher and result classes
+- supported future job types:
+  - `inventory_import`
+  - `inventory_connector_sync`
+  - `email_delivery`
+  - `webhook_delivery`
+  - `google_calendar_sync`
+  - `pdf_generation`
+- supported statuses:
+  - `pending`
+  - `running`
+  - `completed`
+  - `failed`
+  - `retry_scheduled`
+  - `cancelled`
+
+Scope safeguards:
+- no schema/database changes
+- no `$wpdb` or SQL in SaaS queue classes
+- no cron/hook registration
+- no external HTTP calls
+- no workers or background execution
+- existing active `includes/queue/*` runtime remains unchanged
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/57D-validation.md`) PASS automated checks:
+  - PASS: 13
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- static/manual scope verification PASS:
+  - no `$wpdb`/SQL usage in `includes/saas/*`
+  - no hook/cron registration in `includes/saas/*`
+  - no external HTTP calls in `includes/saas/*`
+  - no schema/database diff
+
+Runtime/manual state:
+- runtime real NOT_APPLICABLE
+  - passive contract layer only; no UI, worker, schema, external provider or active background execution is introduced
+
+Deferred:
+- persistent SaaS queue storage
+- worker runtime
+- retry executor and dead-letter queue
+- scheduled sync activation
+- connector/email/webhook/calendar/PDF async wiring
+
+---
+
+## Phase 57D1 Async Queue Runtime Smoke Validation (COMPLETA)
+
+Task contract:
+- `docs/contracts/57D1.md`
+
+Validation contract:
+- `docs/contracts/validation/57D1-validation.md`
+
+Task evidence:
+- `docs/tasks/2026-04-57d1-async-queue-runtime-smoke-validation.md`
+
+Smoke result:
+- passive queue objects instantiate successfully
+- valid jobs normalize for:
+  - `inventory_import`
+  - `inventory_connector_sync`
+  - `email_delivery`
+  - `webhook_delivery`
+  - `google_calendar_sync`
+  - `pdf_generation`
+- normalized job structure includes all required fields
+- invalid jobs return expected errors:
+  - `unsupported_job_type`
+  - `business_id_required`
+  - `payload_must_be_array`
+  - `attempts_exceed_max_attempts`
+- dispatcher remains passive:
+  - `writes = 0`
+  - `executed = false`
+  - `passive = true`
+- status model exposes:
+  - `pending`
+  - `running`
+  - `completed`
+  - `failed`
+  - `retry_scheduled`
+  - `cancelled`
+
+Safe fix:
+- `Queue_Job_Contract` now preserves non-array payloads as invalid so smoke validation can report `payload_must_be_array`.
+
+Scope safeguards:
+- no real workers
+- no cron/hook registration
+- no database writes
+- no external HTTP calls
+- no schema/database changes
+- no connector execution
+- no email sending
+- no PDF generation
+
+Runtime/manual state:
+- runtime smoke PASS
+- runtime real NOT_APPLICABLE
+  - passive class validation only; no UI, worker, schema, external service or background execution is activated
+
+---
+
+## Phase 57E Connector Runtime Wiring (COMPLETA)
+
+Task contract:
+- `docs/contracts/57E.md`
+
+Validation contract:
+- `docs/contracts/validation/57E-validation.md`
+
+Task evidence:
+- `docs/tasks/2026-04-57e-connector-runtime-wiring.md`
+
+Delivered bridge:
+- mock inventory connector dry-run intent now builds a passive `inventory_connector_sync` queue job
+- mock inventory connector sync simulation intent now builds a passive `inventory_connector_sync` queue job
+- `Inventory_Connector_Service` exposes:
+  - `build_dry_run_job(...)`
+  - `build_sync_job(...)`
+  - `dispatch_dry_run_intent(...)`
+  - `dispatch_sync_intent(...)`
+
+Runtime smoke result:
+- dry-run queue job PASS:
+  - `connector_key`: `mock_inventory`
+  - `operation`: `dry_run`
+  - `dry_run`: `true`
+  - `provider_type`: `mock`
+  - normalized item count: `3`
+  - `writes = 0`
+  - `executed = false`
+  - `passive = true`
+- sync-intent queue job PASS:
+  - `connector_key`: `mock_inventory`
+  - `operation`: `sync_simulation`
+  - `dry_run`: `false`
+  - `provider_type`: `mock`
+  - normalized item count: `3`
+  - `writes = 0`
+  - `executed = false`
+  - `passive = true`
+
+Scope safeguards:
+- no real provider APIs
+- no OAuth
+- no scheduled sync
+- no real job execution
+- no DB writes
+- no schema changes
+- no admin UI
+
+Runtime/manual state:
+- runtime smoke PASS
+- runtime real NOT_APPLICABLE
+  - passive bridge only; no UI, worker, schema, external service or background execution is activated
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/57E-validation.md`) PASS automated checks:
+  - PASS: 8
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- static/manual scope verification PASS:
+  - no `$wpdb`/SQL usage in 57E wiring scope
+  - no hook/cron registration in 57E wiring scope
+  - no external HTTP calls in 57E wiring scope
+  - no real import, worker, email or PDF execution in 57E wiring scope
+  - no schema/database changes
+
+---
+
+## Phase 57F Queue Persistence Foundation (COMPLETA)
+
+Task contract:
+- `docs/contracts/57F.md`
+
+Validation contract:
+- `docs/contracts/validation/57F-validation.md`
+
+Task evidence:
+- `docs/tasks/2026-04-57f-queue-persistence-foundation.md`
+
+Delivered foundation:
+- SaaS queue persistence table registered:
+  - `sm_saas_queue_jobs`
+- schema version updated to `1.22.0`
+- repository added:
+  - `includes/saas/class-queue-job-repository.php`
+- `Queue_Context` now supports opt-in `persistence_enabled`
+- `Queue_Dispatcher` can persist normalized jobs only when persistence is explicitly enabled
+- default dispatcher remains passive and non-persistent
+
+Repository methods:
+- `create_job(array $job)`
+- `get_job_by_id($job_id)`
+- `list_jobs(array $filters = array())`
+- `update_status($job_id, $status, array $meta = array())`
+- `mark_failed($job_id, $error)`
+- `mark_completed($job_id)`
+- `schedule_retry($job_id, $available_at, $error = '')`
+
+Runtime smoke result:
+- table `wp_sm_saas_queue_jobs` exists -> PASS
+- repository create/retrieve/update/retry/complete -> PASS
+- dispatcher default does not persist -> PASS
+- dispatcher persistence-enabled persists without execution -> PASS
+- persisted dispatcher result:
+  - `persisted = true`
+  - `writes = 1`
+  - `executed = false`
+  - `passive = true`
+
+Scope safeguards:
+- no workers
+- no cron/hook activation
+- no external HTTP calls
+- no connector execution
+- no email sending
+- no API/admin UI/frontend changes
+- no CRM/users/process/payment changes
+
+Runtime/manual state:
+- runtime persistence smoke PASS
+- runtime real browser/admin NOT_APPLICABLE
+  - no UI, API endpoint, worker, cron, external provider or background execution is activated
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/57F-validation.md`) PASS automated checks:
+  - PASS: 12
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- static/manual scope verification PASS:
+  - SQL/`$wpdb` only in repository/database layer
+  - no hook/cron registration in 57F scope
+  - no external HTTP calls in 57F scope
+  - no worker, connector execution, email or PDF execution in 57F scope
+  - no forbidden module changes by 57F
+
+Deferred:
+- worker runtime
+- scheduler/cron activation
+- job claim/lock execution lifecycle
+- dead-letter queue
+- retention/pruning
+- queue admin UI
+- external queue provider
+
+---
+
+## Phase 57G-A Manual Queue Worker (COMPLETA)
+
+Task contract:
+- `docs/contracts/57G-A.md`
+
+Validation contract:
+- `docs/contracts/validation/57G-A-validation.md`
+
+Task evidence:
+- `docs/tasks/2026-04-57g-a-manual-queue-worker.md`
+
+Delivered foundation:
+- manual queue worker added:
+  - `includes/saas/class-queue-worker.php`
+- repository claim helpers added:
+  - `get_next_available_job(...)`
+  - `claim_job(...)`
+  - `release_lock(...)`
+  - `update_attempts(...)`
+  - `mark_running(...)`
+- worker processes one job per manual `process_next(...)` call
+- supported job type:
+  - `inventory_connector_sync`
+- handler is simulation-only and rejects unsafe non-simulation payloads
+
+Runtime smoke result:
+- valid simulation job:
+  - `pending -> completed`
+  - handler code `simulation_completed`
+  - `executed = false`
+  - handler writes `0`
+- invalid unsafe job:
+  - `pending -> failed`
+  - last error `unsafe_non_simulation_payload`
+  - `executed = false`
+- lock token behavior:
+  - claimed job stores lock token while `running`
+  - lock token is cleared after completion
+
+Scope safeguards:
+- no cron/hook activation
+- no scheduled worker
+- no batch processing
+- no external HTTP calls
+- no real provider API calls
+- no catalog imports
+- no email/PDF/Google Calendar execution
+- no API/admin UI/frontend changes
+
+Runtime/manual state:
+- runtime manual smoke PASS
+- runtime real browser/admin NOT_APPLICABLE
+  - no UI, API endpoint, cron, scheduler, external provider or background execution is activated
+
+Validation state:
+- `php-lint` PASS
+- QA Runner PASS: 13 automated checks passed, 0 failed, 0 skipped, 5 manual checks not run by the runner.
+- static/manual forbidden-pattern verification PASS: no cron/scheduled hooks, no external HTTP/provider execution, no real imports, no email sending, no PDF generation and no Google Calendar execution in worker/repository changes.
+
+Deferred:
+- automatic workers
+- scheduler/cron activation
+- retry executor
+- dead-letter queue
+- admin UI
+- real connector handlers
+- operational observability UI
+
+---
+
+## Phase 57G-B Queue Retry Handling (COMPLETA)
+
+Task contract:
+- `docs/contracts/57G-B.md`
+
+Validation contract:
+- `docs/contracts/validation/57G-B-validation.md`
+
+Task evidence:
+- `docs/tasks/2026-04-57g-b-queue-retry-handling.md`
+
+Delivered behavior:
+- manual queue worker now schedules retries for failed jobs below max attempts
+- attempts increment on processing failure, not on claim
+- retry scheduling uses deterministic backoff:
+  - attempt 1: +5 minutes
+  - attempt 2: +15 minutes
+  - attempt 3 and above: +30 minutes
+- future `retry_scheduled` jobs remain ignored by `process_next()`
+- due `retry_scheduled` jobs can be picked manually
+- jobs reaching max attempts become final `failed`
+- lock token is cleared after retry scheduling and final failure
+
+Runtime smoke result:
+- first failing job:
+  - `retry_scheduled`
+  - attempts `1`
+  - future `available_at`
+  - `lock_token = null`
+  - `executed = false`
+- future retry job:
+  - skipped with `no_available_job`
+- due retry job:
+  - picked manually and rescheduled with attempts `2`
+  - `executed = false`
+- max attempts job:
+  - final `failed`
+  - attempts `3`
+  - `lock_token = null`
+  - `executed = false`
+
+Scope safeguards:
+- no cron/hook activation
+- no scheduled worker
+- no batch processing
+- no external HTTP calls
+- no real provider API calls
+- no catalog imports
+- no email/PDF/Google Calendar execution
+- no API/admin UI/frontend changes
+
+Runtime/manual state:
+- runtime manual smoke PASS
+- runtime real browser/admin NOT_APPLICABLE
+  - no UI, API endpoint, cron, scheduler, external provider or background execution is activated
+
+Validation state:
+- `php-lint` PASS
+- QA Runner PASS: 12 automated checks passed, 0 failed, 0 skipped, 6 manual checks not run by the runner.
+- static/manual forbidden-pattern verification PASS: no cron/scheduled hooks, no external HTTP execution, no real imports, no email sending, no PDF generation and no Google Calendar execution in worker/repository/context changes.
+
+Deferred:
+- automatic workers
+- scheduler/cron activation
+- retry executor daemon
+- dead-letter queue
+- admin UI
+- real connector handlers
+- operational observability UI
 
 ---
 

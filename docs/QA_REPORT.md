@@ -14,6 +14,519 @@
 - Runner statuses: PASS, FAIL, SKIPPED, NOT_RUN.
 - PASS tecnico no implica fase completa; runtime manual remains required when applicable.
 
+---
+
+## PHASE 57G-B - QUEUE RETRY HANDLING
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57G-B.md`
+
+Validation Contract:
+- `docs/contracts/validation/57G-B-validation.md`
+
+Runtime manual smoke:
+- first failing job -> PASS
+  - worker status: `retry_scheduled`
+  - stored status: `retry_scheduled`
+  - attempts: `1`
+  - max attempts: `3`
+  - future `available_at`: true
+  - lock token cleared: true
+  - last_error: `unsafe_non_simulation_payload`
+  - executed: `false`
+- future retry job ignored -> PASS
+  - worker status: `skipped`
+  - message: `no_available_job`
+- due retry job picked manually -> PASS
+  - worker status: `retry_scheduled`
+  - stored status: `retry_scheduled`
+  - attempts: `2`
+  - lock token cleared: true
+  - executed: `false`
+- max attempts final failure -> PASS
+  - worker status: `failed`
+  - stored status: `failed`
+  - attempts: `3`
+  - lock token cleared: true
+  - last_error: `unsafe_non_simulation_payload`
+  - executed: `false`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 303
+  - errors: 0
+- QA Runner PASS: 12 automated checks passed, 0 failed, 0 skipped, 6 manual checks not run by the runner.
+
+Static/manual verification:
+- forbidden-pattern checks PASS: no cron/scheduled hooks, no external HTTP execution, no real imports, no email sending, no PDF generation and no Google Calendar execution in worker/repository/context changes.
+
+Runtime/manual:
+- runtime real browser/admin -> NOT_APPLICABLE
+  - retry handling is manual worker behavior only; no UI, API endpoint, cron, scheduled worker, external provider, email, PDF or background execution is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57G-A — MANUAL QUEUE WORKER
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57G-A.md`
+
+Validation Contract:
+- `docs/contracts/validation/57G-A-validation.md`
+
+Runtime manual smoke:
+- valid simulation `inventory_connector_sync` job -> PASS
+  - before: `pending`
+  - after: `completed`
+  - worker result: `completed`
+  - handler code: `simulation_completed`
+  - handler writes: `0`
+  - executed: `false`
+  - lock after completion: `null`
+- invalid unsafe `inventory_connector_sync` job -> PASS
+  - after: `failed`
+  - last_error: `unsafe_non_simulation_payload`
+  - worker result: `failed`
+  - executed: `false`
+- lock token behavior -> PASS
+  - claimed status: `running`
+  - claimed lock: `57ga-lock-token`
+  - after processing: `completed`
+  - lock after processing: `null`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 303
+  - errors: 0
+- QA Runner PASS: 13 automated checks passed, 0 failed, 0 skipped, 5 manual checks not run by the runner.
+
+Static/manual verification:
+- forbidden-pattern checks PASS: no cron/scheduled hooks, no external HTTP/provider execution, no real imports, no email sending, no PDF generation and no Google Calendar execution in worker/repository changes.
+
+Runtime/manual:
+- runtime real browser/admin -> NOT_APPLICABLE
+  - manual worker foundation only; no UI, API endpoint, cron, scheduled worker, external provider, email, PDF or background execution is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57F — QUEUE PERSISTENCE FOUNDATION
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57F.md`
+
+Validation Contract:
+- `docs/contracts/validation/57F-validation.md`
+
+Schema:
+- `Schema::get_schema_version()` -> `1.22.0`
+- `sm_saas_queue_jobs` registered in `Schema::get_tables()`
+- runtime table name -> `wp_sm_saas_queue_jobs`
+- table exists after migration -> PASS
+
+Runtime persistence smoke:
+- repository create job -> PASS
+  - `insert_id`: `1`
+- repository retrieve job -> PASS
+- repository update status to `running` -> PASS
+- repository schedule retry -> PASS
+  - retry status: `retry_scheduled`
+- repository mark completed -> PASS
+  - completed status: `completed`
+- dispatcher default -> PASS
+  - `persisted`: `false`
+  - `writes`: `0`
+  - `executed`: `false`
+  - persisted lookup: `false`
+- dispatcher with persistence enabled -> PASS
+  - `persisted`: `true`
+  - `writes`: `1`
+  - `executed`: `false`
+  - persisted lookup: `true`
+- post-smoke cleanup -> PASS
+  - pending smoke jobs with payload source prefix `57f_` marked as `completed`
+  - no worker executed them
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 302
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57F-validation.md --output=text` -> PASS automated checks
+  - PASS: 12
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Static/manual verification:
+- SQL/`$wpdb` only in `includes/database/class-schema.php` and `includes/saas/class-queue-job-repository.php` -> PASS
+- no hook/cron registration in 57F scope -> PASS
+- no external HTTP, worker, connector execution, email or PDF execution calls in 57F scope -> PASS
+- no API/frontend/assets/CRM/users/process/payment changes by 57F -> PASS
+
+Runtime/manual:
+- runtime real browser/admin -> NOT_APPLICABLE
+  - persistence foundation only; no UI, API endpoint, worker, cron, external provider, email, PDF or background execution is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57E — CONNECTOR RUNTIME WIRING
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57E.md`
+
+Validation Contract:
+- `docs/contracts/validation/57E-validation.md`
+
+Runtime smoke:
+- mock connector dry-run -> passive queue job -> PASS
+  - `job_type`: `inventory_connector_sync`
+  - `connector_key`: `mock_inventory`
+  - `operation`: `dry_run`
+  - `dry_run`: `true`
+  - `provider_type`: `mock`
+  - `normalized_count`: `3`
+  - `writes`: `0`
+  - `executed`: `false`
+  - `passive`: `true`
+- mock connector sync simulation -> passive queue job -> PASS
+  - `job_type`: `inventory_connector_sync`
+  - `connector_key`: `mock_inventory`
+  - `operation`: `sync_simulation`
+  - `dry_run`: `false`
+  - `provider_type`: `mock`
+  - `normalized_count`: `3`
+  - `writes`: `0`
+  - `executed`: `false`
+  - `passive`: `true`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 301
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57E-validation.md --output=text` -> PASS automated checks
+  - PASS: 8
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Static/manual verification:
+- no `$wpdb`/SQL in 57E scope -> PASS
+- no hook/cron registration in 57E scope -> PASS
+- no external HTTP/email/PDF/import/worker execution calls in 57E scope -> PASS
+- no schema/database changes -> PASS
+- dispatcher remains passive with `writes = 0`, `executed = false`, `passive = true` -> PASS
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - passive connector queue bridge only; no UI, schema, worker, cron, external provider, email, PDF or background execution is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57D1 — ASYNC QUEUE RUNTIME SMOKE VALIDATION
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57D1.md`
+
+Validation Contract:
+- `docs/contracts/validation/57D1-validation.md`
+
+Runtime smoke:
+- passive PHP instantiation smoke -> PASS
+- valid job types -> PASS:
+  - `inventory_import`
+  - `inventory_connector_sync`
+  - `email_delivery`
+  - `webhook_delivery`
+  - `google_calendar_sync`
+  - `pdf_generation`
+- normalized job fields present -> PASS
+- invalid job cases -> PASS:
+  - missing `job_type` -> `unsupported_job_type`
+  - invalid `job_type` -> `unsupported_job_type`
+  - missing `business_id` -> `business_id_required`
+  - invalid `payload` -> `payload_must_be_array`
+  - `attempts > max_attempts` -> `attempts_exceed_max_attempts`
+- dispatcher passive result -> PASS:
+  - `writes = 0`
+  - `executed = false`
+  - `passive = true`
+- status model -> PASS:
+  - `pending`, `running`, `completed`, `failed`, `retry_scheduled`, `cancelled`
+
+Safe fix:
+- `Queue_Job_Contract` now keeps non-array payloads invalid for correct smoke validation.
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 301
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57D1-validation.md --output=text` -> PASS automated checks
+  - PASS: 11
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Static/manual verification:
+- no `$wpdb`/SQL in `includes/saas/*` -> PASS
+- no hook/cron registration in `includes/saas/*` -> PASS
+- no external HTTP/email/PDF/job execution calls in `includes/saas/*` -> PASS
+- no changes in schema/database, active queue, integrations, API or assets -> PASS
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - passive queue class smoke only; no UI, schema, worker, cron, external provider, email, PDF or background execution is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57D — ASYNC QUEUE FOUNDATION
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57D.md`
+
+Validation Contract:
+- `docs/contracts/validation/57D-validation.md`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 301
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57D-validation.md --output=text` -> PASS automated checks
+  - PASS: 13
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Static/manual verification:
+- no `$wpdb`/SQL usage in `includes/saas/*` -> PASS
+- no hook/cron registration in `includes/saas/*` -> PASS
+- no external HTTP calls in `includes/saas/*` -> PASS
+- no schema/database diff -> PASS
+- passive dispatcher does not persist or execute jobs -> PASS
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - passive queue contract layer only; no UI, schema, worker, external provider or background execution is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57C — LICENSING & SUBSCRIPTION CORE
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57C.md`
+
+Validation Contract:
+- `docs/contracts/validation/57C-validation.md`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 297
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57C-validation.md --output=text` -> PASS automated checks
+  - PASS: 9
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Static/manual verification:
+- subscription context is passive -> PASS
+- no Stripe/payment provider/API calls -> PASS
+- current license behavior preserved -> PASS
+- no schema/database changes -> PASS
+- no runtime enforcement takeover -> PASS
+  - static search found no external billing calls, schema writes, hooks or enforcement wiring in `includes/saas/*`
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - passive context layer only; no UI, API, schema, billing provider, webhook or external integration is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57B — TENANT CONTEXT LAYER
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57B.md`
+
+Validation Contract:
+- `docs/contracts/validation/57B-validation.md`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 296
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57B-validation.md --output=text` -> PASS automated checks
+  - PASS: 9
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Static/manual verification:
+- `business_id` remains active scope -> PASS
+- tenant context remains passive -> PASS
+- no schema/database changes -> PASS
+- no API/frontend changes -> PASS
+- no runtime hooks -> PASS
+  - no SQL, `$wpdb`, hooks, cron, REST routes, API wiring, frontend/assets, Stripe/OAuth or external calls found in `includes/saas/*`
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - passive context bridge only; no UI, API, schema, hooks or frontend behavior is activated
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57A — SAAS FOUNDATION BOOTSTRAP
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57A.md`
+
+Validation Contract:
+- `docs/contracts/validation/57A-validation.md`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 296
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57A-validation.md --output=text` -> PASS automated checks
+  - PASS: 8
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5
+
+Static/manual verification:
+- SaaS foundation class files exist -> PASS
+- runtime modes defined -> PASS
+- tenant abstraction preserves `business_id` -> PASS
+- license abstraction has no billing provider integration -> PASS
+- queue contracts are placeholders only -> PASS
+- forbidden scope untouched -> PASS
+  - no SQL, `$wpdb`, hooks, cron, REST routes, Stripe/OAuth or external calls found in `includes/saas/*`
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - passive foundation layer only; no UI, schema, API, external provider or worker is wired in this phase
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 57 — SAAS FOUNDATION ROADMAP ALIGNMENT
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/57-ROADMAP-ALIGNMENT.md`
+
+Validation Contract:
+- `docs/contracts/validation/57-ROADMAP-ALIGNMENT-validation.md`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 292
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/57-ROADMAP-ALIGNMENT-validation.md --output=text` -> PASS automated checks
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Static/manual verification:
+- Phase 57 roadmap document exists -> PASS
+- subphases 57A through 57F defined -> PASS
+- SaaS foundation principles defined -> PASS
+- deferred/not included areas defined -> PASS
+- no `includes/*` modified -> PASS
+- no `assets/*` modified -> PASS
+- no schema/database/runtime files modified -> PASS
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - documentation-only roadmap alignment
+
+Final status:
+- COMPLETA
+
+---
+
+## PHASE 56P FINAL CLOSURE
+
+Fecha de ejecucion: 2026-05-19
+
+Task Contract:
+- `docs/contracts/56P-FINAL-CLOSURE.md`
+
+Validation Contract:
+- `docs/contracts/validation/56P-FINAL-CLOSURE-validation.md`
+
+Automated:
+- `php scripts/php-lint.php --all` -> PASS
+  - files checked: 292
+  - errors: 0
+- `php scripts/qa-runner.php --contract=docs/contracts/validation/56P-FINAL-CLOSURE-validation.md --output=text` -> PASS automated checks
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4
+
+Static/manual verification:
+- final closure document exists -> PASS
+- subphase matrix covers 56P1 through 56P13 -> PASS
+- Phase 57 SaaS Foundation next macro phase documented -> PASS
+- remaining technical debt consolidated -> PASS
+- no `includes/*` modified by this closure -> PASS
+- no `assets/*` modified by this closure -> PASS
+- no schema/database runtime files modified by this closure -> PASS
+- no runtime code changes introduced by this closure -> PASS
+
+Runtime/manual:
+- runtime real -> NOT_APPLICABLE
+  - documentation-only closure
+
+Final status:
+- COMPLETA
+
+---
+
 Fecha de ejecución: 2026-03-27
 
 Modo de validación ejecutado:

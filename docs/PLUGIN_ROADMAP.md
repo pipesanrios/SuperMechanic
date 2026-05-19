@@ -13,9 +13,81 @@ Use:
 
 ## Baseline
 
-- Current delivery baseline: **Fase 49**
-- Fase 49 status: **COMPLETA**
-- Fase 50 status: **COMPLETA**
+- Current delivery baseline: **Fase 56P Final Closure**
+- Fase 56P status: **COMPLETA documental / stable pre-SaaS baseline**
+- Canonical closure document:
+  - `docs/PHASE_56P_FINAL_CLOSURE.md`
+
+## Next Continuity — Phase 57 — SaaS Foundation
+
+Canonical phase document:
+- `docs/PHASE_57_SAAS_FOUNDATION.md`
+
+Recommended macro scope:
+- tenancy evolution
+- SaaS billing
+- centralized licensing
+- async jobs
+- connector runtime
+- media storage strategy
+- queue architecture
+- provider credential storage
+- SaaS-ready performance/indexing review
+
+Continuity constraints:
+- preserve `Controller -> Service -> Repository -> Database`
+- preserve `business_id` isolation
+- preserve existing API auth hardening
+- preserve Vehicle Catalog as internal canonical inventory model
+- connector provider logic must remain adapter-based
+
+Official Phase 57 structure:
+- 57A — SaaS foundation bootstrap
+  - passive runtime context, tenant context, license context and queue placeholder contracts under `includes/saas/*`
+  - canonical architecture document: `docs/SAAS_FOUNDATION_ARCHITECTURE.md`
+- 57B — Tenant context layer
+  - passive bridge between future `tenant_id` and current canonical `business_id`
+- 57C — SaaS licensing
+  - activation flow, plan validation, subscription state, license enforcement and centralized licensing architecture
+  - passive licensing/subscription context delivered; billing and enforcement takeover remain deferred
+- 57D — Async jobs / queues
+  - imports, notifications, retries, sync queues and async processing strategy
+  - passive queue contract, context, dispatcher and result model delivered under `includes/saas/*`
+  - no workers, cron, persistence, external queues or background execution enabled
+  - 57D1 smoke validation completed for valid jobs, invalid jobs, status model and passive dispatcher behavior
+- 57E — Connector runtime
+  - first real provider, scheduled sync, retry handling, connector execution runtime and sync orchestration
+  - passive mock connector runtime wiring delivered as queue intent bridge
+  - real providers, scheduled sync and workers remain deferred
+- 57F — Queue persistence foundation
+  - persistent SaaS queue table and repository delivered
+  - dispatcher persistence remains opt-in; default remains passive and non-persistent
+  - workers, cron, real execution and external queue providers remain deferred
+- 57G-A — Manual queue worker
+  - manual one-job worker foundation delivered for persisted SaaS queue jobs
+  - simulation-only `inventory_connector_sync` processing
+  - cron, scheduled workers, real provider execution and batch processing remain deferred
+- 57G-B — Queue retry handling
+  - controlled retry scheduling delivered for manual queue worker failures
+  - deterministic backoff: +5 minutes, +15 minutes, +30 minutes
+  - future retry jobs remain ignored until `available_at <= now`
+  - cron, scheduled workers, automatic retry executor and batch processing remain deferred
+- 57G — Media architecture
+  - image sync, external storage strategy, CDN readiness, media ownership model and connector media lifecycle
+- 57H — SaaS operations
+  - telemetry, health checks, centralized admin, runtime diagnostics and SaaS operational tooling
+
+Deferred/not included in roadmap alignment:
+- no full multiserver orchestration yet
+- no Kubernetes/container orchestration yet
+- no billing provider implementation yet
+- no real connector providers yet
+- no websocket/live sync yet
+- no queue workers implementation yet
+
+Next recommended implementation continuity:
+- 57G — media architecture
+- 57H — SaaS operations
 
 ---
 
@@ -171,38 +243,30 @@ Runtime closure:
   - automation engine event processing
   - no duplicate event dispatch observed
 
-## Next Continuity — Phase 51
+## Phase 56P — Pre-SaaS Baseline Closure
 
-Target:
-- notifications/triggers/integrations over finalized multi-business access model
-- preserve access safety and tenant isolation guarantees from phases 43–49
+Closure:
+- Phase 56P final documentary closure completed.
+- Canonical closure:
+  - `docs/PHASE_56P_FINAL_CLOSURE.md`
 
----
-
-## Phase 56P13 — Inventory Connectors Roadmap
-
-Architecture baseline:
-- 56P13-A completed as documentation-only architecture decision.
-- 56P13-B completed as documentation-only generic connector contract.
+Connector baseline:
+- 56P13-A completed architecture decision.
+- 56P13-B completed generic connector contract.
+- 56P13-C completed mock connector prototype.
 - Canonical decision document:
   - `docs/INVENTORY_CONNECTOR_ARCHITECTURE.md`
 - Canonical connector contract:
   - `docs/INVENTORY_CONNECTOR_CONTRACT.md`
 
-Forward continuity:
-- 56P13-C First Provider Prototype
-  - implement one low-risk provider or generic CSV/API adapter against the canonical flow and generic connector contract
-- 56P13-D Scheduled Sync Engine
-  - add controlled scheduled/background sync, stale detection and retry policy
-- 56P13-E Connector Admin UI
-  - add business-scoped connector configuration, dry-run, conflict review and sync history UI
-
-Roadmap constraints:
-- future provider integrations must stay adapter-based
-- provider logic must not be added to `Vehicle_Catalog_Service`
-- inventory connector sync must preserve `business_id`
-- catalog writes must go through catalog services
-- OAuth, webhook sync, queues, retries and external media sync remain deferred until explicit contracts
+Deferred into Phase 57 or later:
+- real provider connectors
+- scheduled sync
+- webhook sync
+- connector admin UI
+- queues/retries
+- OAuth/credential storage
+- external media sync
 
 ---
 

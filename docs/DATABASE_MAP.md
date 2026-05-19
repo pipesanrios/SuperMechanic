@@ -9,7 +9,7 @@ No phase timeline and no architecture narrative.
 
 Schema authority:
 - `includes/database/class-schema.php`
-- `SM_DB_VERSION` baseline: `1.19.0`
+- `SM_DB_VERSION` baseline: `1.22.0`
 
 ## Core Operational Tables
 - `sm_clients`
@@ -41,6 +41,7 @@ Schema authority:
 - `sm_appointment_calendar_sync`
 - `sm_webhooks`
 - `sm_webhook_deliveries`
+- `sm_saas_queue_jobs`
 
 ## Tenancy / Business Tables
 - `sm_businesses`

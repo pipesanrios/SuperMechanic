@@ -19,7 +19,7 @@ class Schema {
 	 * @return string
 	 */
 	public static function get_schema_version() {
-		return '1.21.0';
+		return '1.22.0';
 	}
 
 	/**
@@ -64,6 +64,7 @@ class Schema {
 			'notifications'     => $wpdb->prefix . 'sm_notifications',
 			'webhooks'          => $wpdb->prefix . 'sm_webhooks',
 			'webhook_deliveries' => $wpdb->prefix . 'sm_webhook_deliveries',
+			'saas_queue_jobs'   => $wpdb->prefix . 'sm_saas_queue_jobs',
 		);
 	}
 
@@ -110,6 +111,7 @@ class Schema {
 		$notifications_table   = $tables['notifications'];
 		$webhooks_table        = $tables['webhooks'];
 		$webhook_deliveries_table = $tables['webhook_deliveries'];
+		$saas_queue_jobs_table = $tables['saas_queue_jobs'];
 
 		return array(
 			"CREATE TABLE {$businesses_table} (
@@ -803,6 +805,31 @@ class Schema {
 				KEY business_id (business_id),
 				KEY status_next_retry (status,next_retry_at),
 				KEY event_key (event_key)
+			) {$charset_collate};",
+			"CREATE TABLE {$saas_queue_jobs_table} (
+				id bigint(20) unsigned NOT NULL auto_increment,
+				job_id varchar(64) NOT NULL,
+				job_type varchar(64) NOT NULL,
+				business_id bigint(20) unsigned NOT NULL,
+				tenant_id varchar(64) DEFAULT NULL,
+				payload_json longtext DEFAULT NULL,
+				status varchar(32) NOT NULL default 'pending',
+				attempts int(10) unsigned NOT NULL default 0,
+				max_attempts int(10) unsigned NOT NULL default 3,
+				scheduled_at datetime DEFAULT NULL,
+				available_at datetime DEFAULT NULL,
+				locked_at datetime DEFAULT NULL,
+				lock_token varchar(128) DEFAULT NULL,
+				last_error text DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY job_id (job_id),
+				KEY job_type (job_type),
+				KEY business_id (business_id),
+				KEY status (status),
+				KEY available_at (available_at),
+				KEY scheduled_at (scheduled_at)
 			) {$charset_collate};",
 		);
 	}

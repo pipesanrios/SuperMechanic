@@ -186,3 +186,14 @@ Deferred areas remain outside this contract: OAuth flows, encrypted credentials 
 - No `assets/*` files are modified.
 - No runtime connector implementation is introduced.
 - The contract aligns with `docs/INVENTORY_CONNECTOR_ARCHITECTURE.md` and preserves the current Vehicle Catalog and CSV import boundaries.
+
+## 57E Passive Queue Intent Bridge
+
+The first runtime bridge is passive and local-only:
+
+- mock connector dry-run and sync simulation can build `inventory_connector_sync` queue jobs
+- queue jobs are created through the passive SaaS `Queue_Dispatcher`
+- payloads include connector identity, operation, `dry_run`, provider type, normalized item preview/count and validation summary
+- queue results remain passive with `writes = 0` and `executed = false`
+
+57E does not introduce real provider APIs, OAuth, scheduled sync, queue workers, persistence, catalog writes, admin UI or schema changes.
