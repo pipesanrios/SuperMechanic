@@ -2299,6 +2299,219 @@ Closure state:
 
 ---
 
+## Fase 56P13-C First Connector Prototype Mock (COMPLETA)
+
+Delivered in current code:
+- first inbound inventory connector prototype added under:
+  - `includes/integrations/inventory-connectors/`
+- mock connector facade added:
+  - `Mock_Inventory_Connector`
+- mock local adapter added:
+  - `Mock_Inventory_Adapter`
+- connector orchestration service added:
+  - `Inventory_Connector_Service`
+- normalized payload mapper/validator added:
+  - `Inventory_Sync_Mapper`
+- mock inventory records included:
+  - Toyota Corolla 2024 Hybrid
+  - Honda Civic 2023 Sport
+  - Fiat 500 2022 Lounge
+
+Connector behavior:
+- provider key: `mock_inventory`
+- local/mock records only
+- no real provider
+- no external API calls
+- no OAuth
+- no scheduled sync
+- no admin UI
+- no DB writes
+
+Dry-run result verified locally:
+- `total_rows`: 3
+- `valid_rows`: 3
+- `invalid_rows`: 0
+- `would_create`: 3
+- `would_update`: 0
+- `would_skip`: 0
+- `writes`: 0
+
+Sync simulation result verified locally:
+- `result`: `success`
+- `imported`: 3
+- `updated`: 0
+- `skipped`: 0
+- `writes`: 0
+- `simulation`: true
+
+Scope safeguards:
+- no CRM/users/process/payment/API changes
+- no schema changes
+- no admin UI changes
+- no assets changes
+- connector payload remains business-scoped
+- provider-specific logic stays outside `Vehicle_Catalog_Service`
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P13-C-validation.md`) PASS automated checks:
+  - PASS: 7
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- local mock execution PASS:
+  - dry-run returns expected counters
+  - sync simulation returns expected counters
+  - no writes performed
+
+Runtime/manual state:
+- WordPress UI runtime validation NOT_APPLICABLE
+- runtime real not required because there is no UI, schema migration, external provider call, scheduled sync or DB mutation in this phase
+
+Deferred:
+- real provider adapter
+- connector persistence/sync mapping schema
+- connector admin UI
+- scheduled sync
+- OAuth/credential storage
+- queue/retry handling
+- external media sync
+- real catalog import from connector sync
+
+Closure state:
+- COMPLETA
+
+---
+
+## Fase 56P13-B Generic Connector Contract (COMPLETA)
+
+Delivered in current documentation:
+- generic inventory connector technical contract defined in:
+  - `docs/INVENTORY_CONNECTOR_CONTRACT.md`
+- connector identity requirements documented:
+  - `connector_key`
+  - `provider_name`
+  - `provider_type`
+  - `version`
+  - `business_id`
+- adapter method contract documented:
+  - `get_connector_key()`
+  - `validate_credentials()`
+  - `fetch_inventory()`
+  - `normalize_item()`
+  - `dry_run()`
+  - `sync()`
+- normalized inventory payload documented for required and optional provider-neutral fields
+- sync operation vocabulary documented:
+  - `dry_run`
+  - `import_new`
+  - `update_existing`
+  - `deactivate_stale`
+  - `skip_invalid`
+  - `conflict_detected`
+- standard connector error model documented
+- logging, conflict handling and security expectations documented
+
+Scope safeguards:
+- documentation-only phase
+- no `includes/*` changes
+- no `assets/*` changes
+- no schema changes
+- no runtime connector implementation
+- no customer vehicle creation from connectors
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P13-B-validation.md`) PASS automated checks:
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 5 manual checks
+- manual/static confirmation:
+  - no `includes/*` files modified by this phase
+  - no `assets/*` files modified by this phase
+  - contract aligns with `docs/INVENTORY_CONNECTOR_ARCHITECTURE.md`
+  - roadmap/state/QA docs aligned
+
+Deferred:
+- connector runtime interfaces
+- provider adapter implementation
+- connector persistence/schema
+- encrypted credentials storage
+- scheduled sync
+- webhook sync
+- queue workers
+- retry strategy
+- external media sync
+
+Closure state:
+- COMPLETA
+
+---
+
+## Fase 56P13-A Connector Architecture Decision (COMPLETA)
+
+Delivered in current documentation:
+- canonical inbound inventory connector strategy defined in:
+  - `docs/INVENTORY_CONNECTOR_ARCHITECTURE.md`
+- connector architecture decision documented as provider-agnostic and isolated from core catalog logic
+- future inventory providers are defined as adapters, not core logic:
+  - `mobile_de`
+  - `autoscout24`
+  - `dealercenter`
+  - `generic_csv_api`
+- canonical flow defined:
+  - external provider
+  - provider adapter
+  - raw provider records
+  - sync mapper
+  - normalized catalog payload
+  - sync validation
+  - catalog sync service
+  - `Vehicle_Catalog_Service`
+  - vehicle catalog
+- recommended future layers documented:
+  - Connector Controller
+  - Connector Service
+  - Provider Adapter
+  - Sync Mapper
+  - Sync Repository
+
+Scope safeguards:
+- documentation-only phase
+- no runtime implementation
+- no schema changes
+- no `includes/*` changes
+- no `assets/*` changes
+- no CRM/users/process/payment/API implementation changes
+
+Validation state:
+- `php-lint` PASS
+- QA runner (`docs/contracts/validation/56P13-A-validation.md`) PASS automated checks:
+  - PASS: 5
+  - FAIL: 0
+  - SKIPPED: 0
+  - NOT_RUN: 4 manual checks
+- manual/static confirmation:
+  - no `includes/*` files modified by this phase
+  - no `assets/*` files modified by this phase
+  - roadmap/state/QA docs aligned
+
+Deferred:
+- connector implementation
+- connector persistence/schema
+- OAuth
+- scheduled sync
+- webhook sync
+- queue workers
+- retry strategy
+- external media sync
+
+Closure state:
+- COMPLETA as architecture-only documentation phase
+
+---
+
 ## Fase 56P12-D Inventory Import Base (PARCIAL)
 
 Delivered in current code:

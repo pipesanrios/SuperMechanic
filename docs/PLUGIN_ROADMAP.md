@@ -179,6 +179,33 @@ Target:
 
 ---
 
+## Phase 56P13 — Inventory Connectors Roadmap
+
+Architecture baseline:
+- 56P13-A completed as documentation-only architecture decision.
+- 56P13-B completed as documentation-only generic connector contract.
+- Canonical decision document:
+  - `docs/INVENTORY_CONNECTOR_ARCHITECTURE.md`
+- Canonical connector contract:
+  - `docs/INVENTORY_CONNECTOR_CONTRACT.md`
+
+Forward continuity:
+- 56P13-C First Provider Prototype
+  - implement one low-risk provider or generic CSV/API adapter against the canonical flow and generic connector contract
+- 56P13-D Scheduled Sync Engine
+  - add controlled scheduled/background sync, stale detection and retry policy
+- 56P13-E Connector Admin UI
+  - add business-scoped connector configuration, dry-run, conflict review and sync history UI
+
+Roadmap constraints:
+- future provider integrations must stay adapter-based
+- provider logic must not be added to `Vehicle_Catalog_Service`
+- inventory connector sync must preserve `business_id`
+- catalog writes must go through catalog services
+- OAuth, webhook sync, queues, retries and external media sync remain deferred until explicit contracts
+
+---
+
 ## Roadmap Rules
 
 - Do not rewrite completed history in this file
